@@ -1,0 +1,31 @@
+{
+  "rules": [
+    {
+      "enabled": true,
+      "name": "delete-raw-inspection-data",
+      "type": "Lifecycle",
+      "definition": {
+        "actions": {
+          "version": {
+            "delete": {
+              "daysAfterCreationGreaterThan": 1
+            }
+          },
+          "baseBlob": {
+            "delete": {
+              "daysAfterModificationGreaterThan": 1
+            }
+          }
+        },
+        "filters": {
+          "blobTypes": [
+            "blockBlob"
+          ],
+          "prefixMatch": [
+            "rawinspectiondata/"
+          ]
+        }
+      }
+    }
+  ]
+}
