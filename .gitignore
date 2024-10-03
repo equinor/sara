@@ -29,3 +29,6 @@ bld/
 # Python
 *.venv
 *venv
+
+# Environment
+*.env
