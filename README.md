@@ -6,3 +6,36 @@ See [LocalFunctionProj](./functions/LocalFunctionProj/) for an example of how to
 'func start' from the [LocalFunctionProj](./functions/LocalFunctionProj/) folder, and then going to 'http://localhost:7071/api/HttpExample' to trigger it.
 
 If you get 'Can't determine Project to build. Expected 1 .csproj or .fsproj but found 2' run 'dotnet clean' before running 'func start'
+
+## Deployment of azure resources (PostgreSQL flexible server, KeyVault and Storage accounts)
+
+Requirements to be met:
+
+- Contributor role in [S159-Robotics-in-Echo](https://portal.azure.com/#@StatoilSRM.onmicrosoft.com/resource/subscriptions/c389567b-2dd0-41fa-a5da-d86b81f80bda/overview) subscription.
+- [az CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli) installed.
+
+### Deployment of resources
+
+1. Give the deployment script privileges to run. From root of this repository, run:
+   - `chmod +x scripts/automation/deploy.sh`
+2. Prepare the resource group name:
+   - open the /scripts/automation/infrastructure.bicepparam file.
+   - change `param environment = 'YourEnvName' ` to desire name.
+     Keep in mind that, in the same file, you can change the name of storage accounts, key vault and database if needed. Remember that the names of these resources must be unique.
+3. Deploy the Azure resources with the bicep files. Run the following commands:
+   - `az login `
+   - select the S159 subscription when prompted. If not, run: `az account set -s S159-Robotics-in-Echo`
+   - `bash scripts/automation/deploy.sh`
+
+### Individual deployment of blob containers
+
+You can populate the previously deployed storage accounts with blob containers as needed, following these steps:
+
+1. Open /scripts/automation/modules/blob-container.bicep file.
+2. Change:
+   - `param storageAccountName string = 'YourStorageAccountNameHere'`
+   - `param containerName string = 'YourContainerNameHere'`
+     Note: the container name should be in lowercase.
+3. Run the following command:
+
+- `az deployment group create --resource-group <resource-group-name> --template-file <bicep-file-name>`, changing '<resource-group-name>' for the already deployed resource group name, and <bicep-file-name>` for /scripts/automation/modules/blob-container.
