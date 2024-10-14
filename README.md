@@ -47,8 +47,8 @@ You can populate the previously deployed storage accounts with blob containers a
 
 ### Generate client secret (App Registration) and inject to deployed key vault.
 
-1. Under /scripts/automation/appRegistration, there are vailable config files for each one of the environments (dev, staging and prod). Select which one you want to modify.
+1. Under /scripts/automation/appRegistration, there are available config files for each one of the environments (dev, staging and prod). Select which one you want to modify, to deploy a new client secret.
 2. Ensure that `CFG_IDA_CLIENT_ID` is the client ID of the App in which you want to add a new client secret. These values are already pre-filed for IDA app registrations.
 3. You can change `CFG_IDA_SECRET_NAME` by the secret name desired.
 4. Change `CFG_RESOURCE_GROUP` and `CFG_VAULT_NAME` for the resource group and respective key vault, in which the secret will be injected.
-5. Change the source in 'app-injection-secrets.sh' with the path to the config file you were editing and grat privileges to run it: `bash scripts/automation/appRegistration/app-injection-secrets.sh`
+5. Change the source in 'app-injection-secrets.sh' with the path to the config file you were editing and grant privileges to run it: `bash scripts/automation/appRegistration/app-injection-secrets.sh`
