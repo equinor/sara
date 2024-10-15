@@ -1,11 +1,13 @@
 targetScope = 'subscription'
 
 param environment string
-param resourceGroupName string = 'IDA-${environment}'
+param resourceGroupName string = 'IDATEST1510-${environment}'
 param location string
 
 param storageAccountNameRaw string
+
 param storageAccountNameAnon string
+
 param storageAccountNameVis string
 
 param keyVaultName string
@@ -14,6 +16,7 @@ param objectIdFgRobots string
 param administratorLogin string
 @secure()
 param administratorLoginPassword string
+param postgresConnectionString string
 param serverName string
 
 resource resourceGroup 'Microsoft.Resources/resourceGroups@2024-03-01' = {
@@ -57,6 +60,7 @@ module keyVault 'modules/key-vault.bicep' = {
     objectIdFgRobots: objectIdFgRobots
     secrets: [
       { name: 'administratorLoginPassword', value: administratorLoginPassword }
+      { name: 'postgresConnectionString', value: postgresConnectionString }
     ]
   }
 }
