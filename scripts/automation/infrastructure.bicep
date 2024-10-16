@@ -1,7 +1,7 @@
 targetScope = 'subscription'
 
 param environment string
-param resourceGroupName string = 'IDATEST1510-${environment}'
+param resourceGroupName string = 'IDA${environment}'
 param location string
 
 param storageAccountNameRaw string
