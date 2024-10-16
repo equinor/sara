@@ -18,6 +18,7 @@ Requirements to be met:
 
 - Contributor role in [S159-Robotics-in-Echo](https://portal.azure.com/#@StatoilSRM.onmicrosoft.com/resource/subscriptions/c389567b-2dd0-41fa-a5da-d86b81f80bda/overview) subscription.
 - [az CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli) installed.
+- It will be required, for the deployment and injection in the key vault of the postgreSQL connection string, to build a json file from the provided bicepparam file. This will be an automated process, but you need to ensure to have [jq](https://github.com/jqlang/jq), a command-line json processor. If you are using MacOs, you can installed with [brew](https://formulae.brew.sh/formula/jq).
 
 ### Deployment of resources
 
@@ -30,7 +31,9 @@ Requirements to be met:
 3. Deploy the Azure resources with the bicep files. Run the following commands:
    - `az login `
    - select the S159 subscription when prompted. If not, run: `az account set -s S159-Robotics-in-Echo`
-   - `bash scripts/automation/deploy.sh`
+   - run `az bicep build-params --file scripts/automation/infrastructure.bicepparam --outfile scripts/automation/infrastructure.parameters.json` to generate a json file from the bicepparam file provided.
+   - run `bash scripts/automation/deploy.sh` to deploy the resources.
+   - Note: administrator login password and the connection string for the postgreSQL flexible server would be available in the deployed key vault.
 
 ### Individual deployment of blob containers
 
@@ -52,3 +55,8 @@ You can populate the previously deployed storage accounts with blob containers a
 3. You can change `CFG_IDA_SECRET_NAME` by the secret name desired.
 4. Change `CFG_RESOURCE_GROUP` and `CFG_VAULT_NAME` for the resource group and respective key vault, in which the secret will be injected.
 5. Change the source in 'app-injection-secrets.sh' with the path to the config file you were editing and grant privileges to run it: `bash scripts/automation/appRegistration/app-injection-secrets.sh`
+
+### Generate connection strings for storage accounts and inject to deployed key vault.
+
+1. Following same logic as for the client secrets (app Registration) in the previous section, modify the names of the storage accounts and the names you want to use for the deployed connection string in the same config files. For example, `CFG_STORAGE_ACCOUNT_NAME_RAW` is the name of the raw storage account and `CFG_CONNECTION_STRING_RAW_NAME` would be the displayed name in the key vault for the connection string of the raw storage account. Do the same for anon and vis storage accounts.
+2. Change the source in 'blobstorage-injection-connectionstrings.sh' to the desired config file and grant privileges to run it: `bash scripts/automation/appRegistration/blobstorage-injection-connectionstrings.sh`
