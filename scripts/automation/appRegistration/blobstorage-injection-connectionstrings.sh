@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Load variables from .cfg file
-source ./scripts/automation/appRegistration/app-injection-secrets-param-prod.cfg
+source ./path/to/config.cfg
 
 # Generate new connection strings for storage accounts:
 rawConnectionString=$(az storage account show-connection-string -g $CFG_RESOURCE_GROUP -n $CFG_STORAGE_ACCOUNT_NAME_RAW --out tsv)

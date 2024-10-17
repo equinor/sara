@@ -5,7 +5,7 @@ param resourceGroupName = 'IDA${environment}'
 param location = 'northeurope'
 param objectIdFgRobots = '5ac08731-48dd-4499-9151-7bf6b8ab8eac'
 
-param keyVaultName = 'ida1-${environment}'
+param keyVaultName = 'idakv-${environment}'
 
 param administratorLogin = 'idapostgresqlserver_${environment}'
 param administratorLoginPassword = ''
