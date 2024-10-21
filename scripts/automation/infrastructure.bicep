@@ -60,7 +60,7 @@ module keyVault 'modules/key-vault.bicep' = {
     objectIdFgRobots: objectIdFgRobots
     secrets: [
       { name: 'administratorLoginPassword', value: administratorLoginPassword }
-      { name: 'postgresConnectionString', value: postgresConnectionString }
+      { name: 'Database--postgresConnectionString', value: postgresConnectionString }
     ]
   }
 }
