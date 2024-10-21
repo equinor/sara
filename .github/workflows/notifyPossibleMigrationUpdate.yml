@@ -1,0 +1,46 @@
+name: Notify possible migration changes
+
+on:
+  pull_request_target:
+    branches: [main]
+    paths: [api/Models/**]
+
+env:
+  message: |
+    :bell: Changes in database folder detected :bell:
+    Do these changes require **adding new migrations**? :thinking: In that case follow [these steps](https://github.com/equinor/inspection-data-analyzer/tree/main/api#Database-model-and-EF-Core).
+    If you are uncertain, ask a database admin on the team :smile:
+
+jobs:
+  Notify_Possible_Migration:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get changed files in the migrations folder
+        id: changed_files
+        uses: tj-actions/changed-files@v45
+        with:
+          files: api/Migrations/**
+          sha: ${{ github.event.pull_request.head.sha }}
+
+      - name: If no migrations, check for previous comment
+        if: ${{ steps.changed_files.outputs.any_changed != 'true' }}
+        id: notify_comment_search
+        uses: peter-evans/find-comment@v3
+        with:
+          issue-number: ${{ github.event.number }}
+          body-includes: ${{ env.message }}
+
+      - name: Add comment if no migrations and no comment exists
+        if: |
+          !steps.notify_comment_search.outputs.comment-body &&
+          steps.changed_files.outputs.any_changed != 'true'
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: ${{ github.event.number }}
+          body: ${{ env.message }}

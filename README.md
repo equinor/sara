@@ -5,13 +5,6 @@ IDA (Inspection Data Analyzer) is a repository for running pipelines to analyze 
 When running locally the endpoint can be reached at
 https://localhost:8100
 
-TODO: At the moment the application is using FlotillaKV and Flotilla App Reg in Azure, needs to be changed to a new one for IDA
-
-See [LocalFunctionProj](./functions/LocalFunctionProj/) for an example of how to set up your pipeline. You can also run this function locally by running
-'func start' from the [LocalFunctionProj](./functions/LocalFunctionProj/) folder, and then going to 'http://localhost:7071/api/HttpExample' to trigger it.
-
-If you get 'Can't determine Project to build. Expected 1 .csproj or .fsproj but found 2' run 'dotnet clean' before running 'func start'
-
 ## Deployment of azure resources (PostgreSQL flexible server, KeyVault and Storage accounts)
 
 Requirements to be met:
@@ -60,3 +53,103 @@ You can populate the previously deployed storage accounts with blob containers a
 
 1. Following same logic as for the client secrets (app Registration) in the previous section, modify the names of the storage accounts and the names you want to use for the deployed connection string in the same config files. For example, `CFG_STORAGE_ACCOUNT_NAME_RAW` is the name of the raw storage account and `CFG_CONNECTION_STRING_RAW_NAME` would be the displayed name in the key vault for the connection string of the raw storage account. Do the same for anon and vis storage accounts.
 2. Change the source in 'blobstorage-injection-connectionstrings.sh' to the desired config file and grant privileges to run it: `bash scripts/automation/appRegistration/blobstorage-injection-connectionstrings.sh`
+
+## Database model and EF Core
+
+Our database model is defined in the folder
+[`/api/Models`](/api/Models) and we use
+[Entity Framework Core](https://docs.microsoft.com/en-us/ef/core/) as an
+object-relational mapper (O/RM). When making changes to the model, we also need
+to create a new
+[migration](https://docs.microsoft.com/en-us/ef/core/managing-schemas/migrations/)
+and apply it to our databases.
+
+### Installing EF Core
+
+```bash
+dotnet tool install --global dotnet-ef
+```
+
+### Adding a new migration
+
+**NB: Make sure you have have fetched the newest code from main and that no-one else
+is making migrations at the same time as you!**
+
+1. Set the environment variable `ASPNETCORE_ENVIRONMENT` to `Development`:
+
+   ```bash
+    export ASPNETCORE_ENVIRONMENT=Development
+   ```
+
+2. Run the following command from `/api`:
+   ```bash
+     dotnet ef migrations add AddTableNamePropertyName
+   ```
+   `add` will make changes to existing files and add 2 new files in
+   `/api/Migrations`, which all need to be checked in to git.
+
+### Notes
+
+- The `your-migration-name-here` is basically a database commit message.
+- `Database__ConnectionString` will be fetched from the keyvault when running the `add` command.
+- `add` will _not_ update or alter the connected database in any way, but will add a
+  description of the changes that will be applied later
+- If you for some reason are unhappy with your migration, you can delete it with:
+  ```bash
+  dotnet ef migrations remove
+  ```
+  Once removed you can make new changes to the model
+  and then create a new migration with `add`.
+
+### Applying the migrations to the dev database
+
+Updates to the database structure (applying migrations) are done in Github Actions.
+
+When a pull request contains changes in the `/api/Migrations` folder,
+[a workflow](https://github.com/equinor/inspection-data-analyzer/blob/main/.github/workflows/notifyMigrationChanges.yml)
+is triggered to notify that the pull request has database changes.
+
+After the pull request is approved, a user can then trigger the database changes by commenting
+`/UpdateDatabase` on the pull request.
+
+This will trigger
+[another workflow](https://github.com/equinor/flotilla/blob/main/.github/workflows/updateDatabase.yml)
+which updates the database by apploying the new migrations.
+
+By doing migrations this way, we ensure that the commands themselves are scripted, and that the database
+changes become part of the review process of a pull request.
+
+### Applying migrations to staging and production databases
+
+This is done automatically as part of the promotion workflows
+([promoteToProduction](https://github.com/equinor/flotilla/blob/main/.github/workflows/promoteToProduction.yml)
+and [promoteToStaging](https://github.com/equinor/flotilla/blob/main/.github/workflows/promoteToStaging.yml)).
+
+## Formatting
+
+### CSharpier
+
+In everyday development we use [CSharpier](https://csharpier.com/) to auto-format code on save. Installation procedure is described [here](https://csharpier.com/docs/About). No configuration should be required.
+
+### Dotnet format
+
+The formatting of the api is defined in the [.editorconfig file](../.editorconfig).
+
+We use [dotnet format](https://docs.microsoft.com/en-us/dotnet/core/tools/dotnet-format)
+to format and verify code style in api based on the
+[C# coding conventions](https://docs.microsoft.com/en-us/dotnet/csharp/fundamentals/coding-style/coding-conventions).
+
+Dotnet format is included in the .NET6 SDK.
+
+To check the formatting, run the following command in the api folder:
+
+```
+cd api
+dotnet format --severity info --verbosity diagnostic --verify-no-changes --exclude ./api/migrations
+```
+
+dotnet format is used to detect naming conventions and other code-related issues. They can be fixed by
+
+```
+dotnet format --severity info
+```

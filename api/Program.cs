@@ -74,7 +74,7 @@ builder.Services.AddAuthorizationBuilder().AddFallbackPolicy(
 
 var app = builder.Build();
 
-string basePath = builder.Configuration["BackendBaseRoute"] ?? "";
+string basePath = builder.Configuration["ApiBaseRoute"] ?? "";
 app.UseSwagger(
     c =>
     {
