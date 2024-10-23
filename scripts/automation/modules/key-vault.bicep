@@ -2,6 +2,19 @@ param location string
 param keyVaultName string
 param objectIdFgRobots string
 param secrets array
+param managedIdentityName string
+param principalId string
+param roleDefinitionID string
+
+module managedIdentity 'managed-identity.bicep' = {
+  name: 'managedidentity'
+  params: {
+    location: location
+    managedIdentityName: managedIdentityName
+    principalId: principalId
+    roleDefinitionID: roleDefinitionID
+  }
+}
 
 resource keyVault 'Microsoft.KeyVault/vaults@2024-04-01-preview' = {
   name: keyVaultName
@@ -34,6 +47,17 @@ resource keyVaultAccessPolicy 'Microsoft.KeyVault/vaults/accessPolicies@2024-04-
           ]
           secrets: [
             'set'
+            'get'
+            'list'
+          ]
+        }
+      }
+      {
+        tenantId: keyVault.properties.tenantId
+        objectId: managedIdentity.outputs.objectIdManagedIdentity
+        permissions: {
+          keys: []
+          secrets: [
             'get'
             'list'
           ]

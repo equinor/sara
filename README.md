@@ -24,7 +24,7 @@ Requirements to be met:
 3. Deploy the Azure resources with the bicep files. Run the following commands:
    - `az login `
    - select the S159 subscription when prompted. If not, run: `az account set -s S159-Robotics-in-Echo`
-   - run `az bicep build-params --file scripts/automation/infrastructure.bicepparam --outfile scripts/automation/infrastructure.parameters.json` to generate a json file from the bicepparam file provided.
+   - run `az bicep build-params --file scripts/automation/infrastructure-<env>.bicepparam --outfile scripts/automation/infrastructure-<env>.parameters.json` to generate a json file from the bicepparam file provided. Change '<env>' by the desired environment to deploy.
    - run `bash scripts/automation/deploy.sh` to deploy the resources.
    - Note: administrator login password and the connection string for the postgreSQL flexible server would be available in the deployed key vault.
 

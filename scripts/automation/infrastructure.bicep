@@ -19,6 +19,10 @@ param administratorLoginPassword string
 param postgresConnectionString string
 param serverName string
 
+param managedIdentityName string
+param principalId string
+param roleDefinitionId string
+
 resource resourceGroup 'Microsoft.Resources/resourceGroups@2024-03-01' = {
   name: resourceGroupName
   location: location
@@ -51,6 +55,17 @@ module storageAccountVis 'modules/storage-account-visualize.bicep' = {
   }
 }
 
+module managedIdentity 'modules/managed-identity.bicep' = {
+  scope: resourceGroup
+  name: 'infrastructure-mi'
+  params: {
+    location: location
+    managedIdentityName: managedIdentityName
+    principalId: principalId
+    roleDefinitionID: roleDefinitionId
+  }
+}
+
 module keyVault 'modules/key-vault.bicep' = {
   scope: resourceGroup
   name: 'infrastructure-kv'
@@ -58,6 +73,9 @@ module keyVault 'modules/key-vault.bicep' = {
     location: location
     keyVaultName: keyVaultName
     objectIdFgRobots: objectIdFgRobots
+    principalId: principalId
+    managedIdentityName: managedIdentityName
+    roleDefinitionID: roleDefinitionId
     secrets: [
       { name: 'administratorLoginPassword', value: administratorLoginPassword }
       { name: 'Database--postgresConnectionString', value: postgresConnectionString }
