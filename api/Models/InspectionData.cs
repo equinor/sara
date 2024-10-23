@@ -19,10 +19,7 @@ namespace api.Models
 
         public Uri? RawDataUri { get; set; }
 
-        // public Uri? AnonymizedUri { get; set; }
-
-        // [Required]
-        // public bool IsComplete { get; set; }
+        public string InstallationCode { get; set; }
 
         [Required]
         public DateTime DateCreated { get; set; } = DateTime.UtcNow;

@@ -41,6 +41,7 @@ if (builder.Configuration.GetSection("KeyVault").GetValue<bool>("UseKeyVault"))
 builder.ConfigureLogger();
 
 builder.Services.Configure<AzureAdOptions>(builder.Configuration.GetSection("AzureAd"));
+builder.Services.Configure<BlobOptions>(builder.Configuration.GetSection("Storage"));
 
 builder.Services.AddDbContext<IdaDbContext>(opt =>
     opt.UseInMemoryDatabase("TodoList"));
