@@ -67,6 +67,8 @@ resource keyVaultAccessPolicy 'Microsoft.KeyVault/vaults/accessPolicies@2024-04-
   }
 }
 
+//TODO: Add policy ida client id
+
 resource keyVaultSecret 'Microsoft.KeyVault/vaults/secrets@2024-04-01-preview' = [
   for secret in secrets: {
     name: secret.name

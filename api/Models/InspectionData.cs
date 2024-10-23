@@ -30,6 +30,9 @@ public class InspectionData
     public Uri? AnonymizedUri { get; set; }
 
     [Required]
+    public string InstallationCode { get; set; }
+
+    [Required]
     public WorkflowStatus AnonymizerWorkflowStatus { get; set; } = WorkflowStatus.NotStarted;
 
     [Required]

@@ -1,5 +1,4 @@
 ﻿using System.Globalization;
-using System.Text;
 using api.Configurations;
 using Azure;
 using Azure.Identity;
@@ -10,17 +9,27 @@ namespace api.Services
 {
     public interface IBlobService
     {
-        public Task<byte[]> DownloadBlob(string blobName, string containerName, string accountName);
+        public Task<byte[]> DownloadBlob(string blobName, string containerName);
 
-        public AsyncPageable<BlobItem> FetchAllBlobs(string containerName, string accountName);
+        public AsyncPageable<BlobItem> FetchAllBlobs(string containerName);
 
     }
 
-    public class BlobService(ILogger<BlobService> logger, IOptions<AzureAdOptions> azureOptions) : IBlobService
+    public class BlobOptions
     {
-        public async Task<byte[]> DownloadBlob(string blobName, string containerName, string accountName)
+        public string RawStorageAccount { get; set; } = "";
+        public string RawConnectionString { get; set; } = "";
+        public string AnonStorageAccount { get; set; } = "";
+        public string AnonConnectionString { get; set; } = "";
+        public string VisStorageAccount { get; set; } = "";
+        public string VisConnectionString { get; set; } = "";
+    }
+
+    public class BlobService(ILogger<BlobService> logger, IOptions<BlobOptions> blobOptions) : IBlobService
+    {
+        public async Task<byte[]> DownloadBlob(string blobName, string containerName)
         {
-            var blobContainerClient = GetBlobContainerClient(containerName, accountName);
+            var blobContainerClient = GetBlobContainerClient(containerName);
             var blobClient = blobContainerClient.GetBlobClient(blobName);
 
             using var memoryStream = new MemoryStream();
@@ -29,9 +38,9 @@ namespace api.Services
             return memoryStream.ToArray();
         }
 
-        public AsyncPageable<BlobItem> FetchAllBlobs(string containerName, string accountName)
+        public AsyncPageable<BlobItem> FetchAllBlobs(string containerName)
         {
-            var blobContainerClient = GetBlobContainerClient(containerName, accountName);
+            var blobContainerClient = GetBlobContainerClient(containerName);
             try
             {
                 return blobContainerClient.GetBlobsAsync(BlobTraits.Metadata);
@@ -44,16 +53,10 @@ namespace api.Services
             }
         }
 
-        private BlobContainerClient GetBlobContainerClient(string containerName, string accountName)
+        // TODO: Set up possibility to use different containers
+        private BlobContainerClient GetBlobContainerClient(string containerName)
         {
-            var serviceClient = new BlobServiceClient(
-                new Uri($"https://{accountName}.blob.core.windows.net"),
-                new ClientSecretCredential(
-                    azureOptions.Value.TenantId,
-                    azureOptions.Value.ClientId,
-                    azureOptions.Value.ClientSecret
-                )
-            );
+            var serviceClient = new BlobServiceClient(blobOptions.Value.AnonConnectionString);
             var containerClient = serviceClient.GetBlobContainerClient(containerName.ToLower(CultureInfo.CurrentCulture));
             return containerClient;
         }

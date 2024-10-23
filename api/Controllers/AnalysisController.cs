@@ -24,7 +24,7 @@ public class AnalysisController(ILogger<AnalysisController> logger, IAnalysisSer
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<IList<AnalysisResponse>>> GetAllInspectionData([FromQuery] QueryParameters parameters)
+    public async Task<ActionResult<IList<AnalysisResponse>>> GetAllAnalysis([FromQuery] QueryParameters parameters)
     {
         PagedList<Analysis> analysis;
         try
@@ -49,26 +49,26 @@ public class AnalysisController(ILogger<AnalysisController> logger, IAnalysisSer
     [HttpGet]
     [Authorize(Roles = Role.Any)]
     [Route("id/{id}")]
-    [ProducesResponseType(typeof(InspectionDataResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(AnalysisResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<InspectionDataResponse>> GetInspectionDataById([FromRoute] string id)
+    public async Task<ActionResult<AnalysisResponse>> GetAnalysisById([FromRoute] string id)
     {
         try
         {
             var analysis = await analysisService.ReadById(id);
             if (analysis == null)
             {
-                return NotFound($"Could not find inspection data with id {id}");
+                return NotFound($"Could not find analysis with id {id}");
             }
             var response = new AnalysisResponse(analysis);
             return Ok(response);
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Error during GET of inspectionData from database");
+            logger.LogError(e, "Error during GET of analysis from database");
             throw;
         }
     }

@@ -9,7 +9,9 @@ namespace api.Controllers;
 
 [ApiController]
 [Route("[controller]")]
-public class InspectionDataController(ILogger<InspectionDataController> logger, IInspectionDataService inspectionDataService) : ControllerBase
+public class InspectionDataController(
+    ILogger<InspectionDataController> logger,
+    IInspectionDataService inspectionDataService) : ControllerBase
 {
     /// <summary>
     /// List all inspection data database
@@ -105,4 +107,58 @@ public class InspectionDataController(ILogger<InspectionDataController> logger, 
             throw;
         }
     }
+
+    /// <summary>
+    /// Get image file from blob store
+    /// </summary>
+    /// <remarks>
+    /// <para> This endpoint serves an image file from the blob store </para>
+    /// </remarks>
+    [HttpGet]
+    [Authorize(Roles = Role.Any)]
+    [Route("image/{inspectionId}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> DownloadUriFromInspectionId([FromRoute] string inspectionId)
+    {
+        try
+        {
+            var inspection = await inspectionDataService.ReadByInspectionId(inspectionId);
+            if (inspection == null)
+            {
+                return NotFound($"Could not find inspection data with inspection id {inspectionId}");
+            }
+
+            var downloadUri = inspection.RawDataUri;
+
+            if (downloadUri == null || !Uri.IsWellFormedUriString(downloadUri.ToString(), UriKind.Absolute))
+            {
+                return NotFound($"Could not find uri for inspection {inspectionId}");
+            }
+
+            return Ok(downloadUri);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Error during GET of image from blob store");
+            return StatusCode(StatusCodes.Status500InternalServerError, "Internal server error");
+        }
+    }
+
+    // private static string GetContentType(string fileName)
+    // {
+    //     var extension = Path.GetExtension(fileName).ToLowerInvariant();
+    //     return extension switch
+    //     {
+    //         ".jpg" => "image/jpeg",
+    //         ".jpeg" => "image/jpeg",
+    //         ".png" => "image/png",
+    //         ".gif" => "image/gif",
+    //         _ => "application/octet-stream",
+    //     };
+    // }
 }
