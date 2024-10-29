@@ -32,7 +32,7 @@ jobs:
 
   build-and-push-components:
     name: Build and push containers to acr for Development
-    needs: trigger-github-deployment
+    needs: [trigger-github-deployment, get-short-sha]
     uses: ./.github/workflows/publish_component.yml
     with:
       Registry: auroradevacr.azurecr.io
