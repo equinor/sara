@@ -37,7 +37,7 @@ jobs:
     with:
       Registry: auroradevacr.azurecr.io
       ImageName: robotics/inspection-data-analyzer
-      Tag: ${{ needs.get-short-sha.outputs.tag }}
+      Tag: "dev.${{ needs.get-short-sha.outputs.tag }}"
     secrets:
       RegistryUsername: ${{ secrets.ROBOTICS_AURORADEVACR_USERNAME }}
       RegistryPassword: ${{ secrets.ROBOTICS_AURORADEVACR_PASSWORD }}
