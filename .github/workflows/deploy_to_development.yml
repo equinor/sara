@@ -49,7 +49,7 @@ jobs:
     with:
       Environment: development
       Registry: auroradevacr.azurecr.io
-      ImageName: ${{ github.repository }}
+      ImageName: robotics/inspection-data-analyzer
       # Add dev. prefix for the tags used in dev environment,
       # due to the commit hash can be interpreted as an integer if only numbers
       # PS: Needs to match build-and-push-components.with.Tag
