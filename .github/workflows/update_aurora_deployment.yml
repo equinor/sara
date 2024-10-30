@@ -50,5 +50,5 @@ jobs:
           git config --global user.email "${EMAIL}"
           git config --global user.name  "GitHub Actions (${NAME})"
           git add k8s_kustomize/overlays/${{ inputs.Environment }}/kustomization.yaml
-          git commit --message "GHA: Update Flotilla in ${{ inputs.Environment }} (${{ inputs.Tag }})" || true
+          git commit --message "GHA: Update IDA in ${{ inputs.Environment }} (${{ inputs.Tag }})" || true
           git push
