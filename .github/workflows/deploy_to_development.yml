@@ -48,7 +48,7 @@ jobs:
     uses: ./.github/workflows/update_aurora_deployment.yml
     with:
       Environment: development
-      Registry: auroraprodacr.azurecr.io
+      Registry: auroradevacr.azurecr.io
       ImageName: ${{ github.repository }}
       # Add dev. prefix for the tags used in dev environment,
       # due to the commit hash can be interpreted as an integer if only numbers
