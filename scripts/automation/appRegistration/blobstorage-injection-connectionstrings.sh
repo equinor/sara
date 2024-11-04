@@ -1,7 +1,28 @@
 #!/bin/bash
 
-# Load variables from .cfg file
-source ./path/to/config.cfg
+# Set default paths for the configuration files
+dev_config="./scripts/automation/appRegistration/app-injection-secrets-param-dev.cfg"
+prod_config="./scripts/automation/appRegistration/app-injection-secrets-param-prod.cfg"
+staging_config="./scripts/automation/appRegistration/app-injection-secrets-param-staging.cfg"
+
+# Check that the user has passed the name of the desired config file
+if [[ "$#" -ne 1 ]] || [[ ! "$1" =~ ^(dev|prod|staging)$ ]]; then
+    echo "Please specify the name of the desired config file ('dev', 'prod', or 'staging'). Run it as './scripts/automation/appRegistration/blobstorage-injection-connectionstrig.sh dev', for example"
+    exit 1
+fi
+
+# Load variables from the chosen .cfg file
+case $1 in
+    dev)
+        source "$dev_config"
+        ;;
+    prod)
+        source "$prod_config"
+        ;;
+    staging)
+        source "$staging_config"
+        ;;
+esac
 
 # Generate new connection strings for storage accounts:
 rawConnectionString=$(az storage account show-connection-string -g $CFG_RESOURCE_GROUP -n $CFG_STORAGE_ACCOUNT_NAME_RAW --out tsv)

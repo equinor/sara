@@ -9,7 +9,8 @@ https://localhost:8100
 
 Requirements to be met:
 
-- Contributor role in [S159-Robotics-in-Echo](https://portal.azure.com/#@StatoilSRM.onmicrosoft.com/resource/subscriptions/c389567b-2dd0-41fa-a5da-d86b81f80bda/overview) subscription.
+- Owner role in [S159-Robotics-in-Echo](https://portal.azure.com/#@StatoilSRM.onmicrosoft.com/resource/subscriptions/c389567b-2dd0-41fa-a5da-d86b81f80bda/overview) subscription (needed for ManagedIdentity deployment to work).
+- Owner status in the [app registration](https://portal.azure.com/?feature.msaljs=true#view/Microsoft_AAD_RegisteredApps/ApplicationMenuBlade/~/Overview/appId/bd4b0a3e-af88-4b7c-aab2-ad4956f2f789/isMSAApp~/false) for dev, prod and staging environment (needed for the generation of client secret).
 - [az CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli) installed.
 - It will be required, for the deployment and injection in the key vault of the postgreSQL connection string, to build a json file from the provided bicepparam file. This will be an automated process, but you need to ensure to have [jq](https://github.com/jqlang/jq), a command-line json processor. If you are using MacOs, you can installed with [brew](https://formulae.brew.sh/formula/jq).
 
@@ -47,12 +48,12 @@ You can populate the previously deployed storage accounts with blob containers a
 2. Ensure that `CFG_IDA_CLIENT_ID` is the client ID of the App in which you want to add a new client secret. These values are already pre-filed for IDA app registrations.
 3. You can change `CFG_IDA_SECRET_NAME` by the secret name desired.
 4. Change `CFG_RESOURCE_GROUP` and `CFG_VAULT_NAME` for the resource group and respective key vault, in which the secret will be injected.
-5. Change the source in 'app-injection-secrets.sh' with the path to the config file you were editing and grant privileges to run it: `bash scripts/automation/appRegistration/app-injection-secrets.sh`
+5. Grant privileges to 'app-injection-secrets.sh' and run it: `bash scripts/automation/appRegistration/app-injection-secrets.sh`. Follow the instructions prompted in the command line and choose the environment you are deploying (dev, prod or staging).
 
 ### Generate connection strings for storage accounts and inject to deployed key vault.
 
 1. Following same logic as for the client secrets (app Registration) in the previous section, modify the names of the storage accounts and the names you want to use for the deployed connection string in the same config files. For example, `CFG_STORAGE_ACCOUNT_NAME_RAW` is the name of the raw storage account and `CFG_CONNECTION_STRING_RAW_NAME` would be the displayed name in the key vault for the connection string of the raw storage account. Do the same for anon and vis storage accounts.
-2. Change the source in 'blobstorage-injection-connectionstrings.sh' to the desired config file and grant privileges to run it: `bash scripts/automation/appRegistration/blobstorage-injection-connectionstrings.sh`
+2. Grant privileges to 'blobstorage-injection-connectionstrings.sh' and run it: `bash scripts/automation/appRegistration/blobstorage-injection-connectionstrings.sh`. Follow the instructions prompted in the command line and choose the environment you are deploying (dev, prod or staging)
 
 ## Database model and EF Core
 
