@@ -1,6 +1,14 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
+public enum WorkflowStatus
+{
+    NotStarted,
+    Started,
+    ExitSuccess,
+    ExitFailure
+}
+
 #pragma warning disable CS8618
 namespace api.Models
 {
@@ -19,10 +27,10 @@ namespace api.Models
 
         public Uri? RawDataUri { get; set; }
 
-        // public Uri? AnonymizedUri { get; set; }
+        public Uri? AnonymizedUri { get; set; }
 
-        // [Required]
-        // public bool IsComplete { get; set; }
+        [Required]
+        public WorkflowStatus AnonymizerWorkflowStatus { get; set; } = WorkflowStatus.NotStarted;
 
         [Required]
         public DateTime DateCreated { get; set; } = DateTime.UtcNow;
