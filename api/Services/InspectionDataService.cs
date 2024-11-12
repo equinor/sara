@@ -14,6 +14,8 @@ public interface IInspectionDataService
     public Task<InspectionData?> ReadByInspectionId(string inspectionId);
 
     public Task<InspectionData> CreateFromMqttMessage(IsarInspectionResultMessage isarInspectionResultMessage);
+
+    public Task<InspectionData?> UpdateAnonymizerWorkflowStatus(string inspectionId, WorkflowStatus status);
 }
 
 public class InspectionDataService(IdaDbContext context) : IInspectionDataService
@@ -51,4 +53,14 @@ public class InspectionDataService(IdaDbContext context) : IInspectionDataServic
         await context.SaveChangesAsync();
         return inspectionData;
     }
+    public async Task<InspectionData?> UpdateAnonymizerWorkflowStatus(string inspectionId, WorkflowStatus status)
+{
+    var inspectionData = await context.InspectionData.FirstOrDefaultAsync(i => i.InspectionId.Equals(inspectionId));
+    if (inspectionData != null)
+    {
+        inspectionData.AnonymizerWorkflowStatus = status;
+        await context.SaveChangesAsync();
+    }
+    return inspectionData;
+}
 }
