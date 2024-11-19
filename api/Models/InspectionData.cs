@@ -19,10 +19,6 @@ public class InspectionData
     public string Id { get; set; }
 
     [Required]
-    [MaxLength(200)]
-    public string Name { get; set; }
-
-    [Required]
     public string InspectionId { get; set; }
 
     public Uri? RawDataUri { get; set; }

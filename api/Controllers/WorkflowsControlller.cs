@@ -2,6 +2,7 @@ using api.Controllers.Models;
 using api.Services;
 using api.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 namespace api.Controllers;
 
 public class WorkflowStartedNotification
@@ -26,6 +27,7 @@ public class WorkflowsController(IInspectionDataService inspectionDataService) :
     /// Updates status of inspection data to started
     /// </summary>
     [HttpPut]
+    [AllowAnonymous] // TODO: Implement role for notifying and machine-to-machine oauth
     [Route("notify-workflow-started")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -43,6 +45,7 @@ public class WorkflowsController(IInspectionDataService inspectionDataService) :
     /// Updates status of inspection data to exit with success or failure
     /// </summary>
     [HttpPut]
+    [AllowAnonymous] // TODO: Implement role for notifying and machine-to-machine oauth
     [Route("notify-workflow-exited")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

@@ -4,7 +4,7 @@ namespace api.Controllers.Models
 {
     public class InspectionDataResponse
     {
-        public string Name { get; set; }
+        public string Id { get; set; }
 
         [JsonConstructor]
 #nullable disable
@@ -13,7 +13,7 @@ namespace api.Controllers.Models
 
         public InspectionDataResponse(InspectionData inspectionData)
         {
-            Name = inspectionData.Name;
+            Id = inspectionData.Id;
         }
     }
 }

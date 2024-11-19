@@ -47,6 +47,7 @@ builder.Services.AddDbContext<IdaDbContext>(opt =>
 
 builder.Services.AddScoped<IBlobService, BlobService>();
 builder.Services.AddScoped<IInspectionDataService, InspectionDataService>();
+builder.Services.AddScoped<AnonymizerService>();
 
 builder.Services
     .AddControllers()
