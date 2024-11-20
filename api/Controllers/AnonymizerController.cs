@@ -11,6 +11,7 @@ public class TriggerAnonymizerRequest
     public required string InspectionId { get; set; }
     public required Uri RawDataUri { get; set; }
     public required Uri AnonymizedUri { get; set; }
+    public required string InstallationCode { get; set; }
 }
 
 
@@ -35,6 +36,7 @@ public class AnonymizerController(AnonymizerService anonymizerService, IdaDbCont
         {
             Id = Guid.NewGuid().ToString(),
             InspectionId = request.InspectionId,
+            InstallationCode = request.InstallationCode,
             RawDataUri = request.RawDataUri,
             AnonymizedUri = request.AnonymizedUri,
             DateCreated = DateTime.UtcNow,
