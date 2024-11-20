@@ -6,13 +6,15 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using api.Models;
 
+#pragma warning disable IDE1006
+
 namespace api.Services;
 
-public class TriggerAnonymizerRequest(string inspectionId, Uri rawDataUri, Uri anonymizedUri)
+public class TriggerArgoAnonymizerRequest(string inspectionId, Uri rawDataUri, Uri anonymizedUri)
 {
-    public string InspectionId { get; } = inspectionId;
-    public Uri RawDataUri { get; } = rawDataUri;
-    public Uri AnonymizedUri { get; } = anonymizedUri;
+    public string inspectionId { get; } = inspectionId;
+    public Uri rawDataUri { get; } = rawDataUri;
+    public Uri anonymizedUri { get; } = anonymizedUri;
 }
 
 public class AnonymizerService
@@ -27,7 +29,7 @@ public class AnonymizerService
         if (data.AnonymizedUri == null)
             throw new ArgumentNullException(nameof(data), "AnonymizedUri cannot be null.");
 
-        var postRequestData = new TriggerAnonymizerRequest(data.InspectionId, data.RawDataUri, data.AnonymizedUri);
+        var postRequestData = new TriggerArgoAnonymizerRequest(data.InspectionId, data.RawDataUri, data.AnonymizedUri);
         var json = JsonSerializer.Serialize(postRequestData);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
 
