@@ -109,19 +109,21 @@ public class InspectionDataController(
     }
 
     /// <summary>
-    /// Get image file from blob store
+    /// Get link to image from blob store by inspection id
     /// </summary>
     /// <remarks>
-    /// <para> This endpoint serves an image file from the blob store </para>
+    /// <para> This endpoint returns a link to an anonymized image in blob storage. </para>
     /// </remarks>
     [HttpGet]
     [Authorize(Roles = Role.Any)]
-    [Route("image/{inspectionId}")]
+    [Route("{inspectionId}/inspection-data-storage-location")]
     [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status202Accepted)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> DownloadUriFromInspectionId([FromRoute] string inspectionId)
     {
@@ -133,14 +135,23 @@ public class InspectionDataController(
                 return NotFound($"Could not find inspection data with inspection id {inspectionId}");
             }
 
-            var downloadUri = inspection.RawDataUri;
+            var downloadUri = inspection.AnonymizedUri;
 
             if (downloadUri == null || !Uri.IsWellFormedUriString(downloadUri.ToString(), UriKind.Absolute))
             {
                 return NotFound($"Could not find uri for inspection {inspectionId}");
             }
 
-            return Ok(downloadUri);
+            var anonymizerWorkflowStatus = inspection.AnonymizerWorkflowStatus;
+
+            return anonymizerWorkflowStatus switch
+            {
+                WorkflowStatus.ExitSuccess => Ok(downloadUri),
+                WorkflowStatus.NotStarted => StatusCode(StatusCodes.Status202Accepted, "Anonymization workflow has not started."),
+                WorkflowStatus.Started => StatusCode(StatusCodes.Status202Accepted, "Anonymization workflow is in progress."),
+                WorkflowStatus.ExitFailure => StatusCode(StatusCodes.Status422UnprocessableEntity, "Anonymization workflow failed."),
+                _ => StatusCode(StatusCodes.Status500InternalServerError, "Unknown workflow status."),
+            };
         }
         catch (Exception e)
         {

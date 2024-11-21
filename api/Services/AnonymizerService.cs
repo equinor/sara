@@ -17,9 +17,11 @@ public class TriggerArgoAnonymizerRequest(string inspectionId, Uri rawDataUri, U
     public Uri anonymizedUri { get; } = anonymizedUri;
 }
 
-public class AnonymizerService
+public class AnonymizerService(IConfiguration configuration)
 {
     private static readonly HttpClient client = new();
+    private readonly string _baseUrl = configuration["AnonymizerBaseUrl"]
+                   ?? throw new InvalidOperationException("AnonymizerBaseUrl is not configured.");
 
     public async Task TriggerAnonymizerFunc(InspectionData data)
     {
@@ -33,7 +35,7 @@ public class AnonymizerService
         var json = JsonSerializer.Serialize(postRequestData);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-        var response = await client.PostAsync("http://trigger-anonymizer-source:8080/trigger-anonymizer", content);
+        var response = await client.PostAsync(_baseUrl, content);
 
         if (response.IsSuccessStatusCode)
         {

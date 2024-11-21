@@ -1,10 +1,13 @@
 using System.Text.Json.Serialization;
 using api.Models;
+
+#pragma warning disable IDE1006
+
 namespace api.Controllers.Models
 {
     public class InspectionDataResponse
     {
-        public string Id { get; set; }
+        public string id { get; set; }
 
         [JsonConstructor]
 #nullable disable
@@ -13,7 +16,7 @@ namespace api.Controllers.Models
 
         public InspectionDataResponse(InspectionData inspectionData)
         {
-            Id = inspectionData.Id;
+            id = inspectionData.Id;
         }
     }
 }
