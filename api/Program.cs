@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using api.Services;
 using Azure.Identity;
 using api.Models;
+using api.MQTT;
 using api.Configurations;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Identity.Web;
@@ -49,6 +50,9 @@ builder.Services.AddDbContext<IdaDbContext>(opt =>
 builder.Services.AddScoped<IBlobService, BlobService>();
 builder.Services.AddScoped<IInspectionDataService, InspectionDataService>();
 builder.Services.AddScoped<AnonymizerService>();
+
+builder.Services.AddHostedService<MqttEventHandler>();
+builder.Services.AddHostedService<MqttService>();
 
 builder.Services
     .AddControllers()

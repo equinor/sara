@@ -44,10 +44,17 @@ public class InspectionDataService(IdaDbContext context) : IInspectionDataServic
     public async Task<InspectionData> CreateFromMqttMessage(
         IsarInspectionResultMessage isarInspectionResultMessage)
     {
+        var inspectionPath = isarInspectionResultMessage.InspectionPath;
+
+        string rawDataUriString = $"{inspectionPath.BlobStorageAccountURL}/" +
+                                  $"{inspectionPath.BlobContainer}/" +
+                                  $"{inspectionPath.BlobName}";
+
         var inspectionData = new InspectionData
         {
-            RawDataUri = new Uri(isarInspectionResultMessage.InspectionPath),
-            AnalysisToBeRun = [Analysis.TypeFromString(isarInspectionResultMessage.AnalysisType)],
+            InspectionId = isarInspectionResultMessage.InspectionId,
+            RawDataUri = new Uri(rawDataUriString),
+            InstallationCode = isarInspectionResultMessage.InstallationCode,
         };
         await context.InspectionData.AddAsync(inspectionData);
         await context.SaveChangesAsync();

@@ -1,23 +1,46 @@
 ﻿using System.Text.Json.Serialization;
-namespace api.MQTT
-{
-    public abstract class MqttMessage { }
+
+namespace api.MQTT;
+
 #nullable disable
-    public class IsarInspectionResultMessage : MqttMessage
-    {
-        [JsonPropertyName("robot_name")]
-        public string RobotName { get; set; }
+public class InspectionPathMessage
+{
+    [JsonPropertyName("source")]
+    public string Source { get; set; }
 
-        [JsonPropertyName("inspection_id")]
-        public string InspectionId { get; set; }
+    [JsonPropertyName("blob_storage_account_url")]
+    public string BlobStorageAccountURL { get; set; }
 
-        [JsonPropertyName("inspection_path")]
-        public string InspectionPath { get; set; }
+    [JsonPropertyName("blob_container")]
+    public string BlobContainer { get; set; }
 
-        [JsonPropertyName("analysis_type")]
-        public string AnalysisType { get; set; }
+    [JsonPropertyName("blob_name")]
+    public string BlobName { get; set; }
+}
 
-        [JsonPropertyName("timestamp")]
-        public DateTime Timestamp { get; set; }
-    }
+
+public abstract class MqttMessage { }
+#nullable disable
+public class IsarInspectionResultMessage : MqttMessage
+{
+    [JsonPropertyName("isar_id")]
+    public string ISARID { get; set; }
+
+    [JsonPropertyName("robot_name")]
+    public string RobotName { get; set; }
+
+    [JsonPropertyName("inspection_id")]
+    public string InspectionId { get; set; }
+
+    [JsonPropertyName("inspection_path")]
+    public InspectionPathMessage InspectionPath { get; set; }
+
+    [JsonPropertyName("installation_code")]
+    public string InstallationCode { get; set; }
+
+    [JsonPropertyName("analysis_to_be_run")]
+    public string[] AnalysisToBeRun { get; set; }
+
+    [JsonPropertyName("timestamp")]
+    public DateTime Timestamp { get; set; }
 }
