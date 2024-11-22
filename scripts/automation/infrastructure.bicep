@@ -23,6 +23,9 @@ param managedIdentityName string
 param principalId string
 param roleDefinitionId string
 
+param principalIdFlotillaApp string
+param roleDefinitionIDFlotillaApp string
+
 resource resourceGroup 'Microsoft.Resources/resourceGroups@2024-03-01' = {
   name: resourceGroupName
   location: location
@@ -43,6 +46,8 @@ module storageAccountAnon 'modules/storage-account-anon.bicep' = {
   params: {
     location: location
     storageAccountNameAnon: storageAccountNameAnon
+    principalIdFlotillaApp: principalIdFlotillaApp
+    roleDefinitionIDFlotillaApp: roleDefinitionIDFlotillaApp
   }
 }
 
