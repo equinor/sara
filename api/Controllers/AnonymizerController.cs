@@ -9,17 +9,16 @@ namespace api.Controllers;
 public class TriggerAnonymizerRequest
 {
     public required string InspectionId { get; set; }
-    public required Uri RawDataUri { get; set; }
-    public required Uri AnonymizedUri { get; set; }
+    public required BlobStorageLocation RawDataBlobStorageLocation { get; set; }
+    public required BlobStorageLocation AnonymizedBlobStorageLocation { get; set; }
     public required string InstallationCode { get; set; }
 }
 
 
 [ApiController]
 [Route("[controller]")]
-public class AnonymizerController(AnonymizerService anonymizerService, IdaDbContext dbContext) : ControllerBase
+public class AnonymizerController(IAnonymizerService anonymizerService, IdaDbContext dbContext) : ControllerBase
 {
-    private readonly AnonymizerService anonymizerService = anonymizerService;
     private readonly IdaDbContext dbContext = dbContext;
 
     /// <summary>
@@ -37,8 +36,8 @@ public class AnonymizerController(AnonymizerService anonymizerService, IdaDbCont
             Id = Guid.NewGuid().ToString(),
             InspectionId = request.InspectionId,
             InstallationCode = request.InstallationCode,
-            RawDataUri = request.RawDataUri,
-            AnonymizedUri = request.AnonymizedUri,
+            RawDataBlobStorageLocation = request.RawDataBlobStorageLocation,
+            AnonymizedBlobStorageLocation = request.AnonymizedBlobStorageLocation,
             DateCreated = DateTime.UtcNow,
             AnonymizerWorkflowStatus = WorkflowStatus.NotStarted,
             AnalysisToBeRun = [],

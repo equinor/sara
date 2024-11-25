@@ -8,14 +8,14 @@ public class InspectionPathMessage
     [JsonPropertyName("source")]
     public string Source { get; set; }
 
-    [JsonPropertyName("blob_storage_account_url")]
-    public string BlobStorageAccountURL { get; set; }
+    [JsonPropertyName("storage_account")]
+    public required string StorageAccount { get; set; }
 
     [JsonPropertyName("blob_container")]
-    public string BlobContainer { get; set; }
+    public required string BlobContainer { get; set; }
 
     [JsonPropertyName("blob_name")]
-    public string BlobName { get; set; }
+    public required string BlobName { get; set; }
 }
 
 

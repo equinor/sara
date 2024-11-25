@@ -21,19 +21,18 @@ public class InspectionDataController(
     /// </remarks>
     [HttpGet]
     [Authorize(Roles = Role.Any)]
-    [ProducesResponseType(typeof(IList<InspectionDataResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(IList<InspectionData>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<IList<InspectionDataResponse>>> GetAllInspectionData([FromQuery] QueryParameters parameters)
+    public async Task<ActionResult<IList<InspectionData>>> GetAllInspectionData([FromQuery] QueryParameters parameters)
     {
         PagedList<InspectionData> inspectionData;
         try
         {
             inspectionData = await inspectionDataService.GetInspectionData(parameters);
-            var response = inspectionData.Select(inspection => new InspectionDataResponse(inspection));
-            return Ok(response);
+            return Ok(inspectionData);
         }
         catch (Exception e)
         {
@@ -51,12 +50,12 @@ public class InspectionDataController(
     [HttpGet]
     [Authorize(Roles = Role.Any)]
     [Route("id/{id}")]
-    [ProducesResponseType(typeof(InspectionDataResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(InspectionData), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<InspectionDataResponse>> GetInspectionDataById([FromRoute] string id)
+    public async Task<ActionResult<InspectionData>> GetInspectionDataById([FromRoute] string id)
     {
         try
         {
@@ -65,8 +64,7 @@ public class InspectionDataController(
             {
                 return NotFound($"Could not find inspection data with id {id}");
             }
-            var response = new InspectionDataResponse(inspectionData);
-            return Ok(response);
+            return Ok(inspectionData);
         }
         catch (Exception e)
         {
@@ -84,7 +82,7 @@ public class InspectionDataController(
     [HttpGet]
     [Authorize(Roles = Role.Any)]
     [Route("{inspectionId}")]
-    [ProducesResponseType(typeof(InspectionDataResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(InspectionData), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -98,8 +96,7 @@ public class InspectionDataController(
             {
                 return NotFound($"Could not find inspection data with inspection id {inspectionId}");
             }
-            var response = new InspectionDataResponse(inspectionData);
-            return Ok(response);
+            return Ok(inspectionData);
         }
         catch (Exception e)
         {
@@ -109,15 +106,15 @@ public class InspectionDataController(
     }
 
     /// <summary>
-    /// Get link to image from blob store by inspection id
+    /// Get link to inspection data from blob store by inspection id
     /// </summary>
     /// <remarks>
-    /// <para> This endpoint returns a link to an anonymized image in blob storage. </para>
+    /// <para> This endpoint returns a link to an anonymized inspection data in blob storage. </para>
     /// </remarks>
     [HttpGet]
     [Authorize(Roles = Role.Any)]
     [Route("{inspectionId}/inspection-data-storage-location")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(BlobStorageLocation), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status202Accepted)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -135,18 +132,11 @@ public class InspectionDataController(
                 return NotFound($"Could not find inspection data with inspection id {inspectionId}");
             }
 
-            var downloadUri = inspection.AnonymizedUri;
-
-            if (downloadUri == null || !Uri.IsWellFormedUriString(downloadUri.ToString(), UriKind.Absolute))
-            {
-                return NotFound($"Could not find uri for inspection {inspectionId}");
-            }
-
             var anonymizerWorkflowStatus = inspection.AnonymizerWorkflowStatus;
 
             return anonymizerWorkflowStatus switch
             {
-                WorkflowStatus.ExitSuccess => Ok(downloadUri),
+                WorkflowStatus.ExitSuccess => Ok(inspection.AnonymizedBlobStorageLocation),
                 WorkflowStatus.NotStarted => StatusCode(StatusCodes.Status202Accepted, "Anonymization workflow has not started."),
                 WorkflowStatus.Started => StatusCode(StatusCodes.Status202Accepted, "Anonymization workflow is in progress."),
                 WorkflowStatus.ExitFailure => StatusCode(StatusCodes.Status422UnprocessableEntity, "Anonymization workflow failed."),

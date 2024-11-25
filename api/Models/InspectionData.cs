@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 #pragma warning disable CS8618
 namespace api.Models;
@@ -12,6 +13,17 @@ public enum WorkflowStatus
     ExitFailure
 }
 
+[Owned]
+public class BlobStorageLocation
+{
+    [Required]
+    public string StorageAccount { get; set; }
+    [Required]
+    public string BlobContainer { get; set; }
+    [Required]
+    public string BlobName { get; set; }
+}
+
 public class InspectionData
 {
     [Key]
@@ -21,9 +33,11 @@ public class InspectionData
     [Required]
     public string InspectionId { get; set; }
 
-    public Uri? RawDataUri { get; set; }
+    [Required]
+    public BlobStorageLocation RawDataBlobStorageLocation { get; set; }
 
-    public Uri? AnonymizedUri { get; set; }
+    [Required]
+    public BlobStorageLocation AnonymizedBlobStorageLocation { get; set; }
 
     [Required]
     public string InstallationCode { get; set; }

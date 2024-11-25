@@ -1,23 +1,24 @@
-using System;
-using System.Collections.Generic;
-using System.Net.Http;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
 using api.Models;
 
 #pragma warning disable IDE1006
 
 namespace api.Services;
 
-public class TriggerArgoAnonymizerRequest(string inspectionId, Uri rawDataUri, Uri anonymizedUri)
+public class TriggerArgoAnonymizerRequest(string inspectionId, BlobStorageLocation rawDataBlobStorageLocation, BlobStorageLocation anonymizedBlobStorageLocation)
 {
     public string inspectionId { get; } = inspectionId;
-    public Uri rawDataUri { get; } = rawDataUri;
-    public Uri anonymizedUri { get; } = anonymizedUri;
+    public BlobStorageLocation rawDataBlobStorageLocation { get; } = rawDataBlobStorageLocation;
+    public BlobStorageLocation anonymizedBlobStorageLocation { get; } = anonymizedBlobStorageLocation;
 }
 
-public class AnonymizerService(IConfiguration configuration)
+public interface IAnonymizerService
+{
+    public Task TriggerAnonymizerFunc(InspectionData data);
+}
+
+public class AnonymizerService(IConfiguration configuration) : IAnonymizerService
 {
     private static readonly HttpClient client = new();
     private readonly string _baseUrl = configuration["AnonymizerBaseUrl"]
@@ -25,13 +26,7 @@ public class AnonymizerService(IConfiguration configuration)
 
     public async Task TriggerAnonymizerFunc(InspectionData data)
     {
-        if (data.RawDataUri == null)
-            throw new ArgumentNullException(nameof(data), "RawDataUri cannot be null.");
-
-        if (data.AnonymizedUri == null)
-            throw new ArgumentNullException(nameof(data), "AnonymizedUri cannot be null.");
-
-        var postRequestData = new TriggerArgoAnonymizerRequest(data.InspectionId, data.RawDataUri, data.AnonymizedUri);
+        var postRequestData = new TriggerArgoAnonymizerRequest(data.InspectionId, data.RawDataBlobStorageLocation, data.AnonymizedBlobStorageLocation);
         var json = JsonSerializer.Serialize(postRequestData);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
 

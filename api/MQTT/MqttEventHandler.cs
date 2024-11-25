@@ -30,6 +30,7 @@ namespace api.MQTT
         }
 
         private IInspectionDataService InspectionDataService => _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IInspectionDataService>();
+        private IAnonymizerService AnonymizerService => _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IAnonymizerService>();
 
         public override void Subscribe()
         {
@@ -56,7 +57,8 @@ namespace api.MQTT
                 return;
             }
 
-            await InspectionDataService.CreateFromMqttMessage(isarInspectionResultMessage);
+            var inspectionData = await InspectionDataService.CreateFromMqttMessage(isarInspectionResultMessage);
+            await AnonymizerService.TriggerAnonymizerFunc(inspectionData);
         }
     }
 }

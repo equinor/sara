@@ -18,7 +18,7 @@ public interface IInspectionDataService
     public Task<InspectionData?> UpdateAnonymizerWorkflowStatus(string inspectionId, WorkflowStatus status);
 }
 
-public class InspectionDataService(IdaDbContext context) : IInspectionDataService
+public class InspectionDataService(IdaDbContext context, IConfiguration configuration) : IInspectionDataService
 {
     public async Task<PagedList<InspectionData>> GetInspectionData(QueryParameters parameters)
     {
@@ -46,14 +46,38 @@ public class InspectionDataService(IdaDbContext context) : IInspectionDataServic
     {
         var inspectionPath = isarInspectionResultMessage.InspectionPath;
 
-        string rawDataUriString = $"{inspectionPath.BlobStorageAccountURL}/" +
-                                  $"{inspectionPath.BlobContainer}/" +
-                                  $"{inspectionPath.BlobName}";
+        var rawStorageAccount = configuration.GetSection("Storage")["RawStorageAccount"];
+        var anonymizedStorageAccount = configuration.GetSection("Storage")["AnonStorageAccount"];
+
+        if (string.IsNullOrEmpty(anonymizedStorageAccount))
+        {
+            throw new InvalidOperationException("AnonStorageAccount is not configured.");
+        }
+
+        if (!inspectionPath.StorageAccount.Equals(rawStorageAccount))
+        {
+            throw new InvalidOperationException($"Incoming storage account, {inspectionPath.StorageAccount}, is not equal to storage account in config, {rawStorageAccount}.");
+        }
+
+        var rawDataBlobStorageLocation = new BlobStorageLocation
+        {
+            StorageAccount = inspectionPath.StorageAccount,
+            BlobContainer = inspectionPath.BlobContainer,
+            BlobName = inspectionPath.BlobName
+        };
+
+        var anonymizedDataBlobStorageLocation = new BlobStorageLocation
+        {
+            StorageAccount = anonymizedStorageAccount,
+            BlobContainer = inspectionPath.BlobContainer,
+            BlobName = inspectionPath.BlobName
+        };
 
         var inspectionData = new InspectionData
         {
             InspectionId = isarInspectionResultMessage.InspectionId,
-            RawDataUri = new Uri(rawDataUriString),
+            RawDataBlobStorageLocation = rawDataBlobStorageLocation,
+            AnonymizedBlobStorageLocation = anonymizedDataBlobStorageLocation,
             InstallationCode = isarInspectionResultMessage.InstallationCode,
         };
         await context.InspectionData.AddAsync(inspectionData);

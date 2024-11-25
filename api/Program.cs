@@ -48,8 +48,9 @@ builder.Services.AddDbContext<IdaDbContext>(opt =>
     opt.UseInMemoryDatabase("TodoList"));
 
 builder.Services.AddScoped<IBlobService, BlobService>();
+builder.Services.AddScoped<IAnalysisService, AnalysisService>();
 builder.Services.AddScoped<IInspectionDataService, InspectionDataService>();
-builder.Services.AddScoped<AnonymizerService>();
+builder.Services.AddScoped<IAnonymizerService, AnonymizerService>();
 
 builder.Services.AddHostedService<MqttEventHandler>();
 builder.Services.AddHostedService<MqttService>();
