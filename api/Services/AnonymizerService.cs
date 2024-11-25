@@ -2,15 +2,13 @@ using System.Text;
 using System.Text.Json;
 using api.Models;
 
-#pragma warning disable IDE1006
-
 namespace api.Services;
 
 public class TriggerArgoAnonymizerRequest(string inspectionId, BlobStorageLocation rawDataBlobStorageLocation, BlobStorageLocation anonymizedBlobStorageLocation)
 {
-    public string inspectionId { get; } = inspectionId;
-    public BlobStorageLocation rawDataBlobStorageLocation { get; } = rawDataBlobStorageLocation;
-    public BlobStorageLocation anonymizedBlobStorageLocation { get; } = anonymizedBlobStorageLocation;
+    public string InspectionId { get; } = inspectionId;
+    public BlobStorageLocation RawDataBlobStorageLocation { get; } = rawDataBlobStorageLocation;
+    public BlobStorageLocation AnonymizedBlobStorageLocation { get; } = anonymizedBlobStorageLocation;
 }
 
 public interface IAnonymizerService
@@ -23,11 +21,16 @@ public class AnonymizerService(IConfiguration configuration) : IAnonymizerServic
     private static readonly HttpClient client = new();
     private readonly string _baseUrl = configuration["AnonymizerBaseUrl"]
                    ?? throw new InvalidOperationException("AnonymizerBaseUrl is not configured.");
+    private static readonly JsonSerializerOptions useCamelCaseOption = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
 
     public async Task TriggerAnonymizerFunc(InspectionData data)
     {
         var postRequestData = new TriggerArgoAnonymizerRequest(data.InspectionId, data.RawDataBlobStorageLocation, data.AnonymizedBlobStorageLocation);
-        var json = JsonSerializer.Serialize(postRequestData);
+
+        var json = JsonSerializer.Serialize(postRequestData, useCamelCaseOption);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
 
         var response = await client.PostAsync(_baseUrl, content);
