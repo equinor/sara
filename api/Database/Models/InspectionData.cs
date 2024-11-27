@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
 
 #pragma warning disable CS8618
-namespace api.Models;
+namespace api.Database;
 
 public enum WorkflowStatus
 {

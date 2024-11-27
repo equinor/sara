@@ -1,6 +1,6 @@
 using System.Reflection;
 using Microsoft.OpenApi.Models;
-using api.Models;
+using api.Database;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 namespace api.Configurations;

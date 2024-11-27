@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using api.Services;
 using Azure.Identity;
-using api.Models;
+using api.Database;
 using api.MQTT;
 using api.Configurations;
 using Microsoft.AspNetCore.Authentication.JwtBearer;

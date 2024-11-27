@@ -1,5 +1,5 @@
 using System.Text.Json.Serialization;
-using api.Models;
+using api.Database;
 namespace api.Controllers.Models
 {
     public class AnalysisResponse
