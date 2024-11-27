@@ -3,7 +3,7 @@ name: Notify possible migration changes
 on:
   pull_request_target:
     branches: [main]
-    paths: [api/Models/**]
+    paths: [api/Database/**]
 
 env:
   message: |
