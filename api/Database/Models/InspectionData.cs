@@ -84,6 +84,16 @@ public class Analysis
     }
 }
 
+public class DummyDataToTestMigration
+{
+    [Key]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    public string Id { get; set; }
+
+    [Required]
+    public string Name { get; set; }
+}
+
 public enum AnalysisStatus
 {
     NotStarted,
