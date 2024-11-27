@@ -41,6 +41,8 @@ if (builder.Configuration.GetSection("KeyVault").GetValue<bool>("UseKeyVault"))
 
 builder.ConfigureLogger();
 
+builder.Services.ConfigureDatabase(builder.Configuration);
+
 builder.Services.Configure<AzureAdOptions>(builder.Configuration.GetSection("AzureAd"));
 builder.Services.Configure<BlobOptions>(builder.Configuration.GetSection("Storage"));
 

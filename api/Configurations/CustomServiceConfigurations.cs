@@ -46,7 +46,7 @@ public static class CustomServiceConfigurations
         }
         else
         {
-            string? connection = configuration["Database:PostgreSqlConnectionString"];
+            string? connection = configuration["Database:postgresConnectionString"];
             // Setting splitting behavior explicitly to avoid warning
             services.AddDbContext<IdaDbContext>(
                 options =>
