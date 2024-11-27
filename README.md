@@ -115,7 +115,7 @@ After the pull request is approved, a user can then trigger the database changes
 `/UpdateDatabase` on the pull request.
 
 This will trigger
-[another workflow](https://github.com/equinor/flotilla/blob/main/.github/workflows/updateDatabase.yml)
+[another workflow](https://github.com/equinor/inspection-data-analyzer/blob/main/.github/workflows/updateDatabase.yml)
 which updates the database by apploying the new migrations.
 
 By doing migrations this way, we ensure that the commands themselves are scripted, and that the database
@@ -124,8 +124,8 @@ changes become part of the review process of a pull request.
 ### Applying migrations to staging and production databases
 
 This is done automatically as part of the promotion workflows
-([promoteToProduction](https://github.com/equinor/flotilla/blob/main/.github/workflows/promoteToProduction.yml)
-and [promoteToStaging](https://github.com/equinor/flotilla/blob/main/.github/workflows/promoteToStaging.yml)).
+([promoteToProduction](https://github.com/equinor/inspection-data-analyzer/blob/main/.github/workflows/promoteToProduction.yml)
+and [promoteToStaging](https://github.com/equinor/inspection-data-analyzer/blob/main/.github/workflows/promoteToStaging.yml)).
 
 ## Formatting
 
