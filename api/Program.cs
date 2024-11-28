@@ -77,10 +77,10 @@ builder.Services
     .EnableTokenAcquisitionToCallDownstreamApi()
     .AddInMemoryTokenCaches();
 
-// Disable fallback policy until all endpoints are oauth protected
-//builder.Services.AddAuthorizationBuilder().AddFallbackPolicy(
-//"RequireAuthenticatedUser", policy => policy.RequireAuthenticatedUser()
-//);
+builder.Services.AddAuthorizationBuilder().AddFallbackPolicy(
+"RequireAuthenticatedUser", policy => policy.RequireAuthenticatedUser()
+);
+
 var app = builder.Build();
 
 string basePath = builder.Configuration["ApiBaseRoute"] ?? "";
