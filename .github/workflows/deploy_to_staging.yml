@@ -1,0 +1,67 @@
+name: Deploy to Staging
+
+# Only one workflow in a concurrency group may run at a time
+concurrency:
+  group: staging-concurrency
+  cancel-in-progress: true
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  trigger-github-deployment:
+    name: Trigger GitHub Deployment
+    environment: Staging
+    runs-on: ubuntu-latest
+    steps:
+      - name: Empty Step
+        run: echo "Hello World"
+
+  run_migrations:
+    name: Update database in Staging
+    needs: trigger-github-deployment
+    uses: ./.github/workflows/runMigrations.yml
+    with:
+      PullRequestCheckout: false
+      Environment: Staging
+    secrets:
+      ClientId: ${{secrets.CLIENTID}}
+      ClientSecret: ${{secrets.CLIENTSECRET}}
+
+  build-and-push-release-to-dev:
+    name: Update containers in dev with version tag
+    needs: trigger-github-deployment
+    uses: ./.github/workflows/publish_component.yml
+    with:
+      Registry: auroradevacr.azurecr.io
+      ImageName: robotics/inspection-data-analyzer
+      Tag: ${{ github.event.release.tag_name }}
+    secrets:
+      RegistryUsername: ${{ secrets.ROBOTICS_AURORADEVACR_USERNAME }}
+      RegistryPassword: ${{ secrets.ROBOTICS_AURORADEVACR_PASSWORD }}
+
+  build-and-push-components:
+    name: Build and push containers to auroraprodcr for Staging/Production
+    needs: [trigger-github-deployment]
+    uses: ./.github/workflows/publish_component.yml
+    with:
+      Registry: auroraprodacr.azurecr.io
+      ImageName: robotics/inspection-data-analyzer
+      Tag: ${{ github.event.release.tag_name }}
+    secrets:
+      RegistryUsername: ${{ secrets.ROBOTICS_AURORAPRODACR_USERNAME }}
+      RegistryPassword: ${{ secrets.ROBOTICS_AURORAPRODACR_PASSWORD }}
+
+  deploy:
+    name: Update deployment in Staging
+    needs: [trigger-github-deployment, build-and-push-components]
+    uses: ./.github/workflows/update_aurora_deployment.yml
+    with:
+      Environment: staging
+      Registry: auroraprodacr.azurecr.io
+      ImageName: robotics/inspection-data-analyzer
+      Tag: ${{ github.event.release.tag_name }}
+      AuthorName: ${{ github.event.release.author.login }}
+    secrets:
+      DeployKey: ${{ secrets.ANALYTICS_INFRASTRUCTURE_DEPLOY_KEY }}
