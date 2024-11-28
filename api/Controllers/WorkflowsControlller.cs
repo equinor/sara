@@ -54,7 +54,7 @@ public class WorkflowsController(IInspectionDataService inspectionDataService) :
 
         WorkflowStatus status;
 
-        if (notification.WorkflowStatus == "Succeded") // TODO: Check that this is what Argo Workflows actually returns for workflow success flag
+        if (notification.WorkflowStatus == "Succeeded")
         {
             status = WorkflowStatus.ExitSuccess;
         }
