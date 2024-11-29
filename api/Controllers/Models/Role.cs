@@ -23,4 +23,6 @@ public class Role
     /// </para>
     /// </summary>
     public const string Any = $"{ReadOnlyRole}, {UserRole}, {Admin}";
+
+    public const string InspectionDataRead = "InspectionData.Read";
 }
