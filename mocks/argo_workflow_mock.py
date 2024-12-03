@@ -73,7 +73,7 @@ def notify_workflow_exited(inspection_id):
     try:
         url = "https://localhost:8100/Workflows/notify-workflow-exited"
         # workflow_status = "Succeded" if random.random() > 0.3 else "Failed"
-        workflow_status = "Succeded"
+        workflow_status = "Succeeded"
         payload = {"inspectionId": inspection_id, "workflowStatus": workflow_status}
         print(f"Sending PUT to {url} with data: {payload}")
         response = requests.put(url, json=payload, verify=False)
