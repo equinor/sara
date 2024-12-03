@@ -1,7 +1,7 @@
 ﻿using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using api.MQTT;
+using MQTTnet.Protocol;
 using api.Utilities;
 using MQTTnet;
 using MQTTnet.Client;
@@ -264,6 +264,19 @@ namespace api.MQTT
             {
                 _logger.LogWarning("{msg}", e.Message);
             }
+        }
+
+        public async Task PublishMessageAsync<T>(string topic, T message)
+        {
+            string payload = JsonSerializer.Serialize(message, serializerOptions);
+            var mqttMessage = new MqttApplicationMessageBuilder()
+                .WithTopic(topic)
+                .WithPayload(payload)
+                .WithQualityOfServiceLevel(MqttQualityOfServiceLevel.ExactlyOnce)
+                .Build();
+
+            await _mqttClient.EnqueueAsync(mqttMessage);
+            _logger.LogInformation("Published message to topic {Topic}: {Message}", topic, payload);
         }
     }
 }

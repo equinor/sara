@@ -12,9 +12,8 @@ namespace api.MQTT
         public static readonly Dictionary<string, Type> TopicsToMessages =
             new()
             {
-                {
-                    "isar/+/inspection_result", typeof(IsarInspectionResultMessage)
-                }
+                { "isar/+/inspection_result", typeof(IsarInspectionResultMessage) },
+                { "workflow/+/status_success", typeof(WorkflowStatusSuccessMessage) }
             };
 
         /// <summary>
