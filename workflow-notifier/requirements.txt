@@ -1,0 +1,3 @@
+typer~=0.14
+requests~=2.32
+msal~=1.31
