@@ -1,6 +1,7 @@
 param location string
 param keyVaultName string
 param objectIdFgRobots string
+param objectIdEnterpriseApplication string
 param secrets array
 param managedIdentityName string
 param principalId string
@@ -63,11 +64,20 @@ resource keyVaultAccessPolicy 'Microsoft.KeyVault/vaults/accessPolicies@2024-04-
           ]
         }
       }
+      {
+        tenantId: keyVault.properties.tenantId
+        objectId: objectIdEnterpriseApplication
+        permissions: {
+          keys: []
+          secrets: [
+            'get'
+            'list'
+          ]
+        }
+      }
     ]
   }
 }
-
-//TODO: Add policy ida client id
 
 resource keyVaultSecret 'Microsoft.KeyVault/vaults/secrets@2024-04-01-preview' = [
   for secret in secrets: {
