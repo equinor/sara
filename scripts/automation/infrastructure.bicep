@@ -13,6 +13,8 @@ param storageAccountNameVis string
 param keyVaultName string
 param objectIdFgRobots string
 
+param objectIdEnterpriseApplication string
+
 param administratorLogin string
 @secure()
 param administratorLoginPassword string
@@ -78,6 +80,7 @@ module keyVault 'modules/key-vault.bicep' = {
     location: location
     keyVaultName: keyVaultName
     objectIdFgRobots: objectIdFgRobots
+    objectIdEnterpriseApplication: objectIdEnterpriseApplication
     principalId: principalId
     managedIdentityName: managedIdentityName
     roleDefinitionID: roleDefinitionId

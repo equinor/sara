@@ -5,6 +5,8 @@ param resourceGroupName = 'IDA${environment}'
 param location = 'northeurope'
 param objectIdFgRobots = '5ac08731-48dd-4499-9151-7bf6b8ab8eac'
 
+param objectIdEnterpriseApplication = '56f5f63f-d18a-47b6-97d7-779994f489bf' // ObjectID enterprise application ida-prod
+
 param managedIdentityName = 'IDAprodMI'
 
 param keyVaultName = 'idakv-${environment}'
