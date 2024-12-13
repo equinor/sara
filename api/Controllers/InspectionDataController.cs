@@ -112,7 +112,7 @@ public class InspectionDataController(
     /// <para> This endpoint returns a link to an anonymized inspection data in blob storage. </para>
     /// </remarks>
     [HttpGet]
-    [Authorize(Roles = Role.InspectionDataRead)]
+    [Authorize(Roles = Role.Any)]
     [Route("{inspectionId}/inspection-data-storage-location")]
     [ProducesResponseType(typeof(BlobStorageLocation), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status202Accepted)]
