@@ -130,7 +130,7 @@ public class InspectionDataController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> DownloadUriFromInspectionId([FromRoute] string inspectionId)
+    public async Task<ActionResult<BlobStorageLocation>> DownloadUriFromInspectionId([FromRoute] string inspectionId)
     {
         try
         {
