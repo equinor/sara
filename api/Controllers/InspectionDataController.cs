@@ -4,6 +4,8 @@ using api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using api.Utilities;
+using System.Text.Json;
+
 
 namespace api.Controllers;
 
@@ -13,6 +15,12 @@ public class InspectionDataController(
     ILogger<InspectionDataController> logger,
     IInspectionDataService inspectionDataService) : ControllerBase
 {
+
+    private static readonly JsonSerializerOptions _jsonSerializerOptions = new()
+    {
+        WriteIndented = true
+    };
+
     /// <summary>
     /// List all inspection data database
     /// </summary>
@@ -129,19 +137,35 @@ public class InspectionDataController(
             var inspection = await inspectionDataService.ReadByInspectionId(inspectionId);
             if (inspection == null)
             {
+                logger.LogWarning("No inspection data found for InspectionId: {InspectionId}", inspectionId);
                 return NotFound($"Could not find inspection data with inspection id {inspectionId}");
             }
 
             var anonymizerWorkflowStatus = inspection.AnonymizerWorkflowStatus;
+            logger.LogInformation("Anonymization workflow status for InspectionId: {InspectionId} is {Status}",
+                      inspectionId, anonymizerWorkflowStatus);
 
-            return anonymizerWorkflowStatus switch
+            switch (anonymizerWorkflowStatus)
             {
-                WorkflowStatus.ExitSuccess => Ok(inspection.AnonymizedBlobStorageLocation),
-                WorkflowStatus.NotStarted => StatusCode(StatusCodes.Status202Accepted, "Anonymization workflow has not started."),
-                WorkflowStatus.Started => StatusCode(StatusCodes.Status202Accepted, "Anonymization workflow is in progress."),
-                WorkflowStatus.ExitFailure => StatusCode(StatusCodes.Status422UnprocessableEntity, "Anonymization workflow failed."),
-                _ => StatusCode(StatusCodes.Status500InternalServerError, "Unknown workflow status."),
-            };
+                case WorkflowStatus.ExitSuccess:
+                    var inspectionJson = JsonSerializer.Serialize(inspection, _jsonSerializerOptions);
+                    logger.LogInformation("Full Inspection Data for InspectionId: {InspectionId}: {InspectionData}",
+                      inspectionId, inspectionJson);
+                    return Ok(inspection.AnonymizedBlobStorageLocation);
+
+                case WorkflowStatus.NotStarted:
+                    return StatusCode(StatusCodes.Status202Accepted, "Anonymization workflow has not started.");
+
+                case WorkflowStatus.Started:
+                    return StatusCode(StatusCodes.Status202Accepted, "Anonymization workflow is in progress.");
+
+                case WorkflowStatus.ExitFailure:
+                    return StatusCode(StatusCodes.Status422UnprocessableEntity, "Anonymization workflow failed.");
+
+                default:
+                    return StatusCode(StatusCodes.Status500InternalServerError, "Unknown workflow status.");
+            }
+
         }
         catch (Exception e)
         {
