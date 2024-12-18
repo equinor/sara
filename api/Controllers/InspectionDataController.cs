@@ -132,7 +132,6 @@ public class InspectionDataController(
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<BlobStorageLocation>> DownloadUriFromInspectionId([FromRoute] string inspectionId)
     {
-        Console.WriteLine("DownloadUriFromInspectionId function");
         try
         {
             var inspection = await inspectionDataService.ReadByInspectionId(inspectionId);
