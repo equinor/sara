@@ -26,6 +26,7 @@ jobs:
       - id: get-tag
         run: |
           DIR_HASH=$(tar cf - workflow-notifier | sha256sum | cut -c1-8)
+          echo "Computed DIR_HASH: $DIR_HASH"
           echo "tag=$DIR_HASH" >> "$GITHUB_OUTPUT"
 
   build-and-push-components:
