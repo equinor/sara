@@ -1,8 +1,8 @@
-name: Deploy to Development
+name: Deploy Workflow Notifier to Development
 
 # Only one workflow in a concurrency group may run at a time
 concurrency:
-  group: development-concurrency
+  group: development-concurrency-wf-notifier
   cancel-in-progress: true
 
 on:
