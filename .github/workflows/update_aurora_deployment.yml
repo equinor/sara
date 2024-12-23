@@ -50,5 +50,9 @@ jobs:
           git config --global user.email "${EMAIL}"
           git config --global user.name  "GitHub Actions (${NAME})"
           git add k8s_kustomize/overlays/${{ inputs.Environment }}/kustomization.yaml
-          git commit --message "GHA: Update ${{ inputs.ImageName }} in ${{ inputs.Environment }} (${{ inputs.Tag }})" || true
-          git push
+          if ! git diff-index --quiet HEAD; then
+            git commit --message "GHA: Update ${{ inputs.ImageName }} in ${{ inputs.Environment }} (${{ inputs.Tag }})"
+            git push
+          else
+            echo "No changes to commit or push."
+          fi
