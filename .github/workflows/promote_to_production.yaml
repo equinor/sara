@@ -53,3 +53,16 @@ jobs:
       AuthorName: ${{ github.actor }}
     secrets:
       DeployKey: ${{ secrets.ANALYTICS_INFRASTRUCTURE_DEPLOY_KEY }}
+
+  deploy_workflow-notifier:
+    name: Update workflow notifier in Production
+    needs: get_staging_version
+    uses: ./.github/workflows/update_aurora_deployment.yml
+    with:
+      Environment: production
+      Tag: ${{ needs.get_staging_version.outputs.versionTag }}
+      Registry: auroraprodacr.azurecr.io
+      ImageName: robotics/workflow-notifier
+      AuthorName: ${{ github.actor }}
+    secrets:
+      DeployKey: ${{ secrets.ANALYTICS_INFRASTRUCTURE_DEPLOY_KEY }}
