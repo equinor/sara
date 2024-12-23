@@ -1,0 +1,37 @@
+name: Deploy Workflow Notifier to Staging
+
+# Only one workflow in a concurrency group may run at a time
+concurrency:
+  group: staging-concurrency-workflow-notifier
+  cancel-in-progress: true
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build-and-push-components:
+    name: Build and push containers to auroraprodcr for Staging/Production
+    uses: ./.github/workflows/publish_component.yml
+    with:
+      Registry: auroraprodacr.azurecr.io
+      ImageName: robotics/workflow-notifier
+      Tag: ${{ github.event.release.tag_name }}
+      ContextDir: "workflow-notifier"
+      DockerfilePath: "workflow-notifier/Dockerfile"
+    secrets:
+      RegistryUsername: ${{ secrets.ROBOTICS_AURORAPRODACR_USERNAME }}
+      RegistryPassword: ${{ secrets.ROBOTICS_AURORAPRODACR_PASSWORD }}
+
+  deploy:
+    name: Update deployment in Staging
+    needs: [build-and-push-components]
+    uses: ./.github/workflows/update_aurora_deployment.yml
+    with:
+      Environment: staging
+      Registry: auroraprodacr.azurecr.io
+      ImageName: robotics/workflow-notifier
+      Tag: ${{ github.event.release.tag_name }}
+      AuthorName: ${{ github.event.release.author.login }}
+    secrets:
+      DeployKey: ${{ secrets.ANALYTICS_INFRASTRUCTURE_DEPLOY_KEY }}
