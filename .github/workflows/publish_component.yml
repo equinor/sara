@@ -12,6 +12,12 @@ on:
       ImageName:
         required: true
         type: string
+      DockerfilePath:
+        required: false # Defaults to Dockerfile in the root of the repository
+        type: string
+      ContextDir:
+        required: false # Defaults to the root of the repository
+        type: string
     secrets:
       RegistryUsername:
         required: true
@@ -45,7 +51,8 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: ${{ inputs.ContextDir || '.' }}
+          dockerfile: ${{ inputs.DockerfilePath || 'Dockerfile' }}
           push: true
           tags: |
             ${{ inputs.Registry }}/${{ inputs.ImageName }}:${{ inputs.Tag }}
