@@ -10,10 +10,19 @@ namespace api.MQTT
         /// <summary>
         ///     A dictionary linking MQTT topics to their respective message models
         /// </summary>
-        public static readonly Dictionary<string, Type> TopicsToMessages = new()
-        {
-            { "isar/+/inspection_result", typeof(IsarInspectionResultMessage) },
-        };
+        public static readonly Dictionary<string, Type> TopicsToMessages =
+            new()
+            {
+                { "isar/+/inspection_result", typeof(IsarInspectionResultMessage) },
+                { "ida/visualization_available", typeof(IdaVisualizationAvailableMessage) },
+            };
+
+        public static readonly Dictionary<Type, string> MessagesToTopics =
+            new()
+            {
+                { typeof(IsarInspectionResultMessage), "isar/+/inspection_result" },
+                { typeof(IdaVisualizationAvailableMessage), "ida/visualization_available" },
+            };
 
         /// <summary>
         ///     Searches a dictionary for a specific topic name and returns the corresponding value from the wildcarded dictionary
@@ -35,6 +44,17 @@ namespace api.MQTT
                 where Regex.IsMatch(topic, ConvertTopicToRegex(p.Key))
                 select p.Value
             ).SingleOrDefault();
+        }
+
+        public static string? GetTopicByItem<T>(this Dictionary<T, string> dict, T item) where T : Type
+        {
+            var topic = (
+                from p in dict
+                where item == p.Key
+                select p.Value
+            ).SingleOrDefault();
+
+            return topic != null ? topic : null;
         }
 
         /// <summary>

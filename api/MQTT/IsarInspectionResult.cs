@@ -44,3 +44,20 @@ public class IsarInspectionResultMessage : MqttMessage
     [JsonPropertyName("timestamp")]
     public DateTime Timestamp { get; set; }
 }
+
+public class IdaVisualizationAvailableMessage : MqttMessage
+{
+
+    [JsonPropertyName("inspection_id")]
+    public string InspectionId { get; set; }
+
+    [JsonPropertyName("storageAccount")]
+    public required string StorageAccount { get; set; }
+
+    [JsonPropertyName("blobContainer")]
+    public required string BlobContainer { get; set; }
+
+    [JsonPropertyName("blobName")]
+    public required string BlobName { get; set; }
+
+}
