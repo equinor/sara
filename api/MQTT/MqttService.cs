@@ -1,11 +1,14 @@
 ﻿using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using api.Services;
 using api.Utilities;
+using Api.Services;
 using MQTTnet;
 using MQTTnet.Client;
 using MQTTnet.Extensions.ManagedClient;
 using MQTTnet.Packets;
+using MQTTnet.Protocol;
 
 namespace api.MQTT
 {
@@ -31,6 +34,7 @@ namespace api.MQTT
 
         private CancellationToken _cancellationToken;
         private int _reconnectAttempts;
+
 
         public MqttService(ILogger<MqttService> logger, IConfiguration config)
         {
@@ -68,9 +72,20 @@ namespace api.MQTT
 
             var topics = mqttConfig.GetSection("Topics").Get<List<string>>() ?? [];
             SubscribeToTopics(topics);
+
+            Subscribe();
         }
 
         public static event EventHandler<MqttReceivedArgs>? MqttIsarInspectionResultReceived;
+
+        public void Subscribe()
+        {
+            MqttMessageService.MqttIdaVisualizationAvailable += OnIdaVisualizationAvailable;
+        }
+        public void Unubscribe()
+        {
+            MqttMessageService.MqttIdaVisualizationAvailable -= OnIdaVisualizationAvailable;
+        }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
@@ -112,6 +127,46 @@ namespace api.MQTT
                     );
                     break;
             }
+
+            return Task.CompletedTask;
+        }
+
+        private async void OnIdaVisualizationAvailable(object? sender, MqttMessage e)
+        {
+            if (e is not IdaVisualizationAvailableMessage message)
+            {
+                _logger.LogError("Message is not of type IdaVisualizationAvailableMessage");
+                return;
+            }
+            var payload = JsonSerializer.Serialize(message, serializerOptions);
+
+            var topic = MqttTopics.MessagesToTopics.GetTopicByItem(message.GetType());
+            if (topic is null)
+            {
+                _logger.LogError("No topic class defined for message of type '{messageType}'", message.GetType().Name);
+                return;
+            }
+
+            _logger.LogDebug("Topic: {topic} - Message to send: \n{payload}", topic, payload);
+
+            try { await _mqttClient.EnqueueAsync(topic, payload); }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    "Could not send MQTT message '{message}' object on topic '{topic}'. {exception}",
+                    payload,
+                    topic,
+                    ex.Message
+                );
+                return;
+            }
+        }
+
+        private Task OnMessagePublished(ApplicationMessageProcessedEventArgs messageProcessedEvent)
+        {
+            string content = messageProcessedEvent.ApplicationMessage?.ApplicationMessage?.ConvertPayloadToString() ?? string.Empty;
+
+            _logger.LogInformation("Message sent: \n{payload}", content);
 
             return Task.CompletedTask;
         }
@@ -196,6 +251,7 @@ namespace api.MQTT
             _mqttClient.DisconnectedAsync += OnDisconnected;
             _mqttClient.ConnectingFailedAsync += OnConnectingFailed;
             _mqttClient.ApplicationMessageReceivedAsync += OnMessageReceived;
+            _mqttClient.ApplicationMessageProcessedAsync += OnMessagePublished;
         }
 
         public void SubscribeToTopics(List<string> topics)
