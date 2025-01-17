@@ -1,4 +1,5 @@
 ﻿using System.Text.RegularExpressions;
+
 namespace api.MQTT
 {
     /// <summary>
@@ -9,13 +10,10 @@ namespace api.MQTT
         /// <summary>
         ///     A dictionary linking MQTT topics to their respective message models
         /// </summary>
-        public static readonly Dictionary<string, Type> TopicsToMessages =
-            new()
-            {
-                {
-                    "isar/+/inspection_result", typeof(IsarInspectionResultMessage)
-                }
-            };
+        public static readonly Dictionary<string, Type> TopicsToMessages = new()
+        {
+            { "isar/+/inspection_result", typeof(IsarInspectionResultMessage) },
+        };
 
         /// <summary>
         ///     Searches a dictionary for a specific topic name and returns the corresponding value from the wildcarded dictionary

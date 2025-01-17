@@ -1,7 +1,7 @@
 using api.Database;
+using api.MQTT;
 using api.Utilities;
 using Microsoft.EntityFrameworkCore;
-using api.MQTT;
 
 namespace api.Services;
 
@@ -13,12 +13,18 @@ public interface IInspectionDataService
 
     public Task<InspectionData?> ReadByInspectionId(string inspectionId);
 
-    public Task<InspectionData> CreateFromMqttMessage(IsarInspectionResultMessage isarInspectionResultMessage);
+    public Task<InspectionData> CreateFromMqttMessage(
+        IsarInspectionResultMessage isarInspectionResultMessage
+    );
 
-    public Task<InspectionData?> UpdateAnonymizerWorkflowStatus(string inspectionId, WorkflowStatus status);
+    public Task<InspectionData?> UpdateAnonymizerWorkflowStatus(
+        string inspectionId,
+        WorkflowStatus status
+    );
 }
 
-public class InspectionDataService(IdaDbContext context, IConfiguration configuration) : IInspectionDataService
+public class InspectionDataService(IdaDbContext context, IConfiguration configuration)
+    : IInspectionDataService
 {
     public async Task<PagedList<InspectionData>> GetInspectionData(QueryParameters parameters)
     {
@@ -38,11 +44,14 @@ public class InspectionDataService(IdaDbContext context, IConfiguration configur
 
     public async Task<InspectionData?> ReadByInspectionId(string inspectionId)
     {
-        return await context.InspectionData.FirstOrDefaultAsync(i => i.InspectionId.Equals(inspectionId));
+        return await context.InspectionData.FirstOrDefaultAsync(i =>
+            i.InspectionId.Equals(inspectionId)
+        );
     }
 
     public async Task<InspectionData> CreateFromMqttMessage(
-        IsarInspectionResultMessage isarInspectionResultMessage)
+        IsarInspectionResultMessage isarInspectionResultMessage
+    )
     {
         var inspectionPath = isarInspectionResultMessage.InspectionPath;
 
@@ -56,21 +65,23 @@ public class InspectionDataService(IdaDbContext context, IConfiguration configur
 
         if (!inspectionPath.StorageAccount.Equals(rawStorageAccount))
         {
-            throw new InvalidOperationException($"Incoming storage account, {inspectionPath.StorageAccount}, is not equal to storage account in config, {rawStorageAccount}.");
+            throw new InvalidOperationException(
+                $"Incoming storage account, {inspectionPath.StorageAccount}, is not equal to storage account in config, {rawStorageAccount}."
+            );
         }
 
         var rawDataBlobStorageLocation = new BlobStorageLocation
         {
             StorageAccount = inspectionPath.StorageAccount,
             BlobContainer = inspectionPath.BlobContainer,
-            BlobName = inspectionPath.BlobName
+            BlobName = inspectionPath.BlobName,
         };
 
         var anonymizedDataBlobStorageLocation = new BlobStorageLocation
         {
             StorageAccount = anonymizedStorageAccount,
             BlobContainer = inspectionPath.BlobContainer,
-            BlobName = inspectionPath.BlobName
+            BlobName = inspectionPath.BlobName,
         };
 
         var inspectionData = new InspectionData
@@ -84,9 +95,15 @@ public class InspectionDataService(IdaDbContext context, IConfiguration configur
         await context.SaveChangesAsync();
         return inspectionData;
     }
-    public async Task<InspectionData?> UpdateAnonymizerWorkflowStatus(string inspectionId, WorkflowStatus status)
+
+    public async Task<InspectionData?> UpdateAnonymizerWorkflowStatus(
+        string inspectionId,
+        WorkflowStatus status
+    )
     {
-        var inspectionData = await context.InspectionData.FirstOrDefaultAsync(i => i.InspectionId.Equals(inspectionId));
+        var inspectionData = await context.InspectionData.FirstOrDefaultAsync(i =>
+            i.InspectionId.Equals(inspectionId)
+        );
         if (inspectionData != null)
         {
             inspectionData.AnonymizerWorkflowStatus = status;

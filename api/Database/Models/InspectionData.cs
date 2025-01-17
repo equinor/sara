@@ -10,7 +10,7 @@ public enum WorkflowStatus
     NotStarted,
     Started,
     ExitSuccess,
-    ExitFailure
+    ExitFailure,
 }
 
 [Owned]
@@ -18,8 +18,10 @@ public class BlobStorageLocation
 {
     [Required]
     public string StorageAccount { get; set; }
+
     [Required]
     public string BlobContainer { get; set; }
+
     [Required]
     public string BlobName { get; set; }
 }
@@ -76,10 +78,9 @@ public class Analysis
         return status switch
         {
             "anonymize" => AnalysisType.Anonymize,
-            _
-              => throw new ArgumentException(
-                  $"Failed to parse task status '{status}' - not supported"
-              )
+            _ => throw new ArgumentException(
+                $"Failed to parse task status '{status}' - not supported"
+            ),
         };
     }
 }
@@ -89,10 +90,10 @@ public enum AnalysisStatus
     NotStarted,
     Running,
     Completed,
-    Failed
+    Failed,
 }
 
 public enum AnalysisType
 {
-    Anonymize
+    Anonymize,
 }

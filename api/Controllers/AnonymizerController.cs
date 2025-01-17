@@ -1,8 +1,8 @@
 using api.Controllers.Models;
-using api.Services;
 using api.Database;
-using Microsoft.AspNetCore.Mvc;
+using api.Services;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace api.Controllers;
 
@@ -14,10 +14,10 @@ public class TriggerAnonymizerRequest
     public required string InstallationCode { get; set; }
 }
 
-
 [ApiController]
 [Route("[controller]")]
-public class AnonymizerController(IAnonymizerService anonymizerService, IdaDbContext dbContext) : ControllerBase
+public class AnonymizerController(IAnonymizerService anonymizerService, IdaDbContext dbContext)
+    : ControllerBase
 {
     private readonly IdaDbContext dbContext = dbContext;
 
@@ -41,7 +41,7 @@ public class AnonymizerController(IAnonymizerService anonymizerService, IdaDbCon
             DateCreated = DateTime.UtcNow,
             AnonymizerWorkflowStatus = WorkflowStatus.NotStarted,
             AnalysisToBeRun = [],
-            Analysis = []
+            Analysis = [],
         };
 
         dbContext.InspectionData.Add(inspectionData);

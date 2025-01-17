@@ -19,7 +19,9 @@ namespace api.Utilities
         /// The awaiter for cancellation tokens.
         /// </summary>
         [EditorBrowsable(EditorBrowsableState.Never)]
-        public struct CancellationTokenAwaiter(CancellationToken cancellationToken) : INotifyCompletion, ICriticalNotifyCompletion
+        public struct CancellationTokenAwaiter(CancellationToken cancellationToken)
+            : INotifyCompletion,
+                ICriticalNotifyCompletion
         {
             internal CancellationToken _cancellationToken = cancellationToken;
 

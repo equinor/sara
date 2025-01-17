@@ -1,15 +1,18 @@
-using api.Database;
 using api.Controllers.Models;
+using api.Database;
 using api.Services;
+using api.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using api.Utilities;
 
 namespace api.Controllers;
 
 [ApiController]
 [Route("[controller]")]
-public class AnalysisController(ILogger<AnalysisController> logger, IAnalysisService analysisService) : ControllerBase
+public class AnalysisController(
+    ILogger<AnalysisController> logger,
+    IAnalysisService analysisService
+) : ControllerBase
 {
     /// <summary>
     /// List all analysis in database
@@ -24,7 +27,9 @@ public class AnalysisController(ILogger<AnalysisController> logger, IAnalysisSer
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<IList<AnalysisResponse>>> GetAllAnalysis([FromQuery] QueryParameters parameters)
+    public async Task<ActionResult<IList<AnalysisResponse>>> GetAllAnalysis(
+        [FromQuery] QueryParameters parameters
+    )
     {
         PagedList<Analysis> analysis;
         try

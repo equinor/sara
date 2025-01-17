@@ -1,16 +1,17 @@
 using System.Reflection;
-using Microsoft.OpenApi.Models;
 using api.Database;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
+
 namespace api.Configurations;
 
 public static class CustomServiceConfigurations
 {
     public static IServiceCollection ConfigureDatabase(
-            this IServiceCollection services,
-            IConfiguration configuration
-        )
+        this IServiceCollection services,
+        IConfiguration configuration
+    )
     {
         bool useInMemoryDatabase = configuration
             .GetSection("Database")
@@ -18,12 +19,11 @@ public static class CustomServiceConfigurations
 
         if (useInMemoryDatabase)
         {
-            DbContextOptionsBuilder dbBuilder =
-                new DbContextOptionsBuilder<IdaDbContext>();
+            DbContextOptionsBuilder dbBuilder = new DbContextOptionsBuilder<IdaDbContext>();
             string sqlConnectionString = new SqliteConnectionStringBuilder
             {
                 DataSource = "file::memory:",
-                Cache = SqliteCacheMode.Shared
+                Cache = SqliteCacheMode.Shared,
             }.ToString();
 
             // In-memory sqlite requires an open connection throughout the whole lifetime of the database
@@ -36,12 +36,11 @@ public static class CustomServiceConfigurations
             // InitDb.PopulateDb(context);
 
             // Setting splitting behavior explicitly to avoid warning
-            services.AddDbContext<IdaDbContext>(
-                options =>
-                    options.UseSqlite(
-                        sqlConnectionString,
-                        o => o.UseQuerySplittingBehavior(QuerySplittingBehavior.SingleQuery)
-                    )
+            services.AddDbContext<IdaDbContext>(options =>
+                options.UseSqlite(
+                    sqlConnectionString,
+                    o => o.UseQuerySplittingBehavior(QuerySplittingBehavior.SingleQuery)
+                )
             );
         }
         else
@@ -65,62 +64,62 @@ public static class CustomServiceConfigurations
     }
 
     public static IServiceCollection ConfigureSwagger(
-                this IServiceCollection services,
-                IConfiguration configuration
-            )
+        this IServiceCollection services,
+        IConfiguration configuration
+    )
     {
-        services.AddSwaggerGen(
-            c =>
-            {
-                // Add Authorization button in UI
-                c.AddSecurityDefinition(
-                    "oauth2",
-                    new OpenApiSecurityScheme
+        services.AddSwaggerGen(c =>
+        {
+            // Add Authorization button in UI
+            c.AddSecurityDefinition(
+                "oauth2",
+                new OpenApiSecurityScheme
+                {
+                    Type = SecuritySchemeType.OAuth2,
+                    Flows = new OpenApiOAuthFlows
                     {
-                        Type = SecuritySchemeType.OAuth2,
-                        Flows = new OpenApiOAuthFlows
+                        AuthorizationCode = new OpenApiOAuthFlow
                         {
-                            AuthorizationCode = new OpenApiOAuthFlow
+                            TokenUrl = new Uri(
+                                $"{configuration["AzureAd:Instance"]}/{configuration["AzureAd:TenantId"]}/oauth2/token"
+                            ),
+                            AuthorizationUrl = new Uri(
+                                $"{configuration["AzureAd:Instance"]}/{configuration["AzureAd:TenantId"]}/oauth2/authorize"
+                            ),
+                            Scopes = new Dictionary<string, string>
                             {
-                                TokenUrl = new Uri(
-                                    $"{configuration["AzureAd:Instance"]}/{configuration["AzureAd:TenantId"]}/oauth2/token"
-                                ),
-                                AuthorizationUrl = new Uri(
-                                    $"{configuration["AzureAd:Instance"]}/{configuration["AzureAd:TenantId"]}/oauth2/authorize"
-                                ),
-                                Scopes = new Dictionary<string, string>
                                 {
-                                        {
-                                            $"api://{configuration["AzureAd:ClientId"]}/user_impersonation", "User Impersonation"
-                                        }
-                                }
-                            }
-                        }
-                    }
-                );
-                // Show which endpoints have authorization in the UI
-                c.AddSecurityRequirement(
-                    new OpenApiSecurityRequirement
-                    {
-                            {
-                                new OpenApiSecurityScheme
-                                {
-                                    Reference = new OpenApiReference
-                                    {
-                                        Type = ReferenceType.SecurityScheme, Id = "oauth2"
-                                    }
+                                    $"api://{configuration["AzureAd:ClientId"]}/user_impersonation",
+                                    "User Impersonation"
                                 },
-                                Array.Empty<string>()
-                            }
-                    }
-                );
+                            },
+                        },
+                    },
+                }
+            );
+            // Show which endpoints have authorization in the UI
+            c.AddSecurityRequirement(
+                new OpenApiSecurityRequirement
+                {
+                    {
+                        new OpenApiSecurityScheme
+                        {
+                            Reference = new OpenApiReference
+                            {
+                                Type = ReferenceType.SecurityScheme,
+                                Id = "oauth2",
+                            },
+                        },
+                        Array.Empty<string>()
+                    },
+                }
+            );
 
-                // Make swagger use xml comments from functions
-                string xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
-                string xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
-                c.IncludeXmlComments(xmlPath);
-            }
-        );
+            // Make swagger use xml comments from functions
+            string xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+            string xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+            c.IncludeXmlComments(xmlPath);
+        });
 
         return services;
     }

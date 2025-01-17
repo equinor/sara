@@ -18,8 +18,8 @@ public class InspectionPathMessage
     public required string BlobName { get; set; }
 }
 
-
 public abstract class MqttMessage { }
+
 #nullable disable
 public class IsarInspectionResultMessage : MqttMessage
 {
