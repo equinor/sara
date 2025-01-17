@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using api.Database;
+
 namespace api.Controllers.Models
 {
     public class AnalysisResponse
@@ -9,6 +10,7 @@ namespace api.Controllers.Models
         [JsonConstructor]
 #nullable disable
         public AnalysisResponse() { }
+
 #nullable enable
 
         public AnalysisResponse(Analysis analysis)

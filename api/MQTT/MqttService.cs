@@ -7,11 +7,11 @@ using MQTTnet;
 using MQTTnet.Client;
 using MQTTnet.Extensions.ManagedClient;
 using MQTTnet.Packets;
+
 namespace api.MQTT
 {
     public class MqttService : BackgroundService
     {
-
         private readonly ILogger<MqttService> _logger;
         private readonly int _maxRetryAttempts;
 
@@ -27,10 +27,7 @@ namespace api.MQTT
 
         private static readonly JsonSerializerOptions serializerOptions = new()
         {
-            Converters =
-                {
-                    new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)
-                }
+            Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
         };
 
         private CancellationToken _cancellationToken;
@@ -51,13 +48,12 @@ namespace api.MQTT
             _maxRetryAttempts = mqttConfig.GetValue<int>("MaxRetryAttempts");
             _shouldFailOnMaxRetries = mqttConfig.GetValue<bool>("ShouldFailOnMaxRetries");
 
-
             var tlsOptions = new MqttClientTlsOptions
             {
                 UseTls = true,
                 /* Currently disabled to use self-signed certificate in the internal broker communication */
                 //if (_notProduction)
-                IgnoreCertificateChainErrors = true
+                IgnoreCertificateChainErrors = true,
             };
             var builder = new MqttClientOptionsBuilder()
                 .WithTcpServer(_serverHost, _serverPort)
@@ -74,6 +70,7 @@ namespace api.MQTT
             var topics = mqttConfig.GetSection("Topics").Get<List<string>>() ?? [];
             SubscribeToTopics(topics);
         }
+
         public static event EventHandler<MqttReceivedArgs>? MqttIsarInspectionResultReceived;
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -207,21 +204,17 @@ namespace api.MQTT
             List<MqttTopicFilter> topicFilters = [];
             StringBuilder sb = new();
             sb.AppendLine("Mqtt service subscribing to the following topics:");
-            topics.ForEach(
-                topic =>
-                {
-                    topicFilters.Add(new MqttTopicFilter
-                    {
-                        Topic = topic
-                    });
-                    sb.AppendLine(topic);
-                }
-            );
+            topics.ForEach(topic =>
+            {
+                topicFilters.Add(new MqttTopicFilter { Topic = topic });
+                sb.AppendLine(topic);
+            });
             _logger.LogInformation("{topicContent}", sb.ToString());
             _mqttClient.SubscribeAsync(topicFilters).Wait();
         }
 
-        private void OnIsarTopicReceived<T>(string content) where T : MqttMessage
+        private void OnIsarTopicReceived<T>(string content)
+            where T : MqttMessage
         {
             T? message;
 
@@ -248,11 +241,11 @@ namespace api.MQTT
             {
                 var raiseEvent = type switch
                 {
-                    _ when type == typeof(IsarInspectionResultMessage) => MqttIsarInspectionResultReceived,
-                    _
-                        => throw new NotImplementedException(
-                            $"No event defined for message type '{typeof(T).Name}'"
-                        )
+                    _ when type == typeof(IsarInspectionResultMessage) =>
+                        MqttIsarInspectionResultReceived,
+                    _ => throw new NotImplementedException(
+                        $"No event defined for message type '{typeof(T).Name}'"
+                    ),
                 };
                 // Event will be null if there are no subscribers
                 if (raiseEvent is not null)

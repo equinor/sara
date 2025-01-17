@@ -12,6 +12,7 @@ namespace api.Controllers.Models
         [JsonConstructor]
 #nullable disable
         public InspectionDataResponse() { }
+
 #nullable enable
 
         public InspectionDataResponse(InspectionData inspectionData)

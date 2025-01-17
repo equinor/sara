@@ -17,7 +17,6 @@ namespace api.MQTT
     {
         private readonly ILogger<MqttEventHandler> _logger;
 
-
         private readonly IServiceScopeFactory _scopeFactory;
 
         public MqttEventHandler(ILogger<MqttEventHandler> logger, IServiceScopeFactory scopeFactory)
@@ -29,8 +28,12 @@ namespace api.MQTT
             Subscribe();
         }
 
-        private IInspectionDataService InspectionDataService => _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IInspectionDataService>();
-        private IAnonymizerService AnonymizerService => _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IAnonymizerService>();
+        private IInspectionDataService InspectionDataService =>
+            _scopeFactory
+                .CreateScope()
+                .ServiceProvider.GetRequiredService<IInspectionDataService>();
+        private IAnonymizerService AnonymizerService =>
+            _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IAnonymizerService>();
 
         public override void Subscribe()
         {
@@ -42,22 +45,31 @@ namespace api.MQTT
             MqttService.MqttIsarInspectionResultReceived -= OnIsarInspectionResult;
         }
 
-        protected override async Task ExecuteAsync(CancellationToken stoppingToken) { await stoppingToken; }
-
+        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        {
+            await stoppingToken;
+        }
 
         private async void OnIsarInspectionResult(object? sender, MqttReceivedArgs mqttArgs)
         {
             var isarInspectionResultMessage = (IsarInspectionResultMessage)mqttArgs.Message;
 
-            var inspectionResult = await InspectionDataService.ReadByInspectionId(isarInspectionResultMessage.InspectionId);
+            var inspectionResult = await InspectionDataService.ReadByInspectionId(
+                isarInspectionResultMessage.InspectionId
+            );
 
             if (inspectionResult != null)
             {
-                _logger.LogWarning("Inspection Data with inspection id {InspectionId} already exists", isarInspectionResultMessage.InspectionId);
+                _logger.LogWarning(
+                    "Inspection Data with inspection id {InspectionId} already exists",
+                    isarInspectionResultMessage.InspectionId
+                );
                 return;
             }
 
-            var inspectionData = await InspectionDataService.CreateFromMqttMessage(isarInspectionResultMessage);
+            var inspectionData = await InspectionDataService.CreateFromMqttMessage(
+                isarInspectionResultMessage
+            );
             await AnonymizerService.TriggerAnonymizerFunc(inspectionData);
         }
     }

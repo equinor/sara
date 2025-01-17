@@ -5,6 +5,7 @@ using Azure.Identity;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using Microsoft.Extensions.Options;
+
 namespace api.Services
 {
     public interface IBlobService
@@ -12,7 +13,6 @@ namespace api.Services
         public Task<byte[]> DownloadBlob(string blobName, string containerName);
 
         public AsyncPageable<BlobItem> FetchAllBlobs(string containerName);
-
     }
 
     public class BlobOptions
@@ -25,7 +25,8 @@ namespace api.Services
         public string VisConnectionString { get; set; } = "";
     }
 
-    public class BlobService(ILogger<BlobService> logger, IOptions<BlobOptions> blobOptions) : IBlobService
+    public class BlobService(ILogger<BlobService> logger, IOptions<BlobOptions> blobOptions)
+        : IBlobService
     {
         public async Task<byte[]> DownloadBlob(string blobName, string containerName)
         {
@@ -57,7 +58,9 @@ namespace api.Services
         private BlobContainerClient GetBlobContainerClient(string containerName)
         {
             var serviceClient = new BlobServiceClient(blobOptions.Value.AnonConnectionString);
-            var containerClient = serviceClient.GetBlobContainerClient(containerName.ToLower(CultureInfo.CurrentCulture));
+            var containerClient = serviceClient.GetBlobContainerClient(
+                containerName.ToLower(CultureInfo.CurrentCulture)
+            );
             return containerClient;
         }
     }

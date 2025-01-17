@@ -25,6 +25,7 @@ public class Role
     /// </para>
     /// </summary>
     public const string Any = $"{ReadOnlyRole}, {UserRole}, {Admin}, {InspectionDataRead}";
+
     /// <summary>
     /// Role required to update workflow statuses
     /// </summary>

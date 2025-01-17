@@ -1,13 +1,13 @@
-using Microsoft.EntityFrameworkCore;
-using api.Services;
-using Azure.Identity;
+using System.Text.Json.Serialization;
+using api.Configurations;
 using api.Database;
 using api.MQTT;
-using api.Configurations;
+using api.Services;
+using Azure.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.Identity.Web;
-using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Rewrite;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Identity.Web;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -26,10 +26,7 @@ if (builder.Configuration.GetSection("KeyVault").GetValue<bool>("UseKeyVault"))
         builder.Configuration.AddAzureKeyVault(
             new Uri(vaultUri),
             new DefaultAzureCredential(
-                new DefaultAzureCredentialOptions
-                {
-                    ExcludeSharedTokenCacheCredential = true
-                }
+                new DefaultAzureCredentialOptions { ExcludeSharedTokenCacheCredential = true }
             )
         );
     }
@@ -46,8 +43,7 @@ builder.Services.ConfigureDatabase(builder.Configuration);
 builder.Services.Configure<AzureAdOptions>(builder.Configuration.GetSection("AzureAd"));
 builder.Services.Configure<BlobOptions>(builder.Configuration.GetSection("Storage"));
 
-builder.Services.AddDbContext<IdaDbContext>(opt =>
-    opt.UseInMemoryDatabase("TodoList"));
+builder.Services.AddDbContext<IdaDbContext>(opt => opt.UseInMemoryDatabase("TodoList"));
 
 builder.Services.AddScoped<IBlobService, BlobService>();
 builder.Services.AddScoped<IAnalysisService, AnalysisService>();
@@ -57,84 +53,73 @@ builder.Services.AddScoped<IAnonymizerService, AnonymizerService>();
 builder.Services.AddHostedService<MqttEventHandler>();
 builder.Services.AddHostedService<MqttService>();
 
-builder.Services
-    .AddControllers()
-    .AddJsonOptions(
-        options =>
-        {
-            options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-            options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
-        }
-    );
+builder
+    .Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+    });
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.ConfigureSwagger(builder.Configuration);
 
-builder.Services
-    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+builder
+    .Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"))
     .EnableTokenAcquisitionToCallDownstreamApi()
     .AddInMemoryTokenCaches();
 
-builder.Services.AddAuthorizationBuilder().AddFallbackPolicy(
-"RequireAuthenticatedUser", policy => policy.RequireAuthenticatedUser()
-);
+builder
+    .Services.AddAuthorizationBuilder()
+    .AddFallbackPolicy("RequireAuthenticatedUser", policy => policy.RequireAuthenticatedUser());
 
 var app = builder.Build();
 
 string basePath = builder.Configuration["ApiBaseRoute"] ?? "";
-app.UseSwagger(
-    c =>
-    {
-        c.PreSerializeFilters.Add(
-            (swaggerDoc, httpReq) =>
+app.UseSwagger(c =>
+{
+    c.PreSerializeFilters.Add(
+        (swaggerDoc, httpReq) =>
+        {
+            swaggerDoc.Servers =
+            [
+                new() { Url = $"https://{httpReq.Host.Value}{basePath}" },
+                new() { Url = $"http://{httpReq.Host.Value}{basePath}" },
+            ];
+        }
+    );
+});
+app.UseSwaggerUI(c =>
+{
+    c.OAuthClientId(builder.Configuration["AzureAd:ClientId"]);
+    // The following parameter represents the "audience" of the access token.
+    c.OAuthAdditionalQueryStringParams(
+        new Dictionary<string, string>
+        {
             {
-                swaggerDoc.Servers =
-                [
-                    new()
-                    {
-                        Url = $"https://{httpReq.Host.Value}{basePath}"
-                    },
-                    new()
-                    {
-                        Url = $"http://{httpReq.Host.Value}{basePath}"
-                    }
-                ];
-            }
-        );
-    }
-);
-app.UseSwaggerUI(
-    c =>
-    {
-        c.OAuthClientId(builder.Configuration["AzureAd:ClientId"]);
-        // The following parameter represents the "audience" of the access token.
-        c.OAuthAdditionalQueryStringParams(
-            new Dictionary<string, string>
-            {
-                {
-                    "Resource", builder.Configuration["AzureAd:ClientId"] ?? throw new ArgumentException("No Azure Ad ClientId")
-                }
-            }
-        );
-        c.OAuthUsePkce();
-    }
-);
+                "Resource",
+                builder.Configuration["AzureAd:ClientId"]
+                    ?? throw new ArgumentException("No Azure Ad ClientId")
+            },
+        }
+    );
+    c.OAuthUsePkce();
+});
 
 var option = new RewriteOptions();
 option.AddRedirect("^$", "swagger");
 app.UseRewriter(option);
 
 string[] allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? [];
-app.UseCors(
-    corsBuilder =>
-        corsBuilder
-            .WithOrigins(allowedOrigins)
-            .SetIsOriginAllowedToAllowWildcardSubdomains()
-            .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials()
+app.UseCors(corsBuilder =>
+    corsBuilder
+        .WithOrigins(allowedOrigins)
+        .SetIsOriginAllowedToAllowWildcardSubdomains()
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowCredentials()
 );
 
 app.UseHttpsRedirection();

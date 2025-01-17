@@ -1,11 +1,10 @@
-using api.Database;
+using System.Text.Json;
 using api.Controllers.Models;
+using api.Database;
 using api.Services;
+using api.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using api.Utilities;
-using System.Text.Json;
-
 
 namespace api.Controllers;
 
@@ -13,12 +12,12 @@ namespace api.Controllers;
 [Route("[controller]")]
 public class InspectionDataController(
     ILogger<InspectionDataController> logger,
-    IInspectionDataService inspectionDataService) : ControllerBase
+    IInspectionDataService inspectionDataService
+) : ControllerBase
 {
-
     private static readonly JsonSerializerOptions _jsonSerializerOptions = new()
     {
-        WriteIndented = true
+        WriteIndented = true,
     };
 
     /// <summary>
@@ -34,7 +33,9 @@ public class InspectionDataController(
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<IList<InspectionData>>> GetAllInspectionData([FromQuery] QueryParameters parameters)
+    public async Task<ActionResult<IList<InspectionData>>> GetAllInspectionData(
+        [FromQuery] QueryParameters parameters
+    )
     {
         PagedList<InspectionData> inspectionData;
         try
@@ -95,14 +96,18 @@ public class InspectionDataController(
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<InspectionDataResponse>> GetInspectionDataByInspectionId([FromRoute] string inspectionId)
+    public async Task<ActionResult<InspectionDataResponse>> GetInspectionDataByInspectionId(
+        [FromRoute] string inspectionId
+    )
     {
         try
         {
             var inspectionData = await inspectionDataService.ReadByInspectionId(inspectionId);
             if (inspectionData == null)
             {
-                return NotFound($"Could not find inspection data with inspection id {inspectionId}");
+                return NotFound(
+                    $"Could not find inspection data with inspection id {inspectionId}"
+                );
             }
             return Ok(inspectionData);
         }
@@ -130,42 +135,69 @@ public class InspectionDataController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<BlobStorageLocation>> DownloadUriFromInspectionId([FromRoute] string inspectionId)
+    public async Task<ActionResult<BlobStorageLocation>> DownloadUriFromInspectionId(
+        [FromRoute] string inspectionId
+    )
     {
         try
         {
             var inspection = await inspectionDataService.ReadByInspectionId(inspectionId);
             if (inspection == null)
             {
-                logger.LogWarning("No inspection data found for InspectionId: {InspectionId}", inspectionId);
-                return NotFound($"Could not find inspection data with inspection id {inspectionId}");
+                logger.LogWarning(
+                    "No inspection data found for InspectionId: {InspectionId}",
+                    inspectionId
+                );
+                return NotFound(
+                    $"Could not find inspection data with inspection id {inspectionId}"
+                );
             }
 
             var anonymizerWorkflowStatus = inspection.AnonymizerWorkflowStatus;
-            logger.LogInformation("Anonymization workflow status for InspectionId: {InspectionId} is {Status}",
-                      inspectionId, anonymizerWorkflowStatus);
+            logger.LogInformation(
+                "Anonymization workflow status for InspectionId: {InspectionId} is {Status}",
+                inspectionId,
+                anonymizerWorkflowStatus
+            );
 
             switch (anonymizerWorkflowStatus)
             {
                 case WorkflowStatus.ExitSuccess:
-                    var inspectionJson = JsonSerializer.Serialize(inspection, _jsonSerializerOptions);
-                    logger.LogInformation("Full Inspection Data for InspectionId: {InspectionId}: {InspectionData}",
-                      inspectionId, inspectionJson);
+                    var inspectionJson = JsonSerializer.Serialize(
+                        inspection,
+                        _jsonSerializerOptions
+                    );
+                    logger.LogInformation(
+                        "Full Inspection Data for InspectionId: {InspectionId}: {InspectionData}",
+                        inspectionId,
+                        inspectionJson
+                    );
                     return Ok(inspection.AnonymizedBlobStorageLocation);
 
                 case WorkflowStatus.NotStarted:
-                    return StatusCode(StatusCodes.Status202Accepted, "Anonymization workflow has not started.");
+                    return StatusCode(
+                        StatusCodes.Status202Accepted,
+                        "Anonymization workflow has not started."
+                    );
 
                 case WorkflowStatus.Started:
-                    return StatusCode(StatusCodes.Status202Accepted, "Anonymization workflow is in progress.");
+                    return StatusCode(
+                        StatusCodes.Status202Accepted,
+                        "Anonymization workflow is in progress."
+                    );
 
                 case WorkflowStatus.ExitFailure:
-                    return StatusCode(StatusCodes.Status422UnprocessableEntity, "Anonymization workflow failed.");
+                    return StatusCode(
+                        StatusCodes.Status422UnprocessableEntity,
+                        "Anonymization workflow failed."
+                    );
 
                 default:
-                    return StatusCode(StatusCodes.Status500InternalServerError, "Unknown workflow status.");
+                    return StatusCode(
+                        StatusCodes.Status500InternalServerError,
+                        "Unknown workflow status."
+                    );
             }
-
         }
         catch (Exception e)
         {
