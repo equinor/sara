@@ -1,10 +1,9 @@
 using api.Controllers.Models;
 using api.Database;
-using api.Services;
 using api.MQTT;
+using api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-
 
 namespace api.Controllers;
 
@@ -22,7 +21,10 @@ public class WorkflowExitedNotification
 
 [ApiController]
 [Route("[controller]")]
-public class WorkflowsController(IInspectionDataService inspectionDataService, IMqttMessageService mqttMessageService) : ControllerBase
+public class WorkflowsController(
+    IInspectionDataService inspectionDataService,
+    IMqttMessageService mqttMessageService
+) : ControllerBase
 {
     /// <summary>
     /// Updates status of inspection data to started
@@ -88,7 +90,7 @@ public class WorkflowsController(IInspectionDataService inspectionDataService, I
             InspectionId = notification.InspectionId,
             StorageAccount = updatedInspectionData.AnonymizedBlobStorageLocation.StorageAccount,
             BlobContainer = updatedInspectionData.AnonymizedBlobStorageLocation.BlobContainer,
-            BlobName = updatedInspectionData.AnonymizedBlobStorageLocation.BlobName
+            BlobName = updatedInspectionData.AnonymizedBlobStorageLocation.BlobName,
         };
 
         mqttMessageService.OnIdaVisualizationAvailable(message);

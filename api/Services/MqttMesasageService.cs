@@ -18,10 +18,11 @@ namespace api.Services
 
         public static event EventHandler<IdaVisualizationAvailableMessage>? MqttIdaVisualizationAvailable;
 
-        protected virtual void OnIdaVisualizationAvailableTriggered(IdaVisualizationAvailableMessage e)
+        protected virtual void OnIdaVisualizationAvailableTriggered(
+            IdaVisualizationAvailableMessage e
+        )
         {
             MqttIdaVisualizationAvailable?.Invoke(this, e);
         }
-
     }
 }
