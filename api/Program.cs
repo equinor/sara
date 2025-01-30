@@ -3,10 +3,16 @@ using api.Configurations;
 using api.Database;
 using api.MQTT;
 using api.Services;
+using Api.Services;
+using Azure.Identity;
 using Azure.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Rewrite;
 using Microsoft.AspNetCore.Rewrite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Identity.Web;
 using Microsoft.Identity.Web;
 
 var builder = WebApplication.CreateBuilder(args);

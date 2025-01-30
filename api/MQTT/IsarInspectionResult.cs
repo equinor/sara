@@ -47,7 +47,6 @@ public class IsarInspectionResultMessage : MqttMessage
 
 public class IdaVisualizationAvailableMessage : MqttMessage
 {
-
     [JsonPropertyName("inspection_id")]
     public string InspectionId { get; set; }
 
@@ -59,5 +58,4 @@ public class IdaVisualizationAvailableMessage : MqttMessage
 
     [JsonPropertyName("blobName")]
     public required string BlobName { get; set; }
-
 }

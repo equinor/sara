@@ -3,7 +3,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using api.Services;
 using api.Utilities;
-using Api.Services;
 using MQTTnet;
 using MQTTnet.Client;
 using MQTTnet.Extensions.ManagedClient;
@@ -34,7 +33,6 @@ namespace api.MQTT
 
         private CancellationToken _cancellationToken;
         private int _reconnectAttempts;
-
 
         public MqttService(ILogger<MqttService> logger, IConfiguration config)
         {
@@ -82,6 +80,7 @@ namespace api.MQTT
         {
             MqttMessageService.MqttIdaVisualizationAvailable += OnIdaVisualizationAvailable;
         }
+
         public void Unubscribe()
         {
             MqttMessageService.MqttIdaVisualizationAvailable -= OnIdaVisualizationAvailable;
@@ -143,13 +142,19 @@ namespace api.MQTT
             var topic = MqttTopics.MessagesToTopics.GetTopicByItem(message.GetType());
             if (topic is null)
             {
-                _logger.LogError("No topic class defined for message of type '{messageType}'", message.GetType().Name);
+                _logger.LogError(
+                    "No topic class defined for message of type '{messageType}'",
+                    message.GetType().Name
+                );
                 return;
             }
 
             _logger.LogDebug("Topic: {topic} - Message to send: \n{payload}", topic, payload);
 
-            try { await _mqttClient.EnqueueAsync(topic, payload); }
+            try
+            {
+                await _mqttClient.EnqueueAsync(topic, payload);
+            }
             catch (Exception ex)
             {
                 _logger.LogError(
@@ -164,7 +169,9 @@ namespace api.MQTT
 
         private Task OnMessagePublished(ApplicationMessageProcessedEventArgs messageProcessedEvent)
         {
-            string content = messageProcessedEvent.ApplicationMessage?.ApplicationMessage?.ConvertPayloadToString() ?? string.Empty;
+            string content =
+                messageProcessedEvent.ApplicationMessage?.ApplicationMessage?.ConvertPayloadToString()
+                ?? string.Empty;
 
             _logger.LogInformation("Message sent: \n{payload}", content);
 
