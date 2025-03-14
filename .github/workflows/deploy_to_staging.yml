@@ -20,18 +20,7 @@ jobs:
       ClientId: ${{secrets.CLIENTID}}
       ClientSecret: ${{secrets.CLIENTSECRET}}
 
-  build-and-push-release-to-dev:
-    name: Update containers in dev with version tag
-    uses: ./.github/workflows/publish_component.yml
-    with:
-      Registry: auroradevacr.azurecr.io
-      ImageName: robotics/inspection-data-analyzer
-      Tag: ${{ github.event.release.tag_name }}
-    secrets:
-      RegistryUsername: ${{ secrets.ROBOTICS_AURORADEVACR_USERNAME }}
-      RegistryPassword: ${{ secrets.ROBOTICS_AURORADEVACR_PASSWORD }}
-
-  build-and-push-components:
+  build-and-push-release-to-production:
     name: Build and push containers to auroraprodcr for Staging/Production
     uses: ./.github/workflows/publish_component.yml
     with:
@@ -44,7 +33,7 @@ jobs:
 
   deploy:
     name: Update deployment in Staging
-    needs: [build-and-push-components]
+    needs: [build-and-push-release-to-production]
     uses: ./.github/workflows/update_aurora_deployment.yml
     with:
       Environment: staging
