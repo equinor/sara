@@ -26,7 +26,7 @@ public class BlobStorageLocation
     public string BlobName { get; set; }
 }
 
-public class InspectionData
+public class PlantData
 {
     [Key]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
