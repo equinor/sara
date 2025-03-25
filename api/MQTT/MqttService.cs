@@ -78,12 +78,12 @@ namespace api.MQTT
 
         public void Subscribe()
         {
-            MqttMessageService.MqttIdaVisualizationAvailable += OnIdaVisualizationAvailable;
+            MqttMessageService.MqttSaraVisualizationAvailable += OnSaraVisualizationAvailable;
         }
 
         public void Unubscribe()
         {
-            MqttMessageService.MqttIdaVisualizationAvailable -= OnIdaVisualizationAvailable;
+            MqttMessageService.MqttSaraVisualizationAvailable -= OnSaraVisualizationAvailable;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -130,9 +130,9 @@ namespace api.MQTT
             return Task.CompletedTask;
         }
 
-        private async void OnIdaVisualizationAvailable(object? sender, MqttMessage e)
+        private async void OnSaraVisualizationAvailable(object? sender, MqttMessage e)
         {
-            if (e is not IdaVisualizationAvailableMessage message)
+            if (e is not SaraVisualizationAvailableMessage message)
             {
                 _logger.LogError("Message is not of type IdaVisualizationAvailableMessage");
                 return;

@@ -11,7 +11,7 @@ public interface IAnalysisService
     public Task<Analysis?> ReadById(string id);
 }
 
-public class AnalysisService(IdaDbContext context) : IAnalysisService
+public class AnalysisService(SaraDbContext context) : IAnalysisService
 {
     public async Task<PagedList<Analysis>> GetAnalysis(QueryParameters parameters)
     {
