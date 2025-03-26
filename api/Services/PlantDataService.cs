@@ -1,4 +1,5 @@
-using api.Database;
+using api.Database.Context;
+using api.Database.Models;
 using api.MQTT;
 using api.Utilities;
 using Microsoft.EntityFrameworkCore;
@@ -54,22 +55,13 @@ public class PlantDataService(IdaDbContext context, IConfiguration configuration
     )
     {
         var inspectionPath = isarInspectionResultMessage.InspectionPath;
-
         var rawStorageAccount = configuration.GetSection("Storage")["RawStorageAccount"];
-        var anonymizedStorageAccount = configuration.GetSection("Storage")["AnonStorageAccount"];
-
-        if (string.IsNullOrEmpty(anonymizedStorageAccount))
-        {
-            throw new InvalidOperationException("AnonStorageAccount is not configured.");
-        }
-
         if (!inspectionPath.StorageAccount.Equals(rawStorageAccount))
         {
             throw new InvalidOperationException(
                 $"Incoming storage account, {inspectionPath.StorageAccount}, is not equal to storage account in config, {rawStorageAccount}."
             );
         }
-
         var rawDataBlobStorageLocation = new BlobStorageLocation
         {
             StorageAccount = inspectionPath.StorageAccount,
@@ -77,9 +69,26 @@ public class PlantDataService(IdaDbContext context, IConfiguration configuration
             BlobName = inspectionPath.BlobName,
         };
 
+        var anonymizedStorageAccount = configuration.GetSection("Storage")["AnonStorageAccount"];
+        if (string.IsNullOrEmpty(anonymizedStorageAccount))
+        {
+            throw new InvalidOperationException("AnonStorageAccount is not configured.");
+        }
         var anonymizedDataBlobStorageLocation = new BlobStorageLocation
         {
             StorageAccount = anonymizedStorageAccount,
+            BlobContainer = inspectionPath.BlobContainer,
+            BlobName = inspectionPath.BlobName,
+        };
+
+        var visualizedStorageAccount = configuration.GetSection("Storage")["VisStorageAccount"];
+        if (string.IsNullOrEmpty(visualizedStorageAccount))
+        {
+            throw new InvalidOperationException("VisualizedStorageAccount is not configured.");
+        }
+        var visualizedDataBlobStorageLocation = new BlobStorageLocation
+        {
+            StorageAccount = visualizedStorageAccount,
             BlobContainer = inspectionPath.BlobContainer,
             BlobName = inspectionPath.BlobName,
         };
@@ -89,6 +98,7 @@ public class PlantDataService(IdaDbContext context, IConfiguration configuration
             InspectionId = isarInspectionResultMessage.InspectionId,
             RawDataBlobStorageLocation = rawDataBlobStorageLocation,
             AnonymizedBlobStorageLocation = anonymizedDataBlobStorageLocation,
+            VisualizedBlobStorageLocation = visualizedDataBlobStorageLocation,
             InstallationCode = isarInspectionResultMessage.InstallationCode,
         };
         await context.PlantData.AddAsync(plantData);

@@ -39,6 +39,16 @@ anonymizer-->constant-level-oiler
          \-->stid-uploader
 ```
 
+## Analysis Mapping
+
+Which analysis pipeline is run is chosen by the analysis mapping. A tag + an insepction descripts maps to an analysis type.
+To add a new analysis type, add a value to the [AnalysisType](api/Database/Models/Analysis.cs) enum. Then add which tag + inspection description should map to the new AnalysisType. This can be done through the [AddOrCreateAnalysisMapping](api/Controllers/AnalysisMappingController.cs) endpoint. Then include code in the [MqttEventHandler](api/MQTT/MqttEventHandler.cs) to run the desiered pipeline for you AnalysisType. At the moment the supported analysis types are:
+
+- Anonymizer
+- ConstantLevelOiler
+
+At the moment Anonymizer is configured to always run on IsarInspectionResultMessage
+
 ## More documentation
 
 See the `/docs` folder for more documentation, for example

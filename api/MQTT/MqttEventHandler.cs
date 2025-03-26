@@ -1,4 +1,5 @@
-﻿using api.Services;
+﻿using api.Database.Models;
+using api.Services;
 using api.Utilities;
 
 namespace api.MQTT
@@ -27,6 +28,10 @@ namespace api.MQTT
             _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IArgoWorkflowService>();
         private ITimeseriesService TimeseriesService =>
             _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<ITimeseriesService>();
+        private IAnalysisMappingService AnalysisMappingService =>
+            _scopeFactory
+                .CreateScope()
+                .ServiceProvider.GetRequiredService<IAnalysisMappingService>();
 
         public override void Subscribe()
         {
@@ -70,9 +75,32 @@ namespace api.MQTT
                 isarInspectionResultMessage
             );
 
+            var analysisToBeRun =
+                await AnalysisMappingService.GetAnalysisTypeFromInspectionDescriptionAndTag(
+                    isarInspectionResultMessage.InspectionDescription,
+                    isarInspectionResultMessage.TagID
+                );
+
             var shouldRunConstantLevelOiler = false;
 
-            await ArgoWorkflowService.TriggerAnalysis(plantData, shouldRunConstantLevelOiler);
+            if (analysisToBeRun.Contains(AnalysisType.ConstantLevelOiler))
+            {
+                shouldRunConstantLevelOiler = true;
+            }
+
+            try
+            {
+                await ArgoWorkflowService.TriggerAnalysis(plantData, shouldRunConstantLevelOiler);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error occurred while triggering analysis workflow for InspectionId: {InspectionId}",
+                    isarInspectionResultMessage.InspectionId
+                );
+                return;
+            }
         }
 
         private async void OnIsarInspectionValue(object? sender, MqttReceivedArgs mqttArgs)
@@ -82,8 +110,17 @@ namespace api.MQTT
                 "Received ISAR inspection value message with InspectionId: {InspectionId}",
                 isarInspectionValueMessage.InspectionId
             );
-
-            await TimeseriesService.TriggerTimeseriesUpload(isarInspectionValueMessage);
+            try
+            {
+                await TimeseriesService.TriggerTimeseriesUpload(isarInspectionValueMessage);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error occurred while processing ISAR inspection value message"
+                );
+            }
         }
     }
 }

@@ -1,5 +1,5 @@
 using System.Text.Json.Serialization;
-using api.Database;
+using api.Database.Models;
 
 #pragma warning disable IDE1006
 
