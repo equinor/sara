@@ -1,5 +1,5 @@
 using api.Controllers.Models;
-using api.Database;
+using api.Database.Models;
 using api.Services;
 using api.Utilities;
 using Microsoft.AspNetCore.Authorization;
@@ -22,26 +22,28 @@ public class AnalysisController(
     /// </remarks>
     [HttpGet]
     [Authorize(Roles = Role.Any)]
-    [ProducesResponseType(typeof(IList<AnalysisResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(IList<Analysis>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<IList<AnalysisResponse>>> GetAllAnalysis(
+    public async Task<ActionResult<IList<Analysis>>> GetAllAnalysis(
         [FromQuery] QueryParameters parameters
     )
     {
         PagedList<Analysis> analysis;
         try
         {
-            analysis = await analysisService.GetAnalysis(parameters);
-            var response = analysis.Select(analysis => new AnalysisResponse(analysis));
-            return Ok(response);
+            analysis = await analysisService.GetAnalyses(parameters);
+            return Ok(analysis);
         }
         catch (Exception e)
         {
             logger.LogError(e, "Error during GET of analysis from database");
-            throw;
+            return StatusCode(
+                StatusCodes.Status500InternalServerError,
+                "An error occurred while retrieving analyses."
+            );
         }
     }
 
@@ -54,12 +56,12 @@ public class AnalysisController(
     [HttpGet]
     [Authorize(Roles = Role.Any)]
     [Route("id/{id}")]
-    [ProducesResponseType(typeof(AnalysisResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(Analysis), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<AnalysisResponse>> GetAnalysisById([FromRoute] string id)
+    public async Task<ActionResult<Analysis>> GetAnalysisById([FromRoute] string id)
     {
         try
         {
@@ -68,13 +70,15 @@ public class AnalysisController(
             {
                 return NotFound($"Could not find analysis with id {id}");
             }
-            var response = new AnalysisResponse(analysis);
-            return Ok(response);
+            return Ok(analysis);
         }
         catch (Exception e)
         {
             logger.LogError(e, "Error during GET of analysis from database");
-            throw;
+            return StatusCode(
+                StatusCodes.Status500InternalServerError,
+                "An error occurred while retrieving the analysis."
+            );
         }
     }
 }

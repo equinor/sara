@@ -68,4 +68,22 @@ namespace api.Utilities
         /// </summary>
         public string OrderBy { get; set; } = "";
     }
+
+    public class AnalysisMappingParameters : QueryParameters
+    {
+        /// <summary>
+        /// Filter for the tag ID
+        /// </summary>
+        public string? Tag { get; set; }
+
+        /// <summary>
+        /// Filter for the inspection description
+        /// </summary>
+        public string? InspectionDescription { get; set; }
+
+        /// <summary>
+        /// The search parameter for the analysis type.
+        /// </summary>
+        public string? AnalysisType { get; set; }
+    }
 }

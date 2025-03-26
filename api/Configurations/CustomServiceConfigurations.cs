@@ -1,5 +1,5 @@
 using System.Reflection;
-using api.Database;
+using api.Database.Context;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;

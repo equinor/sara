@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 using api.Configurations;
-using api.Database;
+using api.Database.Context;
 using api.MQTT;
 using api.Services;
 using Azure.Identity;
@@ -48,9 +48,12 @@ builder.Services.AddDbContext<IdaDbContext>(opt => opt.UseInMemoryDatabase("Todo
 builder.Services.AddScoped<IBlobService, BlobService>();
 builder.Services.AddScoped<IAnalysisService, AnalysisService>();
 builder.Services.AddScoped<IPlantDataService, PlantDataService>();
+builder.Services.AddScoped<IAnalysisMappingService, AnalysisMappingService>();
+builder.Services.AddScoped<IMqttMessageService, MqttMessageService>();
+
 builder.Services.AddScoped<IArgoWorkflowService, ArgoWorkflowService>();
 builder.Services.AddScoped<ITimeseriesService, TimeseriesService>();
-builder.Services.AddScoped<IMqttMessageService, MqttMessageService>();
+builder.Services.AddScoped<ITimeseriesService, TimeseriesService>();
 
 builder.Services.AddHostedService<MqttEventHandler>();
 builder.Services.AddHostedService<MqttService>();
