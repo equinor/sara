@@ -5,19 +5,19 @@ using api.Database;
 
 namespace api.Controllers.Models
 {
-    public class InspectionDataResponse
+    public class PlantDataResponse
     {
         public string id { get; set; }
 
         [JsonConstructor]
 #nullable disable
-        public InspectionDataResponse() { }
+        public PlantDataResponse() { }
 
 #nullable enable
 
-        public InspectionDataResponse(InspectionData inspectionData)
+        public PlantDataResponse(PlantData plantData)
         {
-            id = inspectionData.Id;
+            id = plantData.Id;
         }
     }
 }

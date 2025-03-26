@@ -18,7 +18,7 @@ public class TriggerArgoAnonymizerRequest(
 
 public interface IAnonymizerService
 {
-    public Task TriggerAnonymizerFunc(InspectionData data);
+    public Task TriggerAnonymizerFunc(PlantData data);
 }
 
 public class AnonymizerService(IConfiguration configuration) : IAnonymizerService
@@ -32,7 +32,7 @@ public class AnonymizerService(IConfiguration configuration) : IAnonymizerServic
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
-    public async Task TriggerAnonymizerFunc(InspectionData data)
+    public async Task TriggerAnonymizerFunc(PlantData data)
     {
         var postRequestData = new TriggerArgoAnonymizerRequest(
             data.InspectionId,

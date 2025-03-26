@@ -22,44 +22,44 @@ public class WorkflowExitedNotification
 [ApiController]
 [Route("[controller]")]
 public class WorkflowsController(
-    IInspectionDataService inspectionDataService,
+    IPlantDataService plantDataService,
     IMqttMessageService mqttMessageService
 ) : ControllerBase
 {
     /// <summary>
-    /// Updates status of inspection data to started
+    /// Updates status of plant data to started
     /// </summary>
     [HttpPut]
     [Authorize(Roles = Role.WorkflowStatusWrite)]
     [Route("notify-workflow-started")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<InspectionDataResponse>> WorkflowStarted(
+    public async Task<ActionResult<PlantDataResponse>> WorkflowStarted(
         [FromBody] WorkflowStartedNotification notification
     )
     {
-        var updatedInspectionData = await inspectionDataService.UpdateAnonymizerWorkflowStatus(
+        var updatedPlantData = await plantDataService.UpdateAnonymizerWorkflowStatus(
             notification.InspectionId,
             WorkflowStatus.Started
         );
-        if (updatedInspectionData == null)
+        if (updatedPlantData == null)
         {
             return NotFound(
                 $"Could not find workflow with inspection id {notification.InspectionId}"
             );
         }
-        return Ok(updatedInspectionData);
+        return Ok(updatedPlantData);
     }
 
     /// <summary>
-    /// Updates status of inspection data to exit with success or failure
+    /// Updates status of plant data to exit with success or failure
     /// </summary>
     [HttpPut]
     [Authorize(Roles = Role.WorkflowStatusWrite)]
     [Route("notify-workflow-exited")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<InspectionDataResponse>> WorkflowExited(
+    public async Task<ActionResult<PlantDataResponse>> WorkflowExited(
         [FromBody] WorkflowExitedNotification notification
     )
     {
@@ -74,11 +74,11 @@ public class WorkflowsController(
             status = WorkflowStatus.ExitFailure;
         }
 
-        var updatedInspectionData = await inspectionDataService.UpdateAnonymizerWorkflowStatus(
+        var updatedPlantData = await plantDataService.UpdateAnonymizerWorkflowStatus(
             notification.InspectionId,
             status
         );
-        if (updatedInspectionData == null)
+        if (updatedPlantData == null)
         {
             return NotFound(
                 $"Could not find workflow with inspection id {notification.InspectionId}"
@@ -88,13 +88,13 @@ public class WorkflowsController(
         var message = new IdaVisualizationAvailableMessage
         {
             InspectionId = notification.InspectionId,
-            StorageAccount = updatedInspectionData.AnonymizedBlobStorageLocation.StorageAccount,
-            BlobContainer = updatedInspectionData.AnonymizedBlobStorageLocation.BlobContainer,
-            BlobName = updatedInspectionData.AnonymizedBlobStorageLocation.BlobName,
+            StorageAccount = updatedPlantData.AnonymizedBlobStorageLocation.StorageAccount,
+            BlobContainer = updatedPlantData.AnonymizedBlobStorageLocation.BlobContainer,
+            BlobName = updatedPlantData.AnonymizedBlobStorageLocation.BlobName,
         };
 
         mqttMessageService.OnIdaVisualizationAvailable(message);
 
-        return Ok(updatedInspectionData);
+        return Ok(updatedPlantData);
     }
 }
