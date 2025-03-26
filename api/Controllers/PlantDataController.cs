@@ -10,9 +10,9 @@ namespace api.Controllers;
 
 [ApiController]
 [Route("[controller]")]
-public class InspectionDataController(
-    ILogger<InspectionDataController> logger,
-    IInspectionDataService inspectionDataService
+public class PlantDataController(
+    ILogger<PlantDataController> logger,
+    IPlantDataService plantDataService
 ) : ControllerBase
 {
     private static readonly JsonSerializerOptions _jsonSerializerOptions = new()
@@ -21,108 +21,106 @@ public class InspectionDataController(
     };
 
     /// <summary>
-    /// List all inspection data database
+    /// List all plant data from database
     /// </summary>
     /// <remarks>
-    /// <para> This query gets all inspection data </para>
+    /// <para> This query gets all plant data </para>
     /// </remarks>
     [HttpGet]
     [Authorize(Roles = Role.Any)]
-    [ProducesResponseType(typeof(IList<InspectionData>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(IList<PlantData>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<IList<InspectionData>>> GetAllInspectionData(
+    public async Task<ActionResult<IList<PlantData>>> GetAllPlantData(
         [FromQuery] QueryParameters parameters
     )
     {
-        PagedList<InspectionData> inspectionData;
+        PagedList<PlantData> plantData;
         try
         {
-            inspectionData = await inspectionDataService.GetInspectionData(parameters);
-            return Ok(inspectionData);
+            plantData = await plantDataService.GetPlantData(parameters);
+            return Ok(plantData);
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Error during GET of inspectionData from database");
+            logger.LogError(e, "Error during GET of plantData from database");
             throw;
         }
     }
 
     /// <summary>
-    /// Get Inspection by id from data database
+    /// Get PlantData by id from database
     /// </summary>
     /// <remarks>
-    /// <para> This query gets inspection data by id</para>
+    /// <para> This query gets plant data by id</para>
     /// </remarks>
     [HttpGet]
     [Authorize(Roles = Role.Any)]
     [Route("id/{id}")]
-    [ProducesResponseType(typeof(InspectionData), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PlantData), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<InspectionData>> GetInspectionDataById([FromRoute] string id)
+    public async Task<ActionResult<PlantData>> GetPlantDataById([FromRoute] string id)
     {
         try
         {
-            var inspectionData = await inspectionDataService.ReadById(id);
-            if (inspectionData == null)
+            var plantData = await plantDataService.ReadById(id);
+            if (plantData == null)
             {
-                return NotFound($"Could not find inspection data with id {id}");
+                return NotFound($"Could not find plant data with id {id}");
             }
-            return Ok(inspectionData);
+            return Ok(plantData);
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Error during GET of inspectionData from database");
+            logger.LogError(e, "Error during GET of plantData from database");
             throw;
         }
     }
 
     /// <summary>
-    /// Get Inspection by inspection id from data database
+    /// Get PlantData by inspection id from data database
     /// </summary>
     /// <remarks>
-    /// <para> This query gets inspection data by inspection id</para>
+    /// <para> This query gets plant data by inspection id</para>
     /// </remarks>
     [HttpGet]
     [Authorize(Roles = Role.Any)]
     [Route("{inspectionId}")]
-    [ProducesResponseType(typeof(InspectionData), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PlantData), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<InspectionDataResponse>> GetInspectionDataByInspectionId(
+    public async Task<ActionResult<PlantDataResponse>> GetPlantDataByInspectionId(
         [FromRoute] string inspectionId
     )
     {
         try
         {
-            var inspectionData = await inspectionDataService.ReadByInspectionId(inspectionId);
-            if (inspectionData == null)
+            var plantData = await plantDataService.ReadByInspectionId(inspectionId);
+            if (plantData == null)
             {
-                return NotFound(
-                    $"Could not find inspection data with inspection id {inspectionId}"
-                );
+                return NotFound($"Could not find plant data with inspection id {inspectionId}");
             }
-            return Ok(inspectionData);
+            return Ok(plantData);
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Error during GET of inspectionData from database");
+            logger.LogError(e, "Error during GET of plantData from database");
             throw;
         }
     }
 
     /// <summary>
-    /// Get link to inspection data from blob store by inspection id
+    /// Get link to plant data from blob store by inspection id
     /// </summary>
     /// <remarks>
-    /// <para> This endpoint returns a link to an anonymized inspection data in blob storage. </para>
+    /// <para> This endpoint returns a link to an anonymized plant data in blob storage. </para>
     /// </remarks>
     [HttpGet]
     [Authorize(Roles = Role.Any)]
@@ -141,19 +139,17 @@ public class InspectionDataController(
     {
         try
         {
-            var inspection = await inspectionDataService.ReadByInspectionId(inspectionId);
-            if (inspection == null)
+            var plantData = await plantDataService.ReadByInspectionId(inspectionId);
+            if (plantData == null)
             {
                 logger.LogWarning(
-                    "No inspection data found for InspectionId: {InspectionId}",
+                    "No plant data found for InspectionId: {InspectionId}",
                     inspectionId
                 );
-                return NotFound(
-                    $"Could not find inspection data with inspection id {inspectionId}"
-                );
+                return NotFound($"Could not find plant data with inspection id {inspectionId}");
             }
 
-            var anonymizerWorkflowStatus = inspection.AnonymizerWorkflowStatus;
+            var anonymizerWorkflowStatus = plantData.AnonymizerWorkflowStatus;
             logger.LogInformation(
                 "Anonymization workflow status for InspectionId: {InspectionId} is {Status}",
                 inspectionId,
@@ -163,16 +159,13 @@ public class InspectionDataController(
             switch (anonymizerWorkflowStatus)
             {
                 case WorkflowStatus.ExitSuccess:
-                    var inspectionJson = JsonSerializer.Serialize(
-                        inspection,
-                        _jsonSerializerOptions
-                    );
+                    var plantDataJson = JsonSerializer.Serialize(plantData, _jsonSerializerOptions);
                     logger.LogInformation(
-                        "Full Inspection Data for InspectionId: {InspectionId}: {InspectionData}",
+                        "Full Plant Data for InspectionId: {InspectionId}: {PlantData}",
                         inspectionId,
-                        inspectionJson
+                        plantDataJson
                     );
-                    return Ok(inspection.AnonymizedBlobStorageLocation);
+                    return Ok(plantData.AnonymizedBlobStorageLocation);
 
                 case WorkflowStatus.NotStarted:
                     return StatusCode(

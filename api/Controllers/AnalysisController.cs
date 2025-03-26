@@ -46,10 +46,10 @@ public class AnalysisController(
     }
 
     /// <summary>
-    /// Get Inspection by id from data database
+    /// Get Analysis by id from data database
     /// </summary>
     /// <remarks>
-    /// <para> This query gets inspection data by id</para>
+    /// <para> This query gets analysis by id</para>
     /// </remarks>
     [HttpGet]
     [Authorize(Roles = Role.Any)]

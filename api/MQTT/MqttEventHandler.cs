@@ -28,10 +28,8 @@ namespace api.MQTT
             Subscribe();
         }
 
-        private IInspectionDataService InspectionDataService =>
-            _scopeFactory
-                .CreateScope()
-                .ServiceProvider.GetRequiredService<IInspectionDataService>();
+        private IPlantDataService PlantDataService =>
+            _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IPlantDataService>();
         private IAnonymizerService AnonymizerService =>
             _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IAnonymizerService>();
 
@@ -54,23 +52,23 @@ namespace api.MQTT
         {
             var isarInspectionResultMessage = (IsarInspectionResultMessage)mqttArgs.Message;
 
-            var inspectionResult = await InspectionDataService.ReadByInspectionId(
+            var existingPlantData = await PlantDataService.ReadByInspectionId(
                 isarInspectionResultMessage.InspectionId
             );
 
-            if (inspectionResult != null)
+            if (existingPlantData != null)
             {
                 _logger.LogWarning(
-                    "Inspection Data with inspection id {InspectionId} already exists",
+                    "Plant Data with inspection id {InspectionId} already exists",
                     isarInspectionResultMessage.InspectionId
                 );
                 return;
             }
 
-            var inspectionData = await InspectionDataService.CreateFromMqttMessage(
+            var plantData = await PlantDataService.CreateFromMqttMessage(
                 isarInspectionResultMessage
             );
-            await AnonymizerService.TriggerAnonymizerFunc(inspectionData);
+            await AnonymizerService.TriggerAnonymizerFunc(plantData);
         }
     }
 }

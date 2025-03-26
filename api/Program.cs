@@ -47,7 +47,7 @@ builder.Services.AddDbContext<IdaDbContext>(opt => opt.UseInMemoryDatabase("Todo
 
 builder.Services.AddScoped<IBlobService, BlobService>();
 builder.Services.AddScoped<IAnalysisService, AnalysisService>();
-builder.Services.AddScoped<IInspectionDataService, InspectionDataService>();
+builder.Services.AddScoped<IPlantDataService, PlantDataService>();
 builder.Services.AddScoped<IAnonymizerService, AnonymizerService>();
 builder.Services.AddScoped<IMqttMessageService, MqttMessageService>();
 

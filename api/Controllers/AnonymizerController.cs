@@ -31,7 +31,7 @@ public class AnonymizerController(IAnonymizerService anonymizerService, IdaDbCon
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> TriggerAnonymizer([FromBody] TriggerAnonymizerRequest request)
     {
-        var inspectionData = new InspectionData
+        var plantData = new PlantData
         {
             Id = Guid.NewGuid().ToString(),
             InspectionId = request.InspectionId,
@@ -44,10 +44,10 @@ public class AnonymizerController(IAnonymizerService anonymizerService, IdaDbCon
             Analysis = [],
         };
 
-        dbContext.InspectionData.Add(inspectionData);
+        dbContext.PlantData.Add(plantData);
         await dbContext.SaveChangesAsync();
 
-        await anonymizerService.TriggerAnonymizerFunc(inspectionData);
+        await anonymizerService.TriggerAnonymizerFunc(plantData);
 
         return Ok("Anonymizer workflow triggered successfully.");
     }

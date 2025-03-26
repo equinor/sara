@@ -5,51 +5,51 @@ using Microsoft.EntityFrameworkCore;
 
 namespace api.Services;
 
-public interface IInspectionDataService
+public interface IPlantDataService
 {
-    public Task<PagedList<InspectionData>> GetInspectionData(QueryParameters parameters);
+    public Task<PagedList<PlantData>> GetPlantData(QueryParameters parameters);
 
-    public Task<InspectionData?> ReadById(string id);
+    public Task<PlantData?> ReadById(string id);
 
-    public Task<InspectionData?> ReadByInspectionId(string inspectionId);
+    public Task<PlantData?> ReadByInspectionId(string inspectionId);
 
-    public Task<InspectionData> CreateFromMqttMessage(
+    public Task<PlantData> CreateFromMqttMessage(
         IsarInspectionResultMessage isarInspectionResultMessage
     );
 
-    public Task<InspectionData?> UpdateAnonymizerWorkflowStatus(
+    public Task<PlantData?> UpdateAnonymizerWorkflowStatus(
         string inspectionId,
         WorkflowStatus status
     );
 }
 
-public class InspectionDataService(IdaDbContext context, IConfiguration configuration)
-    : IInspectionDataService
+public class PlantDataService(IdaDbContext context, IConfiguration configuration)
+    : IPlantDataService
 {
-    public async Task<PagedList<InspectionData>> GetInspectionData(QueryParameters parameters)
+    public async Task<PagedList<PlantData>> GetPlantData(QueryParameters parameters)
     {
-        var query = context.InspectionData.Include(a => a.Analysis).AsQueryable();
+        var query = context.PlantData.Include(a => a.Analysis).AsQueryable();
 
-        return await PagedList<InspectionData>.ToPagedListAsync(
+        return await PagedList<PlantData>.ToPagedListAsync(
             query,
             parameters.PageNumber,
             parameters.PageSize
         );
     }
 
-    public async Task<InspectionData?> ReadById(string id)
+    public async Task<PlantData?> ReadById(string id)
     {
-        return await context.InspectionData.FirstOrDefaultAsync(i => i.Id.Equals(id));
+        return await context.PlantData.FirstOrDefaultAsync(i => i.Id.Equals(id));
     }
 
-    public async Task<InspectionData?> ReadByInspectionId(string inspectionId)
+    public async Task<PlantData?> ReadByInspectionId(string inspectionId)
     {
-        return await context.InspectionData.FirstOrDefaultAsync(i =>
+        return await context.PlantData.FirstOrDefaultAsync(i =>
             i.InspectionId.Equals(inspectionId)
         );
     }
 
-    public async Task<InspectionData> CreateFromMqttMessage(
+    public async Task<PlantData> CreateFromMqttMessage(
         IsarInspectionResultMessage isarInspectionResultMessage
     )
     {
@@ -84,31 +84,31 @@ public class InspectionDataService(IdaDbContext context, IConfiguration configur
             BlobName = inspectionPath.BlobName,
         };
 
-        var inspectionData = new InspectionData
+        var plantData = new PlantData
         {
             InspectionId = isarInspectionResultMessage.InspectionId,
             RawDataBlobStorageLocation = rawDataBlobStorageLocation,
             AnonymizedBlobStorageLocation = anonymizedDataBlobStorageLocation,
             InstallationCode = isarInspectionResultMessage.InstallationCode,
         };
-        await context.InspectionData.AddAsync(inspectionData);
+        await context.PlantData.AddAsync(plantData);
         await context.SaveChangesAsync();
-        return inspectionData;
+        return plantData;
     }
 
-    public async Task<InspectionData?> UpdateAnonymizerWorkflowStatus(
+    public async Task<PlantData?> UpdateAnonymizerWorkflowStatus(
         string inspectionId,
         WorkflowStatus status
     )
     {
-        var inspectionData = await context.InspectionData.FirstOrDefaultAsync(i =>
+        var plantData = await context.PlantData.FirstOrDefaultAsync(i =>
             i.InspectionId.Equals(inspectionId)
         );
-        if (inspectionData != null)
+        if (plantData != null)
         {
-            inspectionData.AnonymizerWorkflowStatus = status;
+            plantData.AnonymizerWorkflowStatus = status;
             await context.SaveChangesAsync();
         }
-        return inspectionData;
+        return plantData;
     }
 }
