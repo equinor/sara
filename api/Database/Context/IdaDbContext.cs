@@ -1,6 +1,7 @@
+using api.Database.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace api.Database
+namespace api.Database.Context
 {
     public class IdaDbContext(DbContextOptions options) : DbContext(options)
     {
