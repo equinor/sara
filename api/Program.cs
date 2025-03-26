@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 using api.Configurations;
-using api.Database;
+using api.Database.Context;
 using api.MQTT;
 using api.Services;
 using Azure.Identity;

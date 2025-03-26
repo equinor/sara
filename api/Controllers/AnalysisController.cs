@@ -1,5 +1,5 @@
 using api.Controllers.Models;
-using api.Database;
+using api.Database.Models;
 using api.Services;
 using api.Utilities;
 using Microsoft.AspNetCore.Authorization;
