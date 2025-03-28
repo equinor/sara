@@ -1,6 +1,6 @@
-# Inspection Data Analyzer
+# Storage and Analysis of Robot Acquired plant data
 
-IDA (Inspection Data Analyzer) is a repository for running pipelines to analyze data coming from various inspections.
+SARA (Storage and Analysis of Robot Acquired plant data) is a repository for running pipelines to analyze and store data aquired by robots in various plants.
 
 When running locally the endpoint can be reached at https://localhost:8100.
 

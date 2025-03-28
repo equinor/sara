@@ -45,7 +45,7 @@ public class IsarInspectionResultMessage : MqttMessage
     public DateTime Timestamp { get; set; }
 }
 
-public class IdaVisualizationAvailableMessage : MqttMessage
+public class SaraVisualizationAvailableMessage : MqttMessage
 {
     [JsonPropertyName("inspection_id")]
     public string InspectionId { get; set; }

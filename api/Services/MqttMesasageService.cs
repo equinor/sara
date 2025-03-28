@@ -4,25 +4,25 @@ namespace api.Services
 {
     public interface IMqttMessageService
     {
-        public void OnIdaVisualizationAvailable(IdaVisualizationAvailableMessage e);
+        public void OnSaraVisualizationAvailable(SaraVisualizationAvailableMessage e);
     }
 
     public class MqttMessageService : IMqttMessageService
     {
         public MqttMessageService() { }
 
-        public void OnIdaVisualizationAvailable(IdaVisualizationAvailableMessage e)
+        public void OnSaraVisualizationAvailable(SaraVisualizationAvailableMessage e)
         {
-            OnIdaVisualizationAvailableTriggered(e);
+            OnSaraVisualizationAvailableTriggered(e);
         }
 
-        public static event EventHandler<IdaVisualizationAvailableMessage>? MqttIdaVisualizationAvailable;
+        public static event EventHandler<SaraVisualizationAvailableMessage>? MqttSaraVisualizationAvailable;
 
-        protected virtual void OnIdaVisualizationAvailableTriggered(
-            IdaVisualizationAvailableMessage e
+        protected virtual void OnSaraVisualizationAvailableTriggered(
+            SaraVisualizationAvailableMessage e
         )
         {
-            MqttIdaVisualizationAvailable?.Invoke(this, e);
+            MqttSaraVisualizationAvailable?.Invoke(this, e);
         }
     }
 }
