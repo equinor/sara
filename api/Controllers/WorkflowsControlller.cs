@@ -85,7 +85,7 @@ public class WorkflowsController(
             );
         }
 
-        var message = new IdaVisualizationAvailableMessage
+        var message = new SaraVisualizationAvailableMessage
         {
             InspectionId = notification.InspectionId,
             StorageAccount = updatedPlantData.AnonymizedBlobStorageLocation.StorageAccount,
@@ -93,7 +93,7 @@ public class WorkflowsController(
             BlobName = updatedPlantData.AnonymizedBlobStorageLocation.BlobName,
         };
 
-        mqttMessageService.OnIdaVisualizationAvailable(message);
+        mqttMessageService.OnSaraVisualizationAvailable(message);
 
         return Ok(updatedPlantData);
     }
