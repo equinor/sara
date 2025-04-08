@@ -51,6 +51,10 @@ namespace api.MQTT
         private async void OnIsarInspectionResult(object? sender, MqttReceivedArgs mqttArgs)
         {
             var isarInspectionResultMessage = (IsarInspectionResultMessage)mqttArgs.Message;
+            _logger.LogInformation(
+                "Received ISAR inspection result message with InspectionId: {InspectionId}",
+                isarInspectionResultMessage.InspectionId
+            );
 
             var existingPlantData = await PlantDataService.ReadByInspectionId(
                 isarInspectionResultMessage.InspectionId
