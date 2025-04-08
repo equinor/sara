@@ -38,11 +38,17 @@ public class IsarInspectionResultMessage : MqttMessage
     [JsonPropertyName("installation_code")]
     public string InstallationCode { get; set; }
 
-    [JsonPropertyName("analysis_to_be_run")]
-    public string[] AnalysisToBeRun { get; set; }
-
     [JsonPropertyName("timestamp")]
     public DateTime Timestamp { get; set; }
+
+    [JsonPropertyName("tag_id")]
+    public string TagID { get; set; }
+
+    [JsonPropertyName("inspection_type")]
+    public string InspectionType { get; set; }
+
+    [JsonPropertyName("inspection_description")]
+    public string InspectionDescription { get; set; }
 }
 
 public class IdaVisualizationAvailableMessage : MqttMessage
