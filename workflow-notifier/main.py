@@ -17,25 +17,25 @@ def get_env_or_fail(var_name: str) -> str:
     return value
 
 
-IDA_SERVER_URL = get_env_or_fail("IDA_SERVER_URL")
+SARA_SERVER_URL = get_env_or_fail("SARA_SERVER_URL")
 TENANT_ID = get_env_or_fail("TENANT_ID")
 NOTIFIER_CLIENT_ID = get_env_or_fail("NOTIFIER_CLIENT_ID")
 NOTIFIER_CLIENT_SECRET = get_env_or_fail("NOTIFIER_CLIENT_SECRET")
-IDA_SCOPE = get_env_or_fail("IDA_APP_REG_SCOPE")
+SARA_SCOPE = get_env_or_fail("SARA_APP_REG_SCOPE")
 
-SCOPES = [IDA_SCOPE]
+SCOPES = [SARA_SCOPE]
 AUTHORITY = f"https://login.microsoftonline.com/{TENANT_ID}"
 
 # Should preferably only be set to true in local environment.
 # Validating the HTTPS certificate can prevent man-in-the-middle attacks.
-SKIP_VALIDATE_HTTPS_CERT_IDA = (
+SKIP_VALIDATE_HTTPS_CERT_SARA = (
     os.getenv("SKIP_VALIDATE_HTTPS_CERT_IDA", "").lower() == "true"
 )
-VALIDATE_HTTPS_CERT_IDA = not SKIP_VALIDATE_HTTPS_CERT_IDA
+VALIDATE_HTTPS_CERT_SARA = not SKIP_VALIDATE_HTTPS_CERT_SARA
 
-if SKIP_VALIDATE_HTTPS_CERT_IDA:
+if SKIP_VALIDATE_HTTPS_CERT_SARA:
     typer.echo(
-        "Warning: Skipping HTTPS certificate validation for IDA server.", err=False
+        "Warning: Skipping HTTPS certificate validation for SARA server.", err=False
     )
 
 
@@ -80,7 +80,7 @@ def send_authenticated_put_request(url: str, payload: dict) -> requests.Response
     access_token = get_access_token()
     headers = {"Authorization": f"Bearer {access_token}"}
     response = requests.put(
-        url, json=payload, headers=headers, verify=VALIDATE_HTTPS_CERT_IDA
+        url, json=payload, headers=headers, verify=VALIDATE_HTTPS_CERT_SARA
     )
     response.raise_for_status()
     return response
@@ -91,7 +91,7 @@ def notify_start(inspection_id: str, workflow_name: str):
     """
     Notify the server about workflow start.
     """
-    url = f"{IDA_SERVER_URL}/Workflows/notify-workflow-started"
+    url = f"{SARA_SERVER_URL}/Workflows/notify-workflow-started"
     payload = {"InspectionId": inspection_id, "WorkflowName": workflow_name}
     try:
         response = send_authenticated_put_request(url, payload)
@@ -106,7 +106,7 @@ def notify_exit(inspection_id: str, workflow_status: str):
     """
     Notify the server about workflow exit.
     """
-    url = f"{IDA_SERVER_URL}/Workflows/notify-workflow-exited"
+    url = f"{SARA_SERVER_URL}/Workflows/notify-workflow-exited"
     payload = {"InspectionId": inspection_id, "WorkflowStatus": workflow_status}
     try:
         response = send_authenticated_put_request(url, payload)
