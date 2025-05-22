@@ -3,7 +3,7 @@ using Azure.Security.KeyVault.Secrets;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 
-namespace api.Database
+namespace api.Database.Context
 {
     /// <summary>
     /// This class is not called by anything explicitly, but is used by EF core when adding migrations and updating database.

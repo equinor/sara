@@ -1,5 +1,5 @@
 using api.Controllers.Models;
-using api.Database;
+using api.Database.Models;
 using api.MQTT;
 using api.Services;
 using Microsoft.AspNetCore.Authorization;

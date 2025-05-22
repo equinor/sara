@@ -32,6 +32,10 @@ namespace api.MQTT
             _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IPlantDataService>();
         private IAnonymizerService AnonymizerService =>
             _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IAnonymizerService>();
+        private IAnalysisMappingService AnalysisMappingService =>
+            _scopeFactory
+                .CreateScope()
+                .ServiceProvider.GetRequiredService<IAnalysisMappingService>();
 
         public override void Subscribe()
         {
@@ -68,6 +72,11 @@ namespace api.MQTT
                 );
                 return;
             }
+
+            var analysisToBeRun = AnalysisMappingService.InspectionDescriptionToAnalysisType(
+                isarInspectionResultMessage.InspectionDescription,
+                isarInspectionResultMessage.TagID
+            );
 
             var plantData = await PlantDataService.CreateFromMqttMessage(
                 isarInspectionResultMessage
