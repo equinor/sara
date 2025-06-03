@@ -1,12 +1,5 @@
-﻿using System.Text.Json;
-// using api.Controllers.Models;
-// using api.Database;
-// using api.MQTT;
-// using api.MQTT.Events;
-// using api.MQTT.MessageModels;
-using api.Services;
+﻿using api.Services;
 using api.Utilities;
-using Microsoft.EntityFrameworkCore;
 
 namespace api.MQTT
 {
@@ -32,6 +25,8 @@ namespace api.MQTT
             _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IPlantDataService>();
         private IAnonymizerService AnonymizerService =>
             _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IAnonymizerService>();
+        private ITimeseriesService TimeseriesService =>
+            _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<ITimeseriesService>();
 
         public override void Subscribe()
         {
@@ -73,6 +68,17 @@ namespace api.MQTT
                 isarInspectionResultMessage
             );
             await AnonymizerService.TriggerAnonymizerFunc(plantData);
+        }
+
+        private async void OnIsarInspectionValue(object? sender, MqttReceivedArgs mqttArgs)
+        {
+            var isarInspectionValueMessage = (IsarInspectionValueMessage)mqttArgs.Message;
+            _logger.LogInformation(
+                "Received ISAR inspection value message with InspectionId: {InspectionId}",
+                isarInspectionValueMessage.InspectionId
+            );
+
+            await TimeseriesService.TriggerTimeseriesUpload(isarInspectionValueMessage);
         }
     }
 }

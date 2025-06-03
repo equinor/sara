@@ -21,6 +21,14 @@ The resulting service is available in three environments (development, staging a
 
 When running locally the endpoint can be reached at https://localhost:8100.
 
+## Services
+
+SARA uses several services to upload data to other sources for storage or analysis.
+A list of these services can be found below.
+
+- [Sara Timeseries](https://github.com/equinor/sara-timeseries/)
+- [Sara Anonymizer](https://github.com/equinor/sara-anonymizer/)
+
 ## More documentation
 
 See the `/docs` folder for more documentation, for example
