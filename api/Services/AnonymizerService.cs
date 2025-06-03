@@ -21,7 +21,8 @@ public interface IAnonymizerService
     public Task TriggerAnonymizerFunc(PlantData data);
 }
 
-public class AnonymizerService(IConfiguration configuration) : IAnonymizerService
+public class AnonymizerService(IConfiguration configuration, ILogger<AnonymizerService> logger)
+    : IAnonymizerService
 {
     private static readonly HttpClient client = new();
     private readonly string _baseUrl =
@@ -47,11 +48,11 @@ public class AnonymizerService(IConfiguration configuration) : IAnonymizerServic
 
         if (response.IsSuccessStatusCode)
         {
-            Console.WriteLine("Function triggered successfully.");
+            logger.LogInformation("Function triggered successfully.");
         }
         else
         {
-            Console.WriteLine("Failed to trigger function.");
+            logger.LogError("Failed to trigger function.");
         }
     }
 }
