@@ -21,6 +21,12 @@ public interface IPlantDataService
         string inspectionId,
         WorkflowStatus status
     );
+
+    public Task<PlantData?> UpdateStidWorkflowStatus(
+       string inspectionId,
+       string documentId,
+       WorkflowStatus status
+   );
 }
 
 public class PlantDataService(IdaDbContext context, IConfiguration configuration)
@@ -107,6 +113,24 @@ public class PlantDataService(IdaDbContext context, IConfiguration configuration
         if (plantData != null)
         {
             plantData.AnonymizerWorkflowStatus = status;
+            await context.SaveChangesAsync();
+        }
+        return plantData;
+    }
+
+    public async Task<PlantData?> UpdateStidWorkflowStatus(
+       string inspectionId,
+       string documentId,
+       WorkflowStatus status
+   )
+    {
+        var plantData = await context.PlantData.FirstOrDefaultAsync(i =>
+            i.InspectionId.Equals(inspectionId)
+        );
+        if (plantData != null)
+        {
+            plantData.AnonymizerWorkflowStatus = status;
+            plantData.StidDocumentId = documentId;
             await context.SaveChangesAsync();
         }
         return plantData;
