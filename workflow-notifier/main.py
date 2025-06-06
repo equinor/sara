@@ -116,5 +116,24 @@ def notify_exit(inspection_id: str, workflow_status: str):
         raise typer.Exit(1)
 
 
+@app.command()
+def notify_exit_sara_stid(inspection_id: str, document_id: str, workflow_status: str):
+    """
+    Notify the server about workflow exit.
+    """
+    url = f"{SARA_SERVER_URL}/Workflows/notify-sara-stid-workflow-exited"
+    payload = {
+        "InspectionId": inspection_id,
+        "DocumentId": document_id,
+        "WorkflowStatus": workflow_status,
+    }
+    try:
+        response = send_authenticated_put_request(url, payload)
+        typer.echo(f"Workflow exited successfully: {response.json()}")
+    except requests.exceptions.RequestException as e:
+        typer.echo(f"Error notifying workflow exit: {e}", err=True)
+        raise typer.Exit(1)
+
+
 if __name__ == "__main__":
     app()

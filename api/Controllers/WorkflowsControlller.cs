@@ -19,6 +19,13 @@ public class WorkflowExitedNotification
     public required string WorkflowStatus { get; set; }
 }
 
+public class StidWorkflowExitedNotification
+{
+    public required string InspectionId { get; set; }
+    public required string DocumentId { get; set; }
+    public required string WorkflowStatus { get; set; }
+}
+
 [ApiController]
 [Route("[controller]")]
 public class WorkflowsController(
@@ -94,6 +101,44 @@ public class WorkflowsController(
         };
 
         mqttMessageService.OnSaraVisualizationAvailable(message);
+
+        return Ok(updatedPlantData);
+    }
+
+    /// <summary>
+    /// Updates status of plant data to exit with success or failure
+    /// </summary>
+    [HttpPut]
+    [Authorize(Roles = Role.WorkflowStatusWrite)]
+    [Route("notify-sara-stid-workflow-exited")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PlantDataResponse>> StidWorkflowExited(
+        [FromBody] StidWorkflowExitedNotification notification
+    )
+    {
+        WorkflowStatus status;
+
+        if (notification.WorkflowStatus == "Succeeded")
+        {
+            status = WorkflowStatus.ExitSuccess;
+        }
+        else
+        {
+            status = WorkflowStatus.ExitFailure;
+        }
+
+        var updatedPlantData = await plantDataService.UpdateStidWorkflowStatus(
+            notification.InspectionId,
+            notification.DocumentId,
+            status
+        );
+        if (updatedPlantData == null)
+        {
+            return NotFound(
+                $"Could not find workflow with inspection id {notification.InspectionId}"
+            );
+        }
 
         return Ok(updatedPlantData);
     }

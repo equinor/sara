@@ -26,6 +26,20 @@ public class BlobStorageLocation
     public string BlobName { get; set; }
 }
 
+[Owned]
+public class StidDocumentMetadata
+{
+    [Required]
+    public string Installationcode { get; set; }
+
+    public string? TagNo { get; set; }
+
+    [Required]
+    public string Description { get; set; }
+
+    public string? MediaDate { get; set; }
+}
+
 public class PlantData
 {
     [Key]
@@ -55,6 +69,11 @@ public class PlantData
 
     [Required]
     public List<Analysis> Analysis { get; set; } = [];
+
+    [Required]
+    public StidDocumentMetadata StidDocumentMetadata { get; set; }
+
+    public string? StidDocumentId { get; set; }
 }
 
 public class Analysis
