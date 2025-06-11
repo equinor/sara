@@ -52,7 +52,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ${{ inputs.ContextDir || '.' }}
-          dockerfile: ${{ inputs.DockerfilePath || 'Dockerfile' }}
+          file: ${{ inputs.DockerfilePath || 'Dockerfile' }}
           push: true
           tags: |
             ${{ inputs.Registry }}/${{ inputs.ImageName }}:${{ inputs.Tag }}
