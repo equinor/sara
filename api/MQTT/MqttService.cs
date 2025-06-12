@@ -75,6 +75,7 @@ namespace api.MQTT
         }
 
         public static event EventHandler<MqttReceivedArgs>? MqttIsarInspectionResultReceived;
+        public static event EventHandler<MqttReceivedArgs>? MqttIsarInspectionValueReceived;
 
         public void Subscribe()
         {
@@ -118,6 +119,9 @@ namespace api.MQTT
             {
                 case Type type when type == typeof(IsarInspectionResultMessage):
                     OnIsarTopicReceived<IsarInspectionResultMessage>(content);
+                    break;
+                case Type type when type == typeof(IsarInspectionValueMessage):
+                    OnIsarTopicReceived<IsarInspectionValueMessage>(content);
                     break;
                 default:
                     _logger.LogWarning(
@@ -303,8 +307,10 @@ namespace api.MQTT
             {
                 var raiseEvent = type switch
                 {
-                    _ when type == typeof(IsarInspectionResultMessage) =>
+                    var t when t == typeof(IsarInspectionResultMessage) =>
                         MqttIsarInspectionResultReceived,
+                    var t when t == typeof(IsarInspectionValueMessage) =>
+                        MqttIsarInspectionValueReceived,
                     _ => throw new NotImplementedException(
                         $"No event defined for message type '{typeof(T).Name}'"
                     ),

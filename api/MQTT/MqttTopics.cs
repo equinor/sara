@@ -13,12 +13,14 @@ namespace api.MQTT
         public static readonly Dictionary<string, Type> TopicsToMessages = new()
         {
             { "isar/+/inspection_result", typeof(IsarInspectionResultMessage) },
+            { "isar/+/inspection_value", typeof(IsarInspectionValueMessage) },
             { "sara/visualization_available", typeof(SaraVisualizationAvailableMessage) },
         };
 
         public static readonly Dictionary<Type, string> MessagesToTopics = new()
         {
             { typeof(IsarInspectionResultMessage), "isar/+/inspection_result" },
+            { typeof(IsarInspectionValueMessage), "isar/+/inspection_value" },
             { typeof(SaraVisualizationAvailableMessage), "sara/visualization_available" },
         };
 
