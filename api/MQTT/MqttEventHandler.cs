@@ -31,11 +31,13 @@ namespace api.MQTT
         public override void Subscribe()
         {
             MqttService.MqttIsarInspectionResultReceived += OnIsarInspectionResult;
+            MqttService.MqttIsarInspectionValueReceived += OnIsarInspectionValue;
         }
 
         public override void Unsubscribe()
         {
             MqttService.MqttIsarInspectionResultReceived -= OnIsarInspectionResult;
+            MqttService.MqttIsarInspectionValueReceived -= OnIsarInspectionValue;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
