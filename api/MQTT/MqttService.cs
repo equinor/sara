@@ -296,6 +296,7 @@ namespace api.MQTT
                 when (ex is JsonException or NotSupportedException or ArgumentException)
             {
                 _logger.LogError(
+                    ex,
                     "Could not create '{className}' object from MQTT message json",
                     typeof(T).Name
                 );
