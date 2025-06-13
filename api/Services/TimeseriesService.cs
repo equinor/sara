@@ -92,9 +92,9 @@ public class TimeseriesService(IConfiguration configuration, ILogger<TimeseriesS
         var description = isarInspectionValueMessage.InspectionDescription.Replace(" ", "-");
         var name =
             $"{isarInspectionValueMessage.InstallationCode}_"
-            + $"{isarInspectionValueMessage.X}E_"
-            + $"{isarInspectionValueMessage.Y}N_"
-            + $"{isarInspectionValueMessage.Z}U_"
+            + $"{(int)Math.Floor(isarInspectionValueMessage.X)}E_"
+            + $"{(int)Math.Floor(isarInspectionValueMessage.Y)}N_"
+            + $"{(int)Math.Floor(isarInspectionValueMessage.Z)}U_"
             + $"{isarInspectionValueMessage.TagID}_"
             + $"{isarInspectionValueMessage.RobotName}_"
             + $"{description}";
