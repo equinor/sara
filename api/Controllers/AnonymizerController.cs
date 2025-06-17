@@ -16,10 +16,15 @@ public class TriggerAnonymizerRequest
 
 [ApiController]
 [Route("[controller]")]
-public class AnonymizerController(IAnonymizerService anonymizerService, IdaDbContext dbContext)
-    : ControllerBase
+public class AnonymizerController(
+    IAnonymizerService anonymizerService,
+    IdaDbContext dbContext,
+    ILogger<AnonymizerController> logger
+) : ControllerBase
 {
     private readonly IdaDbContext dbContext = dbContext;
+
+    private readonly ILogger<AnonymizerController> _logger = logger;
 
     /// <summary>
     /// Triggers the anonymizer workflow. NB: Anonymizer workflow should normally be triggered by MQTT message
@@ -46,6 +51,11 @@ public class AnonymizerController(IAnonymizerService anonymizerService, IdaDbCon
 
         dbContext.PlantData.Add(plantData);
         await dbContext.SaveChangesAsync();
+
+        _logger.LogInformation(
+            "Triggering anonymizer workflow from controller for InspectionId: {InspectionId}",
+            request.InspectionId
+        );
 
         await anonymizerService.TriggerAnonymizerFunc(plantData);
 
