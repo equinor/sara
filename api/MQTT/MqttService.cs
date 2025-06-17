@@ -297,8 +297,9 @@ namespace api.MQTT
             {
                 _logger.LogError(
                     ex,
-                    "Could not create '{className}' object from MQTT message json",
-                    typeof(T).Name
+                    "Could not create '{className}' object from MQTT message json. The content was the following: {content}",
+                    typeof(T).Name,
+                    content
                 );
                 return;
             }
