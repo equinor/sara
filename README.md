@@ -29,6 +29,16 @@ A list of these services can be found below.
 - [Sara Timeseries](https://github.com/equinor/sara-timeseries/)
 - [Sara Anonymizer](https://github.com/equinor/sara-anonymizer/)
 
+## Workflow
+
+There will be several analysis available for SARA. These are triggered through an
+Argo Workflow which can have a conditional flow based on the type of inspection.
+
+```
+anonymizer-->constant-level-oiler
+         \-->stid-uploader
+```
+
 ## More documentation
 
 See the `/docs` folder for more documentation, for example

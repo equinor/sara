@@ -23,8 +23,8 @@ namespace api.MQTT
 
         private IPlantDataService PlantDataService =>
             _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IPlantDataService>();
-        private IAnonymizerService AnonymizerService =>
-            _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IAnonymizerService>();
+        private IArgoWorkflowService ArgoWorkflowService =>
+            _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IArgoWorkflowService>();
         private ITimeseriesService TimeseriesService =>
             _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<ITimeseriesService>();
 
@@ -69,7 +69,10 @@ namespace api.MQTT
             var plantData = await PlantDataService.CreateFromMqttMessage(
                 isarInspectionResultMessage
             );
-            await AnonymizerService.TriggerAnonymizerFunc(plantData);
+
+            var shouldRunConstantLevelOiler = false;
+
+            await ArgoWorkflowService.TriggerAnalysis(plantData, shouldRunConstantLevelOiler);
         }
 
         private async void OnIsarInspectionValue(object? sender, MqttReceivedArgs mqttArgs)
