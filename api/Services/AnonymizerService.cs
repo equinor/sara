@@ -4,41 +4,48 @@ using api.Database;
 
 namespace api.Services;
 
-public class TriggerArgoAnonymizerRequest(
+public class TriggerArgoWorkflowAnalysisRequest(
     string inspectionId,
     BlobStorageLocation rawDataBlobStorageLocation,
-    BlobStorageLocation anonymizedBlobStorageLocation
+    BlobStorageLocation anonymizedBlobStorageLocation,
+    BlobStorageLocation visualizedBlobStorageLocation,
+    bool shouldRunConstantLevelOiler
 )
 {
     public string InspectionId { get; } = inspectionId;
     public BlobStorageLocation RawDataBlobStorageLocation { get; } = rawDataBlobStorageLocation;
     public BlobStorageLocation AnonymizedBlobStorageLocation { get; } =
         anonymizedBlobStorageLocation;
+    public BlobStorageLocation VisualizedBlobStorageLocation { get; } =
+        visualizedBlobStorageLocation;
+    public bool ShouldRunConstantLevelOiler { get; } = shouldRunConstantLevelOiler;
 }
 
-public interface IAnonymizerService
+public interface IArgoWorkflowService
 {
-    public Task TriggerAnonymizerFunc(PlantData data);
+    public Task TriggerAnalysis(PlantData data, bool shouldRunConstantLevelOiler);
 }
 
-public class AnonymizerService(IConfiguration configuration, ILogger<AnonymizerService> logger)
-    : IAnonymizerService
+public class ArgoWorkflowService(IConfiguration configuration, ILogger<ArgoWorkflowService> logger)
+    : IArgoWorkflowService
 {
     private static readonly HttpClient client = new();
     private readonly string _baseUrl =
-        configuration["AnonymizerBaseUrl"]
-        ?? throw new InvalidOperationException("AnonymizerBaseUrl is not configured.");
+        configuration["ArgoWorkflowAnalysisBaseUrl"]
+        ?? throw new InvalidOperationException("ArgoWorkflowAnalysisBaseUrl is not configured.");
     private static readonly JsonSerializerOptions useCamelCaseOption = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
-    public async Task TriggerAnonymizerFunc(PlantData data)
+    public async Task TriggerAnalysis(PlantData data, bool shouldRunConstantLevelOiler)
     {
-        var postRequestData = new TriggerArgoAnonymizerRequest(
+        var postRequestData = new TriggerArgoWorkflowAnalysisRequest(
             data.InspectionId,
             data.RawDataBlobStorageLocation,
-            data.AnonymizedBlobStorageLocation
+            data.AnonymizedBlobStorageLocation,
+            data.AnonymizedBlobStorageLocation, // TODO: Change this to data.VisualizedBlobStorageLocation when the PlantData is update with this field
+            shouldRunConstantLevelOiler
         );
 
         var json = JsonSerializer.Serialize(postRequestData, useCamelCaseOption);

@@ -45,7 +45,9 @@ public class PlantData
     public string InstallationCode { get; set; }
 
     [Required]
-    public WorkflowStatus AnonymizerWorkflowStatus { get; set; } = WorkflowStatus.NotStarted;
+    public WorkflowStatus AnonymizerWorkflowStatus { get; set; } = WorkflowStatus.NotStarted; // TODO: Rename this to just WorkflowStatus
+
+    // TODO Add a separate field for Anonomizer done
 
     [Required]
     public DateTime DateCreated { get; set; } = DateTime.UtcNow;

@@ -102,6 +102,33 @@ def notify_start(inspection_id: str, workflow_name: str):
 
 
 @app.command()
+def notify_anonymizer_done(inspection_id: str):
+    url = f"{SARA_SERVER_URL}/Workflows/notify-anonymizer-done"
+    payload = {"InspectionId": inspection_id}
+    try:
+        response = send_authenticated_put_request(url, payload)
+        typer.echo(f"Notified that anonymizer is done with response: {response.json()}")
+    except requests.exceptions.RequestException as e:
+        typer.echo(f"Error notifying anonymizer done: {e}", err=True)
+        raise typer.Exit(1)
+
+
+@app.command()
+def notify_constant_level_oiler_done(inspection_id: str, oil_level: str):
+    url = f"{SARA_SERVER_URL}/Workflows/notify-constant-level-oiler-done"
+    payload = {"InspectionId": inspection_id, "OilLevel": oil_level}
+    try:
+        response = send_authenticated_put_request(url, payload)
+        typer.echo(
+            "Notified that constant level oiler is done"
+            f"with response: {response.json()}"
+        )
+    except requests.exceptions.RequestException as e:
+        typer.echo(f"Error notifying anonymizer done: {e}", err=True)
+        raise typer.Exit(1)
+
+
+@app.command()
 def notify_exit(inspection_id: str, workflow_status: str):
     """
     Notify the server about workflow exit.
