@@ -80,11 +80,13 @@ namespace api.MQTT
         public void Subscribe()
         {
             MqttMessageService.MqttSaraVisualizationAvailable += OnSaraVisualizationAvailable;
+            MqttMessageService.MqttSaraAnalysisResultAvailable += OnSaraAnalysisResultAvailable;
         }
 
         public void Unubscribe()
         {
             MqttMessageService.MqttSaraVisualizationAvailable -= OnSaraVisualizationAvailable;
+            MqttMessageService.MqttSaraAnalysisResultAvailable -= OnSaraAnalysisResultAvailable;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -139,6 +141,43 @@ namespace api.MQTT
             if (e is not SaraVisualizationAvailableMessage message)
             {
                 _logger.LogError("Message is not of type SaraVisualizationAvailableMessage");
+                return;
+            }
+            var payload = JsonSerializer.Serialize(message, serializerOptions);
+
+            var topic = MqttTopics.MessagesToTopics.GetTopicByItem(message.GetType());
+            if (topic is null)
+            {
+                _logger.LogError(
+                    "No topic class defined for message of type '{messageType}'",
+                    message.GetType().Name
+                );
+                return;
+            }
+
+            _logger.LogDebug("Topic: {topic} - Message to send: \n{payload}", topic, payload);
+
+            try
+            {
+                await _mqttClient.EnqueueAsync(topic, payload);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    "Could not send MQTT message '{message}' object on topic '{topic}'. {exception}",
+                    payload,
+                    topic,
+                    ex.Message
+                );
+                return;
+            }
+        }
+
+        private async void OnSaraAnalysisResultAvailable(object? sender, MqttMessage e)
+        {
+            if (e is not SaraAnalysisResultMessage message)
+            {
+                _logger.LogError("Message is not of type SaraAnalysisResultMessage");
                 return;
             }
             var payload = JsonSerializer.Serialize(message, serializerOptions);
