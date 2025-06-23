@@ -88,6 +88,10 @@ namespace api.MQTT
 
                 if (analysisToBeRun.Contains(AnalysisType.ConstantLevelOiler))
                 {
+                    _logger.LogInformation(
+                        "Analysis type ConstantLevelOiler is set to be run for InspectionId: {InspectionId}",
+                        isarInspectionResultMessage.InspectionId
+                    );
                     shouldRunConstantLevelOiler = true;
                 }
                 await ArgoWorkflowService.TriggerAnalysis(plantData, shouldRunConstantLevelOiler);
