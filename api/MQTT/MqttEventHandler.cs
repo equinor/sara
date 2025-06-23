@@ -60,6 +60,14 @@ namespace api.MQTT
                     "Received ISAR inspection result message with InspectionId: {InspectionId}",
                     isarInspectionResultMessage.InspectionId
                 );
+                _logger.LogInformation(
+                    "Received ISAR inspection result message with TagID: {TagID}",
+                    isarInspectionResultMessage.TagID
+                );
+                _logger.LogInformation(
+                    "Received ISAR inspection result message with InspectionDescription: {InspectionDescription}",
+                    isarInspectionResultMessage.InspectionDescription
+                );
 
                 var existingPlantData = await PlantDataService.ReadByInspectionId(
                     isarInspectionResultMessage.InspectionId
