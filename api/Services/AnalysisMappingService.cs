@@ -133,18 +133,8 @@ public class AnalysisMappingService(IdaDbContext context) : IAnalysisMappingServ
         string tagId
     )
     {
-        var analysisMapping =
-            await ReadByInspectionDescriptionAndTag(inspectionDescription, tagId)
-            ?? throw new ArgumentException(
-                $"No analysis mapping found for inspection description {inspectionDescription} and tag ID {tagId}"
-            );
-        if (analysisMapping.AnalysesToBeRun == null || analysisMapping.AnalysesToBeRun.Count == 0)
-        {
-            throw new ArgumentException(
-                $"No analyses to be run for inspection description {inspectionDescription} and tag ID {tagId}"
-            );
-        }
-        return analysisMapping.AnalysesToBeRun;
+        var analysisMapping = await ReadByInspectionDescriptionAndTag(inspectionDescription, tagId);
+        return analysisMapping?.AnalysesToBeRun?.ToList() ?? [];
     }
 
     public async Task<AnalysisMapping> RemoveAnalysisTypeFromMapping(
