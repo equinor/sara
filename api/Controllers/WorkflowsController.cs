@@ -28,6 +28,7 @@ public class WorkflowExitedNotification
 {
     public required string InspectionId { get; set; }
     public required string WorkflowStatus { get; set; }
+    public required string WorkflowFailures { get; set; }
 }
 
 [ApiController]
@@ -146,6 +147,11 @@ public class WorkflowsController(
         }
         else
         {
+            logger.LogWarning(
+                "Workflow failed with status {status} and failures {failures}",
+                notification.WorkflowStatus,
+                notification.WorkflowFailures
+            );
             status = WorkflowStatus.ExitFailure;
         }
 
