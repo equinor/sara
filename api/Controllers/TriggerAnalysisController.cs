@@ -70,6 +70,10 @@ public class TriggerAnalysisController(
         var shouldRunConstantLevelOiler = false;
         if (analysesToBeRun.Contains(AnalysisType.ConstantLevelOiler))
         {
+            _logger.LogInformation(
+                "Analysis type ConstantLevelOiler is set to be run for InspectionId: {InspectionId}",
+                request.InspectionId
+            );
             shouldRunConstantLevelOiler = true;
         }
         await argoWorkflowService.TriggerAnalysis(plantData, shouldRunConstantLevelOiler);
