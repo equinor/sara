@@ -3,7 +3,7 @@ name: Deploy to Staging
 # Only one workflow in a concurrency group may run at a time
 concurrency:
   group: staging-concurrency
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 on:
   release:
