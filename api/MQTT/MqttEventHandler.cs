@@ -52,66 +52,83 @@ namespace api.MQTT
 
         private async void OnIsarInspectionResult(object? sender, MqttReceivedArgs mqttArgs)
         {
-            var isarInspectionResultMessage = (IsarInspectionResultMessage)mqttArgs.Message;
-            _logger.LogInformation(
-                "Received ISAR inspection result message with InspectionId: {InspectionId}",
-                isarInspectionResultMessage.InspectionId
-            );
-
-            var existingPlantData = await PlantDataService.ReadByInspectionId(
-                isarInspectionResultMessage.InspectionId
-            );
-
-            if (existingPlantData != null)
-            {
-                _logger.LogWarning(
-                    "Plant Data with inspection id {InspectionId} already exists",
-                    isarInspectionResultMessage.InspectionId
-                );
-                return;
-            }
-
-            var plantData = await PlantDataService.CreateFromMqttMessage(
-                isarInspectionResultMessage
-            );
-
-            var analysisToBeRun =
-                await AnalysisMappingService.GetAnalysisTypeFromInspectionDescriptionAndTag(
-                    isarInspectionResultMessage.InspectionDescription,
-                    isarInspectionResultMessage.TagID
-                );
-
-            var shouldRunConstantLevelOiler = false;
-
-            if (analysisToBeRun.Contains(AnalysisType.ConstantLevelOiler))
-            {
-                shouldRunConstantLevelOiler = true;
-            }
-
+            IsarInspectionResultMessage? isarInspectionResultMessage = null;
             try
             {
+                isarInspectionResultMessage = (IsarInspectionResultMessage)mqttArgs.Message;
+                _logger.LogInformation(
+                    "Received ISAR inspection result message with InspectionId: {InspectionId}",
+                    isarInspectionResultMessage.InspectionId
+                );
+
+                var existingPlantData = await PlantDataService.ReadByInspectionId(
+                    isarInspectionResultMessage.InspectionId
+                );
+
+                if (existingPlantData != null)
+                {
+                    _logger.LogWarning(
+                        "Plant Data with inspection id {InspectionId} already exists",
+                        isarInspectionResultMessage.InspectionId
+                    );
+                    return;
+                }
+
+                var plantData = await PlantDataService.CreateFromMqttMessage(
+                    isarInspectionResultMessage
+                );
+
+                var analysisToBeRun =
+                    await AnalysisMappingService.GetAnalysisTypeFromInspectionDescriptionAndTag(
+                        isarInspectionResultMessage.InspectionDescription,
+                        isarInspectionResultMessage.TagID
+                    );
+
+                var shouldRunConstantLevelOiler = false;
+
+                if (analysisToBeRun.Contains(AnalysisType.ConstantLevelOiler))
+                {
+                    shouldRunConstantLevelOiler = true;
+                }
                 await ArgoWorkflowService.TriggerAnalysis(plantData, shouldRunConstantLevelOiler);
+            }
+            catch (ArgumentException)
+            {
+                _logger.LogWarning(
+                    "No analysis mapping found for InspectionId: {InspectionId}",
+                    isarInspectionResultMessage?.InspectionId
+                );
             }
             catch (Exception ex)
             {
-                _logger.LogError(
-                    ex,
-                    "Error occurred while triggering analysis workflow for InspectionId: {InspectionId}",
-                    isarInspectionResultMessage.InspectionId
-                );
+                if (isarInspectionResultMessage != null)
+                {
+                    _logger.LogError(
+                        ex,
+                        "Error occurred while triggering analysis workflow for InspectionId: {InspectionId}",
+                        isarInspectionResultMessage.InspectionId
+                    );
+                }
+                else
+                {
+                    _logger.LogError(
+                        ex,
+                        "Error occurred while triggering analysis workflow for unknown InspectionId"
+                    );
+                }
                 return;
             }
         }
 
         private async void OnIsarInspectionValue(object? sender, MqttReceivedArgs mqttArgs)
         {
-            var isarInspectionValueMessage = (IsarInspectionValueMessage)mqttArgs.Message;
-            _logger.LogInformation(
-                "Received ISAR inspection value message with InspectionId: {InspectionId}",
-                isarInspectionValueMessage.InspectionId
-            );
             try
             {
+                var isarInspectionValueMessage = (IsarInspectionValueMessage)mqttArgs.Message;
+                _logger.LogInformation(
+                    "Received ISAR inspection value message with InspectionId: {InspectionId}",
+                    isarInspectionValueMessage.InspectionId
+                );
                 await TimeseriesService.TriggerTimeseriesUpload(isarInspectionValueMessage);
             }
             catch (Exception ex)
