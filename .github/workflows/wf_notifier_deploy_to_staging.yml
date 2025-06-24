@@ -2,8 +2,8 @@ name: Deploy Workflow Notifier to Staging
 
 # Only one workflow in a concurrency group may run at a time
 concurrency:
-  group: staging-concurrency-workflow-notifier
-  cancel-in-progress: true
+  group: staging-concurrency
+  cancel-in-progress: false
 
 on:
   release:

@@ -56,7 +56,7 @@ jobs:
 
   deploy_workflow-notifier:
     name: Update workflow notifier in Production
-    needs: get_staging_version
+    needs: [get_staging_version, deploy]
     uses: ./.github/workflows/update_aurora_deployment.yml
     with:
       Environment: production
