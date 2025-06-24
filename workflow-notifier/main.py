@@ -132,21 +132,21 @@ def notify_constant_level_oiler_done(inspection_id: str, oil_level: str):
 
 @app.command()
 def notify_exit(
-    inspection_id: str, workflow_status: str, workflow_failures: Optional[str]
+    inspection_id: str,
+    workflow_status: str,
+    workflow_failures: Optional[str] = "Success",
 ):
     """
     Notify the server about workflow exit.
     """
     url = f"{SARA_SERVER_URL}/Workflows/notify-workflow-exited"
 
-    # Make sure the value is never None in the payload
-    if workflow_failures is None:
-        workflow_failures = ""
     payload = {
         "InspectionId": inspection_id,
         "WorkflowStatus": workflow_status,
         "WorkflowFailures": workflow_failures,
     }
+    typer.echo(f"Sending payload: {payload}")
     try:
         response = send_authenticated_put_request(url, payload)
         typer.echo(f"Workflow exited successfully: {response.json()}")
