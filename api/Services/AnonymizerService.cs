@@ -44,7 +44,7 @@ public class ArgoWorkflowService(IConfiguration configuration, ILogger<ArgoWorkf
             data.InspectionId,
             data.RawDataBlobStorageLocation,
             data.AnonymizedBlobStorageLocation,
-            data.AnonymizedBlobStorageLocation, // TODO: Change this to data.VisualizedBlobStorageLocation when the PlantData is update with this field
+            data.VisualizedBlobStorageLocation,
             shouldRunConstantLevelOiler
         );
 
