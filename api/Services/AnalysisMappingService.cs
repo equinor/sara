@@ -83,10 +83,8 @@ public class AnalysisMappingService(IdaDbContext context, ILogger<AnalysisMappin
     )
     {
         return await context.AnalysisMapping.FirstOrDefaultAsync(i =>
-            i.InspectionDescription.Equals(
-                inspectionDescription,
-                StringComparison.InvariantCultureIgnoreCase
-            ) && i.Tag.Equals(tagId, StringComparison.InvariantCultureIgnoreCase)
+            i.InspectionDescription.ToLower().Equals(inspectionDescription.ToLower())
+            && i.Tag.ToLower().Equals(tagId.ToLower())
         );
     }
 
