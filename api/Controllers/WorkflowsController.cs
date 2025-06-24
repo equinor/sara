@@ -100,7 +100,12 @@ public class WorkflowsController(
 
         mqttMessageService.OnSaraVisualizationAvailable(message);
 
-        return Ok(plantData);
+        var updatedPlantData = await plantDataService.UpdateAnonymizerWorkflowStatus(
+            notification.InspectionId,
+            WorkflowStatus.ExitSuccess
+        );
+
+        return Ok(updatedPlantData);
     }
 
     /// <summary>
@@ -135,30 +140,34 @@ public class WorkflowsController(
     [Route("notify-workflow-exited")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<PlantDataResponse>> WorkflowExited(
+    public ActionResult<PlantDataResponse> WorkflowExited(
         [FromBody] WorkflowExitedNotification notification
     )
     {
-        WorkflowStatus status;
+        // WorkflowStatus status;
 
-        if (notification.WorkflowStatus == "Succeeded")
-        {
-            status = WorkflowStatus.ExitSuccess;
-        }
-        else
-        {
-            logger.LogWarning(
-                "Workflow failed with status {status} and failures {failures}",
-                notification.WorkflowStatus,
-                notification.WorkflowFailures
-            );
-            status = WorkflowStatus.ExitFailure;
-        }
+        // if (notification.WorkflowStatus == "Succeeded")
+        // {
+        //     status = WorkflowStatus.ExitSuccess;
+        // }
+        // else
+        // {
+        //     logger.LogWarning(
+        //         "Workflow failed with status {status} and failures {failures}",
+        //         notification.WorkflowStatus,
+        //         notification.WorkflowFailures
+        //     );
+        //     status = WorkflowStatus.ExitFailure;
+        // }
 
-        var updatedPlantData = await plantDataService.UpdateAnonymizerWorkflowStatus(
-            notification.InspectionId,
-            status
-        );
-        return Ok(updatedPlantData);
+        // var updatedPlantData = await plantDataService.UpdateAnonymizerWorkflowStatus(
+        //     notification.InspectionId,
+        //     status
+        // );
+
+        // TODO Add a new field in PlantData to hold WorkflowStatus and update this here
+        // instead of updateing AnonymizerWorkflowStatus
+
+        return Ok();
     }
 }
