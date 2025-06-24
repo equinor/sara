@@ -35,7 +35,8 @@ public class WorkflowExitedNotification
 public class WorkflowsController(
     ILogger<WorkflowsController> logger,
     IPlantDataService plantDataService,
-    IMqttMessageService mqttMessageService
+    IMqttMessageService mqttMessageService,
+    TimeseriesServiceUploadOilLevel omniaUploadService
 ) : ControllerBase
 {
     /// <summary>
@@ -103,27 +104,33 @@ public class WorkflowsController(
     }
 
     /// <summary>
-    /// TODO: Register oil level on plant data
+    /// Registers CLO oil level on plant data and uploads to Omnia Timeseries.
     /// </summary>
-    [HttpPut]
+    [HttpPut("notify-constant-level-oiler-done")]
     [Authorize(Roles = Role.WorkflowStatusWrite)]
-    [Route("notify-constant-level-oiler-done")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public ActionResult<PlantDataResponse> ConstantLevelOilerDone(
+    public async Task<ActionResult<PlantDataResponse>> ConstantLevelOilerDone(
         [FromBody] ConstantLevelOilerDoneNotification notification
     )
     {
-        // TODO: Update plantData with information that the CLO is Done
         logger.LogInformation(
             "Completed Constant Level Oiler analysis for plantData with inspection id {id} and oil level {oilLevel}",
             notification.InspectionId,
             notification.OilLevel
         );
 
-        // TODO: Make a call to the SARA Timeseries to post the data
+        var ok = await omniaUploadService.UploadCLODataAsync(notification);
+        if (!ok)
+            return NotFound(
+                $"Could not find plantData with inspection id {notification.InspectionId}"
+            );
 
-        return Ok();
+        // Should workflow status be updated here or other place?
+
+        // this is not really updated now
+        var updated = await plantDataService.ReadByInspectionId(notification.InspectionId);
+        return Ok(updated);
     }
 
     /// <summary>
