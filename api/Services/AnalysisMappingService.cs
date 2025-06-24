@@ -43,8 +43,11 @@ public interface IAnalysisMappingService
     public Task RemoveAnalysisMapping(string analysisMappingId);
 }
 
-public class AnalysisMappingService(IdaDbContext context) : IAnalysisMappingService
+public class AnalysisMappingService(IdaDbContext context, ILogger<AnalysisMappingService> logger)
+    : IAnalysisMappingService
 {
+    private readonly ILogger<AnalysisMappingService> _logger = logger;
+
     public async Task<PagedList<AnalysisMapping>> GetAnalysisMappings(
         AnalysisMappingParameters parameters
     )
@@ -80,7 +83,10 @@ public class AnalysisMappingService(IdaDbContext context) : IAnalysisMappingServ
     )
     {
         return await context.AnalysisMapping.FirstOrDefaultAsync(i =>
-            i.InspectionDescription.Equals(inspectionDescription) && i.Tag.Equals(tagId)
+            i.InspectionDescription.Equals(
+                inspectionDescription,
+                StringComparison.InvariantCultureIgnoreCase
+            ) && i.Tag.Equals(tagId, StringComparison.InvariantCultureIgnoreCase)
         );
     }
 
@@ -134,6 +140,12 @@ public class AnalysisMappingService(IdaDbContext context) : IAnalysisMappingServ
     )
     {
         var analysisMapping = await ReadByInspectionDescriptionAndTag(inspectionDescription, tagId);
+        _logger.LogInformation(
+            "Analysis mapping id for inspection description '{InspectionDescription}' and tag '{TagId}' is {AnalysisMappingId}",
+            inspectionDescription,
+            tagId,
+            analysisMapping?.Id
+        );
         return analysisMapping?.AnalysesToBeRun?.ToList() ?? [];
     }
 
