@@ -132,6 +132,21 @@ def notify_constant_level_oiler_done(inspection_id, oil_level):
         print(f"Error in notify_constant_level_oiler_done: {e}")
 
 
+def notify_fencilla_done(inspection_id, is_broken, confidence):
+    try:
+        url = "https://localhost:8100/Workflows/notify-fencilla-done"
+        payload = {"inspectionId": inspection_id, "isBroken": is_broken, "confidence": confidence}
+        print(f"Sending PUT to {url} with data: {payload}")
+        response = requests.put(url, json=payload, verify=False)
+
+        if response.status_code == 200:
+            print("Fencilla done notification sent successfully.")
+        else:
+            print(f"Failed to notify Fencilla done. Response {response.status_code}: {response.text}")
+    except Exception as e:
+        print(f"Error in notify_fencilla_done: {e}")
+
+
 def notify_workflow_exited(inspection_id):
     try:
         url = "https://localhost:8100/Workflows/notify-workflow-exited"
