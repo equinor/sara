@@ -49,4 +49,5 @@ public enum AnalysisType
 {
     Anonymizer,
     ConstantLevelOiler,
+    Fencilla,
 }

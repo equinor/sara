@@ -1,6 +1,7 @@
 import random
 import threading
 import time
+from typing import List
 
 import requests
 from flask import Flask, jsonify, request
@@ -36,6 +37,7 @@ def trigger_analysis():
         anonymized_blob_storage_location = data.get("anonymizedBlobStorageLocation")
         visualized_blob_storage_location = data.get("visualizedBlobStorageLocation")
         should_run_constant_level_oiler = data.get("shouldRunConstantLevelOiler")
+        should_run_fencilla = data.get("shouldRunFencilla")
 
         # Validate input
         if (
@@ -44,6 +46,7 @@ def trigger_analysis():
             or not anonymized_blob_storage_location
             or not visualized_blob_storage_location
             or should_run_constant_level_oiler is None
+            or should_run_fencilla is None
         ):
             print("Missing required fields")
             return jsonify({"error": "Missing required fields"}), 400
@@ -51,7 +54,10 @@ def trigger_analysis():
         print(f"Received trigger request: {data}")
 
         # Start the workflow notifications in a separate thread
-        threading.Thread(target=start_workflow, args=(inspection_id, should_run_constant_level_oiler)).start()
+        threading.Thread(
+            target=start_workflow,
+            args=(inspection_id, should_run_constant_level_oiler, should_run_fencilla),
+        ).start()
 
         return jsonify({"message": "Trigger request received"}), 200
     except Exception as e:
@@ -59,7 +65,7 @@ def trigger_analysis():
         return jsonify({"error": "An error occurred"}), 500
 
 
-def start_workflow(inspection_id, should_run_constant_level_oiler):
+def start_workflow(inspection_id, should_run_constant_level_oiler, should_run_fencilla):
     try:
         workflow_name = f"workflow-{random.randint(1000, 9999)}"
         print(
@@ -80,6 +86,13 @@ def start_workflow(inspection_id, should_run_constant_level_oiler):
             oil_level = 0.777
             notify_constant_level_oiler_done(inspection_id, oil_level)
 
+        time.sleep(5)
+        if should_run_fencilla:
+            # Notify Fencilla done after 10 seconds
+            is_break = True
+            confidence = 0.95
+            notify_fencilla_done(inspection_id, is_break, confidence)
+
         # Notify workflow exited after another 10 seconds
         time.sleep(5)
         notify_workflow_exited(inspection_id)
@@ -97,7 +110,9 @@ def notify_workflow_started(inspection_id, workflow_name):
         if response.status_code == 200:
             print("Workflow started notification sent successfully.")
         else:
-            print(f"Failed to notify workflow started. Response {response.status_code}: {response.text}")
+            print(
+                f"Failed to notify workflow started. Response {response.status_code}: {response.text}"
+            )
     except Exception as e:
         print(f"Error in notify_workflow_started: {e}")
 
@@ -112,7 +127,9 @@ def notify_anonymizer_done(inspection_id):
         if response.status_code == 200:
             print("Anonymizer done notification sent successfully.")
         else:
-            print(f"Failed to notify anonymizer done. Response {response.status_code}: {response.text}")
+            print(
+                f"Failed to notify anonymizer done. Response {response.status_code}: {response.text}"
+            )
     except Exception as e:
         print(f"Error in notify_anonymizer_done: {e}")
 
@@ -127,22 +144,30 @@ def notify_constant_level_oiler_done(inspection_id, oil_level):
         if response.status_code == 200:
             print("Constant Level Oiler done notification sent successfully.")
         else:
-            print(f"Failed to notify Constant Level Oiler done. Response {response.status_code}: {response.text}")
+            print(
+                f"Failed to notify Constant Level Oiler done. Response {response.status_code}: {response.text}"
+            )
     except Exception as e:
         print(f"Error in notify_constant_level_oiler_done: {e}")
 
 
-def notify_fencilla_done(inspection_id, is_broken, confidence):
+def notify_fencilla_done(inspection_id: str, is_break: bool, confidence: float):
     try:
         url = "https://localhost:8100/Workflows/notify-fencilla-done"
-        payload = {"inspectionId": inspection_id, "isBroken": is_broken, "confidence": confidence}
+        payload = {
+            "inspectionId": inspection_id,
+            "isBreak": is_break,
+            "confidence": confidence,
+        }
         print(f"Sending PUT to {url} with data: {payload}")
         response = requests.put(url, json=payload, verify=False)
 
         if response.status_code == 200:
             print("Fencilla done notification sent successfully.")
         else:
-            print(f"Failed to notify Fencilla done. Response {response.status_code}: {response.text}")
+            print(
+                f"Failed to notify Fencilla done. Response {response.status_code}: {response.text}"
+            )
     except Exception as e:
         print(f"Error in notify_fencilla_done: {e}")
 
@@ -159,7 +184,9 @@ def notify_workflow_exited(inspection_id):
         if response.status_code == 200:
             print("Workflow exited notification sent successfully.")
         else:
-            print(f"Failed to notify workflow exited. Response {response.status_code}: {response.text}")
+            print(
+                f"Failed to notify workflow exited. Response {response.status_code}: {response.text}"
+            )
     except Exception as e:
         print(f"Error in notify_workflow_exited: {e}")
 

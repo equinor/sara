@@ -102,7 +102,21 @@ namespace api.MQTT
                     );
                     shouldRunConstantLevelOiler = true;
                 }
-                await ArgoWorkflowService.TriggerAnalysis(plantData, shouldRunConstantLevelOiler);
+                var shouldRunFencilla = false;
+
+                if (analysisToBeRun.Contains(AnalysisType.Fencilla))
+                {
+                    _logger.LogInformation(
+                        "Analysis type Fencilla is set to be run for InspectionId: {InspectionId}",
+                        isarInspectionResultMessage.InspectionId
+                    );
+                    shouldRunFencilla = true;
+                }
+                await ArgoWorkflowService.TriggerAnalysis(
+                    plantData,
+                    shouldRunConstantLevelOiler,
+                    shouldRunFencilla
+                );
             }
             catch (ArgumentException)
             {

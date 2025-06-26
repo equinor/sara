@@ -76,7 +76,20 @@ public class TriggerAnalysisController(
             );
             shouldRunConstantLevelOiler = true;
         }
-        await argoWorkflowService.TriggerAnalysis(plantData, shouldRunConstantLevelOiler);
+        var shouldRunFencilla = false;
+        if (analysesToBeRun.Contains(AnalysisType.Fencilla))
+        {
+            _logger.LogInformation(
+                "Analysis type Fencilla is set to be run for InspectionId: {InspectionId}",
+                request.InspectionId
+            );
+            shouldRunFencilla = true;
+        }
+        await argoWorkflowService.TriggerAnalysis(
+            plantData,
+            shouldRunConstantLevelOiler,
+            shouldRunFencilla
+        );
 
         return Ok("Analysis workflow triggered successfully.");
     }
