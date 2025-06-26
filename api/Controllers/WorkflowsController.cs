@@ -24,6 +24,13 @@ public class ConstantLevelOilerDoneNotification
     public required float OilLevel { get; set; }
 }
 
+public class FencillaDoneNotification
+{
+    public required string InspectionId { get; set; }
+    public required bool IsBreak { get; set; }
+    public required float Confidence { get; set; }
+}
+
 public class WorkflowExitedNotification
 {
     public required string InspectionId { get; set; }
@@ -128,6 +135,29 @@ public class WorkflowsController(
         );
 
         // TODO: Make a call to the SARA Timeseries to post the data
+
+        return Ok();
+    }
+
+    /// <summary>
+    /// TODO: Register fencilla results on plant data
+    /// </summary>
+    [HttpPut]
+    [Authorize(Roles = Role.WorkflowStatusWrite)]
+    [Route("notify-fencilla-done")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public ActionResult<PlantDataResponse> FencillaDone(
+        [FromBody] FencillaDoneNotification notification
+    )
+    {
+        // TODO: Update plantData with information that Fencilla is Done
+        logger.LogInformation(
+            "Completed Fencilla analysis for plantData with inspection id {id} and break found is {IsBreak} with confidence {Confidence}",
+            notification.InspectionId,
+            notification.IsBreak,
+            notification.Confidence
+        );
 
         return Ok();
     }

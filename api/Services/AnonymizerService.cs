@@ -9,7 +9,8 @@ public class TriggerArgoWorkflowAnalysisRequest(
     BlobStorageLocation rawDataBlobStorageLocation,
     BlobStorageLocation anonymizedBlobStorageLocation,
     BlobStorageLocation visualizedBlobStorageLocation,
-    bool shouldRunConstantLevelOiler
+    bool shouldRunConstantLevelOiler,
+    bool shouldRunFencilla
 )
 {
     public string InspectionId { get; } = inspectionId;
@@ -19,11 +20,16 @@ public class TriggerArgoWorkflowAnalysisRequest(
     public BlobStorageLocation VisualizedBlobStorageLocation { get; } =
         visualizedBlobStorageLocation;
     public bool ShouldRunConstantLevelOiler { get; } = shouldRunConstantLevelOiler;
+    public bool ShouldRunFencilla { get; } = shouldRunFencilla;
 }
 
 public interface IArgoWorkflowService
 {
-    public Task TriggerAnalysis(PlantData data, bool shouldRunConstantLevelOiler);
+    public Task TriggerAnalysis(
+        PlantData data,
+        bool shouldRunConstantLevelOiler,
+        bool shouldRunFencilla
+    );
 }
 
 public class ArgoWorkflowService(IConfiguration configuration, ILogger<ArgoWorkflowService> logger)
@@ -38,14 +44,19 @@ public class ArgoWorkflowService(IConfiguration configuration, ILogger<ArgoWorkf
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
-    public async Task TriggerAnalysis(PlantData data, bool shouldRunConstantLevelOiler)
+    public async Task TriggerAnalysis(
+        PlantData data,
+        bool shouldRunConstantLevelOiler,
+        bool shouldRunFencilla
+    )
     {
         var postRequestData = new TriggerArgoWorkflowAnalysisRequest(
             data.InspectionId,
             data.RawDataBlobStorageLocation,
             data.AnonymizedBlobStorageLocation,
             data.VisualizedBlobStorageLocation,
-            shouldRunConstantLevelOiler
+            shouldRunConstantLevelOiler,
+            shouldRunFencilla
         );
 
         var json = JsonSerializer.Serialize(postRequestData, useCamelCaseOption);
