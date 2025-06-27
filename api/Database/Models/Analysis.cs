@@ -35,6 +35,16 @@ public class Analysis
             _ => null,
         };
     }
+
+    public static string? TypeToString(AnalysisType type)
+    {
+        return type switch
+        {
+            AnalysisType.Anonymizer => "anonymizer",
+            AnalysisType.ConstantLevelOiler => "constantleveloiler",
+            _ => null,
+        };
+    }
 }
 
 public enum AnalysisStatus

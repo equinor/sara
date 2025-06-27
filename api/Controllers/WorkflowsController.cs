@@ -123,7 +123,7 @@ public class WorkflowsController(
     [Route("notify-constant-level-oiler-done")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public ActionResult<PlantDataResponse> ConstantLevelOilerDone(
+    public async Task<ActionResult<PlantDataResponse>> ConstantLevelOilerCompleted(
         [FromBody] ConstantLevelOilerDoneNotification notification
     )
     {
@@ -134,9 +134,27 @@ public class WorkflowsController(
             notification.OilLevel
         );
 
-        // TODO: Make a call to the SARA Timeseries to post the data
+        var plantData = await plantDataService.ReadByInspectionId(notification.InspectionId);
+        if (plantData == null)
+        {
+            return NotFound(
+                $"Could not find plantData with inspection id {notification.InspectionId}"
+            );
+        }
 
-        return Ok();
+        var message = new SaraAnalysisResultMessage
+        {
+            InspectionId = notification.InspectionId,
+            AnalysisType = Analysis.TypeToString(AnalysisType.ConstantLevelOiler),
+            RegressionResult = notification.OilLevel,
+            StorageAccount = plantData.VisualizedBlobStorageLocation.StorageAccount,
+            BlobContainer = plantData.VisualizedBlobStorageLocation.BlobContainer,
+            BlobName = plantData.VisualizedBlobStorageLocation.BlobName,
+        };
+
+        mqttMessageService.OnSaraAnalysisResultAvailable(message);
+
+        return Ok(plantData);
     }
 
     /// <summary>
