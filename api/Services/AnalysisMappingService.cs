@@ -83,7 +83,7 @@ public class AnalysisMappingService(IdaDbContext context, ILogger<AnalysisMappin
     )
     {
         return await context.AnalysisMapping.FirstOrDefaultAsync(i =>
-            i.InspectionDescription.ToLower().Equals(inspectionDescription.ToLower())
+            inspectionDescription.ToLower().Contains(i.InspectionDescription.ToLower())
             && i.Tag.ToLower().Equals(tagId.ToLower())
         );
     }
