@@ -53,7 +53,7 @@ builder.Services.AddScoped<IMqttMessageService, MqttMessageService>();
 
 builder.Services.AddScoped<IArgoWorkflowService, ArgoWorkflowService>();
 builder.Services.AddScoped<ITimeseriesService, TimeseriesService>();
-builder.Services.AddScoped<ITimeseriesService, TimeseriesService>();
+builder.Services.AddScoped<ITimeseriesServiceUploadOilLevel, TimeseriesServiceUploadOilLevel>();
 
 builder.Services.AddHostedService<MqttEventHandler>();
 builder.Services.AddHostedService<MqttService>();
