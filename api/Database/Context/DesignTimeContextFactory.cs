@@ -8,11 +8,11 @@ namespace api.Database.Context
     /// <summary>
     /// This class is not called by anything explicitly, but is used by EF core when adding migrations and updating database.
     /// </summary>
-    public class DesignTimeContextFactory : IDesignTimeDbContextFactory<IdaDbContext>
+    public class DesignTimeContextFactory : IDesignTimeDbContextFactory<SaraDbContext>
     {
         // We cannot use dependency injection directly in this class, hence the "manual" extraction of the config variables
         // Followed this tutorial: https://blog.tonysneed.com/2018/12/20/idesigntimedbcontextfactory-and-dependency-injection-a-love-story/
-        public IdaDbContext CreateDbContext(string[] args)
+        public SaraDbContext CreateDbContext(string[] args)
         {
             // Get environment
             string environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")!;
@@ -47,7 +47,7 @@ namespace api.Database.Context
                 .GetSecret("Database--postgresConnectionString")
                 .Value.Value;
 
-            var optionsBuilder = new DbContextOptionsBuilder<IdaDbContext>();
+            var optionsBuilder = new DbContextOptionsBuilder<SaraDbContext>();
 
             // Setting splitting behavior explicitly to avoid warning
             optionsBuilder.UseNpgsql(
@@ -55,7 +55,7 @@ namespace api.Database.Context
                 o => o.UseQuerySplittingBehavior(QuerySplittingBehavior.SingleQuery)
             );
 
-            return new IdaDbContext(optionsBuilder.Options);
+            return new SaraDbContext(optionsBuilder.Options);
         }
     }
 }

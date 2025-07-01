@@ -11,7 +11,7 @@ using api.Database.Context;
 
 namespace api.Migrations
 {
-    [DbContext(typeof(IdaDbContext))]
+    [DbContext(typeof(SaraDbContext))]
     [Migration("20250620062927_AddAnalysisMapping")]
     partial class AddAnalysisMapping
     {

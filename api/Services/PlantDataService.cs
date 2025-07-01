@@ -24,7 +24,7 @@ public interface IPlantDataService
     );
 }
 
-public class PlantDataService(IdaDbContext context, IConfiguration configuration)
+public class PlantDataService(SaraDbContext context, IConfiguration configuration)
     : IPlantDataService
 {
     public async Task<PagedList<PlantData>> GetPlantData(QueryParameters parameters)

@@ -10,8 +10,8 @@ using api.Database.Context;
 
 namespace api.Migrations
 {
-    [DbContext(typeof(IdaDbContext))]
-    partial class IdaDbContextModelSnapshot : ModelSnapshot
+    [DbContext(typeof(SaraDbContext))]
+    partial class SaraDbContextModelSnapshot : ModelSnapshot
     {
         protected override void BuildModel(ModelBuilder modelBuilder)
         {

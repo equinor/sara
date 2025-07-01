@@ -1,27 +1,27 @@
 using 'infrastructure.bicep'
-param environment = 'YourEnvName'
-param resourceGroupName = 'IDA${environment}'
+param environment = 'sarastaging'
+param resourceGroupName = '${environment}'
 
 param location = 'northeurope'
 param objectIdFgRobots = '5ac08731-48dd-4499-9151-7bf6b8ab8eac'
 
-param objectIdEnterpriseApplication = 'a72f2337-fa85-40c8-95db-6ccfe4765f7c' // ObjectID enterprise application ida-staging
+param objectIdEnterpriseApplication = '7b6946f3-eefd-4036-acd2-d8ba2782e9eb' // ObjectID enterprise application sara-staging
 
-param managedIdentityName = 'IDAstagingMI'
+param managedIdentityName = '${environment}-mi'
 
-param keyVaultName = 'idakv-${environment}'
+param keyVaultName = '${environment}-kv'
 
-param administratorLogin = 'idapostgresqlserver_${environment}'
+param administratorLogin = '${environment}_sarapostgresqlserver'
 param administratorLoginPassword = ''
 
-param serverName = 'idaserver${environment}'
+param serverName = '${environment}-server'
 param postgresConnectionString = ''
 
-param storageAccountNameAnon = 'storageanon1${environment}'
+param storageAccountNameAnon = '${environment}-storageanon'
 
-param storageAccountNameRaw = 'storageraw1${environment}'
+param storageAccountNameRaw = '${environment}-storageraw'
 
-param storageAccountNameVis = 'storagevis1${environment}'
+param storageAccountNameVis = '${environment}-storagevis'
 
 param principalId = 'bf81095d-e13d-481d-a4e8-a5c17faad398' //aurora-aks-kubelet-shared staging environment
 param roleDefinitionId = 'f1a07417-d97a-45cb-824c-7a7467783830' // azure built-in role for managed identity operator

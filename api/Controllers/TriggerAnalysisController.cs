@@ -21,11 +21,11 @@ public class TriggerAnalysisRequest
 public class TriggerAnalysisController(
     IArgoWorkflowService argoWorkflowService,
     IAnalysisMappingService analysisMappingService,
-    IdaDbContext dbContext,
+    SaraDbContext dbContext,
     ILogger<TriggerAnalysisController> logger
 ) : ControllerBase
 {
-    private readonly IdaDbContext dbContext = dbContext;
+    private readonly SaraDbContext dbContext = dbContext;
 
     private readonly ILogger<TriggerAnalysisController> _logger = logger;
 

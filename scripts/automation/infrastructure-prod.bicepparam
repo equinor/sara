@@ -1,27 +1,27 @@
 using 'infrastructure.bicep'
-param environment = 'YourEnvName'
-param resourceGroupName = 'IDA${environment}'
+param environment = 'saraprod'
+param resourceGroupName = '${environment}'
 
 param location = 'northeurope'
 param objectIdFgRobots = '5ac08731-48dd-4499-9151-7bf6b8ab8eac'
 
-param objectIdEnterpriseApplication = '56f5f63f-d18a-47b6-97d7-779994f489bf' // ObjectID enterprise application ida-prod
+param objectIdEnterpriseApplication = '49613d59-1f36-4835-8dc4-caff1591c8e9' // ObjectID enterprise application sara-prod
 
-param managedIdentityName = 'IDAprodMI'
+param managedIdentityName = '${environment}-mi'
 
-param keyVaultName = 'idakv-${environment}'
+param keyVaultName = '${environment}-kv'
 
-param administratorLogin = 'idapostgresqlserver_${environment}'
+param administratorLogin = '${environment}_sarapostgresqlserver'
 param administratorLoginPassword = ''
 
-param serverName = 'idaserver${environment}'
+param serverName = '${environment}-server'
 param postgresConnectionString = ''
 
-param storageAccountNameAnon = 'storageanon1${environment}'
+param storageAccountNameAnon = '${environment}-storageanon'
 
-param storageAccountNameRaw = 'storageraw1${environment}'
+param storageAccountNameRaw = '${environment}-storageraw'
 
-param storageAccountNameVis = 'storagevis1${environment}'
+param storageAccountNameVis = '${environment}-storagevis'
 
 param principalId = 'bf81095d-e13d-481d-a4e8-a5c17faad398' //aurora-aks-kubelet-shared prod environment
 param roleDefinitionId = 'f1a07417-d97a-45cb-824c-7a7467783830' // azure built-in role for managed identity operator
