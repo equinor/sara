@@ -22,7 +22,7 @@ jobs:
           repository: equinor/analytics-infrastructure
           ssh-key: ${{ secrets.ANALYTICS_INFRASTRUCTURE_DEPLOY_KEY }}
 
-      - name: Get IDA version in staging
+      - name: Get SARA version in staging
         id: get_version_tag
         run: |
           TAG_LINE_NUMBER=$(($(grep -n "auroraprodacr.azurecr.io/robotics/inspection-data-analyzer" k8s_kustomize/overlays/staging/kustomization.yaml |  cut --delimiter=":" --fields=1)+1))

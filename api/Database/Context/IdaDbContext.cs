@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace api.Database.Context
 {
-    public class IdaDbContext(DbContextOptions options) : DbContext(options)
+    public class SaraDbContext(DbContextOptions options) : DbContext(options)
     {
         public DbSet<PlantData> PlantData { get; set; } = null!;
 

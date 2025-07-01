@@ -11,7 +11,7 @@ using api.Database.Context;
 
 namespace api.Migrations
 {
-    [DbContext(typeof(IdaDbContext))]
+    [DbContext(typeof(SaraDbContext))]
     [Migration("20241127130258_InitialCreate")]
     partial class InitialCreate
     {
