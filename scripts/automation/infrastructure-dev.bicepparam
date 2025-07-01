@@ -1,20 +1,20 @@
 using 'infrastructure.bicep'
-param environment = 'YourEnvName'
-param resourceGroupName = 'IDA${environment}'
+param environment = 'dev'
+param resourceGroupName = 'SARA${environment}'
 
 param location = 'northeurope'
 param objectIdFgRobots = '5ac08731-48dd-4499-9151-7bf6b8ab8eac'
 
-param objectIdEnterpriseApplication = 'f6676dc8-6b13-4ee9-88bb-416b7a0cbd34' // ObjectID enterprise application ida-dev
+param objectIdEnterpriseApplication = '8814d87c-169b-49b1-9237-2347041157ca' // ObjectID enterprise application sara-dev
 
-param managedIdentityName = 'IDAdevMI'
+param managedIdentityName = 'SARAdevMI'
 
-param keyVaultName = 'idakv-${environment}'
+param keyVaultName = 'sarav-${environment}'
 
-param administratorLogin = 'idapostgresqlserver_${environment}'
+param administratorLogin = 'sarapostgresqlserver_${environment}'
 param administratorLoginPassword = ''
 
-param serverName = 'idaserver${environment}'
+param serverName = 'saraserver${environment}'
 param postgresConnectionString = ''
 
 param storageAccountNameAnon = 'storageanon1${environment}'

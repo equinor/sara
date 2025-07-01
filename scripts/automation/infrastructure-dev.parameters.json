@@ -1,0 +1,60 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environment": {
+      "value": "dev"
+    },
+    "resourceGroupName": {
+      "value": "SARAdev"
+    },
+    "location": {
+      "value": "northeurope"
+    },
+    "objectIdFgRobots": {
+      "value": "5ac08731-48dd-4499-9151-7bf6b8ab8eac"
+    },
+    "objectIdEnterpriseApplication": {
+      "value": "8814d87c-169b-49b1-9237-2347041157ca"
+    },
+    "managedIdentityName": {
+      "value": "SARAdevMI"
+    },
+    "keyVaultName": {
+      "value": "sarav-dev"
+    },
+    "administratorLogin": {
+      "value": "sarapostgresqlserver_dev"
+    },
+    "administratorLoginPassword": {
+      "value": ""
+    },
+    "serverName": {
+      "value": "saraserverdev"
+    },
+    "postgresConnectionString": {
+      "value": ""
+    },
+    "storageAccountNameAnon": {
+      "value": "storageanon1dev"
+    },
+    "storageAccountNameRaw": {
+      "value": "storageraw1dev"
+    },
+    "storageAccountNameVis": {
+      "value": "storagevis1dev"
+    },
+    "principalId": {
+      "value": "80b30892-2768-4b33-92a6-bec41a7f4e2c"
+    },
+    "roleDefinitionId": {
+      "value": "f1a07417-d97a-45cb-824c-7a7467783830"
+    },
+    "roleDefinitionIDFlotillaApp": {
+      "value": "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1"
+    },
+    "principalIdFlotillaApp": {
+      "value": "8256d35d-5c07-440b-9f47-4abce94c8565"
+    }
+  }
+}
