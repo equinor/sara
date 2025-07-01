@@ -43,7 +43,7 @@ public interface IAnalysisMappingService
     public Task RemoveAnalysisMapping(string analysisMappingId);
 }
 
-public class AnalysisMappingService(IdaDbContext context, ILogger<AnalysisMappingService> logger)
+public class AnalysisMappingService(SaraDbContext context, ILogger<AnalysisMappingService> logger)
     : IAnalysisMappingService
 {
     private readonly ILogger<AnalysisMappingService> _logger = logger;
