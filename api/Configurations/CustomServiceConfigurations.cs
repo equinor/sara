@@ -19,7 +19,7 @@ public static class CustomServiceConfigurations
 
         if (useInMemoryDatabase)
         {
-            DbContextOptionsBuilder dbBuilder = new DbContextOptionsBuilder<IdaDbContext>();
+            DbContextOptionsBuilder dbBuilder = new DbContextOptionsBuilder<SaraDbContext>();
             string sqlConnectionString = new SqliteConnectionStringBuilder
             {
                 DataSource = "file::memory:",
@@ -31,12 +31,12 @@ public static class CustomServiceConfigurations
             connectionToInMemorySqlite.Open();
             dbBuilder.UseSqlite(connectionToInMemorySqlite);
 
-            using var context = new IdaDbContext(dbBuilder.Options);
+            using var context = new SaraDbContext(dbBuilder.Options);
             context.Database.EnsureCreated();
             // InitDb.PopulateDb(context);
 
             // Setting splitting behavior explicitly to avoid warning
-            services.AddDbContext<IdaDbContext>(options =>
+            services.AddDbContext<SaraDbContext>(options =>
                 options.UseSqlite(
                     sqlConnectionString,
                     o => o.UseQuerySplittingBehavior(QuerySplittingBehavior.SingleQuery)
@@ -47,7 +47,7 @@ public static class CustomServiceConfigurations
         {
             string? connection = configuration["Database:postgresConnectionString"];
             // Setting splitting behavior explicitly to avoid warning
-            services.AddDbContext<IdaDbContext>(
+            services.AddDbContext<SaraDbContext>(
                 options =>
                     options.UseNpgsql(
                         connection,

@@ -43,7 +43,7 @@ builder.Services.ConfigureDatabase(builder.Configuration);
 builder.Services.Configure<AzureAdOptions>(builder.Configuration.GetSection("AzureAd"));
 builder.Services.Configure<BlobOptions>(builder.Configuration.GetSection("Storage"));
 
-builder.Services.AddDbContext<IdaDbContext>(opt => opt.UseInMemoryDatabase("TodoList"));
+builder.Services.AddDbContext<SaraDbContext>(opt => opt.UseInMemoryDatabase("TodoList"));
 
 builder.Services.AddScoped<IBlobService, BlobService>();
 builder.Services.AddScoped<IAnalysisService, AnalysisService>();
