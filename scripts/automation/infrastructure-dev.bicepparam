@@ -1,27 +1,27 @@
 using 'infrastructure.bicep'
-param environment = 'YourEnvName'
-param resourceGroupName = 'IDA${environment}'
+param environment = 'saradev' // Change this to your desired environment name max 14 characters
+param resourceGroupName = '${environment}'
 
 param location = 'northeurope'
 param objectIdFgRobots = '5ac08731-48dd-4499-9151-7bf6b8ab8eac'
 
-param objectIdEnterpriseApplication = 'f6676dc8-6b13-4ee9-88bb-416b7a0cbd34' // ObjectID enterprise application ida-dev
+param objectIdEnterpriseApplication = '8814d87c-169b-49b1-9237-2347041157ca' // ObjectID enterprise application sara-dev
 
-param managedIdentityName = 'IDAdevMI'
+param managedIdentityName = '${environment}-mi'
 
-param keyVaultName = 'idakv-${environment}'
+param keyVaultName = '${environment}-kv'
 
-param administratorLogin = 'idapostgresqlserver_${environment}'
+param administratorLogin = '${environment}_sarapostgresqlserver'
 param administratorLoginPassword = ''
 
-param serverName = 'idaserver${environment}'
+param serverName = '${environment}-server'
 param postgresConnectionString = ''
 
-param storageAccountNameAnon = 'storageanon1${environment}'
+param storageAccountNameAnon = '${environment}storeanon'
 
-param storageAccountNameRaw = 'storageraw1${environment}'
+param storageAccountNameRaw = '${environment}storeraw'
 
-param storageAccountNameVis = 'storagevis1${environment}'
+param storageAccountNameVis = '${environment}storevis'
 
 param principalId = '80b30892-2768-4b33-92a6-bec41a7f4e2c' //aurora-aks-kubelet-shared dev environment
 param roleDefinitionId = 'f1a07417-d97a-45cb-824c-7a7467783830' // azure built-in role for managed identity operator

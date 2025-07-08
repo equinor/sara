@@ -1,8 +1,5 @@
 # Storage and Analysis of Robot Acquired plant data
 
-_Note: This repository was previously named Inspection Data Analyzer (IDA).
-Work is in progress on renaming it to SARA (Storage and Analysis of Robot Acquired plant data)_
-
 SARA (Storage and Analysis of Robot Acquired plant data) is a web service that facilitates
 the processing of incoming plant data from autonomous robots. Various workflows will be
 triggered to analyse the plant data, based on metadata provided. The workflows themselves

@@ -31,7 +31,7 @@ AUTHORITY = f"https://login.microsoftonline.com/{TENANT_ID}"
 # Should preferably only be set to true in local environment.
 # Validating the HTTPS certificate can prevent man-in-the-middle attacks.
 SKIP_VALIDATE_HTTPS_CERT_SARA = (
-    os.getenv("SKIP_VALIDATE_HTTPS_CERT_IDA", "").lower() == "true"
+    os.getenv("SKIP_VALIDATE_HTTPS_CERT_SARA", "").lower() == "true"
 )
 VALIDATE_HTTPS_CERT_SARA = not SKIP_VALIDATE_HTTPS_CERT_SARA
 
