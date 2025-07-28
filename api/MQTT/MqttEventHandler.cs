@@ -125,6 +125,14 @@ namespace api.MQTT
                     isarInspectionResultMessage?.InspectionId
                 );
             }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error occurred while creating MQTT message from ISAR for InspectionId: {InspectionId}.",
+                    isarInspectionResultMessage?.InspectionId
+                );
+            }
             catch (Exception ex)
             {
                 if (isarInspectionResultMessage != null)
