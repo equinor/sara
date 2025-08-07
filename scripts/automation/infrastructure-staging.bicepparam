@@ -17,11 +17,11 @@ param administratorLoginPassword = ''
 param serverName = '${environment}-server'
 param postgresConnectionString = ''
 
-param storageAccountNameAnon = '${environment}-storageanon'
+param storageAccountNameAnon = '${environment}storeanon'
 
-param storageAccountNameRaw = '${environment}-storageraw'
+param storageAccountNameRaw = '${environment}storeraw'
 
-param storageAccountNameVis = '${environment}-storagevis'
+param storageAccountNameVis = '${environment}storevis'
 
 param principalId = 'bf81095d-e13d-481d-a4e8-a5c17faad398' //aurora-aks-kubelet-shared staging environment
 param roleDefinitionId = 'f1a07417-d97a-45cb-824c-7a7467783830' // azure built-in role for managed identity operator
