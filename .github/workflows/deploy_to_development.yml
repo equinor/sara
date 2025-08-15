@@ -27,7 +27,7 @@ jobs:
     uses: ./.github/workflows/publish_component.yml
     with:
       Registry: auroradevacr.azurecr.io
-      ImageName: robotics/inspection-data-analyzer
+      ImageName: robotics/sara
       Tag: "dev.${{ needs.get-short-sha.outputs.tag }}"
     secrets:
       RegistryUsername: ${{ secrets.ROBOTICS_AURORADEVACR_USERNAME }}
@@ -40,7 +40,7 @@ jobs:
     with:
       Environment: development
       Registry: auroradevacr.azurecr.io
-      ImageName: robotics/inspection-data-analyzer
+      ImageName: robotics/sara
       # Add dev. prefix for the tags used in dev environment,
       # due to the commit hash can be interpreted as an integer if only numbers
       # PS: Needs to match build-and-push-components.with.Tag
