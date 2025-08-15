@@ -40,9 +40,11 @@ jobs:
           repository: equinor/analytics-infrastructure
           ssh-key: ${{ secrets.DeployKey }}
 
-      - name: Update api in file
+      - name: Update version number in file
+        # Search for the exact line referring to the sara image to avoid getting the other
+        # lines containing sara (e.g. sara-anonymizer)
         run: |
-          TAG_LINE_NUMBER=$(($(grep -n "${{ inputs.Registry }}/${{ inputs.ImageName }}" k8s_kustomize/overlays/${{ inputs.Environment }}/kustomization.yaml |  cut --delimiter=":" --fields=1)+1))
+          TAG_LINE_NUMBER=$(($(grep -n -x "    newName: ${{ inputs.Registry }}/${{ inputs.ImageName }}" k8s_kustomize/overlays/${{ inputs.Environment }}/kustomization.yaml |  cut --delimiter=":" --fields=1)+1))
           sed -i "${TAG_LINE_NUMBER} s/newTag:.*/newTag: ${{ inputs.Tag }}/" k8s_kustomize/overlays/${{ inputs.Environment }}/kustomization.yaml
 
       - name: Update infrastructure in GitHub
