@@ -32,3 +32,4 @@ bld/
 
 # Environment
 *.env
+*.editorconfig
