@@ -50,14 +50,14 @@ is making migrations at the same time as you!**
 Updates to the database structure (applying migrations) are done in Github Actions.
 
 When a pull request contains changes in the `/api/Migrations` folder,
-[a workflow](https://github.com/equinor/inspection-data-analyzer/blob/main/.github/workflows/notifyMigrationChanges.yml)
+[a workflow](https://github.com/equinor/sara/blob/main/.github/workflows/notifyMigrationChanges.yml)
 is triggered to notify that the pull request has database changes.
 
 After the pull request is approved, a user can then trigger the database changes by commenting
 `/UpdateDatabase` on the pull request.
 
 This will trigger
-[another workflow](https://github.com/equinor/inspection-data-analyzer/blob/main/.github/workflows/updateDatabase.yml)
+[another workflow](https://github.com/equinor/sara/blob/main/.github/workflows/updateDatabase.yml)
 which updates the database by apploying the new migrations.
 
 By doing migrations this way, we ensure that the commands themselves are scripted, and that the database
@@ -66,5 +66,5 @@ changes become part of the review process of a pull request.
 ### Applying migrations to staging and production databases
 
 This is done automatically as part of the promotion workflows
-([promoteToProduction](https://github.com/equinor/inspection-data-analyzer/blob/main/.github/workflows/promoteToProduction.yml)
-and [promoteToStaging](https://github.com/equinor/inspection-data-analyzer/blob/main/.github/workflows/promoteToStaging.yml)).
+([promote_to_production](https://github.com/equinor/sara/blob/main/.github/workflows/promote_to_production.yaml)
+and [promote_to_staging](https://github.com/equinor/sara/blob/main/.github/workflows/deploy_to_staging.yml).

@@ -8,7 +8,7 @@ on:
 env:
   message: |
     :bell: Changes in database folder detected :bell:
-    Do these changes require **adding new migrations**? :thinking: In that case follow [these steps](https://github.com/equinor/inspection-data-analyzer/tree/main/api#Database-model-and-EF-Core).
+    Do these changes require **adding new migrations**? :thinking: In that case follow [these steps](https://github.com/equinor/sara/blob/main/docs/database_and_migrations.md).
     If you are uncertain, ask a database admin on the team :smile:
 
 jobs:

@@ -25,7 +25,7 @@ jobs:
     uses: ./.github/workflows/publish_component.yml
     with:
       Registry: auroraprodacr.azurecr.io
-      ImageName: robotics/inspection-data-analyzer
+      ImageName: robotics/sara
       Tag: ${{ github.event.release.tag_name }}
     secrets:
       RegistryUsername: ${{ secrets.ROBOTICS_AURORAPRODACR_USERNAME }}
@@ -38,7 +38,7 @@ jobs:
     with:
       Environment: staging
       Registry: auroraprodacr.azurecr.io
-      ImageName: robotics/inspection-data-analyzer
+      ImageName: robotics/sara
       Tag: ${{ github.event.release.tag_name }}
       AuthorName: ${{ github.event.release.author.login }}
     secrets:
