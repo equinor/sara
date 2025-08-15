@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Text.Json.Serialization;
 using api.Configurations;
 using api.Database.Context;
@@ -36,9 +38,23 @@ if (builder.Configuration.GetSection("KeyVault").GetValue<bool>("UseKeyVault"))
     }
 }
 
+var applicationName = builder.Configuration["AppName"] ?? "SaraBackend";
+
 builder.ConfigureLogger();
 
 builder.Services.ConfigureDatabase(builder.Configuration);
+
+var openTelemetryEnabled = builder.Configuration.GetValue<bool?>("OpenTelemetry:Enabled") ?? false;
+var otelActivitySource = new ActivitySource(applicationName);
+var otelMeter = new Meter($"{applicationName}.Metrics", "0.0.1");
+if (openTelemetryEnabled)
+{
+    builder.AddCustomOpenTelemetry(otelActivitySource, otelMeter);
+}
+else
+{
+    builder.Services.AddApplicationInsightsTelemetry();
+}
 
 builder.Services.Configure<AzureAdOptions>(builder.Configuration.GetSection("AzureAd"));
 builder.Services.Configure<BlobOptions>(builder.Configuration.GetSection("Storage"));
