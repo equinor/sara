@@ -10,7 +10,7 @@ param serverEdition string = 'GeneralPurpose'
 param skuSizeGB int = 256
 param dbInstanceType string = 'Standard_D4ds_v4'
 param availabilityZone string = '1'
-param version string = '14'
+param version string = '17'
 
 resource serverName_resource 'Microsoft.DBforPostgreSQL/flexibleServers@2021-06-01' = {
   name: serverName
