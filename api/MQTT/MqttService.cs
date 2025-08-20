@@ -328,18 +328,27 @@ namespace api.MQTT
                 message = JsonSerializer.Deserialize<T>(content, serializerOptions);
                 if (message is null)
                 {
-                    throw new JsonException();
+                    _logger.LogError(
+                        "Deserialized MQTT message is null for type '{typeName}'. Content: {content}",
+                        typeof(T).Name,
+                        content
+                    );
+                    return;
                 }
             }
-            catch (Exception ex)
-                when (ex is JsonException or NotSupportedException or ArgumentException)
+            catch (JsonException ex)
             {
                 _logger.LogError(
                     ex,
-                    "Could not create '{className}' object from MQTT message json. The content was the following: {content}",
+                    "Failed to deserialize MQTT message to type '{typeName}'. Content: {content}",
                     typeof(T).Name,
                     content
                 );
+                return;
+            }
+            catch (ArgumentNullException)
+            {
+                _logger.LogError("No JSON data to parse");
                 return;
             }
 
