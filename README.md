@@ -46,6 +46,10 @@ To add a new analysis type, add a value to the [AnalysisType](api/Database/Model
 
 At the moment Anonymizer is configured to always run on IsarInspectionResultMessage
 
+## Running the argo workflow mock
+
+`python mocks/argo_workflow_mock.py`
+
 ## More documentation
 
 See the `/docs` folder for more documentation, for example
