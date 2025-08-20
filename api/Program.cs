@@ -76,6 +76,8 @@ builder
     .EnableTokenAcquisitionToCallDownstreamApi()
     .AddInMemoryTokenCaches();
 
+builder.Services.ConfigureJwtBearerLogging();
+
 builder
     .Services.AddAuthorizationBuilder()
     .AddFallbackPolicy("RequireAuthenticatedUser", policy => policy.RequireAuthenticatedUser());
