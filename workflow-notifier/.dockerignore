@@ -1,0 +1,6 @@
+*
+!pyproject.toml
+!main.py
+!src/workflow_notifier
+!LICENSE
+!README.md
