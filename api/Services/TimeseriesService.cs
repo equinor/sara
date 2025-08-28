@@ -52,7 +52,7 @@ public class TimeseriesService(IConfiguration configuration, ILogger<TimeseriesS
         var postRequestData = new TriggerTimeseriesUploadRequest(
             name,
             isarInspectionValueMessage.InstallationCode,
-            isarInspectionValueMessage.InspectionId,
+            "",
             isarInspectionValueMessage.InspectionType,
             isarInspectionValueMessage.Unit,
             isarInspectionValueMessage.InstallationCode, // TODO: check what assetId is
@@ -60,13 +60,9 @@ public class TimeseriesService(IConfiguration configuration, ILogger<TimeseriesS
             isarInspectionValueMessage.Timestamp,
             metadata: new Dictionary<string, string>
             {
-                { "isar_id", isarInspectionValueMessage.ISARID },
                 { "tag_id", isarInspectionValueMessage.TagID },
                 { "inspection_description", isarInspectionValueMessage.InspectionDescription },
                 { "robot_name", isarInspectionValueMessage.RobotName },
-                { "x", isarInspectionValueMessage.X.ToString() },
-                { "y", isarInspectionValueMessage.Y.ToString() },
-                { "z", isarInspectionValueMessage.Z.ToString() },
             }
         );
 
