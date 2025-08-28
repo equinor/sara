@@ -33,3 +33,6 @@ bld/
 # Environment
 *.env
 *.editorconfig
+
+# JetBrains Editors
+.idea
