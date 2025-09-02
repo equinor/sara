@@ -54,19 +54,19 @@ public class PlantDataService(SaraDbContext context, IConfiguration configuratio
         IsarInspectionResultMessage isarInspectionResultMessage
     )
     {
-        var inspectionPath = isarInspectionResultMessage.InspectionPath;
+        var inspectionDataPath = isarInspectionResultMessage.InspectionDataPath;
         var rawStorageAccount = configuration.GetSection("Storage")["RawStorageAccount"];
-        if (!inspectionPath.StorageAccount.Equals(rawStorageAccount))
+        if (!inspectionDataPath.StorageAccount.Equals(rawStorageAccount))
         {
             throw new InvalidOperationException(
-                $"Incoming storage account, {inspectionPath.StorageAccount}, is not equal to storage account in config, {rawStorageAccount}."
+                $"Incoming storage account, {inspectionDataPath.StorageAccount}, is not equal to storage account in config, {rawStorageAccount}."
             );
         }
         var rawDataBlobStorageLocation = new BlobStorageLocation
         {
-            StorageAccount = inspectionPath.StorageAccount,
-            BlobContainer = inspectionPath.BlobContainer,
-            BlobName = inspectionPath.BlobName,
+            StorageAccount = inspectionDataPath.StorageAccount,
+            BlobContainer = inspectionDataPath.BlobContainer,
+            BlobName = inspectionDataPath.BlobName,
         };
 
         var anonymizedStorageAccount = configuration.GetSection("Storage")["AnonStorageAccount"];
@@ -77,8 +77,8 @@ public class PlantDataService(SaraDbContext context, IConfiguration configuratio
         var anonymizedDataBlobStorageLocation = new BlobStorageLocation
         {
             StorageAccount = anonymizedStorageAccount,
-            BlobContainer = inspectionPath.BlobContainer,
-            BlobName = inspectionPath.BlobName,
+            BlobContainer = inspectionDataPath.BlobContainer,
+            BlobName = inspectionDataPath.BlobName,
         };
 
         var visualizedStorageAccount = configuration.GetSection("Storage")["VisStorageAccount"];
@@ -89,8 +89,8 @@ public class PlantDataService(SaraDbContext context, IConfiguration configuratio
         var visualizedDataBlobStorageLocation = new BlobStorageLocation
         {
             StorageAccount = visualizedStorageAccount,
-            BlobContainer = inspectionPath.BlobContainer,
-            BlobName = inspectionPath.BlobName,
+            BlobContainer = inspectionDataPath.BlobContainer,
+            BlobName = inspectionDataPath.BlobName,
         };
 
         var plantData = new PlantData

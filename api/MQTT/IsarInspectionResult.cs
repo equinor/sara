@@ -5,9 +5,6 @@ namespace api.MQTT;
 #nullable disable
 public class InspectionPathMessage
 {
-    [JsonPropertyName("source")]
-    public string Source { get; set; }
-
     [JsonPropertyName("storage_account")]
     public required string StorageAccount { get; set; }
 
@@ -32,8 +29,11 @@ public class IsarInspectionResultMessage : MqttMessage
     [JsonPropertyName("inspection_id")]
     public string InspectionId { get; set; }
 
-    [JsonPropertyName("inspection_path")]
-    public InspectionPathMessage InspectionPath { get; set; }
+    [JsonPropertyName("blob_storage_data_path")]
+    public InspectionPathMessage InspectionDataPath { get; set; }
+
+    [JsonPropertyName("blob_storage_metadata_path")]
+    public InspectionPathMessage InspectionMetadataPath { get; set; }
 
     [JsonPropertyName("installation_code")]
     public string InstallationCode { get; set; }
