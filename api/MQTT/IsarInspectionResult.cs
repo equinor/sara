@@ -1,4 +1,5 @@
-﻿using System.Text.Json.Serialization;
+﻿using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace api.MQTT;
 
@@ -6,12 +7,15 @@ namespace api.MQTT;
 public class InspectionPathMessage
 {
     [JsonPropertyName("storage_account")]
+    [Required]
     public required string StorageAccount { get; set; }
 
     [JsonPropertyName("blob_container")]
+    [Required]
     public required string BlobContainer { get; set; }
 
     [JsonPropertyName("blob_name")]
+    [Required]
     public required string BlobName { get; set; }
 }
 
@@ -21,34 +25,44 @@ public abstract class MqttMessage { }
 public class IsarInspectionResultMessage : MqttMessage
 {
     [JsonPropertyName("isar_id")]
-    public string ISARID { get; set; }
+    [Required]
+    public required string ISARID { get; set; }
 
     [JsonPropertyName("robot_name")]
-    public string RobotName { get; set; }
+    [Required]
+    public required string RobotName { get; set; }
 
     [JsonPropertyName("inspection_id")]
-    public string InspectionId { get; set; }
+    [Required]
+    public required string InspectionId { get; set; }
 
     [JsonPropertyName("blob_storage_data_path")]
-    public InspectionPathMessage InspectionDataPath { get; set; }
+    [Required]
+    public required InspectionPathMessage InspectionDataPath { get; set; }
 
     [JsonPropertyName("blob_storage_metadata_path")]
-    public InspectionPathMessage InspectionMetadataPath { get; set; }
+    [Required]
+    public required InspectionPathMessage InspectionMetadataPath { get; set; }
 
     [JsonPropertyName("installation_code")]
-    public string InstallationCode { get; set; }
+    [Required]
+    public required string InstallationCode { get; set; }
 
     [JsonPropertyName("tag_id")]
-    public string TagID { get; set; }
+    [Required]
+    public required string TagID { get; set; }
 
     [JsonPropertyName("inspection_type")]
-    public string InspectionType { get; set; }
+    [Required]
+    public required string InspectionType { get; set; }
 
     [JsonPropertyName("inspection_description")]
-    public string InspectionDescription { get; set; }
+    [Required]
+    public required string InspectionDescription { get; set; }
 
     [JsonPropertyName("timestamp")]
-    public DateTime Timestamp { get; set; }
+    [Required]
+    public required DateTime Timestamp { get; set; }
 }
 
 public class SaraVisualizationAvailableMessage : MqttMessage
