@@ -142,7 +142,14 @@ app.UseCors(corsBuilder =>
         .AllowCredentials()
 );
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsEnvironment("Local"))
+{
+    app.UseHttpsRedirection();
+}
+else
+{
+    Console.WriteLine("WARNING: Running without HTTPS redirection (Local only)");
+}
 
 app.UseAuthentication();
 app.UseAuthorization();

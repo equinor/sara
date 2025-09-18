@@ -192,4 +192,4 @@ def notify_workflow_exited(inspection_id):
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=8080)
+    app.run(host="127.0.0.1", port=30232)
