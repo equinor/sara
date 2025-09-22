@@ -103,7 +103,11 @@ app.UseSwagger(c =>
     c.PreSerializeFilters.Add(
         (swaggerDoc, httpReq) =>
         {
-            swaggerDoc.Servers = [new() { Url = $"http://{httpReq.Host.Value}{basePath}" }];
+            swaggerDoc.Servers =
+            [
+                new() { Url = $"http://{httpReq.Host.Value}{basePath}" },
+                new() { Url = $"https://{httpReq.Host.Value}{basePath}" },
+            ];
         }
     );
 });
