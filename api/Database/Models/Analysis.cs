@@ -32,6 +32,7 @@ public class Analysis
         {
             "anonymizer" => AnalysisType.Anonymizer,
             "constantleveloiler" => AnalysisType.ConstantLevelOiler,
+            "fencilla" => AnalysisType.Fencilla,
             _ => null,
         };
     }
@@ -42,6 +43,7 @@ public class Analysis
         {
             AnalysisType.Anonymizer => "anonymizer",
             AnalysisType.ConstantLevelOiler => "constantleveloiler",
+            AnalysisType.Fencilla => "fencilla",
             _ => null,
         };
     }
