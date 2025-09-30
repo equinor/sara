@@ -10,7 +10,8 @@ public class TriggerArgoWorkflowAnalysisRequest(
     BlobStorageLocation anonymizedBlobStorageLocation,
     BlobStorageLocation visualizedBlobStorageLocation,
     bool shouldRunConstantLevelOiler,
-    bool shouldRunFencilla
+    bool shouldRunFencilla,
+    bool shouldUploadToSTID
 )
 {
     public string InspectionId { get; } = inspectionId;
@@ -21,6 +22,7 @@ public class TriggerArgoWorkflowAnalysisRequest(
         visualizedBlobStorageLocation;
     public bool ShouldRunConstantLevelOiler { get; } = shouldRunConstantLevelOiler;
     public bool ShouldRunFencilla { get; } = shouldRunFencilla;
+    public bool ShouldUploadToSTID { get; } = shouldUploadToSTID;
 }
 
 public interface IArgoWorkflowService
@@ -28,8 +30,8 @@ public interface IArgoWorkflowService
     public Task TriggerAnalysis(
         PlantData data,
         bool shouldRunConstantLevelOiler,
-        bool shouldRunFencilla
-    );
+        bool shouldRunFencilla,
+        bool shouldUploadToSTID);
 }
 
 public class ArgoWorkflowService(IConfiguration configuration, ILogger<ArgoWorkflowService> logger)
@@ -47,7 +49,8 @@ public class ArgoWorkflowService(IConfiguration configuration, ILogger<ArgoWorkf
     public async Task TriggerAnalysis(
         PlantData data,
         bool shouldRunConstantLevelOiler,
-        bool shouldRunFencilla
+        bool shouldRunFencilla,
+        bool shouldUploadToSTID
     )
     {
         var postRequestData = new TriggerArgoWorkflowAnalysisRequest(
@@ -56,7 +59,8 @@ public class ArgoWorkflowService(IConfiguration configuration, ILogger<ArgoWorkf
             data.AnonymizedBlobStorageLocation,
             data.VisualizedBlobStorageLocation,
             shouldRunConstantLevelOiler,
-            shouldRunFencilla
+            shouldRunFencilla,
+            shouldUploadToSTID
         );
 
         var json = JsonSerializer.Serialize(postRequestData, useCamelCaseOption);

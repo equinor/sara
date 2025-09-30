@@ -112,10 +112,20 @@ namespace api.MQTT
                     );
                     shouldRunFencilla = true;
                 }
+                var shouldUploadToSTID = false;
+                if (plantData.RawDataBlobStorageLocation.BlobName.EndsWith(".jpeg"))
+                {
+                    shouldUploadToSTID = true;
+                    _logger.LogInformation(
+                        "Raw data is a JPEG image, will upload to STID for InspectionId: {InspectionId}",
+                        isarInspectionResultMessage.InspectionId
+                    );
+                }
                 await ArgoWorkflowService.TriggerAnalysis(
                     plantData,
                     shouldRunConstantLevelOiler,
-                    shouldRunFencilla
+                    shouldRunFencilla,
+                    shouldUploadToSTID
                 );
             }
             catch (ArgumentException)

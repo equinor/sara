@@ -85,10 +85,21 @@ public class TriggerAnalysisController(
             );
             shouldRunFencilla = true;
         }
+        var shouldUploadToSTID = false;
+        if (plantData.RawDataBlobStorageLocation.BlobName.EndsWith(".jpeg"))
+        {
+            shouldUploadToSTID = true;
+            _logger.LogInformation(
+                "Raw data is a JPEG image, will upload to STID for InspectionId: {InspectionId}",
+                request.InspectionId
+            );
+        }
+
         await argoWorkflowService.TriggerAnalysis(
             plantData,
             shouldRunConstantLevelOiler,
-            shouldRunFencilla
+            shouldRunFencilla,
+            shouldUploadToSTID
         );
 
         return Ok("Analysis workflow triggered successfully.");

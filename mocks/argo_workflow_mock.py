@@ -38,6 +38,7 @@ def trigger_analysis():
         visualized_blob_storage_location = data.get("visualizedBlobStorageLocation")
         should_run_constant_level_oiler = data.get("shouldRunConstantLevelOiler")
         should_run_fencilla = data.get("shouldRunFencilla")
+        should_upload_to_stid = data.get("shouldUploadToSTID")
 
         # Validate input
         if (
@@ -47,6 +48,7 @@ def trigger_analysis():
             or not visualized_blob_storage_location
             or should_run_constant_level_oiler is None
             or should_run_fencilla is None
+            or should_upload_to_stid is None
         ):
             print("Missing required fields")
             return jsonify({"error": "Missing required fields"}), 400
@@ -56,7 +58,12 @@ def trigger_analysis():
         # Start the workflow notifications in a separate thread
         threading.Thread(
             target=start_workflow,
-            args=(inspection_id, should_run_constant_level_oiler, should_run_fencilla),
+            args=(
+                inspection_id,
+                should_run_constant_level_oiler,
+                should_run_fencilla,
+                should_upload_to_stid,
+            ),
         ).start()
 
         return jsonify({"message": "Trigger request received"}), 200
@@ -65,7 +72,12 @@ def trigger_analysis():
         return jsonify({"error": "An error occurred"}), 500
 
 
-def start_workflow(inspection_id, should_run_constant_level_oiler, should_run_fencilla):
+def start_workflow(
+    inspection_id,
+    should_run_constant_level_oiler,
+    should_run_fencilla,
+    should_upload_to_stid,
+):
     try:
         workflow_name = f"workflow-{random.randint(1000, 9999)}"
         print(
@@ -92,6 +104,11 @@ def start_workflow(inspection_id, should_run_constant_level_oiler, should_run_fe
             is_break = True
             confidence = 0.95
             notify_fencilla_done(inspection_id, is_break, confidence)
+
+        time.sleep(5)
+        if should_upload_to_stid:
+            # Notify STID upload done after 10 seconds
+            notify_stid_upload_done(inspection_id)
 
         # Notify workflow exited after another 10 seconds
         time.sleep(5)
@@ -170,6 +187,34 @@ def notify_fencilla_done(inspection_id: str, is_break: bool, confidence: float):
             )
     except Exception as e:
         print(f"Error in notify_fencilla_done: {e}")
+
+
+def notify_stid_upload_done(inspection_id: str):
+    try:
+        url = "https://localhost:8100/Workflows/notify-stid-upload-done"
+        payload = {"inspectionId": inspection_id}
+        print(f"Sending PUT to {url} with data: {payload}")
+        response = requests.put(url, json=payload, verify=False)
+
+        if response.status_code == 200:
+            print("STID upload done notification sent successfully.")
+        else:
+            print(
+                f"Failed to notify STID upload done. Response {response.status_code}: {response.text}"
+            )
+    except Exception as e:
+        print(f"Error in notify_stid_upload_done: {e}")
+        print(f"Sending PUT to {url} with data: {payload}")
+        response = requests.put(url, json=payload, verify=False)
+
+        if response.status_code == 200:
+            print("STID upload done notification sent successfully.")
+        else:
+            print(
+                f"Failed to notify STID upload done. Response {response.status_code}: {response.text}"
+            )
+    except Exception as e:
+        print(f"Error in notify_stid_upload_done: {e}")
 
 
 def notify_workflow_exited(inspection_id):
