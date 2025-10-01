@@ -45,9 +45,9 @@ public class PlantDataService(SaraDbContext context, IConfiguration configuratio
 
     public async Task<PlantData?> ReadByInspectionId(string inspectionId)
     {
-        return await context.PlantData.FirstOrDefaultAsync(i =>
-            i.InspectionId.Equals(inspectionId)
-        );
+        return await context
+            .PlantData.Include(plantData => plantData.Metadata)
+            .FirstOrDefaultAsync(i => i.InspectionId.Equals(inspectionId));
     }
 
     public async Task<PlantData> CreateFromMqttMessage(
@@ -100,6 +100,11 @@ public class PlantDataService(SaraDbContext context, IConfiguration configuratio
             AnonymizedBlobStorageLocation = anonymizedDataBlobStorageLocation,
             VisualizedBlobStorageLocation = visualizedDataBlobStorageLocation,
             InstallationCode = isarInspectionResultMessage.InstallationCode,
+            Metadata = new Metadata(
+                isarInspectionResultMessage.TagID,
+                Metadata.TypeFromString(isarInspectionResultMessage.InspectionType),
+                isarInspectionResultMessage.InspectionDescription
+            ),
         };
         await context.PlantData.AddAsync(plantData);
         await context.SaveChangesAsync();

@@ -66,6 +66,7 @@ builder.Services.AddScoped<IAnalysisMappingService, AnalysisMappingService>();
 builder.Services.AddScoped<IMqttMessageService, MqttMessageService>();
 
 builder.Services.AddScoped<IArgoWorkflowService, ArgoWorkflowService>();
+builder.Services.AddScoped<IStidWorkflowService, StidWorkflowService>();
 builder.Services.AddScoped<ITimeseriesService, TimeseriesService>();
 
 builder.Services.AddHostedService<MqttEventHandler>();

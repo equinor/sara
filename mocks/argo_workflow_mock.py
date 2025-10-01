@@ -102,7 +102,7 @@ def start_workflow(inspection_id, should_run_constant_level_oiler, should_run_fe
 
 def notify_workflow_started(inspection_id, workflow_name):
     try:
-        url = "https://localhost:8100/Workflows/notify-workflow-started"
+        url = "http://localhost:8100/Workflows/notify-workflow-started"
         payload = {"inspectionId": inspection_id, "workflowName": workflow_name}
         print(f"Sending PUT to {url} with data: {payload}")
         response = requests.put(url, json=payload, verify=False)
@@ -119,7 +119,7 @@ def notify_workflow_started(inspection_id, workflow_name):
 
 def notify_anonymizer_done(inspection_id):
     try:
-        url = "https://localhost:8100/Workflows/notify-anonymizer-done"
+        url = "http://localhost:8100/Workflows/notify-anonymizer-done"
         payload = {"inspectionId": inspection_id}
         print(f"Sending PUT to {url} with data: {payload}")
         response = requests.put(url, json=payload, verify=False)
@@ -136,7 +136,7 @@ def notify_anonymizer_done(inspection_id):
 
 def notify_constant_level_oiler_done(inspection_id, oil_level):
     try:
-        url = "https://localhost:8100/Workflows/notify-constant-level-oiler-done"
+        url = "http://localhost:8100/Workflows/notify-constant-level-oiler-done"
         payload = {"inspectionId": inspection_id, "oilLevel": oil_level}
         print(f"Sending PUT to {url} with data: {payload}")
         response = requests.put(url, json=payload, verify=False)
@@ -153,7 +153,7 @@ def notify_constant_level_oiler_done(inspection_id, oil_level):
 
 def notify_fencilla_done(inspection_id: str, is_break: bool, confidence: float):
     try:
-        url = "https://localhost:8100/Workflows/notify-fencilla-done"
+        url = "http://localhost:8100/Workflows/notify-fencilla-done"
         payload = {
             "inspectionId": inspection_id,
             "isBreak": is_break,
@@ -174,10 +174,14 @@ def notify_fencilla_done(inspection_id: str, is_break: bool, confidence: float):
 
 def notify_workflow_exited(inspection_id):
     try:
-        url = "https://localhost:8100/Workflows/notify-workflow-exited"
+        url = "http://localhost:8100/Workflows/notify-workflow-exited"
         # workflow_status = "Succeded" if random.random() > 0.3 else "Failed"
         workflow_status = "Succeeded"
-        payload = {"inspectionId": inspection_id, "workflowStatus": workflow_status}
+        payload = {
+            "inspectionId": inspection_id,
+            "workflowStatus": workflow_status,
+            "workflowFailures": "Success",
+        }
         print(f"Sending PUT to {url} with data: {payload}")
         response = requests.put(url, json=payload, verify=False)
 
