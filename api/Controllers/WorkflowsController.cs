@@ -188,9 +188,7 @@ public class WorkflowsController(
     [Route("notify-workflow-exited")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public ActionResult<PlantDataResponse> WorkflowExited(
-        [FromBody] WorkflowExitedNotification notification
-    )
+    public ActionResult WorkflowExited([FromBody] WorkflowExitedNotification notification)
     {
         // WorkflowStatus status;
 

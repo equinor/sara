@@ -1,7 +1,10 @@
-﻿using System.Text;
+﻿using System.Reflection.Metadata;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using api.Database.Models;
 using api.Services;
+using api.Services.Models;
 using api.Utilities;
 using MQTTnet;
 using MQTTnet.Client;
@@ -33,11 +36,17 @@ namespace api.MQTT
 
         private CancellationToken _cancellationToken;
         private int _reconnectAttempts;
+        private readonly IStidWorkflowService _stidWorkflowService;
 
-        public MqttService(ILogger<MqttService> logger, IConfiguration config)
+        public MqttService(
+            ILogger<MqttService> logger,
+            IConfiguration config,
+            IStidWorkflowService stidWorkflowService
+        )
         {
             _reconnectAttempts = 0;
             _logger = logger;
+            _stidWorkflowService = stidWorkflowService;
             var mqttFactory = new MqttFactory();
             _mqttClient = mqttFactory.CreateManagedMqttClient();
 
@@ -143,6 +152,20 @@ namespace api.MQTT
                 _logger.LogError("Message is not of type SaraVisualizationAvailableMessage");
                 return;
             }
+
+            var stidData = new StidUploadMessage
+            {
+                InspectionId = message.InspectionId,
+                AnonymizedBlobStorageLocation = new BlobStorageLocation
+                {
+                    StorageAccount = message.StorageAccount,
+                    BlobContainer = message.BlobContainer,
+                    BlobName = message.BlobName,
+                },
+            };
+
+            await _stidWorkflowService.TriggerUploadToStid(stidData);
+
             var payload = JsonSerializer.Serialize(message, serializerOptions);
 
             var topic = MqttTopics.MessagesToTopics.GetTopicByItem(message.GetType());

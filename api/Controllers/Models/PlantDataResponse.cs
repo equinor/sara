@@ -20,4 +20,20 @@ namespace api.Controllers.Models
             id = plantData.Id;
         }
     }
+
+    public class StidDataResponse(
+        string inspectionId,
+        BlobStorageLocation anonymizedBlobStorageLocation,
+        string tag,
+        string description,
+        WorkflowStatus stidWorkflowStatus
+    )
+    {
+        public string inspectionId { get; set; } = inspectionId;
+        public BlobStorageLocation anonymizedBlobStorageLocation { get; set; } =
+            anonymizedBlobStorageLocation;
+        public string tag { get; set; } = tag;
+        public string description { get; set; } = description;
+        public WorkflowStatus stidWorkflowStatus { get; set; } = stidWorkflowStatus;
+    }
 }

@@ -1,7 +1,9 @@
 using api.Controllers.Models;
 using api.Database.Context;
 using api.Database.Models;
+using api.MQTT;
 using api.Services;
+using api.Services.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -16,11 +18,26 @@ public class TriggerAnalysisRequest
     public required string InstallationCode { get; set; }
 }
 
+public class TriggerStidUploadRequest(
+    string inspectionId,
+    BlobStorageLocation anonymizedBlobStorageLocation,
+    string tagId,
+    string description
+)
+{
+    public string InspectionId { get; } = inspectionId;
+    public BlobStorageLocation AnonymizedBlobStorageLocation { get; } =
+        anonymizedBlobStorageLocation;
+    public string TagId { get; } = tagId;
+    public string Description { get; } = description;
+}
+
 [ApiController]
 [Route("[controller]")]
 public class TriggerAnalysisController(
     IArgoWorkflowService argoWorkflowService,
     IAnalysisMappingService analysisMappingService,
+    IStidWorkflowService stidWorkflowService,
     SaraDbContext dbContext,
     ILogger<TriggerAnalysisController> logger
 ) : ControllerBase
@@ -92,5 +109,28 @@ public class TriggerAnalysisController(
         );
 
         return Ok("Analysis workflow triggered successfully.");
+    }
+
+    /// <summary>
+    /// Triggers the stid upload workflow. NB: STID upload workflow should normally be triggered by MQTT message
+    /// </summary>
+    [HttpPost]
+    [Route("trigger-stid-upload")]
+    [Authorize(Roles = Role.Any)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> TriggerUploadToStid(
+        [FromBody] TriggerStidUploadRequest request
+    )
+    {
+        await stidWorkflowService.TriggerUploadToStid(
+            new StidUploadMessage
+            {
+                InspectionId = request.InspectionId,
+                AnonymizedBlobStorageLocation = request.AnonymizedBlobStorageLocation,
+            }
+        );
+
+        return Ok("Upload to stid workflow triggered successfully.");
     }
 }
