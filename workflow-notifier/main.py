@@ -1,9 +1,8 @@
 import os
-from typing import Optional
-
 import requests
 import typer
 from msal import ConfidentialClientApplication
+
 
 app = typer.Typer()
 
@@ -150,25 +149,23 @@ def notify_fencilla_done(inspection_id: str, is_break: bool, confidence: float):
 def notify_exit(
     inspection_id: str,
     workflow_status: str,
-    workflow_failures: Optional[str] = "Success",
+    workflow_failures: str,
 ):
-    """
-    Notify the server about workflow exit.
-    """
     url = f"{SARA_SERVER_URL}/Workflows/notify-workflow-exited"
-
     payload = {
         "InspectionId": inspection_id,
         "WorkflowStatus": workflow_status,
         "WorkflowFailures": workflow_failures,
     }
     typer.echo(f"Sending payload: {payload}")
+
     try:
         response = send_authenticated_put_request(url, payload)
-        typer.echo(f"Workflow exited successfully: {response.json()}")
     except requests.exceptions.RequestException as e:
         typer.echo(f"Error notifying workflow exit: {e}", err=True)
         raise typer.Exit(1)
+
+    typer.echo(f"Workflow exited successfully HTTP {response.status_code}")
 
 
 if __name__ == "__main__":
