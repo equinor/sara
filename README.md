@@ -9,7 +9,7 @@ which workflows are available and how to call them with their API.
 SARA is responsible for indexing the incoming data, including information on where the
 raw data is stored, which analysis are to be run, the status on these, where to
 temporarily store artifacts and where to store the finalized results and visualizations.
-SARA can then be queried later from other solutions and use the indexing to look data and
+SARA can then be queried later from other solutions and use the indexing to look up data and
 generate a response.
 
 Examples of plant data are pictures, videos, thermal pictures, thermal videos and audio.
@@ -46,9 +46,27 @@ To add a new analysis type, add a value to the [AnalysisType](api/Database/Model
 
 At the moment Anonymizer is configured to always run on IsarInspectionResultMessage
 
+## Run
+
+To build and run SARA, run the following command in the root folder:
+
+```
+dotnet run --project api
+```
+
 ## Running the argo workflow mock
 
 `python mocks/argo_workflow_mock.py`
+
+## Deployments
+
+We currently have 3 environments (Development, Staging, and Production) deployed to Aurora.
+
+| Environment | Deployment                                                                           |
+| ----------- | ------------------------------------------------------------------------------------ |
+| Development | [Backend](https://shared.dev.aurora.equinor.com/sara-dev-backend/swagger/index.html) |
+| Staging     | [Backend](https://shared.aurora.equinor.com/sara-staging-backend/swagger/index.html) |
+| Production  | [Backend](https://shared.aurora.equinor.com/sara-prod-backend/swagger/index.html)    |
 
 ## More documentation
 
