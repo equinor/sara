@@ -58,6 +58,16 @@ dotnet run --project api
 
 `python mocks/argo_workflow_mock.py`
 
+## Deployments
+
+We currently have 3 environments (Development, Staging, and Production) deployed to Aurora.
+
+| Environment | Deployment                                                                           |
+| ----------- | ------------------------------------------------------------------------------------ |
+| Development | [Backend](https://shared.dev.aurora.equinor.com/sara-dev-backend/swagger/index.html) |
+| Staging     | [Backend](https://shared.aurora.equinor.com/sara-staging-backend/swagger/index.html) |
+| Production  | [Backend](https://shared.aurora.equinor.com/sara-prod-backend/swagger/index.html)    |
+
 ## More documentation
 
 See the `/docs` folder for more documentation, for example
