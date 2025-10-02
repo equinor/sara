@@ -22,6 +22,8 @@ public interface IPlantDataService
         string inspectionId,
         WorkflowStatus status
     );
+
+    public Task<PlantData> CreatePlantDataEntry(PlantDataRequest request);
 }
 
 public class PlantDataService(SaraDbContext context, IConfiguration configuration)
@@ -102,6 +104,27 @@ public class PlantDataService(SaraDbContext context, IConfiguration configuratio
             InstallationCode = isarInspectionResultMessage.InstallationCode,
         };
         await context.PlantData.AddAsync(plantData);
+        await context.SaveChangesAsync();
+        return plantData;
+    }
+
+    public async Task<PlantData> CreatePlantDataEntry(PlantDataRequest request)
+    {
+        var plantData = new PlantData
+        {
+            Id = Guid.NewGuid().ToString(),
+            InspectionId = request.InspectionId,
+            InstallationCode = request.InstallationCode,
+            RawDataBlobStorageLocation = request.RawDataBlobStorageLocation,
+            AnonymizedBlobStorageLocation = request.AnonymizedBlobStorageLocation,
+            VisualizedBlobStorageLocation = request.VisualizedBlobStorageLocation,
+            DateCreated = DateTime.UtcNow,
+            AnonymizerWorkflowStatus = WorkflowStatus.NotStarted,
+            AnalysisToBeRun = [],
+            Analysis = [],
+        };
+
+        context.PlantData.Add(plantData);
         await context.SaveChangesAsync();
         return plantData;
     }
