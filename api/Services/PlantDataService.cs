@@ -120,7 +120,7 @@ public class PlantDataService(SaraDbContext context, IConfiguration configuratio
             VisualizedBlobStorageLocation = request.VisualizedBlobStorageLocation,
             DateCreated = DateTime.UtcNow,
             AnonymizerWorkflowStatus = WorkflowStatus.NotStarted,
-            AnalysisToBeRun = [],
+            AnalysisToBeRun = request.AnalysesToBeRun,
             Analysis = [],
         };
 

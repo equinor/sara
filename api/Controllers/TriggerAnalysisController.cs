@@ -1,5 +1,4 @@
 using api.Controllers.Models;
-using api.Database.Context;
 using api.Database.Models;
 using api.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -11,14 +10,10 @@ namespace api.Controllers;
 [Route("[controller]")]
 public class TriggerAnalysisController(
     IArgoWorkflowService argoWorkflowService,
-    IAnalysisMappingService analysisMappingService,
     IPlantDataService plantDataService,
-    SaraDbContext dbContext,
     ILogger<TriggerAnalysisController> logger
 ) : ControllerBase
 {
-    private readonly SaraDbContext dbContext = dbContext;
-
     private readonly ILogger<TriggerAnalysisController> _logger = logger;
 
     /// <summary>
@@ -49,14 +44,8 @@ public class TriggerAnalysisController(
             || plantData.AnonymizerWorkflowStatus == WorkflowStatus.ExitFailure
         )
         {
-            var analysesToBeRun =
-                await analysisMappingService.GetAnalysisTypeFromInspectionDescriptionAndTag(
-                    plantData.InspectionId,
-                    plantData.InstallationCode
-                );
-
             var shouldRunConstantLevelOiler = false;
-            if (analysesToBeRun.Contains(AnalysisType.ConstantLevelOiler))
+            if (plantData.AnalysisToBeRun.Contains(AnalysisType.ConstantLevelOiler))
             {
                 _logger.LogInformation(
                     "Analysis type ConstantLevelOiler is set to be run for InspectionId: {InspectionId}",
@@ -65,7 +54,7 @@ public class TriggerAnalysisController(
                 shouldRunConstantLevelOiler = true;
             }
             var shouldRunFencilla = false;
-            if (analysesToBeRun.Contains(AnalysisType.Fencilla))
+            if (plantData.AnalysisToBeRun.Contains(AnalysisType.Fencilla))
             {
                 _logger.LogInformation(
                     "Analysis type Fencilla is set to be run for InspectionId: {InspectionId}",
