@@ -98,5 +98,7 @@ namespace api.Utilities
         public required BlobStorageLocation VisualizedBlobStorageLocation { get; set; }
 
         public required string InstallationCode { get; set; }
+
+        public required List<AnalysisType> AnalysesToBeRun { get; set; }
     }
 }
