@@ -50,6 +50,40 @@ public class PlantDataController(
         }
     }
 
+    [HttpPost]
+    [Route("createEntry")]
+    [Authorize(Roles = Role.Any)]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult> CreatePlantDataEntry([FromBody] PlantDataRequest request)
+    {
+        if (
+            string.IsNullOrWhiteSpace(request.InspectionId)
+            || string.IsNullOrWhiteSpace(request.InstallationCode)
+        )
+        {
+            return BadRequest("Missing required fields.");
+        }
+
+        try
+        {
+            var plantData = await plantDataService.CreatePlantDataEntry(request);
+            if (plantData == null)
+            {
+                return StatusCode(500);
+            }
+            return CreatedAtAction(nameof(GetPlantDataById), new { id = plantData.Id }, plantData);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Error during POST of plantData to database");
+            throw;
+        }
+    }
+
     /// <summary>
     /// Get PlantData by id from database
     /// </summary>
