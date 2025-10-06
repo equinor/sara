@@ -128,10 +128,12 @@ def notify_fencilla_done(inspection_id: str, is_break: bool, confidence: float):
     }
     try:
         response = send_authenticated_put_request(url, payload)
-        typer.echo("Notified that fencilla is done" f"with response: {response.json()}")
     except requests.exceptions.RequestException as e:
         typer.echo(f"Error notifying fencilla done: {e}", err=True)
         raise typer.Exit(1)
+    typer.echo(
+        "Notified that fencilla is done" f"with response: {response.status_code}"
+    )
 
 
 @app.command()

@@ -165,9 +165,7 @@ public class WorkflowsController(
     [Route("notify-fencilla-done")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public ActionResult<PlantDataResponse> FencillaDone(
-        [FromBody] FencillaDoneNotification notification
-    )
+    public ActionResult FencillaDone([FromBody] FencillaDoneNotification notification)
     {
         // TODO: Update plantData with information that Fencilla is Done
         logger.LogInformation(
