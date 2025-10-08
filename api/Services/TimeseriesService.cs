@@ -89,12 +89,21 @@ public class TimeseriesService(IConfiguration configuration, ILogger<TimeseriesS
             isarInspectionValueMessage.InspectionDescription?.Replace(" ", "-") ?? string.Empty;
         var name =
             $"{isarInspectionValueMessage.InstallationCode}_"
-            + $"{(int)Math.Floor(isarInspectionValueMessage.X)}E_"
-            + $"{(int)Math.Floor(isarInspectionValueMessage.Y)}N_"
-            + $"{(int)Math.Floor(isarInspectionValueMessage.Z)}U_"
+            + $"{FloorWithTolerance(isarInspectionValueMessage.X)}E_"
+            + $"{FloorWithTolerance(isarInspectionValueMessage.Y)}N_"
+            + $"{FloorWithTolerance(isarInspectionValueMessage.Z)}U_"
             + $"{isarInspectionValueMessage.TagID}_"
             + $"{isarInspectionValueMessage.RobotName}_"
             + $"{description}";
         return name;
+    }
+
+    // Tolerance set to 0.06 by default to mimic expected fault tolerance in a robot positioning system
+    public static int FloorWithTolerance(double value, double tolerance = 0.06)
+    {
+        var floored = (int)Math.Floor(value);
+        if (value - floored >= 1 - tolerance)
+            return floored + 1;
+        return floored;
     }
 }
