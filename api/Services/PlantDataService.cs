@@ -55,7 +55,7 @@ public class PlantDataService(SaraDbContext context, IConfiguration configuratio
     )
     {
         var inspectionDataPath = isarInspectionResultMessage.InspectionDataPath;
-        var rawStorageAccount = configuration.GetSection("Storage")["RawStorageAccount"];
+        var rawStorageAccount = configuration["RawStorageAccount"];
         if (!inspectionDataPath.StorageAccount.Equals(rawStorageAccount))
         {
             throw new InvalidOperationException(
@@ -69,7 +69,7 @@ public class PlantDataService(SaraDbContext context, IConfiguration configuratio
             BlobName = inspectionDataPath.BlobName,
         };
 
-        var anonymizedStorageAccount = configuration.GetSection("Storage")["AnonStorageAccount"];
+        var anonymizedStorageAccount = configuration["AnonStorageAccount"];
         if (string.IsNullOrEmpty(anonymizedStorageAccount))
         {
             throw new InvalidOperationException("AnonStorageAccount is not configured.");
@@ -81,7 +81,7 @@ public class PlantDataService(SaraDbContext context, IConfiguration configuratio
             BlobName = inspectionDataPath.BlobName,
         };
 
-        var visualizedStorageAccount = configuration.GetSection("Storage")["VisStorageAccount"];
+        var visualizedStorageAccount = configuration["VisStorageAccount"];
         if (string.IsNullOrEmpty(visualizedStorageAccount))
         {
             throw new InvalidOperationException("VisualizedStorageAccount is not configured.");

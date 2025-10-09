@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using api.Configurations;
 using api.Database.Context;
 using api.MQTT;
+using api.Options;
 using api.Services;
 using Azure.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -57,7 +58,11 @@ else
 }
 
 builder.Services.Configure<AzureAdOptions>(builder.Configuration.GetSection("AzureAd"));
-builder.Services.Configure<BlobOptions>(builder.Configuration.GetSection("Storage"));
+builder
+    .Services.AddOptions<StorageOptions>()
+    .Bind(builder.Configuration)
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 
 builder.Services.AddScoped<IBlobService, BlobService>();
 builder.Services.AddScoped<IAnalysisService, AnalysisService>();
