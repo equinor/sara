@@ -7,11 +7,7 @@ on:
   pull_request:
     branches:
       - main
-
-defaults:
-  run:
-    working-directory: api
-
+      
 jobs:
   build_api:
     runs-on: ubuntu-latest
@@ -24,6 +20,7 @@ jobs:
         with:
           dotnet-version: "8.0.x"
       - name: Build project and dependencies
+        working-directory: ./api
         run: dotnet build
 
   test_api:
@@ -38,9 +35,11 @@ jobs:
           dotnet-version: "8.0.x"
 
       - name: Build project and dependencies
+        working-directory: ./api.Tests
         run: dotnet build -warnaserror
 
       - name: Run tests
+        working-directory: ./api.Tests
         run: dotnet test
 
   check_formatting:
@@ -54,6 +53,7 @@ jobs:
           dotnet-version: "8.0.x"
 
       - name: Run csharpier format
+        working-directory: ./api
         run: |
           dotnet tool restore
           dotnet csharpier . --check
