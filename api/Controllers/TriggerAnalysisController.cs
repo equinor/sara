@@ -20,14 +20,10 @@ public class TriggerAnalysisRequest
 [Route("[controller]")]
 public class TriggerAnalysisController(
     IArgoWorkflowService argoWorkflowService,
-    IAnalysisMappingService analysisMappingService,
-    SaraDbContext dbContext,
-    ILogger<TriggerAnalysisController> logger
+    SaraDbContext dbContext
 ) : ControllerBase
 {
     private readonly SaraDbContext dbContext = dbContext;
-
-    private readonly ILogger<TriggerAnalysisController> _logger = logger;
 
     /// <summary>
     /// Triggers the analysis workflow. NB: Analysis workflow should normally be triggered by MQTT message
@@ -41,54 +37,23 @@ public class TriggerAnalysisController(
     {
         var plantData = new PlantData
         {
-            Id = Guid.NewGuid().ToString(),
             InspectionId = request.InspectionId,
             InstallationCode = request.InstallationCode,
-            RawDataBlobStorageLocation = request.RawDataBlobStorageLocation,
-            AnonymizedBlobStorageLocation = request.AnonymizedBlobStorageLocation,
-            VisualizedBlobStorageLocation = request.VisualizedBlobStorageLocation,
+            Anonymization = new Anonymization
+            {
+                RawDataBlobStorageLocation = request.RawDataBlobStorageLocation,
+                AnonymizedBlobStorageLocation = request.AnonymizedBlobStorageLocation,
+            },
             DateCreated = DateTime.UtcNow,
-            AnonymizerWorkflowStatus = WorkflowStatus.NotStarted,
-            AnalysisToBeRun = [],
             Analysis = [],
         };
 
         dbContext.PlantData.Add(plantData);
         await dbContext.SaveChangesAsync();
 
-        _logger.LogInformation(
-            "Triggering analysis workflow from controller for InspectionId: {InspectionId}",
-            request.InspectionId
-        );
-
-        var analysesToBeRun =
-            await analysisMappingService.GetAnalysisTypeFromInspectionDescriptionAndTag(
-                request.InspectionId,
-                request.InstallationCode
-            );
-
-        var shouldRunConstantLevelOiler = false;
-        if (analysesToBeRun.Contains(AnalysisType.ConstantLevelOiler))
-        {
-            _logger.LogInformation(
-                "Analysis type ConstantLevelOiler is set to be run for InspectionId: {InspectionId}",
-                request.InspectionId
-            );
-            shouldRunConstantLevelOiler = true;
-        }
-        var shouldRunFencilla = false;
-        if (analysesToBeRun.Contains(AnalysisType.Fencilla))
-        {
-            _logger.LogInformation(
-                "Analysis type Fencilla is set to be run for InspectionId: {InspectionId}",
-                request.InspectionId
-            );
-            shouldRunFencilla = true;
-        }
-        await argoWorkflowService.TriggerAnalysis(
-            plantData,
-            shouldRunConstantLevelOiler,
-            shouldRunFencilla
+        await argoWorkflowService.TriggerAnonymizer(
+            plantData.InspectionId,
+            plantData.Anonymization
         );
 
         return Ok("Analysis workflow triggered successfully.");

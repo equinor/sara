@@ -24,9 +24,19 @@ public interface IPlantDataService
     );
 }
 
-public class PlantDataService(SaraDbContext context, IConfiguration configuration)
-    : IPlantDataService
+public class PlantDataService(
+    ILogger<PlantDataService> logger,
+    SaraDbContext context,
+    IConfiguration configuration,
+    IServiceScopeFactory scopeFactory
+) : IPlantDataService
 {
+    private readonly ILogger<PlantDataService> _logger = logger;
+    private readonly IServiceScopeFactory _scopeFactory = scopeFactory;
+
+    private IAnalysisMappingService AnalysisMappingService =>
+        _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IAnalysisMappingService>();
+
     public async Task<PagedList<PlantData>> GetPlantData(QueryParameters parameters)
     {
         var query = context.PlantData.Include(a => a.Analysis).AsQueryable();
@@ -48,6 +58,19 @@ public class PlantDataService(SaraDbContext context, IConfiguration configuratio
         return await context.PlantData.FirstOrDefaultAsync(i =>
             i.InspectionId.Equals(inspectionId)
         );
+    }
+
+    private static string PostfixAnalysisTypeToBlobName(string blobName, string analsyisTypePostfix)
+    {
+        var blobNameComponents = blobName.Split(".");
+        if (blobNameComponents.Length != 2)
+        {
+            throw new InvalidOperationException(
+                $"Invalid blobName, containing multiple dots: {blobName}"
+            );
+        }
+
+        return blobNameComponents[0] + "_" + analsyisTypePostfix + "." + blobNameComponents[1];
     }
 
     public async Task<PlantData> CreateFromMqttMessage(
@@ -81,25 +104,80 @@ public class PlantDataService(SaraDbContext context, IConfiguration configuratio
             BlobName = inspectionDataPath.BlobName,
         };
 
+        List<AnalysisType> analysisToBeRun;
+        try
+        {
+            analysisToBeRun =
+                await AnalysisMappingService.GetAnalysisTypeFromInspectionDescriptionAndTag(
+                    isarInspectionResultMessage.InspectionDescription,
+                    isarInspectionResultMessage.TagID
+                );
+        }
+        catch (Exception)
+        {
+            throw new InvalidOperationException("Error occurred while fetching analysis mapping");
+        }
+
         var visualizedStorageAccount = configuration.GetSection("Storage")["VisStorageAccount"];
         if (string.IsNullOrEmpty(visualizedStorageAccount))
         {
-            throw new InvalidOperationException("VisualizedStorageAccount is not configured.");
+            throw new InvalidOperationException("VisStorageAccount is not configured.");
         }
-        var visualizedDataBlobStorageLocation = new BlobStorageLocation
+
+        List<Analysis> Analyses = [];
+        if (analysisToBeRun.Contains(AnalysisType.ConstantLevelOilerEstimator))
         {
-            StorageAccount = visualizedStorageAccount,
-            BlobContainer = inspectionDataPath.BlobContainer,
-            BlobName = inspectionDataPath.BlobName,
-        };
+            _logger.LogInformation(
+                "Analysis type ConstantLevelOilerEstimator is set to be run for InspectionId: {InspectionId}",
+                isarInspectionResultMessage.InspectionId
+            );
+            var visualizedBlobStorageLocation = new BlobStorageLocation
+            {
+                StorageAccount = visualizedStorageAccount,
+                BlobContainer = inspectionDataPath.BlobContainer,
+                BlobName = PostfixAnalysisTypeToBlobName(inspectionDataPath.BlobName, "cloe"),
+            };
+            Analyses.Add(
+                new Analysis
+                {
+                    Type = AnalysisType.ConstantLevelOilerEstimator,
+                    SourceBlobStorageLocation = anonymizedDataBlobStorageLocation,
+                    VisualizedBlobStorageLocation = visualizedBlobStorageLocation,
+                }
+            );
+        }
+        if (analysisToBeRun.Contains(AnalysisType.Fencilla))
+        {
+            _logger.LogInformation(
+                "Analysis type Fencilla is set to be run for InspectionId: {InspectionId}",
+                isarInspectionResultMessage.InspectionId
+            );
+            var visualizedBlobStorageLocation = new BlobStorageLocation
+            {
+                StorageAccount = visualizedStorageAccount,
+                BlobContainer = inspectionDataPath.BlobContainer,
+                BlobName = PostfixAnalysisTypeToBlobName(inspectionDataPath.BlobName, "fencilla"),
+            };
+            Analyses.Add(
+                new Analysis
+                {
+                    Type = AnalysisType.Fencilla,
+                    SourceBlobStorageLocation = anonymizedDataBlobStorageLocation,
+                    VisualizedBlobStorageLocation = visualizedBlobStorageLocation,
+                }
+            );
+        }
 
         var plantData = new PlantData
         {
             InspectionId = isarInspectionResultMessage.InspectionId,
-            RawDataBlobStorageLocation = rawDataBlobStorageLocation,
-            AnonymizedBlobStorageLocation = anonymizedDataBlobStorageLocation,
-            VisualizedBlobStorageLocation = visualizedDataBlobStorageLocation,
+            Anonymization = new Anonymization
+            {
+                RawDataBlobStorageLocation = rawDataBlobStorageLocation,
+                AnonymizedBlobStorageLocation = anonymizedDataBlobStorageLocation,
+            },
             InstallationCode = isarInspectionResultMessage.InstallationCode,
+            Analysis = Analyses,
         };
         await context.PlantData.AddAsync(plantData);
         await context.SaveChangesAsync();
@@ -116,7 +194,7 @@ public class PlantDataService(SaraDbContext context, IConfiguration configuratio
         );
         if (plantData != null)
         {
-            plantData.AnonymizerWorkflowStatus = status;
+            plantData.Anonymization.Status = status;
             await context.SaveChangesAsync();
         }
         return plantData;

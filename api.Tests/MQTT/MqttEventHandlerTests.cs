@@ -72,7 +72,7 @@ namespace api.Tests.MQTT
             mockedServices.PlantDataServiceMock.Verify(s => s.ReadByInspectionId("dummy"), Times.Once);
             mockedServices.PlantDataServiceMock.Verify(s => s.CreateFromMqttMessage(dummyMessage), Times.Once);
             mockedServices.AnalysisMappingServiceMock.Verify(s => s.GetAnalysisTypeFromInspectionDescriptionAndTag("dummy", "dummy"), Times.Once);
-            mockedServices.ArgoWorkflowServiceMock.Verify(s => s.TriggerAnalysis(It.IsAny<Database.Models.PlantData>(), It.IsAny<bool>(), It.IsAny<bool>()), Times.Once);
+            mockedServices.ArgoWorkflowServiceMock.Verify(s => s.TriggerAnonymizer(It.IsAny<Database.Models.PlantData>()), Times.Once);
         }
 
 

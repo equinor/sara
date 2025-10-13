@@ -1,27 +1,27 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-#pragma warning disable CS8618
 namespace api.Database.Models;
 
 public class Analysis
 {
     [Key]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-    public string Id { get; set; }
+    public Guid Id { get; set; }
 
     [Required]
-    public BlobStorageLocation SourcePath { get; set; }
-
-    public BlobStorageLocation? DestinationPath { get; set; }
+    public required BlobStorageLocation SourceBlobStorageLocation { get; set; } // Usuallty the output from the Anonymizer
 
     [Required]
-    public DateTime DateCreated { get; set; }
+    public required BlobStorageLocation VisualizedBlobStorageLocation { get; set; }
 
     [Required]
-    public AnalysisType Type { get; set; }
+    public DateTime DateCreated { get; set; } = DateTime.UtcNow;
 
-    public AnalysisStatus Status { get; set; } = AnalysisStatus.NotStarted;
+    [Required]
+    public required AnalysisType Type { get; set; }
+
+    public WorkflowStatus Status { get; set; } = WorkflowStatus.NotStarted;
 
     public static AnalysisType? TypeFromString(string? status)
     {
@@ -30,8 +30,7 @@ public class Analysis
         status = status.ToLowerInvariant();
         return status switch
         {
-            "anonymizer" => AnalysisType.Anonymizer,
-            "constantleveloiler" => AnalysisType.ConstantLevelOiler,
+            "constantleveloilerestimator" => AnalysisType.ConstantLevelOilerEstimator,
             "fencilla" => AnalysisType.Fencilla,
             _ => null,
         };
@@ -41,25 +40,15 @@ public class Analysis
     {
         return type switch
         {
-            AnalysisType.Anonymizer => "anonymizer",
-            AnalysisType.ConstantLevelOiler => "constantleveloiler",
+            AnalysisType.ConstantLevelOilerEstimator => "constantleveloilerestimator",
             AnalysisType.Fencilla => "fencilla",
             _ => null,
         };
     }
 }
 
-public enum AnalysisStatus
-{
-    NotStarted,
-    Running,
-    Completed,
-    Failed,
-}
-
 public enum AnalysisType
 {
-    Anonymizer,
-    ConstantLevelOiler,
+    ConstantLevelOilerEstimator,
     Fencilla,
 }
