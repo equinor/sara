@@ -149,7 +149,7 @@ public class PlantDataController(
                 return NotFound($"Could not find plant data with inspection id {inspectionId}");
             }
 
-            var anonymizerWorkflowStatus = plantData.AnonymizerWorkflowStatus;
+            var anonymizerWorkflowStatus = plantData.Anonymization.Status;
             logger.LogInformation(
                 "Anonymization workflow status for InspectionId: {InspectionId} is {Status}",
                 inspectionId,
@@ -165,7 +165,7 @@ public class PlantDataController(
                         inspectionId,
                         plantDataJson
                     );
-                    return Ok(plantData.AnonymizedBlobStorageLocation);
+                    return Ok(plantData.Anonymization.AnonymizedBlobStorageLocation);
 
                 case WorkflowStatus.NotStarted:
                     return StatusCode(
