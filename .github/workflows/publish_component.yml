@@ -12,6 +12,10 @@ on:
       ImageName:
         required: true
         type: string
+      SecondaryTag:
+        required: false
+        type: string
+        default: "latest"
       DockerfilePath:
         required: false # Defaults to Dockerfile in the root of the repository
         type: string
@@ -56,5 +60,5 @@ jobs:
           push: true
           tags: |
             ${{ inputs.Registry }}/${{ inputs.ImageName }}:${{ inputs.Tag }}
-            ${{ inputs.Registry }}/${{ inputs.ImageName }}:latest
+            ${{ inputs.Registry }}/${{ inputs.ImageName }}:${{ inputs.SecondaryTag }}
           labels: ${{ steps.meta.outputs.labels }}
