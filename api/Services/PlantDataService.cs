@@ -14,6 +14,8 @@ public interface IPlantDataService
 
     public Task<PlantData?> ReadByInspectionId(string inspectionId);
 
+    public Task<PlantData?> ReadByTagIdAndInspectionDescription(string tagId, string inspectionDescription);
+
     public Task<PlantData> CreateFromMqttMessage(
         IsarInspectionResultMessage isarInspectionResultMessage
     );
@@ -50,6 +52,12 @@ public class PlantDataService(SaraDbContext context, IConfiguration configuratio
         return await context.PlantData.FirstOrDefaultAsync(i =>
             i.InspectionId.Equals(inspectionId)
         );
+    }
+
+    public async Task<PlantData?> ReadByTagIdAndInspectionDescription(string tagId, string inspectionDescription
+    )
+    {
+        return await context.PlantData.FirstOrDefaultAsync(i => i.Tag != null && i.Tag.Equals(tagId) && i.InspectionDescription != null && i.InspectionDescription.Equals(inspectionDescription));
     }
 
     public async Task<PlantData> CreateFromMqttMessage(
@@ -102,6 +110,9 @@ public class PlantDataService(SaraDbContext context, IConfiguration configuratio
             AnonymizedBlobStorageLocation = anonymizedDataBlobStorageLocation,
             VisualizedBlobStorageLocation = visualizedDataBlobStorageLocation,
             InstallationCode = isarInspectionResultMessage.InstallationCode,
+            Tag = isarInspectionResultMessage.TagID,
+            InspectionDescription = isarInspectionResultMessage.InspectionDescription,
+            Timestamp = isarInspectionResultMessage.Timestamp,
         };
         await context.PlantData.AddAsync(plantData);
         await context.SaveChangesAsync();

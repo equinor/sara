@@ -11,7 +11,8 @@ namespace api.Controllers;
 [Route("[controller]")]
 public class AnalysisMappingController(
     ILogger<AnalysisMappingController> logger,
-    IAnalysisMappingService analysisMappingService
+    IAnalysisMappingService analysisMappingService,
+    IPlantDataService plantDataService
 ) : ControllerBase
 {
     /// <summary>
@@ -81,7 +82,7 @@ public class AnalysisMappingController(
     /// If the mapping already exists, it adds the analysis type to the existing mapping.
     /// </summary>
     [HttpPost]
-    [Route("tag/{tagId}/inspection/{inspectionDescription}/analysisType/{analysisType?}")]
+    [Route("tag/{tagId}/inspection/{inspectionDescription}/analysisType/{analysisType}")]
     [Authorize(Roles = Role.Any)]
     [ProducesResponseType(typeof(AnalysisMapping), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -96,8 +97,8 @@ public class AnalysisMappingController(
     {
         try
         {
-            var analysisTypeEnum = Analysis.TypeFromString(analysisType);
-            if (analysisTypeEnum == null)
+            var parsedAnalysisType = Analysis.TypeFromString(analysisType);
+            if (parsedAnalysisType == null)
             {
                 return BadRequest("Invalid analysis type");
             }
@@ -110,17 +111,25 @@ public class AnalysisMappingController(
                 analysisMapping = await analysisMappingService.CreateAnalysisMapping(
                     tagId,
                     inspectionDescription,
-                    analysisTypeEnum
+                    parsedAnalysisType
                 );
             }
             else
             {
                 analysisMapping = await analysisMappingService.AddAnalysisTypeToMapping(
                     analysisMapping,
-                    analysisTypeEnum.Value
+                    parsedAnalysisType.Value
                 );
             }
-
+            var plantData = await plantDataService.ReadByTagIdAndInspectionDescription(
+                tagId,
+                inspectionDescription
+            );
+            if (plantData != null)
+            {
+                plantData.AnalysisToBeRun = analysisMapping.AnalysesToBeRun;
+                await plantDataService.UpdateAnonymizerWorkflowStatus(plantData.InspectionId, WorkflowStatus.NotStarted);
+            }
             return Ok(analysisMapping);
         }
         catch (ArgumentException)
