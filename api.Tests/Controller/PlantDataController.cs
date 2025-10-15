@@ -1,7 +1,5 @@
 using System;
 using System.Threading.Tasks;
-using api.Controllers;
-using api.Controllers.Models;
 using api.Utilities;
 using api.Database.Models;
 using api.Services;
@@ -17,13 +15,15 @@ namespace api.Controllers.Tests
     {
         private readonly Mock<ILogger<PlantDataController>> _loggerMock;
         private readonly Mock<IPlantDataService> _serviceMock;
+        private readonly Mock<IAnalysisMappingService> _analysisMappingServiceMock;
         private readonly PlantDataController _controller;
 
         public PlantDataControllerTest()
         {
             _loggerMock = new Mock<ILogger<PlantDataController>>();
             _serviceMock = new Mock<IPlantDataService>();
-            _controller = new PlantDataController(_loggerMock.Object, _serviceMock.Object);
+            _analysisMappingServiceMock = new Mock<IAnalysisMappingService>();
+            _controller = new PlantDataController(_loggerMock.Object, _serviceMock.Object, _analysisMappingServiceMock.Object);
         }
 
         [Fact]
@@ -36,7 +36,9 @@ namespace api.Controllers.Tests
                 RawDataBlobStorageLocation = new BlobStorageLocation(),
                 AnonymizedBlobStorageLocation = new BlobStorageLocation(),
                 VisualizedBlobStorageLocation = new BlobStorageLocation(),
-                AnalysesToBeRun = new List<AnalysisType>()
+                TagId = "dummy",
+                InspectionDescription = "dummy",
+                AnalysisToBeRun = new List<AnalysisType>()
             };
 
             var result = await _controller.CreatePlantDataEntry(request);
@@ -54,7 +56,9 @@ namespace api.Controllers.Tests
                 RawDataBlobStorageLocation = new BlobStorageLocation(),
                 AnonymizedBlobStorageLocation = new BlobStorageLocation(),
                 VisualizedBlobStorageLocation = new BlobStorageLocation(),
-                AnalysesToBeRun = new List<AnalysisType>()
+                TagId = "dummy",
+                InspectionDescription = "dummy",
+                AnalysisToBeRun = new List<AnalysisType>()
             };
             var result = await _controller.CreatePlantDataEntry(request);
 
@@ -71,7 +75,9 @@ namespace api.Controllers.Tests
                 RawDataBlobStorageLocation = new BlobStorageLocation { StorageAccount = "dummy", BlobContainer = "dummy", BlobName = "dummy.jpg" },
                 AnonymizedBlobStorageLocation = new BlobStorageLocation { StorageAccount = "dummy", BlobContainer = "dummy", BlobName = "dummy.jpg" },
                 VisualizedBlobStorageLocation = new BlobStorageLocation { StorageAccount = "dummy", BlobContainer = "dummy", BlobName = "dummy.jpg" },
-                AnalysesToBeRun = new List<AnalysisType>()
+                TagId = "dummy",
+                InspectionDescription = "dummy",
+                AnalysisToBeRun = new List<AnalysisType>()
             };
             var plantData = new PlantData { Id = "plantId" };
             _serviceMock.Setup(s => s.CreatePlantDataEntry(request)).ReturnsAsync(plantData);
@@ -93,7 +99,9 @@ namespace api.Controllers.Tests
                 RawDataBlobStorageLocation = new BlobStorageLocation { StorageAccount = "dummy", BlobContainer = "dummy", BlobName = "dummy.jpg" },
                 AnonymizedBlobStorageLocation = new BlobStorageLocation { StorageAccount = "dummy", BlobContainer = "dummy", BlobName = "dummy.jpg" },
                 VisualizedBlobStorageLocation = new BlobStorageLocation { StorageAccount = "dummy", BlobContainer = "dummy", BlobName = "dummy.jpg" },
-                AnalysesToBeRun = new List<AnalysisType>()
+                TagId = "dummy",
+                InspectionDescription = "dummy",
+                AnalysisToBeRun = new List<AnalysisType>()
             };
             _serviceMock.Setup(s => s.CreatePlantDataEntry(request)).ReturnsAsync((PlantData)null!);
 
@@ -114,11 +122,17 @@ namespace api.Controllers.Tests
                 RawDataBlobStorageLocation = new BlobStorageLocation { StorageAccount = "dummy", BlobContainer = "dummy", BlobName = "dummy.jpg" },
                 AnonymizedBlobStorageLocation = new BlobStorageLocation { StorageAccount = "dummy", BlobContainer = "dummy", BlobName = "dummy.jpg" },
                 VisualizedBlobStorageLocation = new BlobStorageLocation { StorageAccount = "dummy", BlobContainer = "dummy", BlobName = "dummy.jpg" },
-                AnalysesToBeRun = new List<AnalysisType>()
+                TagId = "dummy",
+                InspectionDescription = "dummy",
+                AnalysisToBeRun = new List<AnalysisType>()
             };
             _serviceMock.Setup(s => s.CreatePlantDataEntry(request)).ThrowsAsync(new Exception("fail"));
+            var result = await _controller.CreatePlantDataEntry(request);
 
-            await Assert.ThrowsAsync<Exception>(() => _controller.CreatePlantDataEntry(request));
+            var statusResult = Assert.IsType<StatusCodeResult>(result);
+            Assert.Equal(500, statusResult.StatusCode);
+
+
         }
     }
 }

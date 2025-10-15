@@ -1,4 +1,5 @@
 using api.Controllers.Models;
+using api.Database.Context;
 using api.Database.Models;
 using api.Services;
 using api.Utilities;
@@ -12,7 +13,8 @@ namespace api.Controllers;
 public class AnalysisMappingController(
     ILogger<AnalysisMappingController> logger,
     IAnalysisMappingService analysisMappingService,
-    IPlantDataService plantDataService
+    IPlantDataService plantDataService,
+    SaraDbContext context
 ) : ControllerBase
 {
     /// <summary>
@@ -127,9 +129,17 @@ public class AnalysisMappingController(
             );
             if (plantData != null)
             {
-                plantData.AnalysisToBeRun = analysisMapping.AnalysesToBeRun;
-                await plantDataService.UpdateAnonymizerWorkflowStatus(plantData.InspectionId, WorkflowStatus.NotStarted);
+                foreach (var entry in plantData)
+                {
+                    entry.AnalysisToBeRun = analysisMapping.AnalysesToBeRun;
+                    await plantDataService.UpdateAnonymizerWorkflowStatus(
+                        entry.InspectionId,
+                        WorkflowStatus.NotStarted
+                    );
+                    context.PlantData.Update(entry);
+                }
             }
+
             return Ok(analysisMapping);
         }
         catch (ArgumentException)

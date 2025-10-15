@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using api.Database.Context;
 using api.Database.Models;
 using api.MQTT;
@@ -14,7 +15,10 @@ public interface IPlantDataService
 
     public Task<PlantData?> ReadByInspectionId(string inspectionId);
 
-    public Task<PlantData?> ReadByTagIdAndInspectionDescription(string tagId, string inspectionDescription);
+    public Task<List<PlantData>> ReadByTagIdAndInspectionDescription(
+        string tagId,
+        string inspectionDescription
+    );
 
     public Task<PlantData> CreateFromMqttMessage(
         IsarInspectionResultMessage isarInspectionResultMessage
@@ -54,10 +58,19 @@ public class PlantDataService(SaraDbContext context, IConfiguration configuratio
         );
     }
 
-    public async Task<PlantData?> ReadByTagIdAndInspectionDescription(string tagId, string inspectionDescription
+    public async Task<List<PlantData>> ReadByTagIdAndInspectionDescription(
+        string tagId,
+        string inspectionDescription
     )
     {
-        return await context.PlantData.FirstOrDefaultAsync(i => i.Tag != null && i.Tag.Equals(tagId) && i.InspectionDescription != null && i.InspectionDescription.Equals(inspectionDescription));
+        return await context
+            .PlantData.Where(i =>
+                i.Tag != null
+                && i.Tag.ToLower().Equals(tagId.ToLower())
+                && i.InspectionDescription != null
+                && i.InspectionDescription.ToLower().Equals(inspectionDescription.ToLower())
+            )
+            .ToListAsync();
     }
 
     public async Task<PlantData> CreateFromMqttMessage(
@@ -130,8 +143,10 @@ public class PlantDataService(SaraDbContext context, IConfiguration configuratio
             AnonymizedBlobStorageLocation = request.AnonymizedBlobStorageLocation,
             VisualizedBlobStorageLocation = request.VisualizedBlobStorageLocation,
             DateCreated = DateTime.UtcNow,
+            Tag = request.TagId,
+            InspectionDescription = request.InspectionDescription,
             AnonymizerWorkflowStatus = WorkflowStatus.NotStarted,
-            AnalysisToBeRun = request.AnalysesToBeRun,
+            AnalysisToBeRun = request.AnalysisToBeRun,
             Analysis = [],
         };
 

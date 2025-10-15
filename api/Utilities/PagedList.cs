@@ -99,6 +99,9 @@ namespace api.Utilities
 
         public required string InstallationCode { get; set; }
 
-        public required List<AnalysisType> AnalysesToBeRun { get; set; }
+        public string? TagId { get; set; }
+        public string? InspectionDescription { get; set; }
+
+        public required List<AnalysisType> AnalysisToBeRun { get; set; }
     }
 }

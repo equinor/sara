@@ -12,7 +12,8 @@ namespace api.Controllers;
 [Route("[controller]")]
 public class PlantDataController(
     ILogger<PlantDataController> logger,
-    IPlantDataService plantDataService
+    IPlantDataService plantDataService,
+    IAnalysisMappingService analysisMappingService
 ) : ControllerBase
 {
     private static readonly JsonSerializerOptions _jsonSerializerOptions = new()
@@ -70,6 +71,26 @@ public class PlantDataController(
 
         try
         {
+            AnalysisMapping? analysisMapping = null;
+            if (request.TagId != null && request.InspectionDescription != null)
+            {
+                analysisMapping = await analysisMappingService.ReadByInspectionDescriptionAndTag(
+                    request.InspectionDescription,
+                    request.TagId
+                );
+            }
+
+            if (analysisMapping != null)
+            {
+                foreach (var analysisType in analysisMapping.AnalysesToBeRun)
+                {
+                    if (!request.AnalysisToBeRun.Contains(analysisType))
+                    {
+                        request.AnalysisToBeRun.Add(analysisType);
+                    }
+                }
+            }
+
             var plantData = await plantDataService.CreatePlantDataEntry(request);
             if (plantData == null)
             {
@@ -80,7 +101,7 @@ public class PlantDataController(
         catch (Exception e)
         {
             logger.LogError(e, "Error during POST of plantData to database");
-            throw;
+            return StatusCode(500);
         }
     }
 
