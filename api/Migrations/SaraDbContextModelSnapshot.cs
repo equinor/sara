@@ -17,7 +17,7 @@ namespace api.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.12")
+                .HasAnnotation("ProductVersion", "9.0.4")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -53,7 +53,7 @@ namespace api.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("text");
 
-                    b.Property<int[]>("AnalysesToBeRun")
+                    b.PrimitiveCollection<int[]>("AnalysesToBeRun")
                         .IsRequired()
                         .HasColumnType("integer[]");
 
@@ -73,38 +73,27 @@ namespace api.Migrations
                     b.ToTable("AnalysisMapping");
                 });
 
-            modelBuilder.Entity("api.Database.Models.Metadata", b =>
-                {
-                    b.Property<string>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Coordinates")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Tag")
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Metadata");
-                });
-
             modelBuilder.Entity("api.Database.Models.PlantData", b =>
                 {
                     b.Property<string>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("text");
 
-                    b.Property<int[]>("AnalysisToBeRun")
+                    b.PrimitiveCollection<int[]>("AnalysisToBeRun")
                         .IsRequired()
                         .HasColumnType("integer[]");
 
                     b.Property<int>("AnonymizerWorkflowStatus")
                         .HasColumnType("integer");
 
+                    b.Property<string>("Coordinates")
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("DateCreated")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("InspectionDescription")
+                        .HasColumnType("text");
 
                     b.Property<string>("InspectionId")
                         .IsRequired()
@@ -114,12 +103,13 @@ namespace api.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("MetadataId")
+                    b.Property<string>("Tag")
                         .HasColumnType("text");
 
-                    b.HasKey("Id");
+                    b.Property<DateTime?>("Timestamp")
+                        .HasColumnType("timestamp with time zone");
 
-                    b.HasIndex("MetadataId");
+                    b.HasKey("Id");
 
                     b.ToTable("PlantData");
                 });
@@ -188,10 +178,6 @@ namespace api.Migrations
 
             modelBuilder.Entity("api.Database.Models.PlantData", b =>
                 {
-                    b.HasOne("api.Database.Models.Metadata", "Metadata")
-                        .WithMany()
-                        .HasForeignKey("MetadataId");
-
                     b.OwnsOne("api.Database.Models.BlobStorageLocation", "AnonymizedBlobStorageLocation", b1 =>
                         {
                             b1.Property<string>("PlantDataId")
@@ -269,8 +255,6 @@ namespace api.Migrations
 
                     b.Navigation("AnonymizedBlobStorageLocation")
                         .IsRequired();
-
-                    b.Navigation("Metadata");
 
                     b.Navigation("RawDataBlobStorageLocation")
                         .IsRequired();
