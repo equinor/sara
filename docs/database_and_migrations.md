@@ -1,7 +1,7 @@
 ## Database model and EF Core
 
 Our database model is defined in the folder
-[`/api/Models`](/api/Models) and we use
+[`/api/Database`](/api/Database) and we use
 [Entity Framework Core](https://docs.microsoft.com/en-us/ef/core/) as an
 object-relational mapper (O/RM). When making changes to the model, we also need
 to create a new

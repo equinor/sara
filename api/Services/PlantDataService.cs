@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using api.Database.Context;
 using api.Database.Models;
 using api.MQTT;
@@ -14,6 +15,11 @@ public interface IPlantDataService
 
     public Task<PlantData?> ReadByInspectionId(string inspectionId);
 
+    public Task<List<PlantData>> ReadByTagIdAndInspectionDescription(
+        string tagId,
+        string inspectionDescription
+    );
+
     public Task<PlantData> CreateFromMqttMessage(
         IsarInspectionResultMessage isarInspectionResultMessage
     );
@@ -22,6 +28,8 @@ public interface IPlantDataService
         string inspectionId,
         WorkflowStatus status
     );
+
+    public Task<PlantData> CreatePlantDataEntry(PlantDataRequest request);
 }
 
 public class PlantDataService(SaraDbContext context, IConfiguration configuration)
@@ -48,6 +56,21 @@ public class PlantDataService(SaraDbContext context, IConfiguration configuratio
         return await context.PlantData.FirstOrDefaultAsync(i =>
             i.InspectionId.Equals(inspectionId)
         );
+    }
+
+    public async Task<List<PlantData>> ReadByTagIdAndInspectionDescription(
+        string tagId,
+        string inspectionDescription
+    )
+    {
+        return await context
+            .PlantData.Where(i =>
+                i.Tag != null
+                && i.Tag.ToLower().Equals(tagId.ToLower())
+                && i.InspectionDescription != null
+                && i.InspectionDescription.ToLower().Equals(inspectionDescription.ToLower())
+            )
+            .ToListAsync();
     }
 
     public async Task<PlantData> CreateFromMqttMessage(
@@ -100,8 +123,34 @@ public class PlantDataService(SaraDbContext context, IConfiguration configuratio
             AnonymizedBlobStorageLocation = anonymizedDataBlobStorageLocation,
             VisualizedBlobStorageLocation = visualizedDataBlobStorageLocation,
             InstallationCode = isarInspectionResultMessage.InstallationCode,
+            Tag = isarInspectionResultMessage.TagID,
+            InspectionDescription = isarInspectionResultMessage.InspectionDescription,
+            Timestamp = isarInspectionResultMessage.Timestamp,
         };
         await context.PlantData.AddAsync(plantData);
+        await context.SaveChangesAsync();
+        return plantData;
+    }
+
+    public async Task<PlantData> CreatePlantDataEntry(PlantDataRequest request)
+    {
+        var plantData = new PlantData
+        {
+            Id = Guid.NewGuid().ToString(),
+            InspectionId = request.InspectionId,
+            InstallationCode = request.InstallationCode,
+            RawDataBlobStorageLocation = request.RawDataBlobStorageLocation,
+            AnonymizedBlobStorageLocation = request.AnonymizedBlobStorageLocation,
+            VisualizedBlobStorageLocation = request.VisualizedBlobStorageLocation,
+            DateCreated = DateTime.UtcNow,
+            Tag = request.TagId,
+            InspectionDescription = request.InspectionDescription,
+            AnonymizerWorkflowStatus = WorkflowStatus.NotStarted,
+            AnalysisToBeRun = request.AnalysisToBeRun,
+            Analysis = [],
+        };
+
+        context.PlantData.Add(plantData);
         await context.SaveChangesAsync();
         return plantData;
     }

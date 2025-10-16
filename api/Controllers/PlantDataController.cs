@@ -12,7 +12,8 @@ namespace api.Controllers;
 [Route("[controller]")]
 public class PlantDataController(
     ILogger<PlantDataController> logger,
-    IPlantDataService plantDataService
+    IPlantDataService plantDataService,
+    IAnalysisMappingService analysisMappingService
 ) : ControllerBase
 {
     private static readonly JsonSerializerOptions _jsonSerializerOptions = new()
@@ -47,6 +48,60 @@ public class PlantDataController(
         {
             logger.LogError(e, "Error during GET of plantData from database");
             throw;
+        }
+    }
+
+    [HttpPost]
+    [Route("createEntry")]
+    [Authorize(Roles = Role.Any)]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult> CreatePlantDataEntry([FromBody] PlantDataRequest request)
+    {
+        if (
+            string.IsNullOrWhiteSpace(request.InspectionId)
+            || string.IsNullOrWhiteSpace(request.InstallationCode)
+        )
+        {
+            return BadRequest("Missing required fields.");
+        }
+
+        try
+        {
+            AnalysisMapping? analysisMapping = null;
+            if (request.TagId != null && request.InspectionDescription != null)
+            {
+                analysisMapping = await analysisMappingService.ReadByInspectionDescriptionAndTag(
+                    request.InspectionDescription,
+                    request.TagId
+                );
+            }
+
+            if (analysisMapping != null)
+            {
+                foreach (var analysisType in analysisMapping.AnalysesToBeRun)
+                {
+                    if (!request.AnalysisToBeRun.Contains(analysisType))
+                    {
+                        request.AnalysisToBeRun.Add(analysisType);
+                    }
+                }
+            }
+
+            var plantData = await plantDataService.CreatePlantDataEntry(request);
+            if (plantData == null)
+            {
+                return StatusCode(500);
+            }
+            return CreatedAtAction(nameof(GetPlantDataById), new { id = plantData.Id }, plantData);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Error during POST of plantData to database");
+            return StatusCode(500);
         }
     }
 

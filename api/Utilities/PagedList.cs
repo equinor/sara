@@ -1,3 +1,4 @@
+using api.Database.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace api.Utilities
@@ -85,5 +86,22 @@ namespace api.Utilities
         /// The search parameter for the analysis type.
         /// </summary>
         public string? AnalysisType { get; set; }
+    }
+
+    public class PlantDataRequest
+    {
+        public required string InspectionId { get; set; }
+
+        public required BlobStorageLocation RawDataBlobStorageLocation { get; set; }
+
+        public required BlobStorageLocation AnonymizedBlobStorageLocation { get; set; }
+        public required BlobStorageLocation VisualizedBlobStorageLocation { get; set; }
+
+        public required string InstallationCode { get; set; }
+
+        public string? TagId { get; set; }
+        public string? InspectionDescription { get; set; }
+
+        public required List<AnalysisType> AnalysisToBeRun { get; set; }
     }
 }

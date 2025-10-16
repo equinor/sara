@@ -55,7 +55,13 @@ public class PlantData
     [Required]
     public DateTime DateCreated { get; set; } = DateTime.UtcNow;
 
-    public Metadata? Metadata { get; set; }
+    public string? Tag { get; set; }
+
+    public string? Coordinates { get; set; }
+
+    public string? InspectionDescription { get; set; }
+
+    public DateTime? Timestamp { get; set; }
 
     [Required]
     public List<AnalysisType> AnalysisToBeRun { get; set; } = [];
