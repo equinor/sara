@@ -14,16 +14,16 @@ namespace api.Controllers.Tests
     public class PlantDataControllerTest
     {
         private readonly Mock<ILogger<PlantDataController>> _loggerMock;
-        private readonly Mock<IPlantDataService> _serviceMock;
+        private readonly Mock<IPlantDataService> _plantDataServiceMock;
         private readonly Mock<IAnalysisMappingService> _analysisMappingServiceMock;
-        private readonly PlantDataController _controller;
+        private readonly PlantDataController _plantDataController;
 
         public PlantDataControllerTest()
         {
             _loggerMock = new Mock<ILogger<PlantDataController>>();
-            _serviceMock = new Mock<IPlantDataService>();
+            _plantDataServiceMock = new Mock<IPlantDataService>();
             _analysisMappingServiceMock = new Mock<IAnalysisMappingService>();
-            _controller = new PlantDataController(_loggerMock.Object, _serviceMock.Object, _analysisMappingServiceMock.Object);
+            _plantDataController = new PlantDataController(_loggerMock.Object, _plantDataServiceMock.Object, _analysisMappingServiceMock.Object);
         }
 
         [Fact]
@@ -41,7 +41,7 @@ namespace api.Controllers.Tests
                 AnalysisToBeRun = new List<AnalysisType>()
             };
 
-            var result = await _controller.CreatePlantDataEntry(request);
+            var result = await _plantDataController.CreatePlantDataEntry(request);
 
             Assert.IsType<BadRequestObjectResult>(result);
         }
@@ -60,7 +60,7 @@ namespace api.Controllers.Tests
                 InspectionDescription = "dummy",
                 AnalysisToBeRun = new List<AnalysisType>()
             };
-            var result = await _controller.CreatePlantDataEntry(request);
+            var result = await _plantDataController.CreatePlantDataEntry(request);
 
             Assert.IsType<BadRequestObjectResult>(result);
         }
@@ -80,12 +80,12 @@ namespace api.Controllers.Tests
                 AnalysisToBeRun = new List<AnalysisType>()
             };
             var plantData = new PlantData { Id = "plantId" };
-            _serviceMock.Setup(s => s.CreatePlantDataEntry(request)).ReturnsAsync(plantData);
+            _plantDataServiceMock.Setup(s => s.CreatePlantDataEntry(request)).ReturnsAsync(plantData);
 
-            var result = await _controller.CreatePlantDataEntry(request);
+            var result = await _plantDataController.CreatePlantDataEntry(request);
 
             var createdResult = Assert.IsType<CreatedAtActionResult>(result);
-            Assert.Equal(nameof(_controller.GetPlantDataById), createdResult.ActionName);
+            Assert.Equal(nameof(_plantDataController.GetPlantDataById), createdResult.ActionName);
             Assert.Equal(plantData, createdResult.Value);
         }
 
@@ -103,9 +103,9 @@ namespace api.Controllers.Tests
                 InspectionDescription = "dummy",
                 AnalysisToBeRun = new List<AnalysisType>()
             };
-            _serviceMock.Setup(s => s.CreatePlantDataEntry(request)).ReturnsAsync((PlantData)null!);
+            _plantDataServiceMock.Setup(s => s.CreatePlantDataEntry(request)).ReturnsAsync((PlantData)null!);
 
-            IActionResult result = await _controller.CreatePlantDataEntry(request);
+            IActionResult result = await _plantDataController.CreatePlantDataEntry(request);
 
             var statusResult = Assert.IsType<StatusCodeResult>(result);
             Assert.Equal(500, statusResult.StatusCode);
@@ -126,13 +126,56 @@ namespace api.Controllers.Tests
                 InspectionDescription = "dummy",
                 AnalysisToBeRun = new List<AnalysisType>()
             };
-            _serviceMock.Setup(s => s.CreatePlantDataEntry(request)).ThrowsAsync(new Exception("fail"));
-            var result = await _controller.CreatePlantDataEntry(request);
+            _plantDataServiceMock.Setup(s => s.CreatePlantDataEntry(request)).ThrowsAsync(new Exception("fail"));
+            var result = await _plantDataController.CreatePlantDataEntry(request);
 
             var statusResult = Assert.IsType<StatusCodeResult>(result);
             Assert.Equal(500, statusResult.StatusCode);
 
 
+        }
+
+        [Fact]
+        public async Task CreatePlantDataEntry_AddsAnalysesFromMapping_WhenMappingExists()
+        {
+            var request = new PlantDataRequest
+            {
+                InspectionId = "dummy",
+                InstallationCode = "dummy",
+                RawDataBlobStorageLocation = new BlobStorageLocation { StorageAccount = "dummy", BlobContainer = "dummy", BlobName = "dummy.jpg" },
+                AnonymizedBlobStorageLocation = new BlobStorageLocation { StorageAccount = "dummy", BlobContainer = "dummy", BlobName = "dummy.jpg" },
+                VisualizedBlobStorageLocation = new BlobStorageLocation { StorageAccount = "dummy", BlobContainer = "dummy", BlobName = "dummy.jpg" },
+                TagId = "tag1",
+                InspectionDescription = "desc1",
+                AnalysisToBeRun = new List<AnalysisType> { AnalysisType.ConstantLevelOiler }
+            };
+
+            var analysisMapping = new AnalysisMapping("desc1", "tag1")
+            {
+                Id = "mapping1",
+                AnalysesToBeRun = new List<AnalysisType> { AnalysisType.Anonymizer, AnalysisType.Fencilla }
+            };
+
+            _analysisMappingServiceMock
+                .Setup(s => s.ReadByInspectionDescriptionAndTag("desc1", "tag1"))
+                .ReturnsAsync(analysisMapping);
+
+            _plantDataServiceMock
+                .Setup(s => s.CreatePlantDataEntry(It.IsAny<PlantDataRequest>()))
+                .ReturnsAsync((PlantDataRequest req) => new PlantData
+                {
+                    Id = "plantId",
+                    AnalysisToBeRun = req.AnalysisToBeRun
+                });
+
+            var result = await _plantDataController.CreatePlantDataEntry(request);
+
+            var createdResult = Assert.IsType<CreatedAtActionResult>(result);
+            var returnedPlantData = Assert.IsType<PlantData>(createdResult.Value);
+
+            Assert.Contains(AnalysisType.ConstantLevelOiler, returnedPlantData.AnalysisToBeRun);
+            Assert.Contains(AnalysisType.Anonymizer, returnedPlantData.AnalysisToBeRun);
+            Assert.Contains(AnalysisType.Fencilla, returnedPlantData.AnalysisToBeRun);
         }
     }
 }
