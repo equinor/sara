@@ -4,29 +4,18 @@ using api.MQTT;
 
 namespace api.Services;
 
-public class TriggerTimeseriesUploadRequest(
-    string name,
-    string facility,
-    string externalId,
-    string description,
-    string unit,
-    string assetId,
-    float value,
-    DateTime timestamp,
-    bool step = true,
-    Dictionary<string, string>? metadata = null
-)
+public record TriggerTimeseriesUploadRequest
 {
-    public string Name { get; } = name;
-    public string Facility { get; } = facility;
-    public string ExternalId { get; } = externalId;
-    public string Description { get; } = description;
-    public string Unit { get; } = unit;
-    public string AssetId { get; } = assetId;
-    public float Value { get; } = value;
-    public DateTime Timestamp { get; } = timestamp;
-    public bool Step { get; } = step;
-    public Dictionary<string, string> Metadata { get; } = metadata ?? [];
+    public required string Name { get; init; }
+    public required string Facility { get; init; }
+    public required string ExternalId { get; init; }
+    public required string Description { get; init; }
+    public required string Unit { get; init; }
+    public required string AssetId { get; init; }
+    public float Value { get; init; }
+    public DateTime Timestamp { get; init; }
+    public bool Step { get; init; } = true;
+    public Dictionary<string, string> Metadata { get; init; } = [];
 }
 
 public interface ITimeseriesService
@@ -49,22 +38,23 @@ public class TimeseriesService(IConfiguration configuration, ILogger<TimeseriesS
     public async Task TriggerTimeseriesUpload(IsarInspectionValueMessage isarInspectionValueMessage)
     {
         var name = CreateTimeseriesName(isarInspectionValueMessage);
-        var postRequestData = new TriggerTimeseriesUploadRequest(
-            name,
-            isarInspectionValueMessage.InstallationCode,
-            "",
-            isarInspectionValueMessage.InspectionType,
-            isarInspectionValueMessage.Unit,
-            isarInspectionValueMessage.InstallationCode, // TODO: check what assetId is
-            isarInspectionValueMessage.Value,
-            isarInspectionValueMessage.Timestamp,
-            metadata: new Dictionary<string, string>
+        var postRequestData = new TriggerTimeseriesUploadRequest
+        {
+            Name = name,
+            Facility = isarInspectionValueMessage.InstallationCode,
+            ExternalId = "",
+            Description = isarInspectionValueMessage.InspectionType,
+            Unit = isarInspectionValueMessage.Unit,
+            AssetId = isarInspectionValueMessage.InstallationCode, // TODO: check what assetId is
+            Value = isarInspectionValueMessage.Value,
+            Timestamp = isarInspectionValueMessage.Timestamp,
+            Metadata = new Dictionary<string, string>
             {
                 { "tag_id", isarInspectionValueMessage.TagID },
                 { "inspection_description", isarInspectionValueMessage.InspectionDescription },
                 { "robot_name", isarInspectionValueMessage.RobotName },
-            }
-        );
+            },
+        };
 
         var json = JsonSerializer.Serialize(postRequestData, useCamelCaseOption);
         var content = new StringContent(json, Encoding.UTF8, "application/json");

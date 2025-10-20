@@ -7,35 +7,35 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace api.Controllers;
 
-public class WorkflowStartedNotification
+public record WorkflowStartedNotification
 {
-    public required string InspectionId { get; set; }
-    public required string WorkflowName { get; set; }
+    public required string InspectionId { get; init; }
+    public required string WorkflowName { get; init; }
 }
 
-public class AnonymizerDoneNotification
+public record AnonymizerDoneNotification
 {
-    public required string InspectionId { get; set; }
+    public required string InspectionId { get; init; }
 }
 
-public class ConstantLevelOilerDoneNotification
+public record ConstantLevelOilerDoneNotification
 {
-    public required string InspectionId { get; set; }
-    public required float OilLevel { get; set; }
+    public required string InspectionId { get; init; }
+    public required float OilLevel { get; init; }
 }
 
-public class FencillaDoneNotification
+public record FencillaDoneNotification
 {
-    public required string InspectionId { get; set; }
-    public required bool IsBreak { get; set; }
-    public required float Confidence { get; set; }
+    public required string InspectionId { get; init; }
+    public required bool IsBreak { get; init; }
+    public required float Confidence { get; init; }
 }
 
-public class WorkflowExitedNotification
+public record WorkflowExitedNotification
 {
-    public required string InspectionId { get; set; }
-    public required string WorkflowStatus { get; set; }
-    public required string WorkflowFailures { get; set; }
+    public required string InspectionId { get; init; }
+    public required string WorkflowStatus { get; init; }
+    public required string WorkflowFailures { get; init; }
 }
 
 [ApiController]
