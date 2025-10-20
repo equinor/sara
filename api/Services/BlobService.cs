@@ -13,14 +13,14 @@ namespace api.Services
         public AsyncPageable<BlobItem> FetchAllBlobs(string containerName);
     }
 
-    public class BlobOptions
+    public record BlobOptions
     {
-        public string RawStorageAccount { get; set; } = "";
-        public string RawConnectionString { get; set; } = "";
-        public string AnonStorageAccount { get; set; } = "";
-        public string AnonConnectionString { get; set; } = "";
-        public string VisStorageAccount { get; set; } = "";
-        public string VisConnectionString { get; set; } = "";
+        public string RawStorageAccount { get; init; } = "";
+        public string RawConnectionString { get; init; } = "";
+        public string AnonStorageAccount { get; init; } = "";
+        public string AnonConnectionString { get; init; } = "";
+        public string VisStorageAccount { get; init; } = "";
+        public string VisConnectionString { get; init; } = "";
     }
 
     public class BlobService(ILogger<BlobService> logger, IOptions<BlobOptions> blobOptions)

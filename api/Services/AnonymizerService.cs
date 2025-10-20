@@ -4,24 +4,14 @@ using api.Database.Models;
 
 namespace api.Services;
 
-public class TriggerArgoWorkflowAnalysisRequest(
-    string inspectionId,
-    BlobStorageLocation rawDataBlobStorageLocation,
-    BlobStorageLocation anonymizedBlobStorageLocation,
-    BlobStorageLocation visualizedBlobStorageLocation,
-    bool shouldRunConstantLevelOiler,
-    bool shouldRunFencilla
-)
-{
-    public string InspectionId { get; } = inspectionId;
-    public BlobStorageLocation RawDataBlobStorageLocation { get; } = rawDataBlobStorageLocation;
-    public BlobStorageLocation AnonymizedBlobStorageLocation { get; } =
-        anonymizedBlobStorageLocation;
-    public BlobStorageLocation VisualizedBlobStorageLocation { get; } =
-        visualizedBlobStorageLocation;
-    public bool ShouldRunConstantLevelOiler { get; } = shouldRunConstantLevelOiler;
-    public bool ShouldRunFencilla { get; } = shouldRunFencilla;
-}
+public record TriggerArgoWorkflowAnalysisRequest(
+    string InspectionId,
+    BlobStorageLocation RawDataBlobStorageLocation,
+    BlobStorageLocation AnonymizedBlobStorageLocation,
+    BlobStorageLocation VisualizedBlobStorageLocation,
+    bool ShouldRunConstantLevelOiler,
+    bool ShouldRunFencilla
+);
 
 public interface IArgoWorkflowService
 {
