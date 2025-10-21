@@ -21,7 +21,7 @@ jobs:
           SHA_SHORT=$(echo ${{ github.sha }} | cut -c1-8)
           echo "tag=$SHA_SHORT" >> "$GITHUB_OUTPUT"
 
-  build-and-push-components:
+  build-and-push-components-to-ghcr-dev:
     name: Build and push containers to ghcr for Development
     needs: [get-short-sha, trigger-github-deployment]
     uses: ./.github/workflows/publish_component.yml
