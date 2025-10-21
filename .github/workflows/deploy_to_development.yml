@@ -23,7 +23,7 @@ jobs:
 
   build-and-push-components-to-ghcr-dev:
     name: Build and push containers to ghcr for Development
-    needs: [get-short-sha, trigger-github-deployment]
+    needs: get-short-sha
     uses: ./.github/workflows/publish_component.yml
     with:
       Registry: ghcr.io
