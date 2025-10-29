@@ -44,7 +44,7 @@ namespace api.Migrations
 
                     b.HasIndex("PlantDataId");
 
-                    b.ToTable("Analysis");
+                    b.ToTable("Analysis", (string)null);
                 });
 
             modelBuilder.Entity("api.Database.Models.AnalysisMapping", b =>
@@ -70,7 +70,7 @@ namespace api.Migrations
                     b.HasIndex("Tag", "InspectionDescription")
                         .IsUnique();
 
-                    b.ToTable("AnalysisMapping");
+                    b.ToTable("AnalysisMapping", (string)null);
                 });
 
             modelBuilder.Entity("api.Database.Models.PlantData", b =>
@@ -111,7 +111,7 @@ namespace api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("PlantData");
+                    b.ToTable("PlantData", (string)null);
                 });
 
             modelBuilder.Entity("api.Database.Models.Analysis", b =>
@@ -139,7 +139,7 @@ namespace api.Migrations
 
                             b1.HasKey("AnalysisId");
 
-                            b1.ToTable("Analysis");
+                            b1.ToTable("Analysis", (string)null);
 
                             b1.WithOwner()
                                 .HasForeignKey("AnalysisId");
@@ -164,7 +164,7 @@ namespace api.Migrations
 
                             b1.HasKey("AnalysisId");
 
-                            b1.ToTable("Analysis");
+                            b1.ToTable("Analysis", (string)null);
 
                             b1.WithOwner()
                                 .HasForeignKey("AnalysisId");
@@ -197,7 +197,7 @@ namespace api.Migrations
 
                             b1.HasKey("PlantDataId");
 
-                            b1.ToTable("PlantData");
+                            b1.ToTable("PlantData", (string)null);
 
                             b1.WithOwner()
                                 .HasForeignKey("PlantDataId");
@@ -222,7 +222,7 @@ namespace api.Migrations
 
                             b1.HasKey("PlantDataId");
 
-                            b1.ToTable("PlantData");
+                            b1.ToTable("PlantData", (string)null);
 
                             b1.WithOwner()
                                 .HasForeignKey("PlantDataId");
@@ -247,7 +247,7 @@ namespace api.Migrations
 
                             b1.HasKey("PlantDataId");
 
-                            b1.ToTable("PlantData");
+                            b1.ToTable("PlantData", (string)null);
 
                             b1.WithOwner()
                                 .HasForeignKey("PlantDataId");

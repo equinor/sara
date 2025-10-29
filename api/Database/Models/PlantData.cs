@@ -52,8 +52,14 @@ public class PlantData
 
     // TODO Add a separate field for Anonomizer done
 
+    private DateTime _dateCreated = DateTime.UtcNow;
+
     [Required]
-    public DateTime DateCreated { get; set; } = DateTime.UtcNow;
+    public DateTime DateCreated
+    {
+        get => _dateCreated;
+        set => _dateCreated = value.Kind == DateTimeKind.Utc ? value : value.ToUniversalTime();
+    }
 
     public string? Tag { get; set; }
 
@@ -61,7 +67,12 @@ public class PlantData
 
     public string? InspectionDescription { get; set; }
 
-    public DateTime? Timestamp { get; set; }
+    private DateTime? _timestamp;
+    public DateTime? Timestamp
+    {
+        get => _timestamp;
+        set => _timestamp = value?.Kind == DateTimeKind.Utc ? value : value?.ToUniversalTime();
+    }
 
     [Required]
     public List<AnalysisType> AnalysisToBeRun { get; set; } = [];
