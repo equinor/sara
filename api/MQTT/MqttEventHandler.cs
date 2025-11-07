@@ -1,8 +1,7 @@
-﻿using System.ComponentModel.DataAnnotations;
-using System.Reflection.Metadata;
-using api.Database.Models;
+﻿using api.Database.Models;
 using api.Services;
 using api.Utilities;
+using System.ComponentModel.DataAnnotations;
 
 namespace api.MQTT
 {
@@ -24,6 +23,8 @@ namespace api.MQTT
             Subscribe();
         }
 
+        private IMqttMessageService MqttMessageService =>
+            _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IMqttMessageService>();
         private IPlantDataService PlantDataService =>
             _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IPlantDataService>();
         private IArgoWorkflowService ArgoWorkflowService =>
@@ -128,7 +129,7 @@ namespace api.MQTT
             PlantData? plantData;
             try
             {
-                plantData = await PlantDataService.CreateFromMqttMessage(
+                plantData = await MqttMessageService.CreateFromMqttMessage(
                     isarInspectionResultMessage
                 );
             }

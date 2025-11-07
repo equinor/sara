@@ -1,10 +1,11 @@
-using Xunit;
-using Moq;
 using api.MQTT;
 using api.Services;
-using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Moq;
 using System;
+using Xunit;
 
 namespace api.Tests.MQTT
 {
@@ -17,7 +18,9 @@ namespace api.Tests.MQTT
             public Mock<IAnalysisMappingService> AnalysisMappingServiceMock { get; } = new();
             public Mock<IArgoWorkflowService> ArgoWorkflowServiceMock { get; } = new();
             public Mock<ILogger<MqttEventHandler>> LoggerMock { get; } = new();
+            public Mock<ILogger<MqttMessageService>> MqttMessageServiceLoggerMock { get; } = new();
             public MqttEventHandler MqttEventHandler { get; }
+            // public MqttMessageService MqttMessageService { get; }
 
             public MockedServices()
             {
@@ -31,6 +34,25 @@ namespace api.Tests.MQTT
 
                 // Mock ArgoWorkflowService to return null and do nothing
                 ServiceProviderMock.Setup(sp => sp.GetService(typeof(IArgoWorkflowService))).Returns(ArgoWorkflowServiceMock.Object);
+
+                // I want to mock the IConfiguration properly and set configuration.GetSection("Storage")["RawStorageAccount"] = "dummy"
+                var configurationMock = new Mock<IConfiguration>();
+                var storageSectionMock = new Mock<IConfigurationSection>();
+                storageSectionMock.Setup(s => s["RawStorageAccount"]).Returns("dummyRawStorageAccount");
+                storageSectionMock.Setup(s => s["AnonStorageAccount"]).Returns("dummyAnonStorageAccount");
+                storageSectionMock.Setup(s => s["VisStorageAccount"]).Returns("dummyVisStorageAccount");
+                configurationMock.Setup(c => c.GetSection("Storage")).Returns(storageSectionMock.Object);
+
+                // I want to add the real implementation of MqttMessageService, but with mocked dependencies
+                IMqttMessageService mqttMessageService;
+                mqttMessageService = new MqttMessageService(
+                    MqttMessageServiceLoggerMock.Object,
+                    configurationMock.Object,
+                    AnalysisMappingServiceMock.Object,
+                    PlantDataServiceMock.Object
+                );
+
+                ServiceProviderMock.Setup(sp => sp.GetService(typeof(IMqttMessageService))).Returns(mqttMessageService);
 
                 // Setup scope factory to return service provider
                 var scopeMock = new Mock<IServiceScope>();
@@ -53,8 +75,8 @@ namespace api.Tests.MQTT
                 ISARID = "dummy",
                 RobotName = "dummy",
                 InspectionId = "dummy",
-                InspectionDataPath = new InspectionPathMessage { StorageAccount = "dummy", BlobContainer = "dummy", BlobName = "dummy" },
-                InspectionMetadataPath = new InspectionPathMessage { StorageAccount = "dummy", BlobContainer = "dummy", BlobName = "dummy" },
+                InspectionDataPath = new InspectionPathMessage { StorageAccount = "dummyRawStorageAccount", BlobContainer = "dummy", BlobName = "dummy" },
+                InspectionMetadataPath = new InspectionPathMessage { StorageAccount = "dummyAnonStorageAccount", BlobContainer = "dummy", BlobName = "dummy" },
                 InstallationCode = "dummy",
                 TagID = "dummy",
                 InspectionType = "dummy",
@@ -70,9 +92,9 @@ namespace api.Tests.MQTT
 
             // Assert services are called as expected
             mockedServices.PlantDataServiceMock.Verify(s => s.ReadByInspectionId("dummy"), Times.Once);
-            mockedServices.PlantDataServiceMock.Verify(s => s.CreateFromMqttMessage(dummyMessage), Times.Once);
             mockedServices.AnalysisMappingServiceMock.Verify(s => s.GetAnalysisTypeFromInspectionDescriptionAndTag("dummy", "dummy"), Times.Once);
-            mockedServices.ArgoWorkflowServiceMock.Verify(s => s.TriggerAnonymizer(It.IsAny<Database.Models.PlantData>()), Times.Once);
+            mockedServices.PlantDataServiceMock.Verify(s => s.WritePlantData(It.IsAny<Database.Models.PlantData>()), Times.Once);
+            mockedServices.ArgoWorkflowServiceMock.Verify(s => s.TriggerAnonymizer(It.IsAny<string>(), It.IsAny<Database.Models.Anonymization>()), Times.Once);
         }
 
 

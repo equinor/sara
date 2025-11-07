@@ -7,25 +7,25 @@ namespace api.Services;
 
 public interface IAnalysisService
 {
-    public Task<PagedList<Analysis>> GetAnalyses(QueryParameters parameters);
+    public Task<PagedList<Workflow>> GetAnalyses(QueryParameters parameters);
 
-    public Task<Analysis?> ReadById(string id);
+    public Task<Workflow?> ReadById(string id);
 }
 
 public class AnalysisService(SaraDbContext context) : IAnalysisService
 {
-    public async Task<PagedList<Analysis>> GetAnalyses(QueryParameters parameters)
+    public async Task<PagedList<Workflow>> GetAnalyses(QueryParameters parameters)
     {
         var query = context.Analysis.AsQueryable();
 
-        return await PagedList<Analysis>.ToPagedListAsync(
+        return await PagedList<Workflow>.ToPagedListAsync(
             query,
             parameters.PageNumber,
             parameters.PageSize
         );
     }
 
-    public async Task<Analysis?> ReadById(string id)
+    public async Task<Workflow?> ReadById(string id)
     {
         return await context.Analysis.FirstOrDefaultAsync(i => i.Id.Equals(id));
     }

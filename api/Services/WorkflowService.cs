@@ -25,8 +25,8 @@ public record TriggerFencillaRequest(
 public interface IArgoWorkflowService
 {
     public Task TriggerAnonymizer(string inspectionId, Anonymization anonymization);
-    public Task TriggerCLOE(string inspectionId, Analysis analysis);
-    public Task TriggerFencilla(string inspectionId, Analysis analysis);
+    public Task TriggerCLOE(string inspectionId, CLOEAnalysis analysis);
+    public Task TriggerFencilla(string inspectionId, FencillaAnalysis analysis);
 }
 
 public class ArgoWorkflowService(IConfiguration configuration, ILogger<ArgoWorkflowService> logger)
@@ -52,8 +52,8 @@ public class ArgoWorkflowService(IConfiguration configuration, ILogger<ArgoWorkf
     {
         var postRequestData = new TriggerAnonymizerRequest(
             InspectionId: inspectionId,
-            RawDataBlobStorageLocation: anonymization.RawDataBlobStorageLocation,
-            AnonymizedBlobStorageLocation: anonymization.AnonymizedBlobStorageLocation
+            RawDataBlobStorageLocation: anonymization.SourceBlobStorageLocation,
+            AnonymizedBlobStorageLocation: anonymization.DestinationBlobStorageLocation
         );
 
         var json = JsonSerializer.Serialize(postRequestData, useCamelCaseOption);
@@ -71,12 +71,12 @@ public class ArgoWorkflowService(IConfiguration configuration, ILogger<ArgoWorkf
         }
     }
 
-    public async Task TriggerCLOE(string inspectionId, Analysis analysis)
+    public async Task TriggerCLOE(string inspectionId, CLOEAnalysis analysis)
     {
         var postRequestData = new TriggerCLOERequest(
             InspectionId: inspectionId,
             SourceBlobStorageLocation: analysis.SourceBlobStorageLocation,
-            VisualizedBlobStorageLocation: analysis.VisualizedBlobStorageLocation
+            VisualizedBlobStorageLocation: analysis.DestinationBlobStorageLocation
         );
 
         var json = JsonSerializer.Serialize(postRequestData, useCamelCaseOption);
@@ -94,12 +94,12 @@ public class ArgoWorkflowService(IConfiguration configuration, ILogger<ArgoWorkf
         }
     }
 
-    public async Task TriggerFencilla(string inspectionId, Analysis analysis)
+    public async Task TriggerFencilla(string inspectionId, FencillaAnalysis analysis)
     {
         var postRequestData = new TriggerFencillaRequest(
             InspectionId: inspectionId,
             SourceBlobStorageLocation: analysis.SourceBlobStorageLocation,
-            VisualizedBlobStorageLocation: analysis.VisualizedBlobStorageLocation
+            VisualizedBlobStorageLocation: analysis.DestinationBlobStorageLocation
         );
 
         var json = JsonSerializer.Serialize(postRequestData, useCamelCaseOption);

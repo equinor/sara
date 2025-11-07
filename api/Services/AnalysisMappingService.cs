@@ -6,8 +6,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace api.Services;
 
+
 public interface IAnalysisMappingService
 {
+    public AnalysisType? GetAnalysisTypeFromString(string? analysisTypeString);
+
     public Task<PagedList<AnalysisMapping>> GetAnalysisMappings(
         AnalysisMappingParameters parameters
     );
@@ -47,6 +50,19 @@ public class AnalysisMappingService(SaraDbContext context, ILogger<AnalysisMappi
     : IAnalysisMappingService
 {
     private readonly ILogger<AnalysisMappingService> _logger = logger;
+
+    public AnalysisType? GetAnalysisTypeFromString(string? analysisTypeString)
+    {
+        return analysisTypeString switch
+        {
+            "ConstantLevelOilerEstimator" => AnalysisType.ConstantLevelOilerEstimator,
+            "Fencilla" => AnalysisType.Fencilla,
+            null => null,
+            _ => throw new ArgumentException(
+                $"Invalid analysis type string: {analysisTypeString}"
+            ),
+        };
+    }
 
     public async Task<PagedList<AnalysisMapping>> GetAnalysisMappings(
         AnalysisMappingParameters parameters

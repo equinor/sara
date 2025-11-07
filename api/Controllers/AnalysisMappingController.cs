@@ -96,7 +96,7 @@ public class AnalysisMappingController(
     {
         try
         {
-            var analysisTypeEnum = Analysis.TypeFromString(analysisType);
+            var analysisTypeEnum = analysisMappingService.GetAnalysisTypeFromString(analysisType);
             if (analysisTypeEnum == null)
             {
                 return BadRequest("Invalid analysis type");
@@ -154,7 +154,7 @@ public class AnalysisMappingController(
         [FromRoute] string analysisType
     )
     {
-        var analysisTypeEnum = Analysis.TypeFromString(analysisType);
+        var analysisTypeEnum = analysisMappingService.GetAnalysisTypeFromString(analysisType);
         AnalysisMapping? analysisMapping;
         if (analysisTypeEnum == null)
         {
@@ -207,7 +207,7 @@ public class AnalysisMappingController(
     {
         try
         {
-            var analysisTypeEnum = Analysis.TypeFromString(analysisType);
+            var analysisTypeEnum = analysisMappingService.GetAnalysisTypeFromString(analysisType);
             if (analysisTypeEnum == null)
             {
                 return BadRequest("Invalid analysis type");

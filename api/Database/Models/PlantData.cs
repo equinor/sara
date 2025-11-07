@@ -4,13 +4,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace api.Database.Models;
 
-public enum WorkflowStatus
-{
-    NotStarted,
-    Started,
-    ExitSuccess,
-    ExitFailure,
-}
 
 [Owned]
 public class BlobStorageLocation
@@ -45,6 +38,7 @@ public class PlantData
     [Required]
     public required Anonymization Anonymization { get; set; }
 
-    [Required]
-    public List<Analysis> Analysis { get; set; } = [];
+    public CLOEAnalysis? CLOEAnalysis { get; set; }
+
+    public FencillaAnalysis? FencillaAnalysis { get; set; }
 }

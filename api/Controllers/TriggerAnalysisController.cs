@@ -41,11 +41,9 @@ public class TriggerAnalysisController(
             InstallationCode = request.InstallationCode,
             Anonymization = new Anonymization
             {
-                RawDataBlobStorageLocation = request.RawDataBlobStorageLocation,
-                AnonymizedBlobStorageLocation = request.AnonymizedBlobStorageLocation,
+                SourceBlobStorageLocation = request.RawDataBlobStorageLocation,
+                DestinationBlobStorageLocation = request.AnonymizedBlobStorageLocation,
             },
-            DateCreated = DateTime.UtcNow,
-            Analysis = [],
         };
 
         dbContext.PlantData.Add(plantData);

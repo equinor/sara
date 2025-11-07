@@ -15,31 +15,31 @@ public class AnalysisController(
 ) : ControllerBase
 {
     /// <summary>
-    /// List all analysis in database
+    /// List all analyses in database
     /// </summary>
     /// <remarks>
-    /// <para> This query gets all analysis </para>
+    /// <para> This query gets all analyses </para>
     /// </remarks>
     [HttpGet]
     [Authorize(Roles = Role.Any)]
-    [ProducesResponseType(typeof(IList<Analysis>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(IList<Workflow>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<IList<Analysis>>> GetAllAnalysis(
+    public async Task<ActionResult<IList<Workflow>>> GetAllAnalysis(
         [FromQuery] QueryParameters parameters
     )
     {
-        PagedList<Analysis> analysis;
+        PagedList<Workflow> analyses;
         try
         {
-            analysis = await analysisService.GetAnalyses(parameters);
-            return Ok(analysis);
+            analyses = await analysisService.GetAnalyses(parameters);
+            return Ok(analyses);
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Error during GET of analysis from database");
+            logger.LogError(e, "Error during GET of analyses from database");
             return StatusCode(
                 StatusCodes.Status500InternalServerError,
                 "An error occurred while retrieving analyses."
@@ -56,12 +56,12 @@ public class AnalysisController(
     [HttpGet]
     [Authorize(Roles = Role.Any)]
     [Route("id/{id}")]
-    [ProducesResponseType(typeof(Analysis), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(Workflow), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<Analysis>> GetAnalysisById([FromRoute] string id)
+    public async Task<ActionResult<Workflow>> GetAnalysisById([FromRoute] string id)
     {
         try
         {

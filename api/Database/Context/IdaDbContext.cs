@@ -7,7 +7,7 @@ namespace api.Database.Context
     {
         public DbSet<PlantData> PlantData { get; set; } = null!;
 
-        public DbSet<Analysis> Analysis { get; set; } = null!;
+        public DbSet<Workflow> Analysis { get; set; } = null!;
 
         public DbSet<AnalysisMapping> AnalysisMapping { get; set; } = null!;
 

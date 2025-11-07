@@ -3,6 +3,13 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace api.Database.Models;
 
+public enum AnalysisType
+{
+    ConstantLevelOilerEstimator,
+    Fencilla,
+}
+
+
 public class AnalysisMapping(string tag, string inspectionDescription)
 {
     [Key]

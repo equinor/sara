@@ -165,7 +165,7 @@ public class PlantDataController(
                         inspectionId,
                         plantDataJson
                     );
-                    return Ok(plantData.Anonymization.AnonymizedBlobStorageLocation);
+                    return Ok(plantData.Anonymization.DestinationBlobStorageLocation);
 
                 case WorkflowStatus.NotStarted:
                     return StatusCode(

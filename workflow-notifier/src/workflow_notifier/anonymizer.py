@@ -9,8 +9,8 @@ def notify_anonymizer_started(inspection_id: str, workflow_name: str):
 
 
 @app.command()
-def notify_anonymizer_result(inspection_id: str, is_anonymized: bool = False):
-    result = {"IsAnonymized": is_anonymized}
+def notify_anonymizer_result(inspection_id: str, is_person_in_image: bool = False):
+    result = {"IsPersonInImage": is_person_in_image}
     notify_result(WORKFLOW_TYPE, inspection_id, result)
 
 

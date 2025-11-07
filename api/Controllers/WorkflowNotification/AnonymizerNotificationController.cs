@@ -7,16 +7,13 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace api.Controllers.WorkflowNotification;
 
-public class AnonymizerResult
-{
-    public required bool IsAnonymized { get; set; }
-}
 
 [ApiController]
 [Route("workflow-notification/anonymizer")]
 public class AnonymizerWorkflowNotificationController(
     ILogger<AnonymizerWorkflowNotificationController> logger,
     IPlantDataService plantDataService,
+    IArgoWorkflowService workflowService,
     IMqttMessageService mqttMessageService
 ) : ControllerBase
 {
@@ -63,9 +60,9 @@ public class AnonymizerWorkflowNotificationController(
     )
     {
         logger.LogDebug(
-            "Received notification with result from the anonymizer workflow with inspection id {id}. IsAnonymized: {isAnonymized}",
+            "Received notification with result from the anonymizer workflow with inspection id {id}. IsPersonInImage: {isPersonInImage}",
             notification.InspectionId,
-            notification.Result.IsAnonymized
+            notification.Result.IsPersonInImage
         );
 
         var plantData = await plantDataService.ReadByInspectionId(notification.InspectionId);
@@ -79,9 +76,9 @@ public class AnonymizerWorkflowNotificationController(
         var message = new SaraVisualizationAvailableMessage
         {
             InspectionId = notification.InspectionId,
-            StorageAccount = plantData.Anonymization.AnonymizedBlobStorageLocation.StorageAccount,
-            BlobContainer = plantData.Anonymization.AnonymizedBlobStorageLocation.BlobContainer,
-            BlobName = plantData.Anonymization.AnonymizedBlobStorageLocation.BlobName,
+            StorageAccount = plantData.Anonymization.SourceBlobStorageLocation.StorageAccount,
+            BlobContainer = plantData.Anonymization.SourceBlobStorageLocation.BlobContainer,
+            BlobName = plantData.Anonymization.SourceBlobStorageLocation.BlobName,
         };
 
         mqttMessageService.OnSaraVisualizationAvailable(message);
@@ -125,7 +122,15 @@ public class AnonymizerWorkflowNotificationController(
             );
         }
 
-        // Trigger the analysis on the PlantData
+        if (updatedPlantData.CLOEAnalysis is not null)
+        {
+            await workflowService.TriggerCLOE(updatedPlantData.InspectionId, updatedPlantData.CLOEAnalysis);
+        }
+
+        if (updatedPlantData.FencillaAnalysis is not null)
+        {
+            await workflowService.TriggerFencilla(updatedPlantData.InspectionId, updatedPlantData.FencillaAnalysis);
+        }
 
         return Ok(updatedPlantData);
     }

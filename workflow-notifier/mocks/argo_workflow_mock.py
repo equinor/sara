@@ -60,10 +60,10 @@ def start_anonymizer_workflow(trigger_anonymizer_request: TriggerAnonymizerReque
 
     # Mock Anonymizer
     time.sleep(2)
-    is_anonymized = True
+    is_person_in_images = True
 
     anonymizer.notify_anonymizer_result(
-        trigger_anonymizer_request.inspectionId, is_anonymized
+        trigger_anonymizer_request.inspectionId, is_person_in_images
     )
 
     time.sleep(2)
