@@ -2,6 +2,7 @@ using api.Controllers.Models;
 using api.Database.Models;
 using api.MQTT;
 using api.Services;
+using Api.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -83,23 +84,22 @@ public class WorkflowsController(
         [FromBody] AnonymizerDoneNotification notification
     )
     {
+        var inspectionId = Sanitize.SanitizeUserInput(notification.InspectionId);
         // TODO: Update plantData with information that the Anonymizer is Done
         logger.LogInformation(
             "Completed anonymization of plantData with inspection id {id}",
-            notification.InspectionId
+            inspectionId
         );
 
-        var plantData = await plantDataService.ReadByInspectionId(notification.InspectionId);
+        var plantData = await plantDataService.ReadByInspectionId(inspectionId);
         if (plantData == null)
         {
-            return NotFound(
-                $"Could not find plantData with inspection id {notification.InspectionId}"
-            );
+            return NotFound($"Could not find plantData with inspection id {inspectionId}");
         }
 
         var message = new SaraVisualizationAvailableMessage
         {
-            InspectionId = notification.InspectionId,
+            InspectionId = inspectionId,
             StorageAccount = plantData.AnonymizedBlobStorageLocation.StorageAccount,
             BlobContainer = plantData.AnonymizedBlobStorageLocation.BlobContainer,
             BlobName = plantData.AnonymizedBlobStorageLocation.BlobName,
@@ -108,7 +108,7 @@ public class WorkflowsController(
         mqttMessageService.OnSaraVisualizationAvailable(message);
 
         var updatedPlantData = await plantDataService.UpdateAnonymizerWorkflowStatus(
-            notification.InspectionId,
+            inspectionId,
             WorkflowStatus.ExitSuccess
         );
 
@@ -127,24 +127,23 @@ public class WorkflowsController(
         [FromBody] ConstantLevelOilerDoneNotification notification
     )
     {
+        var inspectionId = Sanitize.SanitizeUserInput(notification.InspectionId);
         // TODO: Update plantData with information that the CLO is Done
         logger.LogInformation(
             "Completed Constant Level Oiler analysis for plantData with inspection id {id} and oil level {oilLevel}",
-            notification.InspectionId,
+            inspectionId,
             notification.OilLevel
         );
 
-        var plantData = await plantDataService.ReadByInspectionId(notification.InspectionId);
+        var plantData = await plantDataService.ReadByInspectionId(inspectionId);
         if (plantData == null)
         {
-            return NotFound(
-                $"Could not find plantData with inspection id {notification.InspectionId}"
-            );
+            return NotFound($"Could not find plantData with inspection id {inspectionId}");
         }
 
         var message = new SaraAnalysisResultMessage
         {
-            InspectionId = notification.InspectionId,
+            InspectionId = inspectionId,
             AnalysisType = Analysis.TypeToString(AnalysisType.ConstantLevelOiler),
             RegressionResult = notification.OilLevel,
             StorageAccount = plantData.VisualizedBlobStorageLocation.StorageAccount,
@@ -170,7 +169,7 @@ public class WorkflowsController(
         // TODO: Update plantData with information that Fencilla is Done
         logger.LogInformation(
             "Completed Fencilla analysis for plantData with inspection id {id} and break found is {IsBreak} with confidence {Confidence}",
-            notification.InspectionId,
+            Sanitize.SanitizeUserInput(notification.InspectionId),
             notification.IsBreak,
             notification.Confidence
         );
