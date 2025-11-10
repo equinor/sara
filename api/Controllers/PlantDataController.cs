@@ -3,6 +3,7 @@ using api.Controllers.Models;
 using api.Database.Models;
 using api.Services;
 using api.Utilities;
+using Api.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -192,13 +193,14 @@ public class PlantDataController(
         [FromRoute] string inspectionId
     )
     {
+        inspectionId = Sanitize.SanitizeUserInput(inspectionId);
         try
         {
             var plantData = await plantDataService.ReadByInspectionId(inspectionId);
             if (plantData == null)
             {
                 logger.LogWarning(
-                    "No plant data found for InspectionId: {InspectionId}",
+                    "No plant data found for InspectionId: {inspectionId}",
                     inspectionId
                 );
                 return NotFound($"Could not find plant data with inspection id {inspectionId}");
@@ -206,7 +208,7 @@ public class PlantDataController(
 
             var anonymizerWorkflowStatus = plantData.AnonymizerWorkflowStatus;
             logger.LogInformation(
-                "Anonymization workflow status for InspectionId: {InspectionId} is {Status}",
+                "Anonymization workflow status for InspectionId: {inspectionId} is {Status}",
                 inspectionId,
                 anonymizerWorkflowStatus
             );
@@ -216,7 +218,7 @@ public class PlantDataController(
                 case WorkflowStatus.ExitSuccess:
                     var plantDataJson = JsonSerializer.Serialize(plantData, _jsonSerializerOptions);
                     logger.LogInformation(
-                        "Full Plant Data for InspectionId: {InspectionId}: {PlantData}",
+                        "Full Plant Data for InspectionId: {inspectionId}: {PlantData}",
                         inspectionId,
                         plantDataJson
                     );
