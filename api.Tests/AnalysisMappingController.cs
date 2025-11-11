@@ -32,26 +32,12 @@ namespace api.Controllers.Tests
             _analysisMappingController = new AnalysisMappingController(_loggerMock.Object, _analysisMappingServiceMock.Object, _plantDataServiceMock.Object, _dbContext);
         }
 
-
-        [Fact]
-        public async Task AddOrCreateAnalysisMapping_ReturnsBadRequest_WhenAnalysisTypeIsInvalid()
-        {
-            //Arrange
-            string tagId = "dummy-tag-id";
-            string analysisType = "InvalidAnalysisType";
-            string inspectionDescription = "Dummy description";
-            //Act
-            var result = await _analysisMappingController.AddOrCreateAnalysisMapping(tagId, analysisType, inspectionDescription);
-            //Assert
-            Assert.IsType<BadRequestObjectResult>(result.Result);
-        }
-
         [Fact]
         public async Task AddOrCreateAnalysisMapping_ReturnsStatusCode500_WhenExceptionIsThrown()
         {
             //Arrange
             string tagId = "dummy-tag-id";
-            string analysisType = "constantleveloiler";
+            AnalysisType analysisType = AnalysisType.ConstantLevelOiler;
             string inspectionDescription = "Dummy description";
 
             _analysisMappingServiceMock
@@ -77,11 +63,10 @@ namespace api.Controllers.Tests
             // Arrange
             string tagId = "test-tag";
             string inspectionDescription = "desc";
-            string analysisType = "constantleveloiler";
-            var parsedType = AnalysisType.ConstantLevelOiler;
+            AnalysisType analysisType = AnalysisType.ConstantLevelOiler;
             var newMapping = new AnalysisMapping(tagId, inspectionDescription)
             {
-                AnalysesToBeRun = new List<AnalysisType> { parsedType }
+                AnalysesToBeRun = new List<AnalysisType> { analysisType }
             };
 
             _analysisMappingServiceMock
@@ -89,7 +74,7 @@ namespace api.Controllers.Tests
                 .ReturnsAsync((AnalysisMapping?)null);
 
             _analysisMappingServiceMock
-                .Setup(s => s.CreateAnalysisMapping(tagId, inspectionDescription, parsedType))
+                .Setup(s => s.CreateAnalysisMapping(tagId, inspectionDescription, analysisType))
                 .ReturnsAsync(newMapping);
 
             _plantDataServiceMock
@@ -102,7 +87,7 @@ namespace api.Controllers.Tests
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result.Result);
             Assert.Equal(newMapping, okResult.Value);
-            _analysisMappingServiceMock.Verify(s => s.CreateAnalysisMapping(tagId, inspectionDescription, parsedType), Times.Once);
+            _analysisMappingServiceMock.Verify(s => s.CreateAnalysisMapping(tagId, inspectionDescription, analysisType), Times.Once);
         }
     }
 }

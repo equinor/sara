@@ -94,16 +94,11 @@ public class AnalysisMappingController(
     public async Task<ActionResult<AnalysisMapping>> AddOrCreateAnalysisMapping(
         [FromRoute] string tagId,
         [FromRoute] string inspectionDescription,
-        [FromRoute] string analysisType
+        [FromRoute] AnalysisType analysisType
     )
     {
         try
         {
-            var parsedAnalysisType = Analysis.TypeFromString(analysisType);
-            if (parsedAnalysisType == null)
-            {
-                return BadRequest("Invalid analysis type");
-            }
             var analysisMapping = await analysisMappingService.ReadByInspectionDescriptionAndTag(
                 inspectionDescription,
                 tagId
@@ -113,14 +108,14 @@ public class AnalysisMappingController(
                 analysisMapping = await analysisMappingService.CreateAnalysisMapping(
                     tagId,
                     inspectionDescription,
-                    parsedAnalysisType
+                    analysisType
                 );
             }
             else
             {
                 analysisMapping = await analysisMappingService.AddAnalysisTypeToMapping(
                     analysisMapping,
-                    parsedAnalysisType.Value
+                    analysisType
                 );
             }
             var plantData = await plantDataService.ReadByTagIdAndInspectionDescription(
