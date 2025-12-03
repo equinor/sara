@@ -10,7 +10,8 @@ public record TriggerArgoWorkflowAnalysisRequest(
     BlobStorageLocation AnonymizedBlobStorageLocation,
     BlobStorageLocation VisualizedBlobStorageLocation,
     bool ShouldRunConstantLevelOiler,
-    bool ShouldRunFencilla
+    bool ShouldRunFencilla,
+    bool ShouldRunSteamTrap
 );
 
 public interface IArgoWorkflowService
@@ -18,7 +19,8 @@ public interface IArgoWorkflowService
     public Task TriggerAnalysis(
         PlantData data,
         bool shouldRunConstantLevelOiler,
-        bool shouldRunFencilla
+        bool shouldRunFencilla,
+        bool shouldRunSteamTrap
     );
 }
 
@@ -37,7 +39,8 @@ public class ArgoWorkflowService(IConfiguration configuration, ILogger<ArgoWorkf
     public async Task TriggerAnalysis(
         PlantData data,
         bool shouldRunConstantLevelOiler,
-        bool shouldRunFencilla
+        bool shouldRunFencilla,
+        bool shouldRunSteamTrap
     )
     {
         var postRequestData = new TriggerArgoWorkflowAnalysisRequest(
@@ -46,7 +49,8 @@ public class ArgoWorkflowService(IConfiguration configuration, ILogger<ArgoWorkf
             data.AnonymizedBlobStorageLocation,
             data.VisualizedBlobStorageLocation,
             shouldRunConstantLevelOiler,
-            shouldRunFencilla
+            shouldRunFencilla,
+            shouldRunSteamTrap
         );
 
         var json = JsonSerializer.Serialize(postRequestData, useCamelCaseOption);

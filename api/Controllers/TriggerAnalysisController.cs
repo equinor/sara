@@ -62,10 +62,20 @@ public class TriggerAnalysisController(
                 );
                 shouldRunFencilla = true;
             }
+            var shouldRunSteamTrap = false;
+            if (plantData.AnalysisToBeRun.Contains(AnalysisType.SteamTrap))
+            {
+                _logger.LogInformation(
+                    "Analysis type Steam Trap is set to be run for InspectionId: {InspectionId}",
+                    plantData.InspectionId
+                );
+                shouldRunSteamTrap = true;
+            }
             await argoWorkflowService.TriggerAnalysis(
                 plantData,
                 shouldRunConstantLevelOiler,
-                shouldRunFencilla
+                shouldRunFencilla,
+                shouldRunSteamTrap
             );
 
             return Ok("Analysis workflow triggered successfully.");

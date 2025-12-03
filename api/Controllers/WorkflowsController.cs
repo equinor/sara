@@ -32,6 +32,13 @@ public record FencillaDoneNotification
     public required float Confidence { get; init; }
 }
 
+public record SteamTrapDoneNotification
+{
+    public required string InspectionId { get; init; }
+    public required float Temperature { get; init; }
+    public required bool IsSuccess { get; init; }
+}
+
 public record WorkflowExitedNotification
 {
     public required string InspectionId { get; init; }
@@ -173,6 +180,35 @@ public class WorkflowsController(
             notification.IsBreak,
             notification.Confidence
         );
+
+        return Ok();
+    }
+
+    /// <summary>
+    /// TODO: Register steam trap temperature on plant data
+    /// </summary>
+    [HttpPut]
+    [Authorize(Roles = Role.WorkflowStatusWrite)]
+    [Route("notify-steam-trap-done")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> SteamTrapDone([FromBody] SteamTrapDoneNotification notification)
+    {
+        var inspectionId = Sanitize.SanitizeUserInput(notification.InspectionId);
+
+        // TODO: Update plantData with information that Steam Trap is Done
+        logger.LogInformation(
+            "Completed Steam Trap analysis for plantData with inspection id {id} and success is {IsSuccess} with temperature {Temperature}",
+            inspectionId,
+            notification.IsSuccess,
+            notification.Temperature
+        );
+
+        var plantData = await plantDataService.ReadByInspectionId(inspectionId);
+        if (plantData == null)
+        {
+            return NotFound($"Could not find plantData with inspection id {inspectionId}");
+        }
 
         return Ok();
     }

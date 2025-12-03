@@ -135,6 +135,23 @@ def notify_fencilla_done(inspection_id: str, is_break: bool, confidence: float):
         "Notified that fencilla is done" f"with response: {response.status_code}"
     )
 
+@app.command()
+def notify_steam_trap_done(inspection_id: str, temperature: float, is_success: bool):
+    url = f"{SARA_SERVER_URL}/Workflows/notify-steam-trap-done"
+    payload = {
+        "InspectionId": inspection_id,
+        "Temperature": temperature,
+        "IsSuccess": is_success,
+    }
+    try:
+        response = send_authenticated_put_request(url, payload)
+    except requests.exceptions.RequestException as e:
+        typer.echo(f"Error notifying steam trap done: {e}", err=True)
+        raise typer.Exit(1)
+    typer.echo(
+        "Notified that steam trap is done" f"with response: {response.status_code}"
+    )
+
 
 @app.command()
 def notify_exit(

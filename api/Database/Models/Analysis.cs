@@ -33,6 +33,7 @@ public class Analysis
             "anonymizer" => AnalysisType.Anonymizer,
             "constantleveloiler" => AnalysisType.ConstantLevelOiler,
             "fencilla" => AnalysisType.Fencilla,
+            "steamtrap" => AnalysisType.SteamTrap,
             _ => null,
         };
     }
@@ -44,6 +45,7 @@ public class Analysis
             AnalysisType.Anonymizer => "anonymizer",
             AnalysisType.ConstantLevelOiler => "constantleveloiler",
             AnalysisType.Fencilla => "fencilla",
+            AnalysisType.SteamTrap => "steamtrap",
             _ => null,
         };
     }
@@ -62,4 +64,5 @@ public enum AnalysisType
     Anonymizer,
     ConstantLevelOiler,
     Fencilla,
+    SteamTrap,
 }

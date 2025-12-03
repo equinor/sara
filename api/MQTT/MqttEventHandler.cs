@@ -147,6 +147,7 @@ namespace api.MQTT
 
             var shouldRunConstantLevelOiler = false;
             var shouldRunFencilla = false;
+            var shouldRunSteamTrap = false;
             try
             {
                 var analysisToBeRun =
@@ -170,6 +171,14 @@ namespace api.MQTT
                     );
                     shouldRunFencilla = true;
                 }
+                if (analysisToBeRun.Contains(AnalysisType.SteamTrap))
+                {
+                    _logger.LogInformation(
+                        "Analysis type SteamTrap is set to be run for InspectionId: {InspectionId}",
+                        isarInspectionResultMessage.InspectionId
+                    );
+                    shouldRunSteamTrap = true;
+                }
             }
             catch (Exception ex)
             {
@@ -186,7 +195,8 @@ namespace api.MQTT
                 await ArgoWorkflowService.TriggerAnalysis(
                     plantData,
                     shouldRunConstantLevelOiler,
-                    shouldRunFencilla
+                    shouldRunFencilla,
+                    shouldRunSteamTrap
                 );
             }
             catch (Exception ex)
