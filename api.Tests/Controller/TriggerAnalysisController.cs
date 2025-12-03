@@ -79,6 +79,7 @@ namespace api.Controllers.Tests
             _argoWorkflowServiceMock.Setup(service => service.TriggerAnalysis(
                 It.IsAny<PlantData>(),
                 It.IsAny<bool>(),
+                It.IsAny<bool>(),
                 It.IsAny<bool>()
             ));
 
