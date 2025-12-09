@@ -7,8 +7,6 @@ namespace api.Database.Context
     {
         public DbSet<PlantData> PlantData { get; set; } = null!;
 
-        public DbSet<Analysis> Analysis { get; set; } = null!;
-
         public DbSet<Anonymization> Anonymization { get; set; } = null!;
 
         public DbSet<CLOEAnalysis> CLOEAnalysis { get; set; } = null!;
