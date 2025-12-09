@@ -1,181 +1,178 @@
 using System;
 using System.Threading.Tasks;
-using api.Utilities;
+using api.Database.Context;
 using api.Database.Models;
 using api.Services;
+using api.Utilities;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
-using System.Collections.Generic;
 using Xunit;
 
 namespace api.Controllers.Tests
 {
     public class PlantDataControllerTest
     {
-        private readonly Mock<ILogger<PlantDataController>> _loggerMock;
-        private readonly Mock<IPlantDataService> _plantDataServiceMock;
-        private readonly Mock<IAnalysisMappingService> _analysisMappingServiceMock;
+        private readonly PlantDataService _plantDataService;
+        private readonly AnalysisMappingService _analysisMappingService;
         private readonly PlantDataController _plantDataController;
+
+        private static SaraDbContext CreateInMemoryContext()
+        {
+            var options = new DbContextOptionsBuilder<SaraDbContext>()
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .Options;
+
+            return new SaraDbContext(options);
+        }
 
         public PlantDataControllerTest()
         {
-            _loggerMock = new Mock<ILogger<PlantDataController>>();
-            _plantDataServiceMock = new Mock<IPlantDataService>();
-            _analysisMappingServiceMock = new Mock<IAnalysisMappingService>();
-            _plantDataController = new PlantDataController(_loggerMock.Object, _plantDataServiceMock.Object, _analysisMappingServiceMock.Object);
+            var context = CreateInMemoryContext();
+            var loggerServiceMock = new Mock<ILogger<PlantDataService>>();
+            var loggerControllerMock = new Mock<ILogger<PlantDataController>>();
+            var loggerAnalysisMappingServiceMock = new Mock<ILogger<AnalysisMappingService>>();
+            var blobServiceMock = new Mock<IBlobService>();
+
+            _analysisMappingService = new AnalysisMappingService(
+                context,
+                loggerAnalysisMappingServiceMock.Object
+            );
+
+            _plantDataService = new PlantDataService(
+                context,
+                _analysisMappingService,
+                blobServiceMock.Object,
+                loggerServiceMock.Object
+            );
+
+            _plantDataController = new PlantDataController(
+                loggerControllerMock.Object,
+                _plantDataService
+            );
         }
 
         [Fact]
-        public async Task CreatePlantDataEntry_ReturnsBadRequest_WhenInspectionIdMissing()
+        public async Task CreatePlantData_ReturnsCreated_WhenPlantDataCreated()
         {
+            // Arrange
             var request = new PlantDataRequest
             {
-                InspectionId = "",
-                InstallationCode = "dummy",
-                RawDataBlobStorageLocation = new BlobStorageLocation(),
-                AnonymizedBlobStorageLocation = new BlobStorageLocation(),
-                VisualizedBlobStorageLocation = new BlobStorageLocation(),
-                TagId = "dummy",
-                InspectionDescription = "dummy",
-                AnalysisToBeRun = new List<AnalysisType>()
+                InspectionId = "dummyInspectionId",
+                InstallationCode = "dummyInstallationCode",
+                TagId = "dummyTagId",
+                InspectionDescription = "dummyInspectionDescription",
+                RawDataBlobStorageLocation = new BlobStorageLocation
+                {
+                    StorageAccount = "dummy",
+                    BlobContainer = "dummy",
+                    BlobName = "dummy.jpg",
+                },
             };
-
-            var result = await _plantDataController.CreatePlantDataEntry(request);
-
-            Assert.IsType<BadRequestObjectResult>(result);
-        }
-
-        [Fact]
-        public async Task CreatePlantDataEntry_ReturnsBadRequest_WhenInstallationCodeMissing()
-        {
-            var request = new PlantDataRequest
+            var expectedPlantData = new PlantData
             {
-                InspectionId = "dummy",
-                InstallationCode = "",
-                RawDataBlobStorageLocation = new BlobStorageLocation(),
-                AnonymizedBlobStorageLocation = new BlobStorageLocation(),
-                VisualizedBlobStorageLocation = new BlobStorageLocation(),
-                TagId = "dummy",
-                InspectionDescription = "dummy",
-                AnalysisToBeRun = new List<AnalysisType>()
+                InspectionId = "dummyInspectionId",
+                InstallationCode = "dummyInstallationCode",
+                Tag = "dummyTagId",
+                InspectionDescription = "dummyInspectionDescription",
+                Anonymization = new Anonymization
+                {
+                    DestinationBlobStorageLocation = new BlobStorageLocation
+                    {
+                        StorageAccount = "dummyRawStorageAccount",
+                        BlobContainer = "dummyRawBlobContainer",
+                        BlobName = "dummyRawBlobName",
+                    },
+                    SourceBlobStorageLocation = new BlobStorageLocation
+                    {
+                        StorageAccount = "dummyAnonStorageAccount",
+                        BlobContainer = "dummyAnonBlobContainer",
+                        BlobName = "dummyBlobName",
+                    },
+                },
             };
-            var result = await _plantDataController.CreatePlantDataEntry(request);
 
-            Assert.IsType<BadRequestObjectResult>(result);
-        }
+            // Act
+            var result = await _plantDataController.CreatePlantData(request);
 
-        [Fact]
-        public async Task CreatePlantDataEntry_ReturnsCreated_WhenPlantDataCreated()
-        {
-            var request = new PlantDataRequest
-            {
-                InspectionId = "dummy",
-                InstallationCode = "dummy",
-                RawDataBlobStorageLocation = new BlobStorageLocation { StorageAccount = "dummy", BlobContainer = "dummy", BlobName = "dummy.jpg" },
-                AnonymizedBlobStorageLocation = new BlobStorageLocation { StorageAccount = "dummy", BlobContainer = "dummy", BlobName = "dummy.jpg" },
-                VisualizedBlobStorageLocation = new BlobStorageLocation { StorageAccount = "dummy", BlobContainer = "dummy", BlobName = "dummy.jpg" },
-                TagId = "dummy",
-                InspectionDescription = "dummy",
-                AnalysisToBeRun = new List<AnalysisType>()
-            };
-            var plantData = new PlantData { Id = "plantId" };
-            _plantDataServiceMock.Setup(s => s.CreatePlantDataEntry(request)).ReturnsAsync(plantData);
-
-            var result = await _plantDataController.CreatePlantDataEntry(request);
-
+            // Assert
             var createdResult = Assert.IsType<CreatedAtActionResult>(result);
             Assert.Equal(nameof(_plantDataController.GetPlantDataById), createdResult.ActionName);
-            Assert.Equal(plantData, createdResult.Value);
+
+            var createdPlantData = createdResult.Value as PlantData;
+            Assert.NotNull(createdPlantData);
+            Assert.Equal(expectedPlantData.InspectionId, createdPlantData.InspectionId);
+            Assert.Equal(expectedPlantData.InstallationCode, createdPlantData.InstallationCode);
+            Assert.Equal(expectedPlantData.Tag, createdPlantData.Tag);
+            Assert.Equal(
+                expectedPlantData.InspectionDescription,
+                createdPlantData.InspectionDescription
+            );
+            Assert.NotNull(createdPlantData.Anonymization);
+            Assert.Null(createdPlantData.CLOEAnalysis);
+            Assert.Null(createdPlantData.FencillaAnalysis);
         }
 
         [Fact]
-        public async Task CreatePlantDataEntry_Returns500_WhenServiceReturnsNull()
+        public async Task CreatePlantData_AddsAnalysesFromMapping_WhenMappingExists()
         {
+            // Arrange
             var request = new PlantDataRequest
             {
-                InspectionId = "dummy",
-                InstallationCode = "dummy",
-                RawDataBlobStorageLocation = new BlobStorageLocation { StorageAccount = "dummy", BlobContainer = "dummy", BlobName = "dummy.jpg" },
-                AnonymizedBlobStorageLocation = new BlobStorageLocation { StorageAccount = "dummy", BlobContainer = "dummy", BlobName = "dummy.jpg" },
-                VisualizedBlobStorageLocation = new BlobStorageLocation { StorageAccount = "dummy", BlobContainer = "dummy", BlobName = "dummy.jpg" },
-                TagId = "dummy",
-                InspectionDescription = "dummy",
-                AnalysisToBeRun = new List<AnalysisType>()
-            };
-            _plantDataServiceMock.Setup(s => s.CreatePlantDataEntry(request)).ReturnsAsync((PlantData)null!);
-
-            IActionResult result = await _plantDataController.CreatePlantDataEntry(request);
-
-            var statusResult = Assert.IsType<StatusCodeResult>(result);
-            Assert.Equal(500, statusResult.StatusCode);
-        }
-
-        [Fact]
-        public async Task CreatePlantDataEntry_ThrowsException_WhenServiceSavesToDatabase()
-        {
-
-            var request = new PlantDataRequest
-            {
-                InspectionId = "dummy",
-                InstallationCode = "dummy",
-                RawDataBlobStorageLocation = new BlobStorageLocation { StorageAccount = "dummy", BlobContainer = "dummy", BlobName = "dummy.jpg" },
-                AnonymizedBlobStorageLocation = new BlobStorageLocation { StorageAccount = "dummy", BlobContainer = "dummy", BlobName = "dummy.jpg" },
-                VisualizedBlobStorageLocation = new BlobStorageLocation { StorageAccount = "dummy", BlobContainer = "dummy", BlobName = "dummy.jpg" },
-                TagId = "dummy",
-                InspectionDescription = "dummy",
-                AnalysisToBeRun = new List<AnalysisType>()
-            };
-            _plantDataServiceMock.Setup(s => s.CreatePlantDataEntry(request)).ThrowsAsync(new Exception("fail"));
-            var result = await _plantDataController.CreatePlantDataEntry(request);
-
-            var statusResult = Assert.IsType<StatusCodeResult>(result);
-            Assert.Equal(500, statusResult.StatusCode);
-
-
-        }
-
-        [Fact]
-        public async Task CreatePlantDataEntry_AddsAnalysesFromMapping_WhenMappingExists()
-        {
-            var request = new PlantDataRequest
-            {
-                InspectionId = "dummy",
-                InstallationCode = "dummy",
-                RawDataBlobStorageLocation = new BlobStorageLocation { StorageAccount = "dummy", BlobContainer = "dummy", BlobName = "dummy.jpg" },
-                AnonymizedBlobStorageLocation = new BlobStorageLocation { StorageAccount = "dummy", BlobContainer = "dummy", BlobName = "dummy.jpg" },
-                VisualizedBlobStorageLocation = new BlobStorageLocation { StorageAccount = "dummy", BlobContainer = "dummy", BlobName = "dummy.jpg" },
-                TagId = "tag1",
-                InspectionDescription = "desc1",
-                AnalysisToBeRun = new List<AnalysisType> { AnalysisType.ConstantLevelOiler }
-            };
-
-            var analysisMapping = new AnalysisMapping("desc1", "tag1")
-            {
-                Id = "mapping1",
-                AnalysesToBeRun = new List<AnalysisType> { AnalysisType.Anonymizer, AnalysisType.Fencilla }
-            };
-
-            _analysisMappingServiceMock
-                .Setup(s => s.ReadByInspectionDescriptionAndTag("desc1", "tag1"))
-                .ReturnsAsync(analysisMapping);
-
-            _plantDataServiceMock
-                .Setup(s => s.CreatePlantDataEntry(It.IsAny<PlantDataRequest>()))
-                .ReturnsAsync((PlantDataRequest req) => new PlantData
+                InspectionId = "dummyInspectionId",
+                InstallationCode = "dummyInstallationCode",
+                TagId = "TAG-001",
+                InspectionDescription = "Oil Level",
+                RawDataBlobStorageLocation = new BlobStorageLocation
                 {
-                    Id = "plantId",
-                    AnalysisToBeRun = req.AnalysisToBeRun
-                });
+                    StorageAccount = "dummy",
+                    BlobContainer = "dummy",
+                    BlobName = "dummy.jpg",
+                },
+            };
 
-            var result = await _plantDataController.CreatePlantDataEntry(request);
+            await _analysisMappingService.CreateAnalysisMapping(
+                "TAG-001",
+                "Oil Level",
+                AnalysisType.ConstantLevelOiler
+            );
 
+            // Act
+            var result = await _plantDataController.CreatePlantData(request);
+
+            // Assert
             var createdResult = Assert.IsType<CreatedAtActionResult>(result);
             var returnedPlantData = Assert.IsType<PlantData>(createdResult.Value);
 
-            Assert.Contains(AnalysisType.ConstantLevelOiler, returnedPlantData.AnalysisToBeRun);
-            Assert.Contains(AnalysisType.Anonymizer, returnedPlantData.AnalysisToBeRun);
-            Assert.Contains(AnalysisType.Fencilla, returnedPlantData.AnalysisToBeRun);
+            Assert.NotNull(returnedPlantData.CLOEAnalysis);
+            Assert.Null(returnedPlantData.FencillaAnalysis);
+        }
+
+        [Fact]
+        public async Task CreatePlantData_ReturnsBadRequest_WhenRequiredFieldsAreEmpty()
+        {
+            // Arrange
+            var request = new PlantDataRequest
+            {
+                InspectionId = "",
+                InstallationCode = "",
+                TagId = "",
+                InspectionDescription = "",
+                RawDataBlobStorageLocation = new BlobStorageLocation
+                {
+                    StorageAccount = "dummy",
+                    BlobContainer = "dummy",
+                    BlobName = "dummy.jpg",
+                },
+            };
+
+            // Act
+            IActionResult result = await _plantDataController.CreatePlantData(request);
+
+            // Assert
+            var statusResult = Assert.IsType<BadRequestObjectResult>(result);
+            Assert.Equal(400, statusResult.StatusCode);
         }
     }
 }

@@ -9,6 +9,12 @@ namespace api.Database.Context
 
         public DbSet<Analysis> Analysis { get; set; } = null!;
 
+        public DbSet<Anonymization> Anonymization { get; set; } = null!;
+
+        public DbSet<CLOEAnalysis> CLOEAnalysis { get; set; } = null!;
+
+        public DbSet<FencillaAnalysis> FencillaAnalysis { get; set; } = null!;
+
         public DbSet<AnalysisMapping> AnalysisMapping { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

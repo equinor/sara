@@ -4,7 +4,18 @@ using System.ComponentModel.DataAnnotations.Schema;
 #pragma warning disable CS8618
 namespace api.Database.Models;
 
-public class AnalysisMapping(string tag, string inspectionDescription)
+public enum AnalysisType
+{
+    Anonymizer,
+    ConstantLevelOiler,
+    Fencilla,
+}
+
+public class AnalysisMapping(
+    string tag,
+    string inspectionDescription,
+    List<AnalysisType> analysesToBeRun
+)
 {
     [Key]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
@@ -17,5 +28,5 @@ public class AnalysisMapping(string tag, string inspectionDescription)
     public string InspectionDescription { get; set; } = inspectionDescription;
 
     [Required]
-    public List<AnalysisType> AnalysesToBeRun { get; set; } = [];
+    public List<AnalysisType> AnalysesToBeRun { get; set; } = analysesToBeRun;
 }

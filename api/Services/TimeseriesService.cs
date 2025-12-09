@@ -37,6 +37,9 @@ public class TimeseriesService(IConfiguration configuration, ILogger<TimeseriesS
 
     public async Task TriggerTimeseriesUpload(IsarInspectionValueMessage isarInspectionValueMessage)
     {
+        if (_baseUrl == "")
+            return;
+
         var name = CreateTimeseriesName(isarInspectionValueMessage);
         var postRequestData = new TriggerTimeseriesUploadRequest
         {

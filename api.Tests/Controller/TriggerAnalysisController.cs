@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using api.Database.Models;
 using api.Services;
@@ -33,7 +32,9 @@ namespace api.Controllers.Tests
         {
             //Arrange
             var plantDataId = "nonexistent-id";
-            _plantDataServiceMock.Setup(service => service.ReadById(plantDataId)).ReturnsAsync((PlantData?)null);
+            _plantDataServiceMock
+                .Setup(service => service.ReadById(plantDataId))
+                .ReturnsAsync((PlantData?)null);
 
             //Act
             var result = await _triggerAnalysisController.TriggerAnalysis(plantDataId);
@@ -47,10 +48,31 @@ namespace api.Controllers.Tests
         {
             //Arrange
             var plantDataId = "dummy-id";
-            _plantDataServiceMock.Setup(service => service.ReadById(plantDataId)).ReturnsAsync(new PlantData
-            {
-                AnonymizerWorkflowStatus = WorkflowStatus.Started
-            });
+            _plantDataServiceMock
+                .Setup(service => service.ReadById(plantDataId))
+                .ReturnsAsync(
+                    new PlantData
+                    {
+                        InspectionId = "dummyInspectionId",
+                        InstallationCode = "dummyInstallationCode",
+                        Anonymization = new Anonymization
+                        {
+                            DestinationBlobStorageLocation = new BlobStorageLocation
+                            {
+                                StorageAccount = "dummyRawStorageAccount",
+                                BlobContainer = "dummyRawBlobContainer",
+                                BlobName = "dummyRawBlobName",
+                            },
+                            SourceBlobStorageLocation = new BlobStorageLocation
+                            {
+                                StorageAccount = "dummyAnonStorageAccount",
+                                BlobContainer = "dummyAnonBlobContainer",
+                                BlobName = "dummyBlobName",
+                            },
+                            Status = WorkflowStatus.Started,
+                        },
+                    }
+                );
 
             //Act
             var result = await _triggerAnalysisController.TriggerAnalysis(plantDataId);
@@ -58,7 +80,10 @@ namespace api.Controllers.Tests
             //Assert
             Assert.IsType<ConflictObjectResult>(result);
             var conflictResult = result as ConflictObjectResult;
-            Assert.Equal("Analysis has already been triggered and will not run again.", conflictResult!.Value);
+            Assert.Equal(
+                "Anonymization has already been triggered and will not run again.",
+                conflictResult!.Value
+            );
         }
 
         [Fact]
@@ -66,21 +91,34 @@ namespace api.Controllers.Tests
         {
             //Arrange
             var plantDataId = "dummy-id";
+
             var plantData = new PlantData
             {
-                AnonymizerWorkflowStatus = WorkflowStatus.NotStarted,
-                AnalysisToBeRun = new List<AnalysisType>
+                InspectionId = "dummyInspectionId",
+                InstallationCode = "dummyInstallationCode",
+                Anonymization = new Anonymization
                 {
-                    AnalysisType.ConstantLevelOiler,
-                    AnalysisType.Fencilla
-                }
+                    DestinationBlobStorageLocation = new BlobStorageLocation
+                    {
+                        StorageAccount = "dummyRawStorageAccount",
+                        BlobContainer = "dummyRawBlobContainer",
+                        BlobName = "dummyRawBlobName",
+                    },
+                    SourceBlobStorageLocation = new BlobStorageLocation
+                    {
+                        StorageAccount = "dummyAnonStorageAccount",
+                        BlobContainer = "dummyAnonBlobContainer",
+                        BlobName = "dummyAnonBlobName",
+                    },
+                },
             };
-            _plantDataServiceMock.Setup(service => service.ReadById(plantDataId)).ReturnsAsync(plantData);
-            _argoWorkflowServiceMock.Setup(service => service.TriggerAnalysis(
-                It.IsAny<PlantData>(),
-                It.IsAny<bool>(),
-                It.IsAny<bool>()
-            ));
+
+            _plantDataServiceMock
+                .Setup(service => service.ReadById(plantDataId))
+                .ReturnsAsync(plantData);
+            _argoWorkflowServiceMock.Setup(service =>
+                service.TriggerAnonymizer(It.IsAny<string>(), It.IsAny<Anonymization>())
+            );
 
             //Act
             var result = await _triggerAnalysisController.TriggerAnalysis(plantDataId);
@@ -88,8 +126,7 @@ namespace api.Controllers.Tests
             //Assert
             Assert.IsType<OkObjectResult>(result);
             var okResult = result as OkObjectResult;
-            Assert.Equal("Analysis workflow triggered successfully.", okResult!.Value);
+            Assert.Equal("Anonymization workflow triggered successfully.", okResult!.Value);
         }
-
     }
 }

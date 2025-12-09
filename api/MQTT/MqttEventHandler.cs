@@ -23,16 +23,12 @@ namespace api.MQTT
             Subscribe();
         }
 
-        private IPlantDataService PlantDataService =>
-            _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IPlantDataService>();
+        private IMqttMessageService MqttMessageService =>
+            _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IMqttMessageService>();
         private IArgoWorkflowService ArgoWorkflowService =>
             _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IArgoWorkflowService>();
         private ITimeseriesService TimeseriesService =>
             _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<ITimeseriesService>();
-        private IAnalysisMappingService AnalysisMappingService =>
-            _scopeFactory
-                .CreateScope()
-                .ServiceProvider.GetRequiredService<IAnalysisMappingService>();
 
         public override void Subscribe()
         {
@@ -104,34 +100,16 @@ namespace api.MQTT
             }
 
             _logger.LogInformation(
-                "Received ISAR inspection result message with InspectionId: {InspectionId}",
-                isarInspectionResultMessage.InspectionId
-            );
-            _logger.LogInformation(
-                "Received ISAR inspection result message with TagID: {TagID}",
-                isarInspectionResultMessage.TagID
-            );
-            _logger.LogInformation(
-                "Received ISAR inspection result message with InspectionDescription: {InspectionDescription}",
+                "Received ISAR inspection result message with InspectionId: {InspectionId}, TagID: {TagID}, InspectionDescription: {InspectionDescription}",
+                isarInspectionResultMessage.InspectionId,
+                isarInspectionResultMessage.TagID,
                 isarInspectionResultMessage.InspectionDescription
             );
-
-            var existingPlantData = await PlantDataService.ReadByInspectionId(
-                isarInspectionResultMessage.InspectionId
-            );
-            if (existingPlantData != null)
-            {
-                _logger.LogWarning(
-                    "Plant Data with inspection id {InspectionId} already exists",
-                    isarInspectionResultMessage.InspectionId
-                );
-                return;
-            }
 
             PlantData? plantData;
             try
             {
-                plantData = await PlantDataService.CreateFromMqttMessage(
+                plantData = await MqttMessageService.CreateFromMqttMessage(
                     isarInspectionResultMessage
                 );
             }
@@ -145,55 +123,18 @@ namespace api.MQTT
                 return;
             }
 
-            var shouldRunConstantLevelOiler = false;
-            var shouldRunFencilla = false;
             try
             {
-                var analysisToBeRun =
-                    await AnalysisMappingService.GetAnalysisTypeFromInspectionDescriptionAndTag(
-                        isarInspectionResultMessage.InspectionDescription,
-                        isarInspectionResultMessage.TagID
-                    );
-                if (analysisToBeRun.Contains(AnalysisType.ConstantLevelOiler))
-                {
-                    _logger.LogInformation(
-                        "Analysis type ConstantLevelOiler is set to be run for InspectionId: {InspectionId}",
-                        isarInspectionResultMessage.InspectionId
-                    );
-                    shouldRunConstantLevelOiler = true;
-                }
-                if (analysisToBeRun.Contains(AnalysisType.Fencilla))
-                {
-                    _logger.LogInformation(
-                        "Analysis type Fencilla is set to be run for InspectionId: {InspectionId}",
-                        isarInspectionResultMessage.InspectionId
-                    );
-                    shouldRunFencilla = true;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(
-                    ex,
-                    "Error occurred while fetching analysis mapping for InspectionId: {InspectionId}",
-                    isarInspectionResultMessage.InspectionId
-                );
-                return;
-            }
-
-            try
-            {
-                await ArgoWorkflowService.TriggerAnalysis(
-                    plantData,
-                    shouldRunConstantLevelOiler,
-                    shouldRunFencilla
+                await ArgoWorkflowService.TriggerAnonymizer(
+                    plantData.InspectionId,
+                    plantData.Anonymization
                 );
             }
             catch (Exception ex)
             {
                 _logger.LogError(
                     ex,
-                    "Error occurred while triggering workflow for InspectionId: {InspectionId}",
+                    "Error occurred while triggering anonymizer workflow for InspectionId: {InspectionId}",
                     isarInspectionResultMessage.InspectionId
                 );
                 return;

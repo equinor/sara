@@ -17,7 +17,7 @@ public class TriggerAnalysisController(
     private readonly ILogger<TriggerAnalysisController> _logger = logger;
 
     /// <summary>
-    /// Trigger the analysis workflow for existing PlantData entry, by PlantData ID.
+    /// Trigger the anonymization workflow for existing PlantData entry, by PlantData ID.
     /// </summary>
     [HttpPost]
     [Route("trigger-analysis/{plantDataId}")]
@@ -35,42 +35,23 @@ public class TriggerAnalysisController(
         }
 
         _logger.LogInformation(
-            "Triggering analysis workflow from controller for InspectionId: {InspectionId}",
+            "Triggering anonymization workflow from controller for InspectionId: {InspectionId}",
             plantData.InspectionId
         );
 
         if (
-            plantData.AnonymizerWorkflowStatus == WorkflowStatus.NotStarted
-            || plantData.AnonymizerWorkflowStatus == WorkflowStatus.ExitFailure
+            plantData.Anonymization.Status == WorkflowStatus.Started
+            || plantData.Anonymization.Status == WorkflowStatus.ExitSuccess
         )
         {
-            var shouldRunConstantLevelOiler = false;
-            if (plantData.AnalysisToBeRun.Contains(AnalysisType.ConstantLevelOiler))
-            {
-                _logger.LogInformation(
-                    "Analysis type ConstantLevelOiler is set to be run for InspectionId: {InspectionId}",
-                    plantData.InspectionId
-                );
-                shouldRunConstantLevelOiler = true;
-            }
-            var shouldRunFencilla = false;
-            if (plantData.AnalysisToBeRun.Contains(AnalysisType.Fencilla))
-            {
-                _logger.LogInformation(
-                    "Analysis type Fencilla is set to be run for InspectionId: {InspectionId}",
-                    plantData.InspectionId
-                );
-                shouldRunFencilla = true;
-            }
-            await argoWorkflowService.TriggerAnalysis(
-                plantData,
-                shouldRunConstantLevelOiler,
-                shouldRunFencilla
-            );
-
-            return Ok("Analysis workflow triggered successfully.");
+            return Conflict("Anonymization has already been triggered and will not run again.");
         }
 
-        return Conflict("Analysis has already been triggered and will not run again.");
+        await argoWorkflowService.TriggerAnonymizer(
+            plantData.InspectionId,
+            plantData.Anonymization
+        );
+
+        return Ok("Anonymization workflow triggered successfully.");
     }
 }

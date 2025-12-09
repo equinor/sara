@@ -5,27 +5,6 @@ using Microsoft.EntityFrameworkCore;
 #pragma warning disable CS8618
 namespace api.Database.Models;
 
-public enum WorkflowStatus
-{
-    NotStarted,
-    Started,
-    ExitSuccess,
-    ExitFailure,
-}
-
-[Owned]
-public class BlobStorageLocation
-{
-    [Required]
-    public string StorageAccount { get; set; }
-
-    [Required]
-    public string BlobContainer { get; set; }
-
-    [Required]
-    public string BlobName { get; set; }
-}
-
 public class PlantData
 {
     [Key]
@@ -33,7 +12,10 @@ public class PlantData
     public string Id { get; set; }
 
     [Required]
-    public string InspectionId { get; set; }
+    public required string InspectionId { get; set; }
+
+    [Required]
+    public required string InstallationCode { get; set; }
 
     [Required]
     public BlobStorageLocation RawDataBlobStorageLocation { get; set; }
@@ -43,9 +25,6 @@ public class PlantData
 
     [Required]
     public BlobStorageLocation VisualizedBlobStorageLocation { get; set; }
-
-    [Required]
-    public string InstallationCode { get; set; }
 
     [Required]
     public WorkflowStatus AnonymizerWorkflowStatus { get; set; } = WorkflowStatus.NotStarted; // TODO: Rename this to just WorkflowStatus
@@ -73,6 +52,12 @@ public class PlantData
         get => _timestamp;
         set => _timestamp = value?.Kind == DateTimeKind.Utc ? value : value?.ToUniversalTime();
     }
+
+    public Anonymization? Anonymization { get; set; }
+
+    public CLOEAnalysis? CLOEAnalysis { get; set; }
+
+    public FencillaAnalysis? FencillaAnalysis { get; set; }
 
     [Required]
     public List<AnalysisType> AnalysisToBeRun { get; set; } = [];

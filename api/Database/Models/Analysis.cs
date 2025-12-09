@@ -56,10 +56,3 @@ public enum AnalysisStatus
     Completed,
     Failed,
 }
-
-public enum AnalysisType
-{
-    Anonymizer,
-    ConstantLevelOiler,
-    Fencilla,
-}
