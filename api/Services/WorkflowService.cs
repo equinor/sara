@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using api.Controllers.WorkflowNotification;
 using api.Database.Models;
+using api.Utilities;
 
 namespace api.Services;
 
@@ -127,6 +128,9 @@ public class ArgoWorkflowService(IConfiguration configuration, ILogger<ArgoWorkf
         string workflowType
     )
     {
+        var inspectionId = Sanitize.SanitizeUserInput(notification.InspectionId);
+        var workflowFailures = Sanitize.SanitizeUserInput(notification.WorkflowFailures);
+
         if (
             notification.ExitHandlerWorkflowStatus == ExitHandlerWorkflowStatus.Failed
             || notification.ExitHandlerWorkflowStatus == ExitHandlerWorkflowStatus.Error
@@ -135,9 +139,9 @@ public class ArgoWorkflowService(IConfiguration configuration, ILogger<ArgoWorkf
             logger.LogWarning(
                 "{WorkflowType} workflow for InspectionId: {InspectionId} exited with status: {Status} and failures: {WorkflowFailures}.",
                 workflowType,
-                notification.InspectionId,
+                inspectionId,
                 notification.ExitHandlerWorkflowStatus,
-                notification.WorkflowFailures
+                workflowFailures
             );
             return WorkflowStatus.ExitFailure;
         }
@@ -146,7 +150,7 @@ public class ArgoWorkflowService(IConfiguration configuration, ILogger<ArgoWorkf
             logger.LogInformation(
                 "{WorkflowType} workflow for InspectionId: {InspectionId} exited successfully",
                 workflowType,
-                notification.InspectionId
+                inspectionId
             );
             return WorkflowStatus.ExitSuccess;
         }

@@ -159,6 +159,9 @@ public class AnalysisMappingService(SaraDbContext context, ILogger<AnalysisMappi
         string inspectionDescription
     )
     {
+        tagId = Sanitize.SanitizeUserInput(tagId);
+        inspectionDescription = Sanitize.SanitizeUserInput(inspectionDescription);
+
         var analysisMapping = await ReadByTagAndInspectionDescription(tagId, inspectionDescription);
         _logger.LogInformation(
             "Analysis mapping id for tag '{TagId}' and inspection description '{InspectionDescription}' is {AnalysisMappingId}",

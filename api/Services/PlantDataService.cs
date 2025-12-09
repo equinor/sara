@@ -139,6 +139,8 @@ public class PlantDataService(
         string rawBlobName
     )
     {
+        inspectionId = Sanitize.SanitizeUserInput(inspectionId);
+
         List<AnalysisType> analysisToBeRun;
         try
         {

@@ -1,6 +1,7 @@
 using api.Controllers.Models;
 using api.Database.Models;
 using api.Services;
+using api.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -26,6 +27,7 @@ public class CLOEWorkflowNotificationController(
         [FromBody] WorkflowStartedNotification notification
     )
     {
+        var inspectionId = Sanitize.SanitizeUserInput(notification.InspectionId);
         logger.LogDebug(
             "Received notification that the CLOE workflow has started for inspection id {inspectionId}",
             notification.InspectionId
@@ -35,7 +37,7 @@ public class CLOEWorkflowNotificationController(
         try
         {
             updatedPlantData = await plantDataService.UpdateCLOEWorkflowStatus(
-                notification.InspectionId,
+                inspectionId,
                 WorkflowStatus.Started
             );
         }

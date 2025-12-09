@@ -3,7 +3,6 @@ using api.Controllers.Models;
 using api.Database.Models;
 using api.Services;
 using api.Utilities;
-using Api.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
