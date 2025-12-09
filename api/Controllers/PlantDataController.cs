@@ -13,8 +13,7 @@ namespace api.Controllers;
 [Route("[controller]")]
 public class PlantDataController(
     ILogger<PlantDataController> logger,
-    IPlantDataService plantDataService,
-    IAnalysisMappingService analysisMappingService
+    IPlantDataService plantDataService
 ) : ControllerBase
 {
     private static readonly JsonSerializerOptions _jsonSerializerOptions = new()
@@ -53,18 +52,19 @@ public class PlantDataController(
     }
 
     [HttpPost]
-    [Route("createEntry")]
     [Authorize(Roles = Role.Any)]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult> CreatePlantDataEntry([FromBody] PlantDataRequest request)
+    public async Task<ActionResult> CreatePlantData([FromBody] PlantDataRequest request)
     {
         if (
             string.IsNullOrWhiteSpace(request.InspectionId)
             || string.IsNullOrWhiteSpace(request.InstallationCode)
+            || string.IsNullOrWhiteSpace(request.TagId)
+            || string.IsNullOrWhiteSpace(request.InspectionDescription)
         )
         {
             return BadRequest("Missing required fields.");
@@ -72,31 +72,15 @@ public class PlantDataController(
 
         try
         {
-            AnalysisMapping? analysisMapping = null;
-            if (request.TagId != null && request.InspectionDescription != null)
-            {
-                analysisMapping = await analysisMappingService.ReadByInspectionDescriptionAndTag(
-                    request.InspectionDescription,
-                    request.TagId
-                );
-            }
-
-            if (analysisMapping != null)
-            {
-                foreach (var analysisType in analysisMapping.AnalysesToBeRun)
-                {
-                    if (!request.AnalysisToBeRun.Contains(analysisType))
-                    {
-                        request.AnalysisToBeRun.Add(analysisType);
-                    }
-                }
-            }
-
-            var plantData = await plantDataService.CreatePlantDataEntry(request);
-            if (plantData == null)
-            {
-                return StatusCode(500);
-            }
+            var plantData = await plantDataService.CreatePlantData(
+                request.InspectionId,
+                request.InstallationCode,
+                request.TagId,
+                request.InspectionDescription,
+                request.RawDataBlobStorageLocation.StorageAccount,
+                request.RawDataBlobStorageLocation.BlobContainer,
+                request.RawDataBlobStorageLocation.BlobName
+            );
             return CreatedAtAction(nameof(GetPlantDataById), new { id = plantData.Id }, plantData);
         }
         catch (Exception e)
@@ -196,17 +180,22 @@ public class PlantDataController(
         inspectionId = Sanitize.SanitizeUserInput(inspectionId);
         try
         {
-            var plantData = await plantDataService.ReadByInspectionId(inspectionId);
-            if (plantData == null)
+            PlantData plantData;
+            try
+            {
+                plantData = await plantDataService.ReadByInspectionId(inspectionId);
+            }
+            catch (InvalidOperationException ex)
             {
                 logger.LogWarning(
+                    ex,
                     "No plant data found for InspectionId: {inspectionId}",
                     inspectionId
                 );
                 return NotFound($"Could not find plant data with inspection id {inspectionId}");
             }
 
-            var anonymizerWorkflowStatus = plantData.AnonymizerWorkflowStatus;
+            var anonymizerWorkflowStatus = plantData.Anonymization.Status;
             logger.LogInformation(
                 "Anonymization workflow status for InspectionId: {inspectionId} is {Status}",
                 inspectionId,
@@ -222,7 +211,7 @@ public class PlantDataController(
                         inspectionId,
                         plantDataJson
                     );
-                    return Ok(plantData.AnonymizedBlobStorageLocation);
+                    return Ok(plantData.Anonymization.DestinationBlobStorageLocation);
 
                 case WorkflowStatus.NotStarted:
                     return StatusCode(
@@ -251,7 +240,7 @@ public class PlantDataController(
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Error during GET of image from blob store");
+            logger.LogError(e, "Error during fetching download uri from inspection ID");
             return StatusCode(StatusCodes.Status500InternalServerError, "Internal server error");
         }
     }

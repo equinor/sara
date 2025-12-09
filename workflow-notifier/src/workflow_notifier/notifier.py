@@ -27,8 +27,9 @@ NOTIFIER_CLIENT_ID = get_env_or_fail("NOTIFIER_CLIENT_ID")
 NOTIFIER_CLIENT_SECRET = get_env_or_fail("NOTIFIER_CLIENT_SECRET")
 SARA_SCOPE = get_env_or_fail("SARA_APP_REG_SCOPE")
 
-SCOPES = [SARA_SCOPE]
 AUTHORITY = f"https://login.microsoftonline.com/{TENANT_ID}"
+SCOPES = [SARA_SCOPE]
+WORKFLOW_NOTIFICATION_URL = f"{SARA_SERVER_URL}/workflow-notification"
 
 
 def get_access_token() -> str:
@@ -65,95 +66,80 @@ def get_access_token() -> str:
     raise typer.Exit(1)
 
 
-def send_authenticated_put_request(url: str, payload: dict) -> requests.Response:
+def send_authenticated_put_request(url: str, payload: dict) -> None:
     """
     Send an authenticated PUT request with the access token.
     """
     access_token = get_access_token()
+    typer.echo(f"Sending PUT request to {url} with payload: {payload}")
     headers = {"Authorization": f"Bearer {access_token}"}
     response = requests.put(url, json=payload, headers=headers)
     response.raise_for_status()
-    return response
 
 
-@app.command()
-def notify_start(inspection_id: str, workflow_name: str):
+def notify_started(workflow_type: str, inspection_id: str, workflow_name: str) -> None:
     """
-    Notify the server about workflow start.
+    Notify SARA that the workflow has started
     """
-    url = f"{SARA_SERVER_URL}/Workflows/notify-workflow-started"
+
+    url = f"{WORKFLOW_NOTIFICATION_URL}/{workflow_type}/started"
     payload = {"InspectionId": inspection_id, "WorkflowName": workflow_name}
-    try:
-        response = send_authenticated_put_request(url, payload)
-        typer.echo(f"Workflow started successfully: {response.json()}")
-    except requests.exceptions.RequestException as e:
-        typer.echo(f"Error notifying workflow start: {e}", err=True)
-        raise typer.Exit(1)
 
-
-@app.command()
-def notify_anonymizer_done(inspection_id: str):
-    url = f"{SARA_SERVER_URL}/Workflows/notify-anonymizer-done"
-    payload = {"InspectionId": inspection_id}
-    try:
-        response = send_authenticated_put_request(url, payload)
-        typer.echo(f"Notified that anonymizer is done with response: {response.json()}")
-    except requests.exceptions.RequestException as e:
-        typer.echo(f"Error notifying anonymizer done: {e}", err=True)
-        raise typer.Exit(1)
-
-
-@app.command()
-def notify_constant_level_oiler_done(inspection_id: str, oil_level: str):
-    url = f"{SARA_SERVER_URL}/Workflows/notify-constant-level-oiler-done"
-    payload = {"InspectionId": inspection_id, "OilLevel": oil_level}
-    try:
-        response = send_authenticated_put_request(url, payload)
-        typer.echo(
-            "Notified that constant level oiler is done"
-            f"with response: {response.json()}"
-        )
-    except requests.exceptions.RequestException as e:
-        typer.echo(f"Error notifying constant level oiler done: {e}", err=True)
-        raise typer.Exit(1)
-
-
-@app.command()
-def notify_fencilla_done(inspection_id: str, is_break: bool, confidence: float):
-    url = f"{SARA_SERVER_URL}/Workflows/notify-fencilla-done"
-    payload = {
-        "InspectionId": inspection_id,
-        "IsBreak": is_break,
-        "Confidence": confidence,
-    }
-    try:
-        response = send_authenticated_put_request(url, payload)
-    except requests.exceptions.RequestException as e:
-        typer.echo(f"Error notifying fencilla done: {e}", err=True)
-        raise typer.Exit(1)
     typer.echo(
-        "Notified that fencilla is done" f"with response: {response.status_code}"
+        f"The {workflow_type} workflow has started for inspectionId: {inspection_id}"
     )
 
+    try:
+        send_authenticated_put_request(url, payload)
+    except requests.exceptions.RequestException as e:
+        typer.echo(f"Error notifying {workflow_type} workflow start: {e}", err=True)
+        raise typer.Exit(1)
 
-@app.command()
-def notify_exit(
+
+def notify_result(workflow_type: str, inspection_id: str, result: dict) -> None:
+    """
+    Notify SARA about a result from the workflow
+    """
+    url = f"{WORKFLOW_NOTIFICATION_URL}/{workflow_type}/result"
+
+    payload = {"InspectionId": inspection_id}
+    payload.update(result)
+
+    typer.echo(
+        f"The {workflow_type} workflow notifies about result: {result}"
+        f" for inspectionId: {inspection_id}"
+    )
+
+    try:
+        send_authenticated_put_request(url, payload)
+    except requests.exceptions.RequestException as e:
+        typer.echo(f"Error notifying {workflow_type} workflow result: {e}", err=True)
+        raise typer.Exit(1)
+
+
+def notify_exited(
+    workflow_type: str,
     inspection_id: str,
     workflow_status: str,
     workflow_failures: str,
-):
-    url = f"{SARA_SERVER_URL}/Workflows/notify-workflow-exited"
+) -> None:
+    """
+    Notify SARA that the workflow has exited
+    """
+    url = f"{WORKFLOW_NOTIFICATION_URL}/{workflow_type}/exited"
     payload = {
         "InspectionId": inspection_id,
-        "WorkflowStatus": workflow_status,
+        "ExitHandlerWorkflowStatus": workflow_status,
         "WorkflowFailures": workflow_failures,
     }
-    typer.echo(f"Sending payload: {payload}")
+
+    typer.echo(
+        f"The {workflow_type} workflow has exited for inspectionId: {inspection_id}"
+        f" with status: {workflow_status} and failures: {workflow_failures}"
+    )
 
     try:
-        response = send_authenticated_put_request(url, payload)
+        send_authenticated_put_request(url, payload)
     except requests.exceptions.RequestException as e:
-        typer.echo(f"Error notifying workflow exit: {e}", err=True)
+        typer.echo(f"Error notifying {workflow_type} workflow exit: {e}", err=True)
         raise typer.Exit(1)
-
-    typer.echo(f"Workflow exited successfully: {response.status_code}")

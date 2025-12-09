@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using api.Database.Models;
 
+#pragma warning disable CS8618
 #pragma warning disable IDE1006
 
 namespace api.Controllers.Models
@@ -10,10 +11,7 @@ namespace api.Controllers.Models
         public string id { get; set; }
 
         [JsonConstructor]
-#nullable disable
         public PlantDataResponse() { }
-
-#nullable enable
 
         public PlantDataResponse(PlantData plantData)
         {

@@ -1,5 +1,4 @@
 using api.Controllers.Models;
-using api.Database.Context;
 using api.Database.Models;
 using api.Services;
 using api.Utilities;
@@ -13,8 +12,7 @@ namespace api.Controllers;
 public class AnalysisMappingController(
     ILogger<AnalysisMappingController> logger,
     IAnalysisMappingService analysisMappingService,
-    IPlantDataService plantDataService,
-    SaraDbContext context
+    IPlantDataService plantDataService
 ) : ControllerBase
 {
     /// <summary>
@@ -91,51 +89,20 @@ public class AnalysisMappingController(
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<AnalysisMapping>> AddOrCreateAnalysisMapping(
+    public async Task<ActionResult> AddOrCreateAnalysisMapping(
         [FromRoute] string tagId,
         [FromRoute] string inspectionDescription,
         [FromRoute] AnalysisType analysisType
     )
     {
+        AnalysisMapping analysisMapping;
         try
         {
-            var analysisMapping = await analysisMappingService.ReadByInspectionDescriptionAndTag(
-                inspectionDescription,
-                tagId
-            );
-            if (analysisMapping == null)
-            {
-                analysisMapping = await analysisMappingService.CreateAnalysisMapping(
-                    tagId,
-                    inspectionDescription,
-                    analysisType
-                );
-            }
-            else
-            {
-                analysisMapping = await analysisMappingService.AddAnalysisTypeToMapping(
-                    analysisMapping,
-                    analysisType
-                );
-            }
-            var plantData = await plantDataService.ReadByTagIdAndInspectionDescription(
+            analysisMapping = await analysisMappingService.AddOrCreateAnalysisMapping(
                 tagId,
-                inspectionDescription
+                inspectionDescription,
+                analysisType
             );
-            if (plantData != null)
-            {
-                foreach (var entry in plantData)
-                {
-                    entry.AnalysisToBeRun = analysisMapping.AnalysesToBeRun;
-                    await plantDataService.UpdateAnonymizerWorkflowStatus(
-                        entry.InspectionId,
-                        WorkflowStatus.NotStarted
-                    );
-                    context.PlantData.Update(entry);
-                }
-            }
-
-            return Ok(analysisMapping);
         }
         catch (ArgumentException)
         {
@@ -148,6 +115,24 @@ public class AnalysisMappingController(
             return StatusCode(
                 StatusCodes.Status500InternalServerError,
                 "An error occurred while creating the analysis mapping"
+            );
+        }
+
+        try
+        {
+            await plantDataService.UpdatePlantDataFromAnalysisMapping(
+                tagId,
+                inspectionDescription,
+                analysisType
+            );
+            return Ok(analysisMapping);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Error while updating plant data with analysis type");
+            return StatusCode(
+                StatusCodes.Status500InternalServerError,
+                "An error occurred while updating plant data with analysis type"
             );
         }
     }
@@ -165,15 +150,10 @@ public class AnalysisMappingController(
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<AnalysisMapping>> AddAnalysisTypeToMapping(
         [FromRoute] string analysisMappingId,
-        [FromRoute] string analysisType
+        [FromRoute] AnalysisType analysisType
     )
     {
-        var analysisTypeEnum = Analysis.TypeFromString(analysisType);
         AnalysisMapping? analysisMapping;
-        if (analysisTypeEnum == null)
-        {
-            return BadRequest("Invalid analysis type");
-        }
         try
         {
             analysisMapping = await analysisMappingService.ReadById(analysisMappingId);
@@ -183,7 +163,7 @@ public class AnalysisMappingController(
             }
             analysisMapping = await analysisMappingService.AddAnalysisTypeToMapping(
                 analysisMapping,
-                analysisTypeEnum.Value
+                analysisType
             );
 
             return Ok(analysisMapping);
@@ -216,20 +196,14 @@ public class AnalysisMappingController(
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<AnalysisMapping>> RemoveAnalysisFromMapping(
         [FromRoute] string analysisMappingId,
-        [FromRoute] string analysisType
+        [FromRoute] AnalysisType analysisType
     )
     {
         try
         {
-            var analysisTypeEnum = Analysis.TypeFromString(analysisType);
-            if (analysisTypeEnum == null)
-            {
-                return BadRequest("Invalid analysis type");
-            }
-
             var analysisMapping = await analysisMappingService.RemoveAnalysisTypeFromMapping(
                 analysisMappingId,
-                analysisTypeEnum.Value
+                analysisType
             );
 
             return Ok(analysisMapping);
@@ -267,7 +241,6 @@ public class AnalysisMappingController(
         try
         {
             await analysisMappingService.RemoveAnalysisMapping(analysisMappingId);
-
             return Ok("Analysis mapping removed successfully");
         }
         catch (Exception e)

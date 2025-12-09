@@ -1,98 +1,204 @@
-import random
 import threading
 import time
 
 from flask import Flask, jsonify, request
+from pydantic import BaseModel
 
-from workflow_notifier import commands
+from workflow_notifier import anonymizer, cloe, fencilla
 
 app = Flask(__name__)
 
-"""
-Flow diagram
 
-SARA                        Workflow                    Anonymization       Constant Level Oiler
-/trigger-analysis
-                            Notify started
-                            (Notify anon started)
-                                                        Run-Anon
-                            Notify anon done
-/anonymization-available
-                            (Notify CLO started)
-                                                                            Run-CLO
-                            Notify CLO done
-/clo-available
-                            Notify exit
-
-"""
+class BlobStorageLocation(BaseModel):
+    storageAccount: str
+    blobContainer: str
+    blobName: str
 
 
-@app.route("/trigger-analysis", methods=["POST"])
-def trigger_analysis():
+class TriggerAnonymizerRequest(BaseModel):
+    inspectionId: str
+    rawDataBlobStorageLocation: BlobStorageLocation
+    anonymizedBlobStorageLocation: BlobStorageLocation
+
+
+@app.route("/trigger-anonymizer", methods=["POST"])
+def trigger_anonymizer():
     try:
-        # Parse the input JSON
         data = request.get_json()
+        print(f"Received trigger request for anonymizer: {data}")
+
         inspection_id = data.get("inspectionId")
         raw_data_blob_storage_location = data.get("rawDataBlobStorageLocation")
         anonymized_blob_storage_location = data.get("anonymizedBlobStorageLocation")
-        visualized_blob_storage_location = data.get("visualizedBlobStorageLocation")
-        should_run_constant_level_oiler = data.get("shouldRunConstantLevelOiler")
-        should_run_fencilla = data.get("shouldRunFencilla")
 
-        # Validate input
-        if (
-            not inspection_id
-            or not raw_data_blob_storage_location
-            or not anonymized_blob_storage_location
-            or not visualized_blob_storage_location
-            or should_run_constant_level_oiler is None
-            or should_run_fencilla is None
-        ):
-            print("Missing required fields")
-            return jsonify({"error": "Missing required fields"}), 400
+        trigger_anonymizer_request = TriggerAnonymizerRequest(
+            inspectionId=inspection_id,
+            rawDataBlobStorageLocation=raw_data_blob_storage_location,
+            anonymizedBlobStorageLocation=anonymized_blob_storage_location,
+        )
 
-        print(f"Received trigger request: {data}")
-
-        # Start the workflow notifications in a separate thread
         threading.Thread(
-            target=start_workflow,
-            args=(inspection_id, should_run_constant_level_oiler, should_run_fencilla),
+            target=start_anonymizer_workflow, args=(trigger_anonymizer_request,)
         ).start()
-
-        return jsonify({"message": "Trigger request received"}), 200
+        return jsonify({"message": "Trigger request for anonymizer handled"}), 200
     except Exception as e:
-        print(f"Error in /trigger-analysis: {e}")
+        print(f"Error in /trigger-anonymizer: {e}")
         return jsonify({"error": "An error occurred"}), 500
 
 
-def start_workflow(inspection_id, should_run_constant_level_oiler, should_run_fencilla):
+def start_anonymizer_workflow(trigger_anonymizer_request: TriggerAnonymizerRequest):
+    workflow_name = f"workflow-{trigger_anonymizer_request.inspectionId}"
+    print(
+        f"Starting anonymizer workflow for inspectionId: {trigger_anonymizer_request.inspectionId}"
+        f" with workflowName: {workflow_name}"
+    )
+
+    time.sleep(2)
+    anonymizer.notify_anonymizer_started(
+        trigger_anonymizer_request.inspectionId, workflow_name
+    )
+
+    # Mock Anonymizer
+    time.sleep(2)
+    is_person_in_images = True
+
+    anonymizer.notify_anonymizer_result(
+        trigger_anonymizer_request.inspectionId, is_person_in_images
+    )
+
+    time.sleep(2)
+    anonymizer.notify_anonymizer_exited(
+        trigger_anonymizer_request.inspectionId, "Succeeded", ""
+    )
+
+
+class TriggerConstantLevelOilerEstimatorRequest(BaseModel):
+    inspectionId: str
+    sourceBlobStorageLocation: BlobStorageLocation
+    visualizedBlobStorageLocation: BlobStorageLocation
+
+
+@app.route("/trigger-constant-level-oiler-estimator", methods=["POST"])
+def trigger_constant_level_oiler_estimator():
     try:
-        workflow_name = f"workflow-{random.randint(1000, 9999)}"
-        print(
-            f"Starting workflow for inspectionId: {inspection_id} with workflowName: {workflow_name}"
+        data = request.get_json()
+        print(f"Received trigger request for constant level oiler estimator: {data}")
+
+        inspection_id = data.get("inspectionId")
+        source_blob_storage_location = data.get("sourceBlobStorageLocation")
+        visualized_blob_storage_location = data.get("visualizedBlobStorageLocation")
+
+        trigger_constant_level_oiler_estimator_request = (
+            TriggerConstantLevelOilerEstimatorRequest(
+                inspectionId=inspection_id,
+                sourceBlobStorageLocation=source_blob_storage_location,
+                visualizedBlobStorageLocation=visualized_blob_storage_location,
+            )
         )
 
-        time.sleep(5)
-        commands.notify_start(inspection_id, workflow_name)
-
-        time.sleep(5)
-        commands.notify_anonymizer_done(inspection_id)
-
-        time.sleep(5)
-        if should_run_constant_level_oiler:
-            oil_level = "0.777"
-            commands.notify_constant_level_oiler_done(inspection_id, oil_level)
-
-        time.sleep(5)
-        if should_run_fencilla:
-            is_break = True
-            confidence = 0.95
-            commands.notify_fencilla_done(inspection_id, is_break, confidence)
-
-        time.sleep(5)
-        commands.notify_exit(inspection_id, "Succeeded", "")
+        threading.Thread(
+            target=start_constant_level_oiler_estimator_workflow,
+            args=(trigger_constant_level_oiler_estimator_request,),
+        ).start()
+        return (
+            jsonify({"message": "Trigger request for constant level oiler handled"}),
+            200,
+        )
     except Exception as e:
-        print(f"Error in start_workflow: {e}")
+        print(f"Error in /trigger-constant-level-oiler-estimator: {e}")
+        return jsonify({"error": "An error occurred"}), 500
+
+
+def start_constant_level_oiler_estimator_workflow(
+    trigger_constant_level_oiler_estimator_request: TriggerConstantLevelOilerEstimatorRequest,
+):
+    workflow_name = (
+        f"workflow-{trigger_constant_level_oiler_estimator_request.inspectionId}"
+    )
+    print(
+        f"Starting constant level oiler workflow for inspectionId: {trigger_constant_level_oiler_estimator_request.inspectionId}"
+        f" with workflowName: {workflow_name}"
+    )
+
+    time.sleep(2)
+    cloe.notify_constant_level_oiler_estimator_started(
+        trigger_constant_level_oiler_estimator_request.inspectionId, workflow_name
+    )
+
+    # Mock Constant Level Oiler
+    time.sleep(2)
+    oil_level = "0.777"
+
+    cloe.notify_constant_level_oiler_estimator_result(
+        trigger_constant_level_oiler_estimator_request.inspectionId, oil_level
+    )
+
+    time.sleep(2)
+    cloe.notify_constant_level_oiler_estimator_exited(
+        trigger_constant_level_oiler_estimator_request.inspectionId, "Succeeded", ""
+    )
+
+
+class TriggerFencillaRequest(BaseModel):
+    inspectionId: str
+    sourceBlobStorageLocation: BlobStorageLocation
+    visualizedBlobStorageLocation: BlobStorageLocation
+
+
+@app.route("/trigger-fencilla", methods=["POST"])
+def trigger_fencilla():
+    try:
+        data = request.get_json()
+        print(f"Received trigger request for fencilla: {data}")
+
+        inspection_id = data.get("inspectionId")
+        source_blob_storage_location = data.get("sourceBlobStorageLocation")
+        visualized_blob_storage_location = data.get("visualizedBlobStorageLocation")
+
+        trigger_fencilla_request = TriggerFencillaRequest(
+            inspectionId=inspection_id,
+            sourceBlobStorageLocation=source_blob_storage_location,
+            visualizedBlobStorageLocation=visualized_blob_storage_location,
+        )
+
+        threading.Thread(
+            target=start_fencilla_workflow,
+            args=(trigger_fencilla_request,),
+        ).start()
+        return (
+            jsonify({"message": "Trigger request for fencilla handled"}),
+            200,
+        )
+    except Exception as e:
+        print(f"Error in /trigger-fencilla: {e}")
+        return jsonify({"error": "An error occurred"}), 500
+
+
+def start_fencilla_workflow(trigger_fencilla_request: TriggerFencillaRequest):
+    workflow_name = f"workflow-{trigger_fencilla_request.inspectionId}"
+    print(
+        f"Starting fencilla workflow for inspectionId: {trigger_fencilla_request.inspectionId}"
+        f" with workflowName: {workflow_name}"
+    )
+
+    time.sleep(2)
+    fencilla.notify_fencilla_started(
+        trigger_fencilla_request.inspectionId, workflow_name
+    )
+
+    # Mock Fencilla
+    time.sleep(2)
+    is_break = True
+    confidence = 0.95
+
+    fencilla.notify_fencilla_result(
+        trigger_fencilla_request.inspectionId, is_break, confidence
+    )
+
+    time.sleep(2)
+    fencilla.notify_fencilla_exited(
+        trigger_fencilla_request.inspectionId, "Succeeded", ""
+    )
 
 
 if __name__ == "__main__":

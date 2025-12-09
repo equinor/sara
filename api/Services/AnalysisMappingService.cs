@@ -14,15 +14,15 @@ public interface IAnalysisMappingService
 
     public Task<AnalysisMapping?> ReadById(string id);
 
-    public Task<AnalysisMapping?> ReadByInspectionDescriptionAndTag(
-        string inspectionDescription,
-        string tagId
+    public Task<AnalysisMapping?> ReadByTagAndInspectionDescription(
+        string tagId,
+        string inspectionDescription
     );
 
     public Task<AnalysisMapping> CreateAnalysisMapping(
         string tagId,
         string inspectionPoint,
-        AnalysisType? analysisType
+        AnalysisType analysisType
     );
 
     public Task<AnalysisMapping> AddAnalysisTypeToMapping(
@@ -30,10 +30,7 @@ public interface IAnalysisMappingService
         AnalysisType analysisType
     );
 
-    public Task<List<AnalysisType>> GetAnalysisTypeFromInspectionDescriptionAndTag(
-        string inspectionDescription,
-        string tagId
-    );
+    public Task<List<AnalysisType>> GetAnalysesToBeRun(string tagId, string inspectionDescription);
 
     public Task<AnalysisMapping> RemoveAnalysisTypeFromMapping(
         string analysisMappingId,
@@ -41,6 +38,12 @@ public interface IAnalysisMappingService
     );
 
     public Task RemoveAnalysisMapping(string analysisMappingId);
+
+    public Task<AnalysisMapping> AddOrCreateAnalysisMapping(
+        string tagId,
+        string inspectionDescription,
+        AnalysisType analysisType
+    );
 }
 
 public class AnalysisMappingService(SaraDbContext context, ILogger<AnalysisMappingService> logger)
@@ -77,38 +80,33 @@ public class AnalysisMappingService(SaraDbContext context, ILogger<AnalysisMappi
         return await context.AnalysisMapping.FirstOrDefaultAsync(i => i.Id.Equals(id));
     }
 
-    public async Task<AnalysisMapping?> ReadByInspectionDescriptionAndTag(
-        string inspectionDescription,
-        string tagId
+    public async Task<AnalysisMapping?> ReadByTagAndInspectionDescription(
+        string tagId,
+        string inspectionDescription
     )
     {
         return await context.AnalysisMapping.FirstOrDefaultAsync(i =>
-            inspectionDescription.ToLower().Contains(i.InspectionDescription.ToLower())
-            && i.Tag.ToLower().Equals(tagId.ToLower())
+            i.Tag.ToLower().Equals(tagId.ToLower())
+            && inspectionDescription.ToLower().Contains(i.InspectionDescription.ToLower())
         );
     }
 
     public async Task<AnalysisMapping> CreateAnalysisMapping(
         string tagId,
         string inspectionDescription,
-        AnalysisType? analysisType
+        AnalysisType analysisType
     )
     {
         if (string.IsNullOrEmpty(tagId))
         {
-            throw new ArgumentException($"TagId cannot be null or empty");
+            throw new ArgumentException("TagId cannot be null or empty");
         }
         if (string.IsNullOrEmpty(inspectionDescription))
         {
-            throw new ArgumentException($"InspectionDescription cannot be null or empty");
+            throw new ArgumentException("InspectionDescription cannot be null or empty");
         }
 
-        var analysisMapping = new AnalysisMapping(tagId, inspectionDescription);
-
-        if (analysisType != null)
-        {
-            analysisMapping.AnalysesToBeRun.Add((AnalysisType)analysisType);
-        }
+        var analysisMapping = new AnalysisMapping(tagId, inspectionDescription, [analysisType]);
 
         context.AnalysisMapping.Add(analysisMapping);
         await context.SaveChangesAsync();
@@ -132,16 +130,40 @@ public class AnalysisMappingService(SaraDbContext context, ILogger<AnalysisMappi
         return analysisMapping;
     }
 
-    public async Task<List<AnalysisType>> GetAnalysisTypeFromInspectionDescriptionAndTag(
+    public async Task<AnalysisMapping> AddOrCreateAnalysisMapping(
+        string tagId,
         string inspectionDescription,
-        string tagId
+        AnalysisType analysisType
     )
     {
-        var analysisMapping = await ReadByInspectionDescriptionAndTag(inspectionDescription, tagId);
+        var analysisMapping = await ReadByTagAndInspectionDescription(tagId, inspectionDescription);
+
+        AnalysisMapping updatedAnalysisMapping;
+        if (analysisMapping == null)
+        {
+            updatedAnalysisMapping = await CreateAnalysisMapping(
+                tagId,
+                inspectionDescription,
+                analysisType
+            );
+        }
+        else
+        {
+            updatedAnalysisMapping = await AddAnalysisTypeToMapping(analysisMapping, analysisType);
+        }
+        return updatedAnalysisMapping;
+    }
+
+    public async Task<List<AnalysisType>> GetAnalysesToBeRun(
+        string tagId,
+        string inspectionDescription
+    )
+    {
+        var analysisMapping = await ReadByTagAndInspectionDescription(tagId, inspectionDescription);
         _logger.LogInformation(
-            "Analysis mapping id for inspection description '{InspectionDescription}' and tag '{TagId}' is {AnalysisMappingId}",
-            inspectionDescription,
+            "Analysis mapping id for tag '{TagId}' and inspection description '{InspectionDescription}' is {AnalysisMappingId}",
             tagId,
+            inspectionDescription,
             analysisMapping?.Id
         );
         return analysisMapping?.AnalysesToBeRun?.ToList() ?? [];

@@ -92,16 +92,12 @@ namespace api.Utilities
     {
         public required string InspectionId { get; set; }
 
-        public required BlobStorageLocation RawDataBlobStorageLocation { get; set; }
-
-        public required BlobStorageLocation AnonymizedBlobStorageLocation { get; set; }
-        public required BlobStorageLocation VisualizedBlobStorageLocation { get; set; }
-
         public required string InstallationCode { get; set; }
 
-        public string? TagId { get; set; }
-        public string? InspectionDescription { get; set; }
+        public required string TagId { get; set; }
 
-        public required List<AnalysisType> AnalysisToBeRun { get; set; }
+        public required string InspectionDescription { get; set; }
+
+        public required BlobStorageLocation RawDataBlobStorageLocation { get; set; }
     }
 }

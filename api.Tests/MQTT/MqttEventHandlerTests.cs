@@ -1,36 +1,84 @@
-using Xunit;
-using Moq;
+using System;
+using api.Database.Context;
 using api.MQTT;
 using api.Services;
-using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using System;
+using Microsoft.Extensions.Logging;
+using Moq;
+using Xunit;
 
 namespace api.Tests.MQTT
 {
     public class MqttEventHandlerTests
     {
+        private static SaraDbContext CreateInMemoryContext()
+        {
+            var options = new DbContextOptionsBuilder<SaraDbContext>()
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .Options;
+
+            return new SaraDbContext(options);
+        }
+
         private class MockedServices
         {
             public Mock<IServiceProvider> ServiceProviderMock { get; } = new();
-            public Mock<IPlantDataService> PlantDataServiceMock { get; } = new();
             public Mock<IAnalysisMappingService> AnalysisMappingServiceMock { get; } = new();
+            public Mock<IBlobService> BlobServiceMock { get; } = new();
             public Mock<IArgoWorkflowService> ArgoWorkflowServiceMock { get; } = new();
+            public Mock<ILogger<PlantDataService>> LoggerPlantDataServiceMock { get; } = new();
             public Mock<ILogger<MqttEventHandler>> LoggerMock { get; } = new();
+            public Mock<ILogger<MqttMessageService>> MqttMessageServiceLoggerMock { get; } = new();
             public MqttEventHandler MqttEventHandler { get; }
 
             public MockedServices()
             {
-                // Mock the PlantDataService to return null and do nothing
-                ServiceProviderMock.Setup(sp => sp.GetService(typeof(IPlantDataService))).Returns(PlantDataServiceMock.Object);
+                var context = CreateInMemoryContext();
+
+                IPlantDataService plantDataService;
+                plantDataService = new PlantDataService(
+                    context,
+                    AnalysisMappingServiceMock.Object,
+                    BlobServiceMock.Object,
+                    LoggerPlantDataServiceMock.Object
+                );
 
                 // Mock AnalysisMappingService
-                ServiceProviderMock.Setup(sp => sp.GetService(typeof(IAnalysisMappingService))).Returns(AnalysisMappingServiceMock.Object);
-                AnalysisMappingServiceMock.Setup(s => s.GetAnalysisTypeFromInspectionDescriptionAndTag(It.IsAny<string>(), It.IsAny<string>()))
+                ServiceProviderMock
+                    .Setup(sp => sp.GetService(typeof(IAnalysisMappingService)))
+                    .Returns(AnalysisMappingServiceMock.Object);
+                AnalysisMappingServiceMock
+                    .Setup(s => s.GetAnalysesToBeRun(It.IsAny<string>(), It.IsAny<string>()))
                     .ReturnsAsync([]);
 
                 // Mock ArgoWorkflowService to return null and do nothing
-                ServiceProviderMock.Setup(sp => sp.GetService(typeof(IArgoWorkflowService))).Returns(ArgoWorkflowServiceMock.Object);
+                ServiceProviderMock
+                    .Setup(sp => sp.GetService(typeof(IArgoWorkflowService)))
+                    .Returns(ArgoWorkflowServiceMock.Object);
+
+                var configurationMock = new Mock<IConfiguration>();
+                var storageSectionMock = new Mock<IConfigurationSection>();
+                storageSectionMock
+                    .Setup(s => s["RawStorageAccount"])
+                    .Returns("dummyRawStorageAccount");
+                storageSectionMock
+                    .Setup(s => s["AnonStorageAccount"])
+                    .Returns("dummyAnonStorageAccount");
+                storageSectionMock
+                    .Setup(s => s["VisStorageAccount"])
+                    .Returns("dummyVisStorageAccount");
+                configurationMock
+                    .Setup(c => c.GetSection("Storage"))
+                    .Returns(storageSectionMock.Object);
+
+                IMqttMessageService mqttMessageService;
+                mqttMessageService = new MqttMessageService(plantDataService);
+
+                ServiceProviderMock
+                    .Setup(sp => sp.GetService(typeof(IMqttMessageService)))
+                    .Returns(mqttMessageService);
 
                 // Setup scope factory to return service provider
                 var scopeMock = new Mock<IServiceScope>();
@@ -53,8 +101,18 @@ namespace api.Tests.MQTT
                 ISARID = "dummy",
                 RobotName = "dummy",
                 InspectionId = "dummy",
-                InspectionDataPath = new InspectionPathMessage { StorageAccount = "dummy", BlobContainer = "dummy", BlobName = "dummy" },
-                InspectionMetadataPath = new InspectionPathMessage { StorageAccount = "dummy", BlobContainer = "dummy", BlobName = "dummy" },
+                InspectionDataPath = new InspectionPathMessage
+                {
+                    StorageAccount = "dummyRawStorageAccount",
+                    BlobContainer = "dummy",
+                    BlobName = "dummy",
+                },
+                InspectionMetadataPath = new InspectionPathMessage
+                {
+                    StorageAccount = "dummyAnonStorageAccount",
+                    BlobContainer = "dummy",
+                    BlobName = "dummy",
+                },
                 InstallationCode = "dummy",
                 TagID = "dummy",
                 InspectionType = "dummy",
@@ -64,17 +122,29 @@ namespace api.Tests.MQTT
             var mqttArgs = new MqttReceivedArgs(dummyMessage);
 
             // Act
-            var methodInfo = mockedServices.MqttEventHandler.GetType()
-                .GetMethod("OnIsarInspectionResult", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            var methodInfo = mockedServices
+                .MqttEventHandler.GetType()
+                .GetMethod(
+                    "OnIsarInspectionResult",
+                    System.Reflection.BindingFlags.NonPublic
+                        | System.Reflection.BindingFlags.Instance
+                );
             methodInfo?.Invoke(mockedServices.MqttEventHandler, [null, mqttArgs]);
 
-            // Assert services are called as expected
-            mockedServices.PlantDataServiceMock.Verify(s => s.ReadByInspectionId("dummy"), Times.Once);
-            mockedServices.PlantDataServiceMock.Verify(s => s.CreateFromMqttMessage(dummyMessage), Times.Once);
-            mockedServices.AnalysisMappingServiceMock.Verify(s => s.GetAnalysisTypeFromInspectionDescriptionAndTag("dummy", "dummy"), Times.Once);
-            mockedServices.ArgoWorkflowServiceMock.Verify(s => s.TriggerAnalysis(It.IsAny<Database.Models.PlantData>(), It.IsAny<bool>(), It.IsAny<bool>()), Times.Once);
+            // Assert
+            mockedServices.AnalysisMappingServiceMock.Verify(
+                s => s.GetAnalysesToBeRun("dummy", "dummy"),
+                Times.Once
+            );
+            mockedServices.ArgoWorkflowServiceMock.Verify(
+                s =>
+                    s.TriggerAnonymizer(
+                        It.IsAny<string>(),
+                        It.IsAny<Database.Models.Anonymization>()
+                    ),
+                Times.Once
+            );
         }
-
 
         [Fact]
         public void OnIsarInspectionResult_InvalidMessage_LogsError()
@@ -87,8 +157,18 @@ namespace api.Tests.MQTT
                 ISARID = null,
                 RobotName = null,
                 InspectionId = null,
-                InspectionDataPath = new InspectionPathMessage { StorageAccount = null, BlobContainer = "dummy", BlobName = "dummy" },
-                InspectionMetadataPath = new InspectionPathMessage { StorageAccount = "dummy", BlobContainer = null, BlobName = null },
+                InspectionDataPath = new InspectionPathMessage
+                {
+                    StorageAccount = null,
+                    BlobContainer = "dummy",
+                    BlobName = "dummy",
+                },
+                InspectionMetadataPath = new InspectionPathMessage
+                {
+                    StorageAccount = "dummy",
+                    BlobContainer = null,
+                    BlobName = null,
+                },
                 InstallationCode = null,
                 TagID = null,
                 InspectionType = null,
@@ -98,21 +178,32 @@ namespace api.Tests.MQTT
             var mqttArgs = new MqttReceivedArgs(dummyMessage);
 
             // Act
-            var methodInfo = mockedServices.MqttEventHandler.GetType()
-                .GetMethod("OnIsarInspectionResult", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            var methodInfo = mockedServices
+                .MqttEventHandler.GetType()
+                .GetMethod(
+                    "OnIsarInspectionResult",
+                    System.Reflection.BindingFlags.NonPublic
+                        | System.Reflection.BindingFlags.Instance
+                );
             methodInfo?.Invoke(mockedServices.MqttEventHandler, [null, mqttArgs]);
 
-            // Verify error log
+            // Assert
 #pragma warning disable CS8602 // Dereference of a possibly null reference, because v can be null
             mockedServices.LoggerMock.Verify(
-                x => x.Log(
-                    LogLevel.Error,
-                    It.IsAny<EventId>(),
-                    It.Is<It.IsAnyType>((v, t) =>
-                        v != null && v.ToString().Contains("Message validation error: ") && v.ToString().Contains("field is required.")),
-                    It.IsAny<Exception>(),
-                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()
-                ), Times.Exactly(10) // Log one error per null value in the message
+                x =>
+                    x.Log(
+                        LogLevel.Error,
+                        It.IsAny<EventId>(),
+                        It.Is<It.IsAnyType>(
+                            (v, t) =>
+                                v != null
+                                && v.ToString().Contains("Message validation error: ")
+                                && v.ToString().Contains("field is required.")
+                        ),
+                        It.IsAny<Exception>(),
+                        It.IsAny<Func<It.IsAnyType, Exception?, string>>()
+                    ),
+                Times.Exactly(10) // Log one error per null value in the message
             );
 #pragma warning restore CS8602 // Dereference of a possibly null reference.
         }
