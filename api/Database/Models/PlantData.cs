@@ -17,20 +17,6 @@ public class PlantData
     [Required]
     public required string InstallationCode { get; set; }
 
-    [Required]
-    public BlobStorageLocation RawDataBlobStorageLocation { get; set; }
-
-    [Required]
-    public BlobStorageLocation AnonymizedBlobStorageLocation { get; set; }
-
-    [Required]
-    public BlobStorageLocation VisualizedBlobStorageLocation { get; set; }
-
-    [Required]
-    public WorkflowStatus AnonymizerWorkflowStatus { get; set; } = WorkflowStatus.NotStarted; // TODO: Rename this to just WorkflowStatus
-
-    // TODO Add a separate field for Anonomizer done
-
     private DateTime _dateCreated = DateTime.UtcNow;
 
     [Required]
@@ -53,15 +39,10 @@ public class PlantData
         set => _timestamp = value?.Kind == DateTimeKind.Utc ? value : value?.ToUniversalTime();
     }
 
-    public Anonymization? Anonymization { get; set; }
+    [Required]
+    public required Anonymization Anonymization { get; set; }
 
     public CLOEAnalysis? CLOEAnalysis { get; set; }
 
     public FencillaAnalysis? FencillaAnalysis { get; set; }
-
-    [Required]
-    public List<AnalysisType> AnalysisToBeRun { get; set; } = [];
-
-    [Required]
-    public List<Analysis> Analysis { get; set; } = [];
 }
