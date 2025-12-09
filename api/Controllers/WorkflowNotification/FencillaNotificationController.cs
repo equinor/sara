@@ -1,6 +1,7 @@
 using api.Controllers.Models;
 using api.Database.Models;
 using api.Services;
+using api.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -26,9 +27,10 @@ public class FencillaWorkflowNotificationController(
         [FromBody] WorkflowStartedNotification notification
     )
     {
+        var inspectionId = Sanitize.SanitizeUserInput(notification.InspectionId);
         logger.LogDebug(
             "Received notification that the Fencilla workflow has started for inspection id {inspectionId}",
-            notification.InspectionId
+            inspectionId
         );
 
         PlantData updatedPlantData;

@@ -1,4 +1,4 @@
-namespace Api.Utilities
+namespace api.Utilities
 {
     public static class Sanitize
     {
