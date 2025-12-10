@@ -1,5 +1,10 @@
 name: Verify migrations
 
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+
 on:
   pull_request_target:
     branches: [main]
