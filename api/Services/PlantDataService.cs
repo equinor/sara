@@ -43,6 +43,11 @@ public interface IPlantDataService
         WorkflowStatus started
     );
 
+    public Task<PlantData> UpdateThermalReadingWorkflowStatus(
+        string inspectionId,
+        WorkflowStatus started
+    );
+
     public Task<PlantData> UpdateAnonymizerResult(string inspectionId, bool isPersonInImage);
 
     public Task<PlantData> UpdateCLOEResult(string inspectionId, float oilLevel);
@@ -52,6 +57,7 @@ public interface IPlantDataService
         bool isBreak,
         float confidence
     );
+    public Task<PlantData> UpdateThermalReadingResult(string inspectionId, float temperature);
     public Task UpdatePlantDataFromAnalysisMapping(
         string tagId,
         string inspectionDescription,
@@ -72,6 +78,7 @@ public class PlantDataService(
             .PlantData.Include(plantData => plantData.Anonymization)
             .Include(plantData => plantData.CLOEAnalysis)
             .Include(plantData => plantData.FencillaAnalysis)
+            .Include(plantData => plantData.ThermalReading)
             .AsQueryable();
 
         return await PagedList<PlantData>.ToPagedListAsync(
@@ -87,6 +94,7 @@ public class PlantDataService(
             .PlantData.Include(plantData => plantData.Anonymization)
             .Include(plantData => plantData.CLOEAnalysis)
             .Include(plantData => plantData.FencillaAnalysis)
+            .Include(plantData => plantData.ThermalReading)
             .FirstOrDefaultAsync(i => i.Id.Equals(id));
     }
 
@@ -104,6 +112,7 @@ public class PlantDataService(
             .PlantData.Include(plantData => plantData.Anonymization)
             .Include(plantData => plantData.CLOEAnalysis)
             .Include(plantData => plantData.FencillaAnalysis)
+            .Include(plantData => plantData.ThermalReading)
             .Where(i =>
                 i.Tag != null
                 && i.Tag.ToLower().Equals(tagId.ToLower())
@@ -119,6 +128,7 @@ public class PlantDataService(
             .PlantData.Include(plantData => plantData.Anonymization)
             .Include(plantData => plantData.CLOEAnalysis)
             .Include(plantData => plantData.FencillaAnalysis)
+            .Include(plantData => plantData.ThermalReading)
             .FirstOrDefaultAsync(i => i.InspectionId.Equals(inspectionId));
         if (plantData == null)
         {
@@ -209,6 +219,27 @@ public class PlantDataService(
             };
         }
 
+        var thermalReading = null as ThermalReading;
+        if (analysisToBeRun.Contains(AnalysisType.ThermalReading))
+        {
+            logger.LogInformation(
+                "Analysis type ThermalReading is set to be run for InspectionId: {InspectionId}",
+                inspectionId
+            );
+            thermalReading = new ThermalReading
+            {
+                SourceBlobStorageLocation = blobService.CreateAnonymizedBlobStorageLocation(
+                    rawBlobContainer,
+                    rawBlobName
+                ),
+                DestinationBlobStorageLocation = blobService.CreateVisualizedBlobStorageLocation(
+                    rawBlobContainer,
+                    rawBlobName,
+                    "thermalReading"
+                ),
+            };
+        }
+
         var plantData = new PlantData
         {
             InspectionId = inspectionId,
@@ -218,6 +249,7 @@ public class PlantDataService(
             Anonymization = anonymization,
             CLOEAnalysis = cloeAnalysis,
             FencillaAnalysis = fencillaAnalysis,
+            ThermalReading = thermalReading,
         };
         await WritePlantData(plantData);
         return plantData;
@@ -270,6 +302,23 @@ public class PlantDataService(
             );
         }
         plantData.FencillaAnalysis.Status = status;
+        await context.SaveChangesAsync();
+        return plantData;
+    }
+
+    public async Task<PlantData> UpdateThermalReadingWorkflowStatus(
+        string inspectionId,
+        WorkflowStatus status
+    )
+    {
+        var plantData = await ReadByInspectionId(inspectionId);
+        if (plantData.ThermalReading == null)
+        {
+            throw new InvalidOperationException(
+                $"Thermal Reading analysis is not set up for plant data with inspection id {inspectionId}"
+            );
+        }
+        plantData.ThermalReading.Status = status;
         await context.SaveChangesAsync();
         return plantData;
     }
@@ -333,6 +382,20 @@ public class PlantDataService(
         return plantData;
     }
 
+    public async Task<PlantData> UpdateThermalReadingResult(string inspectionId, float temperature)
+    {
+        var plantData = await ReadByInspectionId(inspectionId);
+        if (plantData.ThermalReading == null)
+        {
+            throw new InvalidOperationException(
+                $"Thermal Reading analysis is not set up for plant data with inspection id {inspectionId}"
+            );
+        }
+        plantData.ThermalReading.Temperature = temperature;
+        await context.SaveChangesAsync();
+        return plantData;
+    }
+
     public async Task UpdatePlantDataFromAnalysisMapping(
         string tagId,
         string inspectionDescription,
@@ -387,6 +450,23 @@ public class PlantDataService(
                             blobContainer,
                             blobName,
                             "fencilla"
+                        ),
+                };
+            }
+
+            if (analysisType == AnalysisType.ThermalReading && plantData.ThermalReading is null)
+            {
+                plantData.ThermalReading = new ThermalReading
+                {
+                    SourceBlobStorageLocation = blobService.CreateAnonymizedBlobStorageLocation(
+                        blobContainer,
+                        blobName
+                    ),
+                    DestinationBlobStorageLocation =
+                        blobService.CreateVisualizedBlobStorageLocation(
+                            blobContainer,
+                            blobName,
+                            "thermalReading"
                         ),
                 };
             }

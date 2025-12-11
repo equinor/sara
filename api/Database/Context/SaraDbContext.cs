@@ -15,6 +15,8 @@ namespace api.Database.Context
 
         public DbSet<AnalysisMapping> AnalysisMapping { get; set; } = null!;
 
+        public DbSet<ThermalReading> ThermalReading { get; set; } = null!;
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder
