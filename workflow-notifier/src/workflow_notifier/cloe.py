@@ -1,6 +1,10 @@
-from workflow_notifier.notifier import app, notify_exited, notify_result, notify_started
+import typer
+
+from workflow_notifier.notifier import notify_exited, notify_result, notify_started
 
 WORKFLOW_TYPE = "constant-level-oiler-estimator"
+
+app = typer.Typer()
 
 
 @app.command()
