@@ -44,7 +44,12 @@ jobs:
         # Search for the exact line referring to the sara image to avoid getting the other
         # lines containing sara (e.g. sara-anonymizer)
         run: |
-          TAG_LINE_NUMBER=$(($(grep -n -x "    newName: ${{ inputs.Registry }}/${{ inputs.ImageName }}" k8s_kustomize/overlays/${{ inputs.Environment }}/kustomization.yaml |  cut --delimiter=":" --fields=1)+1))
+          GREP_RESULT=$(grep -n -x "  newName: ${{ inputs.Registry }}/${{ inputs.ImageName }}" k8s_kustomize/overlays/${{ inputs.Environment }}/kustomization.yaml | cut --delimiter=":" --fields=1)
+          if [ -z "$GREP_RESULT" ]; then
+            echo "Error: Image ${{ inputs.Registry }}/${{ inputs.ImageName }} not found in kustomization.yaml"
+            exit 1
+          fi
+          TAG_LINE_NUMBER=$((GREP_RESULT + 1))
           sed -i "${TAG_LINE_NUMBER} s/newTag:.*/newTag: ${{ inputs.Tag }}/" k8s_kustomize/overlays/${{ inputs.Environment }}/kustomization.yaml
 
       - name: Update infrastructure in GitHub
