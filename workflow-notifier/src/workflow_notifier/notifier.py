@@ -7,6 +7,8 @@ from msal import ConfidentialClientApplication
 
 load_dotenv()
 
+app = typer.Typer()
+
 
 def get_env_or_fail(var_name: str) -> str:
     value = os.getenv(var_name)
