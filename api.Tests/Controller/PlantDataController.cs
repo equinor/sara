@@ -112,6 +112,7 @@ namespace api.Controllers.Tests
             Assert.NotNull(createdPlantData.Anonymization);
             Assert.Null(createdPlantData.CLOEAnalysis);
             Assert.Null(createdPlantData.FencillaAnalysis);
+            Assert.Null(createdPlantData.ThermalReadingAnalysis);
         }
 
         [Fact]
@@ -147,6 +148,7 @@ namespace api.Controllers.Tests
 
             Assert.NotNull(returnedPlantData.CLOEAnalysis);
             Assert.Null(returnedPlantData.FencillaAnalysis);
+            Assert.Null(returnedPlantData.ThermalReadingAnalysis);
         }
 
         [Fact]

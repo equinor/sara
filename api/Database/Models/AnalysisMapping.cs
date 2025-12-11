@@ -9,6 +9,7 @@ public enum AnalysisType
     Anonymizer,
     ConstantLevelOiler,
     Fencilla,
+    ThermalReading,
 }
 
 public class AnalysisMapping(

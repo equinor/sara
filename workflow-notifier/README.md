@@ -13,7 +13,7 @@ The workflow notifier sends notifications to the following endpoints on SARA
 /WorkflowNotification/<workflow_type>/exited
 
 and currently supports the following workflow types:
-"anonymizer", "constant-level-oiler-estimator", "fencilla"
+"anonymizer", "constant-level-oiler-estimator", "fencilla", "thermal-reading"
 
 ## Running the mock
 

@@ -43,6 +43,7 @@ To add a new analysis type, add a value to the [AnalysisType](api/Database/Model
 
 - Anonymizer
 - ConstantLevelOiler
+- ThermalReading
 
 At the moment Anonymizer is configured to always run on IsarInspectionResultMessage
 

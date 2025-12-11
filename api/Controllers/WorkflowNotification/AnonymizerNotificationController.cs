@@ -95,6 +95,7 @@ public class AnonymizerWorkflowNotificationController(
     [Route("exited")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<PlantDataResponse>> AnonymizerExited(
         [FromBody] WorkflowExitedNotification notification
     )
@@ -148,6 +149,28 @@ public class AnonymizerWorkflowNotificationController(
             await workflowService.TriggerFencilla(
                 updatedPlantData.InspectionId,
                 updatedPlantData.FencillaAnalysis
+            );
+        }
+
+        if (updatedPlantData.ThermalReadingAnalysis is not null)
+        {
+            if (updatedPlantData.Tag is null || updatedPlantData.InspectionDescription is null)
+            {
+                logger.LogError(
+                    "Cannot trigger Thermal Reading workflow because Tag or InspectionDescription is null for InspectionId: {InspectionId}",
+                    updatedPlantData.InspectionId
+                );
+                return StatusCode(
+                    StatusCodes.Status500InternalServerError,
+                    "Tag or InspectionDescription is null"
+                );
+            }
+            await workflowService.TriggerThermalReading(
+                updatedPlantData.InspectionId,
+                updatedPlantData.Tag,
+                updatedPlantData.InspectionDescription,
+                updatedPlantData.InstallationCode,
+                updatedPlantData.ThermalReadingAnalysis
             );
         }
 

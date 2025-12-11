@@ -59,3 +59,8 @@ public class FencillaAnalysis : Workflow
     public bool? IsBreak { get; set; }
     public float? Confidence { get; set; }
 }
+
+public class ThermalReadingAnalysis : Workflow
+{
+    public float? Temperature { get; set; }
+}

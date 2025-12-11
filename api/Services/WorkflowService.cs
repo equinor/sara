@@ -24,11 +24,27 @@ public record TriggerFencillaRequest(
     BlobStorageLocation VisualizedBlobStorageLocation
 );
 
+public record TriggerThermalReadingRequest(
+    string InspectionId,
+    string TagId,
+    string InspectionDescription,
+    string InstallationCode,
+    BlobStorageLocation SourceBlobStorageLocation,
+    BlobStorageLocation VisualizedBlobStorageLocation
+);
+
 public interface IArgoWorkflowService
 {
     public Task TriggerAnonymizer(string inspectionId, Anonymization anonymization);
     public Task TriggerCLOE(string inspectionId, CLOEAnalysis analysis);
     public Task TriggerFencilla(string inspectionId, FencillaAnalysis analysis);
+    public Task TriggerThermalReading(
+        string inspectionId,
+        string tagId,
+        string inspectionDescription,
+        string installationCode,
+        ThermalReadingAnalysis analysis
+    );
     public WorkflowStatus GetWorkflowStatus(
         WorkflowExitedNotification notification,
         string workflowType
@@ -48,6 +64,11 @@ public class ArgoWorkflowService(IConfiguration configuration, ILogger<ArgoWorkf
     private readonly string _baseUrlFencilla =
         configuration["ArgoWorkflowFencillaBaseUrl"]
         ?? throw new InvalidOperationException("ArgoWorkflowFencillaBaseUrl is not configured.");
+    private readonly string _baseUrlThermalReading =
+        configuration["ArgoWorkflowThermalReadingBaseUrl"]
+        ?? throw new InvalidOperationException(
+            "ArgoWorkflowThermalReadingBaseUrl is not configured."
+        );
 
     private static readonly JsonSerializerOptions useCamelCaseOption = new()
     {
@@ -112,6 +133,38 @@ public class ArgoWorkflowService(IConfiguration configuration, ILogger<ArgoWorkf
         var content = new StringContent(json, Encoding.UTF8, "application/json");
 
         var response = await client.PostAsync(_baseUrlFencilla, content);
+
+        if (response.IsSuccessStatusCode)
+        {
+            logger.LogInformation("Function triggered successfully.");
+        }
+        else
+        {
+            logger.LogError("Failed to trigger function.");
+        }
+    }
+
+    public async Task TriggerThermalReading(
+        string inspectionId,
+        string tagId,
+        string inspectionDescription,
+        string installationCode,
+        ThermalReadingAnalysis analysis
+    )
+    {
+        var postRequestData = new TriggerThermalReadingRequest(
+            InspectionId: inspectionId,
+            TagId: tagId,
+            InspectionDescription: inspectionDescription,
+            InstallationCode: installationCode,
+            SourceBlobStorageLocation: analysis.SourceBlobStorageLocation,
+            VisualizedBlobStorageLocation: analysis.DestinationBlobStorageLocation
+        );
+
+        var json = JsonSerializer.Serialize(postRequestData, useCamelCaseOption);
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        var response = await client.PostAsync(_baseUrlThermalReading, content);
 
         if (response.IsSuccessStatusCode)
         {
