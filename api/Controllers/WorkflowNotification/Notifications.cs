@@ -27,6 +27,11 @@ public class FencillaWorkflowResultNotification : WorkflowResultNotification
     public required float Confidence { get; set; }
 }
 
+public class ThermalReadingWorkflowResultNotification : WorkflowResultNotification
+{
+    public required float Temperature { get; set; }
+}
+
 public enum ExitHandlerWorkflowStatus
 {
     Succeeded,

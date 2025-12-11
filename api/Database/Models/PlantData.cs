@@ -45,4 +45,6 @@ public class PlantData
     public CLOEAnalysis? CLOEAnalysis { get; set; }
 
     public FencillaAnalysis? FencillaAnalysis { get; set; }
+
+    public ThermalReadingAnalysis? ThermalReadingAnalysis { get; set; }
 }
