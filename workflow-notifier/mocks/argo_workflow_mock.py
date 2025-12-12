@@ -4,7 +4,7 @@ import time
 from flask import Flask, jsonify, request
 from pydantic import BaseModel
 
-from workflow_notifier import anonymizer, cloe, fencilla
+from workflow_notifier import anonymizer, cloe, fencilla, thermal_reading
 
 app = Flask(__name__)
 
@@ -198,6 +198,78 @@ def start_fencilla_workflow(trigger_fencilla_request: TriggerFencillaRequest):
     time.sleep(2)
     fencilla.notify_fencilla_exited(
         trigger_fencilla_request.inspectionId, "Succeeded", ""
+    )
+
+
+class TriggerThermalReadingRequest(BaseModel):
+    inspectionId: str
+    tagId: str
+    inspectionDescription: str
+    installationCode: str
+    sourceBlobStorageLocation: BlobStorageLocation
+    visualizedBlobStorageLocation: BlobStorageLocation
+
+
+@app.route("/trigger-thermal-reading", methods=["POST"])
+def trigger_thermal_reading():
+    try:
+        data = request.get_json()
+        print(f"Received trigger request for thermal reading: {data}")
+
+        inspectionId = data.get("inspectionId")
+        tagId = data.get("tagId")
+        inspectionDescription = data.get("inspectionDescription")
+        installationCode = data.get("installationCode")
+        source_blob_storage_location = data.get("sourceBlobStorageLocation")
+        visualized_blob_storage_location = data.get("visualizedBlobStorageLocation")
+
+        trigger_thermal_reading_request = TriggerThermalReadingRequest(
+            inspectionId=inspectionId,
+            tagId=tagId,
+            inspectionDescription=inspectionDescription,
+            installationCode=installationCode,
+            sourceBlobStorageLocation=source_blob_storage_location,
+            visualizedBlobStorageLocation=visualized_blob_storage_location,
+        )
+
+        threading.Thread(
+            target=start_thermal_reading_workflow,
+            args=(trigger_thermal_reading_request,),
+        ).start()
+        return (
+            jsonify({"message": "Trigger request for thermal reading handled"}),
+            200,
+        )
+    except Exception as e:
+        print(f"Error in /trigger-thermal-reading: {e}")
+        return jsonify({"error": "An error occurred"}), 500
+
+
+def start_thermal_reading_workflow(
+    trigger_thermal_reading_request: TriggerThermalReadingRequest,
+):
+    workflow_name = f"workflow-{trigger_thermal_reading_request.inspectionId}"
+    print(
+        f"Starting thermal reading workflow for inspectionId: {trigger_thermal_reading_request.inspectionId}"
+        f" with workflowName: {workflow_name}"
+    )
+
+    time.sleep(2)
+    thermal_reading.notify_thermal_reading_started(
+        trigger_thermal_reading_request.inspectionId, workflow_name
+    )
+
+    # Mock Thermal Reading
+    time.sleep(2)
+    temperature = 69
+
+    thermal_reading.notify_thermal_reading_result(
+        trigger_thermal_reading_request.inspectionId, temperature
+    )
+
+    time.sleep(2)
+    thermal_reading.notify_thermal_reading_exited(
+        trigger_thermal_reading_request.inspectionId, "Succeeded", ""
     )
 
 

@@ -151,6 +151,25 @@ public class AnonymizerWorkflowNotificationController(
             );
         }
 
+        if (updatedPlantData.ThermalReading is not null)
+        {
+            if (updatedPlantData.Tag is null || updatedPlantData.InspectionDescription is null)
+            {
+                logger.LogError(
+                    "Cannot trigger Thermal Reading workflow because Tag or InspectionDescription is null for InspectionId: {InspectionId}",
+                    updatedPlantData.InspectionId
+                );
+                return BadRequest("Tag or InspectionDescription is null");
+            }
+            await workflowService.TriggerThermalReading(
+                updatedPlantData.InspectionId,
+                updatedPlantData.Tag,
+                updatedPlantData.InspectionDescription,
+                updatedPlantData.InstallationCode,
+                updatedPlantData.ThermalReading
+            );
+        }
+
         return Ok(updatedPlantData);
     }
 }
