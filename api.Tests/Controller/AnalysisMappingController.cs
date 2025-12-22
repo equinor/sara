@@ -102,7 +102,7 @@ namespace api.Controllers.Tests
         }
 
         [Fact]
-        public async Task AddOrCreateAnalysisMapping_BadRequest_WhenAnalysisMappingAlreadyExists()
+        public async Task AddOrCreateAnalysisMapping_Conflict_WhenAnalysisMappingAlreadyExists()
         {
             //Arrange
             await _plantDataService.CreatePlantData(
@@ -128,8 +128,8 @@ namespace api.Controllers.Tests
                 AnalysisType.ConstantLevelOiler
             );
 
-            var statusResult = Assert.IsType<BadRequestObjectResult>(result);
-            Assert.Equal(400, statusResult.StatusCode);
+            var statusResult = Assert.IsType<ConflictObjectResult>(result);
+            Assert.Equal(409, statusResult.StatusCode);
 
             //Assert
             var mapping = await _analysisMappingService.ReadByTagAndInspectionDescription(
