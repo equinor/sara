@@ -1,5 +1,6 @@
 import threading
 import time
+from typing import Optional
 
 from flask import Flask, jsonify, request
 from pydantic import BaseModel
@@ -19,6 +20,7 @@ class TriggerAnonymizerRequest(BaseModel):
     inspectionId: str
     rawDataBlobStorageLocation: BlobStorageLocation
     anonymizedBlobStorageLocation: BlobStorageLocation
+    preProcessedBlobStorageLocation: Optional[BlobStorageLocation]
 
 
 @app.route("/trigger-anonymizer", methods=["POST"])
@@ -30,11 +32,15 @@ def trigger_anonymizer():
         inspection_id = data.get("inspectionId")
         raw_data_blob_storage_location = data.get("rawDataBlobStorageLocation")
         anonymized_blob_storage_location = data.get("anonymizedBlobStorageLocation")
+        pre_processed_blob_storage_location = data.get(
+            "preProcessedBlobStorageLocation"
+        )
 
         trigger_anonymizer_request = TriggerAnonymizerRequest(
             inspectionId=inspection_id,
             rawDataBlobStorageLocation=raw_data_blob_storage_location,
             anonymizedBlobStorageLocation=anonymized_blob_storage_location,
+            preProcessedBlobStorageLocation=pre_processed_blob_storage_location,
         )
 
         threading.Thread(

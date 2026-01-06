@@ -47,6 +47,7 @@ public abstract class Workflow
 public class Anonymization : Workflow
 {
     public bool? IsPersonInImage { get; set; }
+    public BlobStorageLocation? PreProcessedBlobStorageLocation { get; set; }
 }
 
 public class CLOEAnalysis : Workflow

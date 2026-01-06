@@ -9,7 +9,8 @@ namespace api.Services;
 public record TriggerAnonymizerRequest(
     string InspectionId,
     BlobStorageLocation RawDataBlobStorageLocation,
-    BlobStorageLocation AnonymizedBlobStorageLocation
+    BlobStorageLocation AnonymizedBlobStorageLocation,
+    BlobStorageLocation? PreProcessedBlobStorageLocation
 );
 
 public record TriggerCLOERequest(
@@ -80,7 +81,8 @@ public class ArgoWorkflowService(IConfiguration configuration, ILogger<ArgoWorkf
         var postRequestData = new TriggerAnonymizerRequest(
             InspectionId: inspectionId,
             RawDataBlobStorageLocation: anonymization.SourceBlobStorageLocation,
-            AnonymizedBlobStorageLocation: anonymization.DestinationBlobStorageLocation
+            AnonymizedBlobStorageLocation: anonymization.DestinationBlobStorageLocation,
+            PreProcessedBlobStorageLocation: anonymization.PreProcessedBlobStorageLocation
         );
 
         var json = JsonSerializer.Serialize(postRequestData, useCamelCaseOption);
