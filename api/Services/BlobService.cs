@@ -132,11 +132,15 @@ namespace api.Services
             {
                 throw new InvalidOperationException("AnonStorageAccount is not configured.");
             }
+
+            // All Anonymized files are for now images that can be displayed in a front end application
+            var jpgBlobName = ReplaceFileEnding(blobName, ".jpg");
+
             return new BlobStorageLocation
             {
                 StorageAccount = anonymizedStorageAccount,
                 BlobContainer = blobContainer,
-                BlobName = blobName,
+                BlobName = jpgBlobName,
             };
         }
 
@@ -158,6 +162,22 @@ namespace api.Services
                 BlobContainer = blobContainer,
                 BlobName = PostfixAnalysisTypeToBlobName(blobName, postfixAnalysisType),
             };
+        }
+
+        public static string ReplaceFileEnding(string rawBlobName, string newFileEnding)
+        {
+            var blobNameWithoutExtension = Path.GetFileNameWithoutExtension(rawBlobName);
+            var directoryPath = Path.GetDirectoryName(rawBlobName);
+
+            if (string.IsNullOrEmpty(directoryPath))
+            {
+                return $"{blobNameWithoutExtension}.{newFileEnding.TrimStart('.')}";
+            }
+
+            return Path.Combine(
+                directoryPath,
+                $"{blobNameWithoutExtension}.{newFileEnding.TrimStart('.')}"
+            );
         }
     }
 }

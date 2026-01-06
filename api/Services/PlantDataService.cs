@@ -186,10 +186,7 @@ public class PlantDataService(
             );
             cloeAnalysis = new CLOEAnalysis
             {
-                SourceBlobStorageLocation = blobService.CreateAnonymizedBlobStorageLocation(
-                    rawBlobContainer,
-                    rawBlobName
-                ),
+                SourceBlobStorageLocation = anonymization.DestinationBlobStorageLocation,
                 DestinationBlobStorageLocation = blobService.CreateVisualizedBlobStorageLocation(
                     rawBlobContainer,
                     rawBlobName,
@@ -207,10 +204,7 @@ public class PlantDataService(
             );
             fencillaAnalysis = new FencillaAnalysis
             {
-                SourceBlobStorageLocation = blobService.CreateAnonymizedBlobStorageLocation(
-                    rawBlobContainer,
-                    rawBlobName
-                ),
+                SourceBlobStorageLocation = anonymization.DestinationBlobStorageLocation,
                 DestinationBlobStorageLocation = blobService.CreateVisualizedBlobStorageLocation(
                     rawBlobContainer,
                     rawBlobName,
@@ -226,12 +220,17 @@ public class PlantDataService(
                 "Analysis type ThermalReading is set to be run for InspectionId: {InspectionId}",
                 inspectionId
             );
+
+            var preProcessedBlobName = BlobService.ReplaceFileEnding(rawBlobName, ".fff");
+            var preProcessedBlobStorageLocation = blobService.CreateAnonymizedBlobStorageLocation(
+                rawBlobContainer,
+                preProcessedBlobName
+            );
+            anonymization.PreProcessedBlobStorageLocation = preProcessedBlobStorageLocation;
+
             thermalReadingAnalysis = new ThermalReadingAnalysis
             {
-                SourceBlobStorageLocation = blobService.CreateAnonymizedBlobStorageLocation(
-                    rawBlobContainer,
-                    rawBlobName
-                ),
+                SourceBlobStorageLocation = preProcessedBlobStorageLocation,
                 DestinationBlobStorageLocation = blobService.CreateVisualizedBlobStorageLocation(
                     rawBlobContainer,
                     rawBlobName,
