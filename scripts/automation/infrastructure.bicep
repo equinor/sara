@@ -11,6 +11,8 @@ param storageAccountNameAnon string
 
 param storageAccountNameVis string
 
+param thermalReadingStorageAccount string
+
 param keyVaultName string
 param objectIdFgRobots string
 
@@ -60,6 +62,15 @@ module storageAccountVis 'modules/storage-account-visualize.bicep' = {
   params: {
     location: location
     storageAccountNameVis: storageAccountNameVis
+  }
+}
+
+module storageAccountThermal 'modules/storage-account-thermal-ref.bicep' = {
+  scope: resourceGroup
+  name: 'infrastructure-sa-thermal-${deploymentId}'
+  params: {
+    location: location
+    thermalReadingStorageAccount: thermalReadingStorageAccount
   }
 }
 

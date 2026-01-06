@@ -23,6 +23,8 @@ param storageAccountNameRaw = '${environment}storeraw'
 
 param storageAccountNameVis = '${environment}storevis'
 
+param thermalReadingStorageAccount = '${environment}thermalref'
+
 param principalId = 'bf81095d-e13d-481d-a4e8-a5c17faad398' //aurora-aks-kubelet-shared prod environment
 param roleDefinitionId = 'f1a07417-d97a-45cb-824c-7a7467783830' // azure built-in role for managed identity operator
 
