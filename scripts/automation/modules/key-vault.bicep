@@ -2,7 +2,6 @@ param location string
 param keyVaultName string
 param objectIdFgRobots string
 param objectIdEnterpriseApplication string
-param secrets array
 param managedIdentityName string
 param principalId string
 param roleDefinitionID string
@@ -78,13 +77,3 @@ resource keyVaultAccessPolicy 'Microsoft.KeyVault/vaults/accessPolicies@2024-04-
     ]
   }
 }
-
-resource keyVaultSecret 'Microsoft.KeyVault/vaults/secrets@2024-04-01-preview' = [
-  for secret in secrets: {
-    name: secret.name
-    parent: keyVault
-    properties: {
-      value: secret.value
-    }
-  }
-]

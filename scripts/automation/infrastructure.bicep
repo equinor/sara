@@ -18,12 +18,6 @@ param objectIdFgRobots string
 
 param objectIdEnterpriseApplication string
 
-param administratorLogin string
-@secure()
-param administratorLoginPassword string
-param postgresConnectionString string
-param serverName string
-
 param managedIdentityName string
 param principalId string
 param roleDefinitionId string
@@ -96,20 +90,5 @@ module keyVault 'modules/key-vault.bicep' = {
     principalId: principalId
     managedIdentityName: managedIdentityName
     roleDefinitionID: roleDefinitionId
-    secrets: [
-      { name: 'administratorLoginPassword', value: administratorLoginPassword }
-      { name: 'Database--postgresConnectionString', value: postgresConnectionString }
-    ]
-  }
-}
-
-module postgreSQLFlexibleServer 'modules/db-postgreSQL-flexibleserver.bicep' = {
-  scope: resourceGroup
-  name: 'infrastructure-db-${deploymentId}'
-  params: {
-    location: location
-    administratorLogin: administratorLogin
-    administratorLoginPassword: administratorLoginPassword
-    serverName: serverName
   }
 }
