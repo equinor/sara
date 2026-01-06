@@ -11,12 +11,6 @@ param managedIdentityName = '${environment}-mi'
 
 param keyVaultName = '${environment}-kv'
 
-param administratorLogin = '${environment}_sarapostgresqlserver'
-param administratorLoginPassword = ''
-
-param serverName = '${environment}-server'
-param postgresConnectionString = ''
-
 param storageAccountNameAnon = '${environment}storeanon'
 
 param storageAccountNameRaw = '${environment}storeraw'
