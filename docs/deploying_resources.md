@@ -21,6 +21,8 @@ Requirements to be met:
    - Owner role activated on the subscription might be needed
    - open `bash scripts/automation/deploy.sh` and change '<env>' in `bicepParameterFile` to the desire environment. Default is "dev". For example, `bicepParameterFile` is by default 'scripts/automation/infrastructure-dev.bicepparam'. Change dev in the path to prod or staging, as desire.
    - run `bash scripts/automation/deploy.sh` to deploy the resources.
+4. Optional. Copy data from old storage accounts to newly created simply by using
+   - `azcopy copy 'https://mysourceaccount.blob.core.windows.net/' 'https://mydestinationaccount.blob.core.windows.net' --recursive` (this might require that you add the role assignment Storage Blob Data Owner to yourself in the portal)
 
 ### Individual deployment of blob containers
 
