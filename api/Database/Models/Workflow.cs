@@ -24,6 +24,8 @@ public class BlobStorageLocation
 
     [Required]
     public required string BlobName { get; set; }
+
+    public override string ToString() => $"{StorageAccount}/{BlobContainer}/{BlobName}";
 }
 
 public abstract class Workflow
