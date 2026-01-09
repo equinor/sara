@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using api.Database.Models;
 using Azure;
 using Azure.Storage.Blobs;
@@ -20,6 +20,11 @@ namespace api.Services
         );
 
         public BlobStorageLocation CreateAnonymizedBlobStorageLocation(
+            string blobContainer,
+            string blobName
+        );
+
+        public BlobStorageLocation CreatePreProcessedBlobStorageLocation(
             string blobContainer,
             string blobName
         );
@@ -141,6 +146,27 @@ namespace api.Services
                 StorageAccount = anonymizedStorageAccount,
                 BlobContainer = blobContainer,
                 BlobName = jpgBlobName,
+            };
+        }
+
+        public BlobStorageLocation CreatePreProcessedBlobStorageLocation(
+            string blobContainer,
+            string blobName
+        )
+        {
+            var anonymizedStorageAccount = configuration.GetSection("Storage")[
+                "AnonStorageAccount"
+            ];
+            if (string.IsNullOrEmpty(anonymizedStorageAccount))
+            {
+                throw new InvalidOperationException("AnonStorageAccount is not configured.");
+            }
+
+            return new BlobStorageLocation
+            {
+                StorageAccount = anonymizedStorageAccount,
+                BlobContainer = blobContainer,
+                BlobName = blobName,
             };
         }
 

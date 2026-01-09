@@ -222,7 +222,8 @@ public class PlantDataService(
             );
 
             var preProcessedBlobName = BlobService.ReplaceFileEnding(rawBlobName, ".fff");
-            var preProcessedBlobStorageLocation = blobService.CreateAnonymizedBlobStorageLocation(
+
+            var preProcessedBlobStorageLocation = blobService.CreatePreProcessedBlobStorageLocation(
                 rawBlobContainer,
                 preProcessedBlobName
             );
