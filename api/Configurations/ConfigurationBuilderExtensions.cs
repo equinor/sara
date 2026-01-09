@@ -80,7 +80,7 @@ namespace api.Configurations
         {
             builder.Logging.AddSimpleConsole(options =>
             {
-                options.IncludeScopes = true;
+                options.IncludeScopes = false;
                 options.TimestampFormat = "yyyy-MM-dd HH:mm:ss - ";
                 options.ColorBehavior = Microsoft
                     .Extensions
