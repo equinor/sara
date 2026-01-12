@@ -1,13 +1,11 @@
 ﻿using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using api.Services;
 using api.Utilities;
 using MQTTnet;
 using MQTTnet.Client;
 using MQTTnet.Extensions.ManagedClient;
 using MQTTnet.Packets;
-using MQTTnet.Protocol;
 
 namespace api.MQTT
 {
@@ -34,12 +32,15 @@ namespace api.MQTT
         private CancellationToken _cancellationToken;
         private int _reconnectAttempts;
 
-        public MqttService(ILogger<MqttService> logger, IConfiguration config)
+        public MqttService(
+            ILogger<MqttService> logger,
+            IConfiguration config,
+            IManagedMqttClient mqttClient
+        )
         {
             _reconnectAttempts = 0;
             _logger = logger;
-            var mqttFactory = new MqttFactory();
-            _mqttClient = mqttFactory.CreateManagedMqttClient();
+            _mqttClient = mqttClient;
 
             var mqttConfig = config.GetSection("Mqtt");
             string password = mqttConfig.GetValue<string>("Password") ?? "";
@@ -70,24 +71,10 @@ namespace api.MQTT
 
             var topics = mqttConfig.GetSection("Topics").Get<List<string>>() ?? [];
             SubscribeToTopics(topics);
-
-            Subscribe();
         }
 
         public static event EventHandler<MqttReceivedArgs>? MqttIsarInspectionResultReceived;
         public static event EventHandler<MqttReceivedArgs>? MqttIsarInspectionValueReceived;
-
-        public void Subscribe()
-        {
-            MqttMessageService.MqttSaraVisualizationAvailable += OnSaraVisualizationAvailable;
-            MqttMessageService.MqttSaraAnalysisResultAvailable += OnSaraAnalysisResultAvailable;
-        }
-
-        public void Unubscribe()
-        {
-            MqttMessageService.MqttSaraVisualizationAvailable -= OnSaraVisualizationAvailable;
-            MqttMessageService.MqttSaraAnalysisResultAvailable -= OnSaraAnalysisResultAvailable;
-        }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
@@ -134,80 +121,6 @@ namespace api.MQTT
             }
 
             return Task.CompletedTask;
-        }
-
-        private async void OnSaraVisualizationAvailable(object? sender, MqttMessage e)
-        {
-            if (e is not SaraVisualizationAvailableMessage message)
-            {
-                _logger.LogError("Message is not of type SaraVisualizationAvailableMessage");
-                return;
-            }
-            var payload = JsonSerializer.Serialize(message, serializerOptions);
-
-            var topic = MqttTopics.MessagesToTopics.GetTopicByItem(message.GetType());
-            if (topic is null)
-            {
-                _logger.LogError(
-                    "No topic class defined for message of type '{messageType}'",
-                    message.GetType().Name
-                );
-                return;
-            }
-
-            _logger.LogDebug("Topic: {topic} - Message to send: \n{payload}", topic, payload);
-
-            try
-            {
-                await _mqttClient.EnqueueAsync(topic, payload);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(
-                    "Could not send MQTT message '{message}' object on topic '{topic}'. {exception}",
-                    payload,
-                    topic,
-                    ex.Message
-                );
-                return;
-            }
-        }
-
-        private async void OnSaraAnalysisResultAvailable(object? sender, MqttMessage e)
-        {
-            if (e is not SaraAnalysisResultMessage message)
-            {
-                _logger.LogError("Message is not of type SaraAnalysisResultMessage");
-                return;
-            }
-            var payload = JsonSerializer.Serialize(message, serializerOptions);
-
-            var topic = MqttTopics.MessagesToTopics.GetTopicByItem(message.GetType());
-            if (topic is null)
-            {
-                _logger.LogError(
-                    "No topic class defined for message of type '{messageType}'",
-                    message.GetType().Name
-                );
-                return;
-            }
-
-            _logger.LogDebug("Topic: {topic} - Message to send: \n{payload}", topic, payload);
-
-            try
-            {
-                await _mqttClient.EnqueueAsync(topic, payload);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(
-                    "Could not send MQTT message '{message}' object on topic '{topic}'. {exception}",
-                    payload,
-                    topic,
-                    ex.Message
-                );
-                return;
-            }
         }
 
         private Task OnMessagePublished(ApplicationMessageProcessedEventArgs messageProcessedEvent)

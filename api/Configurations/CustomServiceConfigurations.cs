@@ -3,6 +3,8 @@ using api.Database.Context;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
+using MQTTnet.Client;
+using MQTTnet.Extensions.ManagedClient;
 
 namespace api.Configurations;
 
@@ -120,6 +122,16 @@ public static class CustomServiceConfigurations
             string xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
             c.IncludeXmlComments(xmlPath);
         });
+
+        return services;
+    }
+
+    public static IServiceCollection ConfigureMQTT(this IServiceCollection services)
+    {
+        var factory = new MQTTnet.MqttFactory();
+        var mqttClient = factory.CreateManagedMqttClient();
+
+        services.AddSingleton(mqttClient);
 
         return services;
     }

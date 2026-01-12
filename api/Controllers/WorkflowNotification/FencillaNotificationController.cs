@@ -1,5 +1,6 @@
 using api.Controllers.Models;
 using api.Database.Models;
+using api.MQTT;
 using api.Services;
 using api.Utilities;
 using Microsoft.AspNetCore.Authorization;
@@ -12,7 +13,8 @@ namespace api.Controllers.WorkflowNotification;
 public class FencillaWorkflowNotificationController(
     ILogger<FencillaWorkflowNotificationController> logger,
     IPlantDataService plantDataService,
-    IArgoWorkflowService workflowService
+    IArgoWorkflowService workflowService,
+    IMqttPublisherService mqttPublisherService
 ) : ControllerBase
 {
     /// <summary>
@@ -95,6 +97,7 @@ public class FencillaWorkflowNotificationController(
     [Route("exited")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<PlantDataResponse>> FencillaExited(
         [FromBody] WorkflowExitedNotification notification
     )
@@ -114,6 +117,36 @@ public class FencillaWorkflowNotificationController(
             logger.LogError(ex, "Error occurred while updating Fencilla workflow status");
             return BadRequest(ex.Message);
         }
+
+        var fencillaAnalysis =
+            updatedPlantData.FencillaAnalysis
+            ?? throw new InvalidOperationException(
+                $"Fencilla analysis is not set up for plant data with inspection id {notification.InspectionId}"
+            );
+
+        string? warning = null;
+        if (fencillaAnalysis.IsBreak != null)
+        {
+            if ((bool)fencillaAnalysis.IsBreak)
+            {
+                warning = "Breach detected";
+            }
+        }
+
+        var message = new SaraAnalysisResultMessage
+        {
+            InspectionId = updatedPlantData.InspectionId,
+            AnalysisType = nameof(AnalysisType.Fencilla),
+            Value = fencillaAnalysis.IsBreak.ToString(),
+            Unit = "bool [isBreach]",
+            Warning = warning,
+            Confidence = fencillaAnalysis.Confidence,
+            StorageAccount = fencillaAnalysis.DestinationBlobStorageLocation.StorageAccount,
+            BlobContainer = fencillaAnalysis.DestinationBlobStorageLocation.BlobContainer,
+            BlobName = fencillaAnalysis.DestinationBlobStorageLocation.BlobName,
+        };
+
+        await mqttPublisherService.PublishSaraAnalysisResultAvailable(message);
 
         return Ok(updatedPlantData);
     }

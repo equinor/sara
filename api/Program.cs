@@ -10,6 +10,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Rewrite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Web;
+using MQTTnet.Client;
+using MQTTnet.Extensions.ManagedClient;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -43,6 +45,7 @@ var applicationName = builder.Configuration["AppName"] ?? "SaraBackend";
 builder.ConfigureLogger();
 
 builder.Services.ConfigureDatabase(builder.Configuration);
+builder.Services.ConfigureMQTT();
 
 var openTelemetryEnabled = builder.Configuration.GetValue<bool?>("OpenTelemetry:Enabled") ?? false;
 var otelActivitySource = new ActivitySource(applicationName);
@@ -63,6 +66,7 @@ builder.Services.AddScoped<IBlobService, BlobService>();
 builder.Services.AddScoped<IPlantDataService, PlantDataService>();
 builder.Services.AddScoped<IAnalysisMappingService, AnalysisMappingService>();
 builder.Services.AddScoped<IMqttMessageService, MqttMessageService>();
+builder.Services.AddScoped<IMqttPublisherService, MqttPublisherService>();
 
 builder.Services.AddScoped<IArgoWorkflowService, ArgoWorkflowService>();
 builder.Services.AddScoped<ITimeseriesService, TimeseriesService>();

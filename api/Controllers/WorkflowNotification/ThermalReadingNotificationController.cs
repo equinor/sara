@@ -1,5 +1,6 @@
 using api.Controllers.Models;
 using api.Database.Models;
+using api.MQTT;
 using api.Services;
 using api.Utilities;
 using Microsoft.AspNetCore.Authorization;
@@ -12,7 +13,8 @@ namespace api.Controllers.WorkflowNotification;
 public class ThermalReadingWorkflowNotificationController(
     ILogger<ThermalReadingWorkflowNotificationController> logger,
     IPlantDataService plantDataService,
-    IArgoWorkflowService workflowService
+    IArgoWorkflowService workflowService,
+    IMqttPublisherService mqttPublisherService
 ) : ControllerBase
 {
     /// <summary>
@@ -93,6 +95,7 @@ public class ThermalReadingWorkflowNotificationController(
     [Route("exited")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<PlantDataResponse>> ThermalReadingExited(
         [FromBody] WorkflowExitedNotification notification
     )
@@ -112,6 +115,25 @@ public class ThermalReadingWorkflowNotificationController(
             logger.LogError(ex, "Error occurred while updating ThermalReading workflow status");
             return BadRequest(ex.Message);
         }
+
+        var thermalReadingAnalysis =
+            updatedPlantData.ThermalReadingAnalysis
+            ?? throw new InvalidOperationException(
+                $"Thermal reading analysis is not set up for plant data with inspection id {notification.InspectionId}"
+            );
+
+        var message = new SaraAnalysisResultMessage
+        {
+            InspectionId = updatedPlantData.InspectionId,
+            AnalysisType = nameof(AnalysisType.ThermalReading),
+            Value = thermalReadingAnalysis.Temperature.ToString(),
+            Unit = "temperature [°C]",
+            StorageAccount = thermalReadingAnalysis.DestinationBlobStorageLocation.StorageAccount,
+            BlobContainer = thermalReadingAnalysis.DestinationBlobStorageLocation.BlobContainer,
+            BlobName = thermalReadingAnalysis.DestinationBlobStorageLocation.BlobName,
+        };
+
+        await mqttPublisherService.PublishSaraAnalysisResultAvailable(message);
 
         return Ok(updatedPlantData);
     }
