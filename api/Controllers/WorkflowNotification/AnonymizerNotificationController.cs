@@ -14,7 +14,7 @@ public class AnonymizerWorkflowNotificationController(
     ILogger<AnonymizerWorkflowNotificationController> logger,
     IPlantDataService plantDataService,
     IArgoWorkflowService workflowService,
-    IMqttMessageService mqttMessageService
+    IMqttPublisherService mqttPublisherService
 ) : ControllerBase
 {
     /// <summary>
@@ -134,7 +134,7 @@ public class AnonymizerWorkflowNotificationController(
             BlobContainer = updatedPlantData.Anonymization.SourceBlobStorageLocation.BlobContainer,
             BlobName = updatedPlantData.Anonymization.SourceBlobStorageLocation.BlobName,
         };
-        mqttMessageService.OnSaraVisualizationAvailable(message);
+        await mqttPublisherService.PublishSaraVisualizationAvailable(message);
 
         if (updatedPlantData.CLOEAnalysis is not null)
         {

@@ -14,16 +14,12 @@ namespace api.MQTT
         {
             { "isar/+/inspection_result", typeof(IsarInspectionResultMessage) },
             { "isar/+/inspection_value", typeof(IsarInspectionValueMessage) },
-            { "sara/visualization_available", typeof(SaraVisualizationAvailableMessage) },
-            { "sara/analysis_result_available", typeof(SaraAnalysisResultMessage) },
         };
 
         public static readonly Dictionary<Type, string> MessagesToTopics = new()
         {
             { typeof(IsarInspectionResultMessage), "isar/+/inspection_result" },
             { typeof(IsarInspectionValueMessage), "isar/+/inspection_value" },
-            { typeof(SaraVisualizationAvailableMessage), "sara/visualization_available" },
-            { typeof(SaraAnalysisResultMessage), "sara/analysis_result_available" },
         };
 
         /// <summary>

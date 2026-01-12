@@ -3,7 +3,6 @@ using System.Text.Json.Serialization;
 
 namespace api.MQTT;
 
-#nullable disable
 public class InspectionPathMessage
 {
     [JsonPropertyName("storage_account")]
@@ -21,7 +20,6 @@ public class InspectionPathMessage
 
 public abstract class MqttMessage { }
 
-#nullable disable
 public class IsarInspectionResultMessage : MqttMessage
 {
     [JsonPropertyName("isar_id")]
@@ -68,7 +66,7 @@ public class IsarInspectionResultMessage : MqttMessage
 public class SaraVisualizationAvailableMessage : MqttMessage
 {
     [JsonPropertyName("inspection_id")]
-    public string InspectionId { get; set; }
+    public required string InspectionId { get; set; }
 
     [JsonPropertyName("storageAccount")]
     public required string StorageAccount { get; set; }
@@ -83,16 +81,22 @@ public class SaraVisualizationAvailableMessage : MqttMessage
 public class SaraAnalysisResultMessage : MqttMessage
 {
     [JsonPropertyName("inspection_id")]
-    public string InspectionId { get; set; }
+    public required string InspectionId { get; set; }
 
-    [JsonPropertyName("analysisName")]
+    [JsonPropertyName("analysisType")]
     public required string AnalysisType { get; set; }
 
-    [JsonPropertyName("regressionResult")]
-    public float RegressionResult { get; set; }
+    [JsonPropertyName("value")]
+    public string? Value { get; set; }
 
-    [JsonPropertyName("classResult")]
-    public string ClassResult { get; set; }
+    [JsonPropertyName("unit")]
+    public string? Unit { get; set; }
+
+    [JsonPropertyName("confidence")]
+    public float? Confidence { get; set; }
+
+    [JsonPropertyName("warning")]
+    public string? Warning { get; set; }
 
     [JsonPropertyName("storageAccount")]
     public required string StorageAccount { get; set; }
