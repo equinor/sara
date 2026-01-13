@@ -222,21 +222,23 @@ public class PlantDataService(
             );
 
             var preProcessedBlobName = BlobService.ReplaceFileEnding(rawBlobName, ".fff");
-
             var preProcessedBlobStorageLocation = blobService.CreatePreProcessedBlobStorageLocation(
                 rawBlobContainer,
                 preProcessedBlobName
             );
+            var visualizedBlobName = BlobService.ReplaceFileEnding(rawBlobName, ".jpg");
+            var visualizedBlobStorageLocation = blobService.CreateVisualizedBlobStorageLocation(
+                rawBlobContainer,
+                visualizedBlobName,
+                "thermalReading"
+            );
+
             anonymization.PreProcessedBlobStorageLocation = preProcessedBlobStorageLocation;
 
             thermalReadingAnalysis = new ThermalReadingAnalysis
             {
                 SourceBlobStorageLocation = preProcessedBlobStorageLocation,
-                DestinationBlobStorageLocation = blobService.CreateVisualizedBlobStorageLocation(
-                    rawBlobContainer,
-                    rawBlobName,
-                    "thermalReading"
-                ),
+                DestinationBlobStorageLocation = visualizedBlobStorageLocation,
             };
         }
 
