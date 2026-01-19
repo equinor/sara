@@ -26,7 +26,8 @@ public interface IPlantDataService
         string inspectionDescription,
         string rawStorageAccount,
         string rawBlobContainer,
-        string rawBlobName
+        string rawBlobName,
+        string? robotName = null
     );
 
     public Task WritePlantData(PlantData plantData);
@@ -146,7 +147,8 @@ public class PlantDataService(
         string inspectionDescription,
         string rawStorageAccount,
         string rawBlobContainer,
-        string rawBlobName
+        string rawBlobName,
+        string? robotName = null
     )
     {
         inspectionId = Sanitize.SanitizeUserInput(inspectionId);
@@ -248,6 +250,7 @@ public class PlantDataService(
             InstallationCode = installationCode,
             Tag = tagID,
             InspectionDescription = inspectionDescription,
+            RobotName = robotName,
             Anonymization = anonymization,
             CLOEAnalysis = cloeAnalysis,
             FencillaAnalysis = fencillaAnalysis,

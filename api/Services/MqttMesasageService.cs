@@ -33,7 +33,8 @@ namespace api.Services
                 isarInspectionResultMessage.InspectionDescription,
                 isarInspectionResultMessage.InspectionDataPath.StorageAccount,
                 isarInspectionResultMessage.InspectionDataPath.BlobContainer,
-                isarInspectionResultMessage.InspectionDataPath.BlobName
+                isarInspectionResultMessage.InspectionDataPath.BlobName,
+                isarInspectionResultMessage.RobotName
             );
             return plantData;
         }

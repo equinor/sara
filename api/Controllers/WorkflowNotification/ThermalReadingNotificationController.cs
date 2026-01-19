@@ -14,7 +14,8 @@ public class ThermalReadingWorkflowNotificationController(
     ILogger<ThermalReadingWorkflowNotificationController> logger,
     IPlantDataService plantDataService,
     IArgoWorkflowService workflowService,
-    IMqttPublisherService mqttPublisherService
+    IMqttPublisherService mqttPublisherService,
+    ITimeseriesService timeseriesService
 ) : ControllerBase
 {
     /// <summary>
@@ -77,6 +78,33 @@ public class ThermalReadingWorkflowNotificationController(
                 notification.InspectionId,
                 notification.Temperature
             );
+
+            PlantData plantData = await plantDataService.ReadByInspectionId(
+                notification.InspectionId
+            );
+
+            string description = plantData.InspectionDescription?.Replace(" ", "-") ?? string.Empty;
+            // Note that the name does not contain the robot name
+            var name = $"{plantData.InstallationCode}_" + $"{plantData.Tag}_" + $"{description}";
+
+            var uploadRequest = new TriggerTimeseriesUploadRequest
+            {
+                Name = name,
+                Facility = plantData.InstallationCode,
+                ExternalId = "",
+                Description = "ThermalReading",
+                Unit = "°C",
+                AssetId = plantData.InstallationCode,
+                Value = notification.Temperature,
+                Timestamp = plantData.Timestamp ?? DateTime.UtcNow,
+                Metadata = new Dictionary<string, string>
+                {
+                    { "tag_id", plantData.Tag ?? "" },
+                    { "inspection_description", plantData.InspectionDescription ?? "" },
+                    { "robot_name", plantData.RobotName ?? "" },
+                },
+            };
+            await timeseriesService.TriggerTimeseriesUpload(uploadRequest);
         }
         catch (InvalidOperationException ex)
         {
