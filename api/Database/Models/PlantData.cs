@@ -32,6 +32,8 @@ public class PlantData
 
     public string? InspectionDescription { get; set; }
 
+    public string? RobotName { get; set; }
+
     private DateTime? _timestamp;
     public DateTime? Timestamp
     {

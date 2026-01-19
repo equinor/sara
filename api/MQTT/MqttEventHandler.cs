@@ -150,7 +150,28 @@ namespace api.MQTT
                     "Received ISAR inspection value message with InspectionId: {InspectionId}",
                     isarInspectionValueMessage.InspectionId
                 );
-                await TimeseriesService.TriggerTimeseriesUpload(isarInspectionValueMessage);
+                var name = CreateTimeseriesNameFromMQTT(isarInspectionValueMessage);
+                var uploadRequest = new TriggerTimeseriesUploadRequest
+                {
+                    Name = name,
+                    Facility = isarInspectionValueMessage.InstallationCode,
+                    ExternalId = "",
+                    Description = isarInspectionValueMessage.InspectionType,
+                    Unit = isarInspectionValueMessage.Unit,
+                    AssetId = isarInspectionValueMessage.InstallationCode, // TODO: check what assetId is
+                    Value = isarInspectionValueMessage.Value,
+                    Timestamp = isarInspectionValueMessage.Timestamp,
+                    Metadata = new Dictionary<string, string>
+                    {
+                        { "tag_id", isarInspectionValueMessage.TagID },
+                        {
+                            "inspection_description",
+                            isarInspectionValueMessage.InspectionDescription
+                        },
+                        { "robot_name", isarInspectionValueMessage.RobotName },
+                    },
+                };
+                await TimeseriesService.TriggerTimeseriesUpload(uploadRequest);
             }
             catch (Exception ex)
             {
@@ -159,6 +180,32 @@ namespace api.MQTT
                     "Error occurred while processing ISAR inspection value message"
                 );
             }
+        }
+
+        private static string CreateTimeseriesNameFromMQTT(
+            IsarInspectionValueMessage isarInspectionValueMessage
+        )
+        {
+            string description =
+                isarInspectionValueMessage.InspectionDescription?.Replace(" ", "-") ?? string.Empty;
+            var name =
+                $"{isarInspectionValueMessage.InstallationCode}_"
+                + $"{FloorWithTolerance(isarInspectionValueMessage.X)}E_"
+                + $"{FloorWithTolerance(isarInspectionValueMessage.Y)}N_"
+                + $"{FloorWithTolerance(isarInspectionValueMessage.Z)}U_"
+                + $"{isarInspectionValueMessage.TagID}_"
+                + $"{isarInspectionValueMessage.RobotName}_"
+                + $"{description}";
+            return name;
+        }
+
+        // Tolerance set to 0.06 by default to mimic expected fault tolerance in a robot positioning system
+        public static int FloorWithTolerance(double value, double tolerance = 0.06)
+        {
+            var floored = (int)Math.Floor(value);
+            if (value - floored >= 1 - tolerance)
+                return floored + 1;
+            return floored;
         }
     }
 }

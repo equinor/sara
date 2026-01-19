@@ -1,4 +1,4 @@
-using api.Services;
+using api.MQTT;
 using Xunit;
 
 namespace Api.Test.Services;
@@ -28,7 +28,7 @@ public class TimeseriesServiceTests
     [InlineData(-1.1, -2)]
     public static void FloorWithTolerance_Parametrized(double input, int expected)
     {
-        var actual = TimeseriesService.FloorWithTolerance(input);
+        var actual = MqttEventHandler.FloorWithTolerance(input);
         Assert.Equal(expected, actual);
     }
 }
