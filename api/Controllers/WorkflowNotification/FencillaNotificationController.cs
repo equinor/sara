@@ -141,10 +141,14 @@ public class FencillaWorkflowNotificationController(
             Unit = "bool [isBreach]",
             Warning = warning,
             Confidence = fencillaAnalysis.Confidence,
-            StorageAccount = fencillaAnalysis.DestinationBlobStorageLocation.StorageAccount,
-            BlobContainer = fencillaAnalysis.DestinationBlobStorageLocation.BlobContainer,
-            BlobName = fencillaAnalysis.DestinationBlobStorageLocation.BlobName,
         };
+
+        if (fencillaAnalysis.IsBreak == true)
+        {
+            message.StorageAccount = fencillaAnalysis.DestinationBlobStorageLocation.StorageAccount;
+            message.BlobContainer = fencillaAnalysis.DestinationBlobStorageLocation.BlobContainer;
+            message.BlobName = fencillaAnalysis.DestinationBlobStorageLocation.BlobName;
+        }
 
         await mqttPublisherService.PublishSaraAnalysisResultAvailable(message);
 
