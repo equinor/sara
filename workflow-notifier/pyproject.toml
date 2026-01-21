@@ -17,7 +17,17 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.13",
 ]
-dependencies = ["python-dotenv", "typer~=0.14", "requests~=2.32", "msal~=1.31"]
+dependencies = [
+    "python-dotenv",
+    "typer~=0.14",
+    "requests~=2.32",
+    "msal~=1.31",
+    "pydantic",
+    "pydantic-settings",
+    "opentelemetry-api",
+    "opentelemetry-sdk",
+    "opentelemetry-exporter-otlp",
+]
 dynamic = ["version"]
 
 [project.urls]

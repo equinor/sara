@@ -1,3 +1,5 @@
+import logging
+
 import typer
 
 from workflow_notifier.anonymizer import app as anonymizer_app
@@ -5,8 +7,11 @@ from workflow_notifier.cloe import app as cloe_app
 from workflow_notifier.fencilla import app as fencilla_app
 from workflow_notifier.thermal_reading import app as thermal_reading_app
 
+logger = logging.getLogger(__name__)
+
 
 def make_app():
+    logger.info("Creating typer app")
     app = typer.Typer()
 
     app.add_typer(anonymizer_app)
