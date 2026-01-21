@@ -99,11 +99,11 @@ public class SaraAnalysisResultMessage : MqttMessage
     public string? Warning { get; set; }
 
     [JsonPropertyName("storageAccount")]
-    public required string StorageAccount { get; set; }
+    public string? StorageAccount { get; set; }
 
     [JsonPropertyName("blobContainer")]
-    public required string BlobContainer { get; set; }
+    public string? BlobContainer { get; set; }
 
     [JsonPropertyName("blobName")]
-    public required string BlobName { get; set; }
+    public string? BlobName { get; set; }
 }
