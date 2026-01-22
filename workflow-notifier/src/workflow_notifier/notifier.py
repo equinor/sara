@@ -3,10 +3,17 @@ import logging
 import requests
 import typer
 from msal import ConfidentialClientApplication
+from opentelemetry import metrics
 
 from workflow_notifier.config.settings import settings
 
 logger = logging.getLogger(__name__)
+
+meter = metrics.get_meter("workflow-notifier")
+workflow_counter = meter.create_counter(
+    "workflow_execution_count",
+    description="Workflow execution status",
+)
 
 app = typer.Typer()
 
@@ -112,6 +119,15 @@ def notify_exited(
     )
 
     try:
+        workflow_counter.add(
+            1,
+            {
+                "workflow_type": workflow_type,
+                "status": workflow_status,
+            },
+        )
+        metrics.get_meter_provider().force_flush()
+
         send_authenticated_put_request(url, payload)
     except requests.exceptions.RequestException as e:
         logger.error(f"Error notifying {workflow_type} workflow exit: {e}")
