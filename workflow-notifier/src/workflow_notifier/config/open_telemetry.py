@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import logging
 
-from opentelemetry import trace
+from opentelemetry import metrics, trace
 from opentelemetry._logs import set_logger_provider
 from opentelemetry.exporter.otlp.proto.grpc._log_exporter import (
     OTLPLogExporter as OTLPGrpcLogExporter,
+)
+from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import (
+    OTLPMetricExporter as OTLPGrpcMetricExporter,
 )
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
     OTLPSpanExporter as OTLPGrpcSpanExporter,
@@ -13,11 +16,16 @@ from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
 from opentelemetry.exporter.otlp.proto.http._log_exporter import (
     OTLPLogExporter as OTLPHttpLogExporter,
 )
+from opentelemetry.exporter.otlp.proto.http.metric_exporter import (
+    OTLPMetricExporter as OTLPHttpMetricExporter,
+)
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
     OTLPSpanExporter as OTLPHttpSpanExporter,
 )
 from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
 from opentelemetry.sdk._logs.export import BatchLogRecordProcessor, LogRecordExporter
+from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.sdk.metrics.export import MetricExporter, PeriodicExportingMetricReader
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanExporter
@@ -40,11 +48,13 @@ def setup_open_telemetry() -> None:
 
     span_exporter: SpanExporter
     log_exporter: LogRecordExporter
+    metric_exporter: MetricExporter
 
     if protocol == "http":
         base = endpoint.rstrip("/")
         span_exporter = OTLPHttpSpanExporter(endpoint=f"{base}/v1/traces")
         log_exporter = OTLPHttpLogExporter(endpoint=f"{base}/v1/logs")  # type: ignore
+        metric_exporter = OTLPHttpMetricExporter(endpoint=f"{base}/v1/metrics")
     elif protocol == "grpc":
         span_exporter = OTLPGrpcSpanExporter(
             endpoint=endpoint,
@@ -54,6 +64,10 @@ def setup_open_telemetry() -> None:
             endpoint=endpoint,
             insecure=True,
         )  # type: ignore
+        metric_exporter = OTLPGrpcMetricExporter(
+            endpoint=endpoint,
+            insecure=True,
+        )
     else:
         raise ValueError(
             f"Unknown OTLP protocol: {protocol!r} (expected 'grpc' or 'http')"
@@ -68,6 +82,11 @@ def setup_open_telemetry() -> None:
     log_provider = LoggerProvider(resource=resource)
     log_provider.add_log_record_processor(BatchLogRecordProcessor(log_exporter))
     set_logger_provider(log_provider)
+
+    # --- Metrics ---
+    reader = PeriodicExportingMetricReader(metric_exporter)
+    meter_provider = MeterProvider(resource=resource, metric_readers=[reader])
+    metrics.set_meter_provider(meter_provider)
 
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.INFO)
