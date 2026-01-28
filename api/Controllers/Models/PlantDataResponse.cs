@@ -15,7 +15,7 @@ namespace api.Controllers.Models
 
         public PlantDataResponse(PlantData plantData)
         {
-            id = plantData.Id;
+            id = plantData.Id.ToString();
         }
     }
 }

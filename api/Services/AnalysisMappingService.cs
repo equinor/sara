@@ -12,7 +12,7 @@ public interface IAnalysisMappingService
         AnalysisMappingParameters parameters
     );
 
-    public Task<AnalysisMapping?> ReadById(string id);
+    public Task<AnalysisMapping?> ReadById(Guid id);
 
     public Task<AnalysisMapping?> ReadByTagAndInspectionDescription(
         string tagId,
@@ -33,11 +33,11 @@ public interface IAnalysisMappingService
     public Task<List<AnalysisType>> GetAnalysesToBeRun(string tagId, string inspectionDescription);
 
     public Task<AnalysisMapping> RemoveAnalysisTypeFromMapping(
-        string analysisMappingId,
+        Guid analysisMappingId,
         AnalysisType analysisType
     );
 
-    public Task RemoveAnalysisMapping(string analysisMappingId);
+    public Task RemoveAnalysisMapping(Guid analysisMappingId);
 
     public Task<AnalysisMapping> AddOrCreateAnalysisMapping(
         string tagId,
@@ -75,7 +75,7 @@ public class AnalysisMappingService(SaraDbContext context, ILogger<AnalysisMappi
         );
     }
 
-    public async Task<AnalysisMapping?> ReadById(string id)
+    public async Task<AnalysisMapping?> ReadById(Guid id)
     {
         return await context.AnalysisMapping.FirstOrDefaultAsync(i => i.Id.Equals(id));
     }
@@ -173,7 +173,7 @@ public class AnalysisMappingService(SaraDbContext context, ILogger<AnalysisMappi
     }
 
     public async Task<AnalysisMapping> RemoveAnalysisTypeFromMapping(
-        string analysisMappingId,
+        Guid analysisMappingId,
         AnalysisType analysisType
     )
     {
@@ -196,7 +196,7 @@ public class AnalysisMappingService(SaraDbContext context, ILogger<AnalysisMappi
         return analysisMapping;
     }
 
-    public async Task RemoveAnalysisMapping(string analysisMappingId)
+    public async Task RemoveAnalysisMapping(Guid analysisMappingId)
     {
         var analysisMapping =
             await ReadById(analysisMappingId)

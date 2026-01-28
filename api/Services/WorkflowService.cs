@@ -7,26 +7,26 @@ using api.Utilities;
 namespace api.Services;
 
 public record TriggerAnonymizerRequest(
-    string InspectionId,
+    Guid InspectionId,
     BlobStorageLocation RawDataBlobStorageLocation,
     BlobStorageLocation AnonymizedBlobStorageLocation,
     BlobStorageLocation? PreProcessedBlobStorageLocation
 );
 
 public record TriggerCLOERequest(
-    string InspectionId,
+    Guid InspectionId,
     BlobStorageLocation SourceBlobStorageLocation,
     BlobStorageLocation VisualizedBlobStorageLocation
 );
 
 public record TriggerFencillaRequest(
-    string InspectionId,
+    Guid InspectionId,
     BlobStorageLocation SourceBlobStorageLocation,
     BlobStorageLocation VisualizedBlobStorageLocation
 );
 
 public record TriggerThermalReadingRequest(
-    string InspectionId,
+    Guid InspectionId,
     string TagId,
     string InspectionDescription,
     string InstallationCode,
@@ -36,11 +36,11 @@ public record TriggerThermalReadingRequest(
 
 public interface IArgoWorkflowService
 {
-    public Task TriggerAnonymizer(string inspectionId, Anonymization anonymization);
-    public Task TriggerCLOE(string inspectionId, CLOEAnalysis analysis);
-    public Task TriggerFencilla(string inspectionId, FencillaAnalysis analysis);
+    public Task TriggerAnonymizer(Guid inspectionId, Anonymization anonymization);
+    public Task TriggerCLOE(Guid inspectionId, CLOEAnalysis analysis);
+    public Task TriggerFencilla(Guid inspectionId, FencillaAnalysis analysis);
     public Task TriggerThermalReading(
-        string inspectionId,
+        Guid inspectionId,
         string tagId,
         string inspectionDescription,
         string installationCode,
@@ -76,7 +76,7 @@ public class ArgoWorkflowService(IConfiguration configuration, ILogger<ArgoWorkf
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
-    public async Task TriggerAnonymizer(string inspectionId, Anonymization anonymization)
+    public async Task TriggerAnonymizer(Guid inspectionId, Anonymization anonymization)
     {
         var postRequestData = new TriggerAnonymizerRequest(
             InspectionId: inspectionId,
@@ -111,7 +111,7 @@ public class ArgoWorkflowService(IConfiguration configuration, ILogger<ArgoWorkf
         }
     }
 
-    public async Task TriggerCLOE(string inspectionId, CLOEAnalysis analysis)
+    public async Task TriggerCLOE(Guid inspectionId, CLOEAnalysis analysis)
     {
         var postRequestData = new TriggerCLOERequest(
             InspectionId: inspectionId,
@@ -143,7 +143,7 @@ public class ArgoWorkflowService(IConfiguration configuration, ILogger<ArgoWorkf
         }
     }
 
-    public async Task TriggerFencilla(string inspectionId, FencillaAnalysis analysis)
+    public async Task TriggerFencilla(Guid inspectionId, FencillaAnalysis analysis)
     {
         var postRequestData = new TriggerFencillaRequest(
             InspectionId: inspectionId,
@@ -176,7 +176,7 @@ public class ArgoWorkflowService(IConfiguration configuration, ILogger<ArgoWorkf
     }
 
     public async Task TriggerThermalReading(
-        string inspectionId,
+        Guid inspectionId,
         string tagId,
         string inspectionDescription,
         string installationCode,
@@ -225,7 +225,6 @@ public class ArgoWorkflowService(IConfiguration configuration, ILogger<ArgoWorkf
         string workflowType
     )
     {
-        var inspectionId = Sanitize.SanitizeUserInput(notification.InspectionId);
         var workflowFailures = Sanitize.SanitizeUserInput(notification.WorkflowFailures);
 
         if (
@@ -236,7 +235,7 @@ public class ArgoWorkflowService(IConfiguration configuration, ILogger<ArgoWorkf
             logger.LogWarning(
                 "{WorkflowType} workflow for InspectionId: {InspectionId} exited with status: {Status} and failures: {WorkflowFailures}.",
                 workflowType,
-                inspectionId,
+                notification.InspectionId,
                 notification.ExitHandlerWorkflowStatus,
                 workflowFailures
             );
@@ -247,7 +246,7 @@ public class ArgoWorkflowService(IConfiguration configuration, ILogger<ArgoWorkf
             logger.LogInformation(
                 "{WorkflowType} workflow for InspectionId: {InspectionId} exited successfully",
                 workflowType,
-                inspectionId
+                notification.InspectionId
             );
             return WorkflowStatus.ExitSuccess;
         }

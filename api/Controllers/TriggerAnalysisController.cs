@@ -26,7 +26,7 @@ public class TriggerAnalysisController(
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> TriggerAnonymizer([FromRoute] string plantDataId)
+    public async Task<IActionResult> TriggerAnonymizer([FromRoute] Guid plantDataId)
     {
         var plantData = await plantDataService.ReadById(plantDataId);
         if (plantData == null)
@@ -65,7 +65,7 @@ public class TriggerAnalysisController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> TriggerAnalysis([FromRoute] string plantDataId)
+    public async Task<IActionResult> TriggerAnalysis([FromRoute] Guid plantDataId)
     {
         try
         {

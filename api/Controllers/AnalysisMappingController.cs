@@ -56,7 +56,7 @@ public class AnalysisMappingController(
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<AnalysisMapping>> GetAnalysisById([FromRoute] string id)
+    public async Task<ActionResult<AnalysisMapping>> GetAnalysisById([FromRoute] Guid id)
     {
         try
         {
@@ -150,7 +150,7 @@ public class AnalysisMappingController(
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<AnalysisMapping>> AddAnalysisTypeToMapping(
-        [FromRoute] string analysisMappingId,
+        [FromRoute] Guid analysisMappingId,
         [FromRoute] AnalysisType analysisType
     )
     {
@@ -196,7 +196,7 @@ public class AnalysisMappingController(
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<AnalysisMapping>> RemoveAnalysisFromMapping(
-        [FromRoute] string analysisMappingId,
+        [FromRoute] Guid analysisMappingId,
         [FromRoute] AnalysisType analysisType
     )
     {
@@ -236,7 +236,7 @@ public class AnalysisMappingController(
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<AnalysisMapping>> RemoveAnalysisFromMapping(
-        [FromRoute] string analysisMappingId
+        [FromRoute] Guid analysisMappingId
     )
     {
         try

@@ -9,10 +9,10 @@ public class PlantData
 {
     [Key]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-    public string Id { get; set; }
+    public Guid Id { get; set; }
 
     [Required]
-    public required string InspectionId { get; set; }
+    public required Guid InspectionId { get; set; }
 
     [Required]
     public required string InstallationCode { get; set; }
