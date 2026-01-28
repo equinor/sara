@@ -6,7 +6,6 @@ namespace api.Database.Models;
 
 public enum AnalysisType
 {
-    Anonymizer,
     ConstantLevelOiler,
     Fencilla,
     ThermalReading,
