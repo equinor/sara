@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using api.Database.Models;
 using api.Services;
@@ -31,7 +32,7 @@ namespace api.Controllers.Tests
         public async Task TriggerAnonymizer_ReturnsNotFound_WhenPlantDataDoesNotExist()
         {
             //Arrange
-            var plantDataId = "nonexistent-id";
+            var plantDataId = Guid.NewGuid();
             _plantDataServiceMock
                 .Setup(service => service.ReadById(plantDataId))
                 .ReturnsAsync((PlantData?)null);
@@ -47,13 +48,13 @@ namespace api.Controllers.Tests
         public async Task TriggerAnonymizer_ReturnsConflict_WhenWorkflowsAlreadyTriggered()
         {
             //Arrange
-            var plantDataId = "dummy-id";
+            var plantDataId = Guid.NewGuid();
             _plantDataServiceMock
                 .Setup(service => service.ReadById(plantDataId))
                 .ReturnsAsync(
                     new PlantData
                     {
-                        InspectionId = "dummyInspectionId",
+                        InspectionId = Guid.NewGuid(),
                         InstallationCode = "dummyInstallationCode",
                         Anonymization = new Anonymization
                         {
@@ -90,11 +91,11 @@ namespace api.Controllers.Tests
         public async Task TriggerAnonymizer_TriggersWorkflow_WhenPlantDataExistsAndNotStarted()
         {
             //Arrange
-            var plantDataId = "dummy-id";
+            var plantDataId = Guid.NewGuid();
 
             var plantData = new PlantData
             {
-                InspectionId = "dummyInspectionId",
+                InspectionId = Guid.NewGuid(),
                 InstallationCode = "dummyInstallationCode",
                 Anonymization = new Anonymization
                 {
@@ -117,7 +118,7 @@ namespace api.Controllers.Tests
                 .Setup(service => service.ReadById(plantDataId))
                 .ReturnsAsync(plantData);
             _argoWorkflowServiceMock.Setup(service =>
-                service.TriggerAnonymizer(It.IsAny<string>(), It.IsAny<Anonymization>())
+                service.TriggerAnonymizer(It.IsAny<Guid>(), It.IsAny<Anonymization>())
             );
 
             //Act
@@ -133,7 +134,7 @@ namespace api.Controllers.Tests
         public async Task TriggerAnalysis_ReturnsNotFound_WhenPlantDataDoesNotExist()
         {
             // Arrange
-            var plantDataId = "missing-id";
+            var plantDataId = Guid.NewGuid();
 
             _plantDataServiceMock
                 .Setup(service => service.ReadById(plantDataId))
@@ -151,14 +152,14 @@ namespace api.Controllers.Tests
         public async Task TriggerAnalysis_ReturnsOk_WhenServiceSucceeds()
         {
             // Arrange
-            var plantDataId = "dummy-id";
+            var plantDataId = Guid.NewGuid();
 
             _plantDataServiceMock
                 .Setup(service => service.ReadById(plantDataId))
                 .ReturnsAsync(
                     new PlantData
                     {
-                        InspectionId = "inspection-id",
+                        InspectionId = Guid.NewGuid(),
                         InstallationCode = "dummy-installation-code",
                         Anonymization = new Anonymization
                         {
@@ -193,14 +194,14 @@ namespace api.Controllers.Tests
         public async Task TriggerAnalysis_ReturnsConflict_WhenAnonymizationStarted()
         {
             // Arrange
-            var plantDataId = "dummy-id";
+            var plantDataId = Guid.NewGuid();
 
             _plantDataServiceMock
                 .Setup(service => service.ReadById(plantDataId))
                 .ReturnsAsync(
                     new PlantData
                     {
-                        InspectionId = "inspection-id",
+                        InspectionId = Guid.NewGuid(),
                         InstallationCode = "dummy-installation-code",
                         Anonymization = new Anonymization
                         {
@@ -236,14 +237,14 @@ namespace api.Controllers.Tests
         public async Task TriggerAnalysis_ReturnsOk_WhenAnonymizationExitSuccessAndNoConfiguredAnalyses()
         {
             // Arrange
-            var plantDataId = "dummy-id";
+            var plantDataId = Guid.NewGuid();
 
             _plantDataServiceMock
                 .Setup(service => service.ReadById(plantDataId))
                 .ReturnsAsync(
                     new PlantData
                     {
-                        InspectionId = "inspection-id",
+                        InspectionId = Guid.NewGuid(),
                         InstallationCode = "dummy-installation-code",
                         Anonymization = new Anonymization
                         {
@@ -279,14 +280,14 @@ namespace api.Controllers.Tests
         public async Task TriggerAnalysis_ReturnsOk_WhenAnonymizationExitSuccessAndConfiguredCLOEAnalysis()
         {
             // Arrange
-            var plantDataId = "dummy-id";
+            var plantDataId = Guid.NewGuid();
 
             _plantDataServiceMock
                 .Setup(service => service.ReadById(plantDataId))
                 .ReturnsAsync(
                     new PlantData
                     {
-                        InspectionId = "inspection-id",
+                        InspectionId = Guid.NewGuid(),
                         InstallationCode = "dummy-installation-code",
                         Anonymization = new Anonymization
                         {

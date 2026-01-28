@@ -32,7 +32,7 @@ public class IsarInspectionResultMessage : MqttMessage
 
     [JsonPropertyName("inspection_id")]
     [Required]
-    public required string InspectionId { get; set; }
+    public required Guid InspectionId { get; set; }
 
     [JsonPropertyName("blob_storage_data_path")]
     [Required]
@@ -66,7 +66,7 @@ public class IsarInspectionResultMessage : MqttMessage
 public class SaraVisualizationAvailableMessage : MqttMessage
 {
     [JsonPropertyName("inspection_id")]
-    public required string InspectionId { get; set; }
+    public required Guid InspectionId { get; set; }
 
     [JsonPropertyName("storageAccount")]
     public required string StorageAccount { get; set; }
@@ -81,7 +81,7 @@ public class SaraVisualizationAvailableMessage : MqttMessage
 public class SaraAnalysisResultMessage : MqttMessage
 {
     [JsonPropertyName("inspection_id")]
-    public required string InspectionId { get; set; }
+    public required Guid InspectionId { get; set; }
 
     [JsonPropertyName("analysisType")]
     public required string AnalysisType { get; set; }

@@ -19,7 +19,7 @@ public class AnalysisMapping(
 {
     [Key]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-    public string Id { get; set; }
+    public Guid Id { get; set; }
 
     [Required]
     public string Tag { get; set; } = tag;

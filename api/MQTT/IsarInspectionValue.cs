@@ -12,7 +12,7 @@ public class IsarInspectionValueMessage : MqttMessage
     public string RobotName { get; set; }
 
     [JsonPropertyName("inspection_id")]
-    public string InspectionId { get; set; }
+    public Guid InspectionId { get; set; }
 
     [JsonPropertyName("installation_code")]
     public string InstallationCode { get; set; }

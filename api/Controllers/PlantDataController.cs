@@ -60,8 +60,7 @@ public class PlantDataController(
     public async Task<ActionResult> CreatePlantData([FromBody] PlantDataRequest request)
     {
         if (
-            string.IsNullOrWhiteSpace(request.InspectionId)
-            || string.IsNullOrWhiteSpace(request.InstallationCode)
+            string.IsNullOrWhiteSpace(request.InstallationCode)
             || string.IsNullOrWhiteSpace(request.TagId)
             || string.IsNullOrWhiteSpace(request.InspectionDescription)
         )
@@ -103,7 +102,7 @@ public class PlantDataController(
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<PlantData>> GetPlantDataById([FromRoute] string id)
+    public async Task<ActionResult<PlantData>> GetPlantDataById([FromRoute] Guid id)
     {
         try
         {
@@ -136,7 +135,7 @@ public class PlantDataController(
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<PlantDataResponse>> GetPlantDataByInspectionId(
-        [FromRoute] string inspectionId
+        [FromRoute] Guid inspectionId
     )
     {
         try
@@ -173,10 +172,9 @@ public class PlantDataController(
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<BlobStorageLocation>> DownloadUriFromInspectionId(
-        [FromRoute] string inspectionId
+        [FromRoute] Guid inspectionId
     )
     {
-        inspectionId = Sanitize.SanitizeUserInput(inspectionId);
         try
         {
             PlantData plantData;

@@ -70,9 +70,10 @@ namespace api.Controllers.Tests
         [Fact]
         public async Task AddOrCreateAnalysisMapping_AnalysisMappingAdded_WhenPlantDataExist()
         {
+            var inspectionId = Guid.NewGuid();
             //Arrange
             await _plantDataService.CreatePlantData(
-                inspectionId: "dummyInsp-001",
+                inspectionId: inspectionId,
                 installationCode: "dummyInst-001",
                 tagID: "dummyTAG-001",
                 inspectionDescription: "Oil Level",
@@ -96,7 +97,7 @@ namespace api.Controllers.Tests
             Assert.NotNull(mapping);
             Assert.Contains(AnalysisType.ConstantLevelOiler, mapping.AnalysesToBeRun);
 
-            var updatedPlantData = await _plantDataService.ReadByInspectionId("dummyInsp-001");
+            var updatedPlantData = await _plantDataService.ReadByInspectionId(inspectionId);
             Assert.NotNull(updatedPlantData);
             Assert.NotNull(updatedPlantData.CLOEAnalysis);
         }
@@ -104,9 +105,10 @@ namespace api.Controllers.Tests
         [Fact]
         public async Task AddOrCreateAnalysisMapping_Conflict_WhenAnalysisMappingAlreadyExists()
         {
+            var inspectionId = Guid.NewGuid();
             //Arrange
             await _plantDataService.CreatePlantData(
-                inspectionId: "dummyInsp-001",
+                inspectionId: inspectionId,
                 installationCode: "dummyInst-001",
                 tagID: "dummyTAG-001",
                 inspectionDescription: "Oil Level",
@@ -139,7 +141,7 @@ namespace api.Controllers.Tests
             Assert.NotNull(mapping);
             Assert.Contains(AnalysisType.ConstantLevelOiler, mapping.AnalysesToBeRun);
 
-            var updatedPlantData = await _plantDataService.ReadByInspectionId("dummyInsp-001");
+            var updatedPlantData = await _plantDataService.ReadByInspectionId(inspectionId);
             Assert.NotNull(updatedPlantData);
             Assert.NotNull(updatedPlantData.CLOEAnalysis);
         }

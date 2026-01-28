@@ -2,13 +2,13 @@ namespace api.Controllers.WorkflowNotification;
 
 public class WorkflowStartedNotification
 {
-    public required string InspectionId { get; set; }
+    public required Guid InspectionId { get; set; }
     public required string WorkflowName { get; set; }
 }
 
 public class WorkflowResultNotification
 {
-    public required string InspectionId { get; set; }
+    public required Guid InspectionId { get; set; }
 }
 
 public class AnonymizerWorkflowResultNotification : WorkflowResultNotification
@@ -41,7 +41,7 @@ public enum ExitHandlerWorkflowStatus
 
 public class WorkflowExitedNotification
 {
-    public required string InspectionId { get; set; }
+    public required Guid InspectionId { get; set; }
     public required ExitHandlerWorkflowStatus ExitHandlerWorkflowStatus { get; set; }
     public required string WorkflowFailures { get; set; }
 }

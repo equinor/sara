@@ -90,7 +90,7 @@ namespace api.Utilities
 
     public class PlantDataRequest
     {
-        public required string InspectionId { get; set; }
+        public required Guid InspectionId { get; set; }
 
         public required string InstallationCode { get; set; }
 

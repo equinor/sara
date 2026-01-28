@@ -29,17 +29,16 @@ public class CLOEWorkflowNotificationController(
         [FromBody] WorkflowStartedNotification notification
     )
     {
-        var inspectionId = Sanitize.SanitizeUserInput(notification.InspectionId);
         logger.LogDebug(
             "Received notification that the CLOE workflow has started for inspection id {inspectionId}",
-            inspectionId
+            notification.InspectionId
         );
 
         PlantData updatedPlantData;
         try
         {
             updatedPlantData = await plantDataService.UpdateCLOEWorkflowStatus(
-                inspectionId,
+                notification.InspectionId,
                 WorkflowStatus.Started
             );
         }

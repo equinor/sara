@@ -30,10 +30,9 @@ public class ThermalReadingWorkflowNotificationController(
         [FromBody] WorkflowStartedNotification notification
     )
     {
-        var inspectionId = Sanitize.SanitizeUserInput(notification.InspectionId);
         logger.LogDebug(
             "Received notification that the ThermalReading workflow has started for inspection id {inspectionId}",
-            inspectionId
+            notification.InspectionId
         );
 
         PlantData updatedPlantData;

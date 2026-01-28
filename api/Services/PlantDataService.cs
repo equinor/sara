@@ -9,18 +9,18 @@ public interface IPlantDataService
 {
     public Task<PagedList<PlantData>> GetPlantData(QueryParameters parameters);
 
-    public Task<PlantData?> ReadById(string id);
+    public Task<PlantData?> ReadById(Guid id);
 
     public Task<List<PlantData>> ReadByTagIdAndInspectionDescription(
         string tagId,
         string inspectionDescription
     );
-    public Task<bool> ExistsByInspectionId(string inspectionId);
+    public Task<bool> ExistsByInspectionId(Guid inspectionId);
 
-    public Task<PlantData> ReadByInspectionId(string inspectionId);
+    public Task<PlantData> ReadByInspectionId(Guid inspectionId);
 
     public Task<PlantData> CreatePlantData(
-        string inspectionId,
+        Guid inspectionId,
         string installationCode,
         string tagID,
         string inspectionDescription,
@@ -32,33 +32,23 @@ public interface IPlantDataService
 
     public Task WritePlantData(PlantData plantData);
 
-    public Task<PlantData> UpdateAnonymizerWorkflowStatus(
-        string inspectionId,
-        WorkflowStatus status
-    );
+    public Task<PlantData> UpdateAnonymizerWorkflowStatus(Guid inspectionId, WorkflowStatus status);
 
-    public Task<PlantData> UpdateCLOEWorkflowStatus(string inspectionId, WorkflowStatus status);
+    public Task<PlantData> UpdateCLOEWorkflowStatus(Guid inspectionId, WorkflowStatus status);
 
-    public Task<PlantData> UpdateFencillaWorkflowStatus(
-        string inspectionId,
-        WorkflowStatus started
-    );
+    public Task<PlantData> UpdateFencillaWorkflowStatus(Guid inspectionId, WorkflowStatus started);
 
     public Task<PlantData> UpdateThermalReadingWorkflowStatus(
-        string inspectionId,
+        Guid inspectionId,
         WorkflowStatus started
     );
 
-    public Task<PlantData> UpdateAnonymizerResult(string inspectionId, bool isPersonInImage);
+    public Task<PlantData> UpdateAnonymizerResult(Guid inspectionId, bool isPersonInImage);
 
-    public Task<PlantData> UpdateCLOEResult(string inspectionId, float oilLevel);
+    public Task<PlantData> UpdateCLOEResult(Guid inspectionId, float oilLevel);
 
-    public Task<PlantData> UpdateFencillaResult(
-        string inspectionId,
-        bool isBreak,
-        float confidence
-    );
-    public Task<PlantData> UpdateThermalReadingResult(string inspectionId, float temperature);
+    public Task<PlantData> UpdateFencillaResult(Guid inspectionId, bool isBreak, float confidence);
+    public Task<PlantData> UpdateThermalReadingResult(Guid inspectionId, float temperature);
     public Task UpdatePlantDataFromAnalysisMapping(
         string tagId,
         string inspectionDescription,
@@ -89,7 +79,7 @@ public class PlantDataService(
         );
     }
 
-    public async Task<PlantData?> ReadById(string id)
+    public async Task<PlantData?> ReadById(Guid id)
     {
         return await context
             .PlantData.Include(plantData => plantData.Anonymization)
@@ -99,7 +89,7 @@ public class PlantDataService(
             .FirstOrDefaultAsync(i => i.Id.Equals(id));
     }
 
-    public async Task<bool> ExistsByInspectionId(string inspectionId)
+    public async Task<bool> ExistsByInspectionId(Guid inspectionId)
     {
         return await context.PlantData.AnyAsync(i => i.InspectionId.Equals(inspectionId));
     }
@@ -123,7 +113,7 @@ public class PlantDataService(
             .ToListAsync();
     }
 
-    public async Task<PlantData> ReadByInspectionId(string inspectionId)
+    public async Task<PlantData> ReadByInspectionId(Guid inspectionId)
     {
         var plantData = await context
             .PlantData.Include(plantData => plantData.Anonymization)
@@ -141,7 +131,7 @@ public class PlantDataService(
     }
 
     public async Task<PlantData> CreatePlantData(
-        string inspectionId,
+        Guid inspectionId,
         string installationCode,
         string tagID,
         string inspectionDescription,
@@ -151,8 +141,6 @@ public class PlantDataService(
         string? robotName = null
     )
     {
-        inspectionId = Sanitize.SanitizeUserInput(inspectionId);
-
         List<AnalysisType> analysisToBeRun;
         try
         {
@@ -267,7 +255,7 @@ public class PlantDataService(
     }
 
     public async Task<PlantData> UpdateAnonymizerWorkflowStatus(
-        string inspectionId,
+        Guid inspectionId,
         WorkflowStatus status
     )
     {
@@ -277,10 +265,7 @@ public class PlantDataService(
         return plantData;
     }
 
-    public async Task<PlantData> UpdateCLOEWorkflowStatus(
-        string inspectionId,
-        WorkflowStatus status
-    )
+    public async Task<PlantData> UpdateCLOEWorkflowStatus(Guid inspectionId, WorkflowStatus status)
     {
         var plantData = await ReadByInspectionId(inspectionId);
         if (plantData.CLOEAnalysis == null)
@@ -295,7 +280,7 @@ public class PlantDataService(
     }
 
     public async Task<PlantData> UpdateFencillaWorkflowStatus(
-        string inspectionId,
+        Guid inspectionId,
         WorkflowStatus status
     )
     {
@@ -312,7 +297,7 @@ public class PlantDataService(
     }
 
     public async Task<PlantData> UpdateThermalReadingWorkflowStatus(
-        string inspectionId,
+        Guid inspectionId,
         WorkflowStatus status
     )
     {
@@ -328,7 +313,7 @@ public class PlantDataService(
         return plantData;
     }
 
-    public async Task<PlantData> UpdateAnonymizerResult(string inspectionId, bool isPersonInImage)
+    public async Task<PlantData> UpdateAnonymizerResult(Guid inspectionId, bool isPersonInImage)
     {
         var plantData = await ReadByInspectionId(inspectionId);
         plantData.Anonymization.IsPersonInImage = isPersonInImage;
@@ -336,7 +321,7 @@ public class PlantDataService(
         return plantData;
     }
 
-    public async Task<PlantData> UpdateCLOEResult(string inspectionId, float oilLevel)
+    public async Task<PlantData> UpdateCLOEResult(Guid inspectionId, float oilLevel)
     {
         var plantData = await ReadByInspectionId(inspectionId);
         if (plantData.CLOEAnalysis == null)
@@ -357,7 +342,7 @@ public class PlantDataService(
     }
 
     public async Task<PlantData> UpdateFencillaResult(
-        string inspectionId,
+        Guid inspectionId,
         bool isBreak,
         float confidence
     )
@@ -387,7 +372,7 @@ public class PlantDataService(
         return plantData;
     }
 
-    public async Task<PlantData> UpdateThermalReadingResult(string inspectionId, float temperature)
+    public async Task<PlantData> UpdateThermalReadingResult(Guid inspectionId, float temperature)
     {
         var plantData = await ReadByInspectionId(inspectionId);
         if (plantData.ThermalReadingAnalysis == null)

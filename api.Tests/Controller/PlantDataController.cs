@@ -56,10 +56,11 @@ namespace api.Controllers.Tests
         [Fact]
         public async Task CreatePlantData_ReturnsCreated_WhenPlantDataCreated()
         {
+            var inspectionId = Guid.NewGuid();
             // Arrange
             var request = new PlantDataRequest
             {
-                InspectionId = "dummyInspectionId",
+                InspectionId = inspectionId,
                 InstallationCode = "dummyInstallationCode",
                 TagId = "dummyTagId",
                 InspectionDescription = "dummyInspectionDescription",
@@ -72,7 +73,7 @@ namespace api.Controllers.Tests
             };
             var expectedPlantData = new PlantData
             {
-                InspectionId = "dummyInspectionId",
+                InspectionId = inspectionId,
                 InstallationCode = "dummyInstallationCode",
                 Tag = "dummyTagId",
                 InspectionDescription = "dummyInspectionDescription",
@@ -121,7 +122,7 @@ namespace api.Controllers.Tests
             // Arrange
             var request = new PlantDataRequest
             {
-                InspectionId = "dummyInspectionId",
+                InspectionId = Guid.NewGuid(),
                 InstallationCode = "dummyInstallationCode",
                 TagId = "TAG-001",
                 InspectionDescription = "Oil Level",
@@ -157,7 +158,7 @@ namespace api.Controllers.Tests
             // Arrange
             var request = new PlantDataRequest
             {
-                InspectionId = "",
+                InspectionId = Guid.NewGuid(),
                 InstallationCode = "",
                 TagId = "",
                 InspectionDescription = "",

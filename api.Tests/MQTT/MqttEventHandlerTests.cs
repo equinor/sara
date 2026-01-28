@@ -100,7 +100,7 @@ namespace api.Tests.MQTT
             {
                 ISARID = "dummy",
                 RobotName = "dummy",
-                InspectionId = "dummy",
+                InspectionId = Guid.NewGuid(),
                 InspectionDataPath = new InspectionPathMessage
                 {
                     StorageAccount = "dummyRawStorageAccount",
@@ -139,7 +139,7 @@ namespace api.Tests.MQTT
             mockedServices.ArgoWorkflowServiceMock.Verify(
                 s =>
                     s.TriggerAnonymizer(
-                        It.IsAny<string>(),
+                        It.IsAny<Guid>(),
                         It.IsAny<Database.Models.Anonymization>()
                     ),
                 Times.Once
