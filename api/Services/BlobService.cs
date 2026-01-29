@@ -68,7 +68,8 @@ namespace api.Services
             var blobContainerClient = GetBlobContainerClient(containerName);
             try
             {
-                return blobContainerClient.GetBlobsAsync(BlobTraits.Metadata);
+                GetBlobsOptions blobOptions = new() { Traits = BlobTraits.Metadata };
+                return blobContainerClient.GetBlobsAsync(options: blobOptions);
             }
             catch (RequestFailedException e)
             {

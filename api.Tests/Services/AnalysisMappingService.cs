@@ -68,8 +68,9 @@ public class AnalysisMappingServiceTests
         Assert.Contains(AnalysisType.ConstantLevelOiler, result.AnalysesToBeRun);
 
         // Verify it was saved to database
-        var savedMapping = await context.AnalysisMapping.FirstOrDefaultAsync(m =>
-            m.Tag == "TAG-001"
+        var savedMapping = await context.AnalysisMapping.FirstOrDefaultAsync(
+            m => m.Tag == "TAG-001",
+            cancellationToken: TestContext.Current.CancellationToken
         );
         Assert.NotNull(savedMapping);
     }
@@ -83,8 +84,8 @@ public class AnalysisMappingServiceTests
         var service = new AnalysisMappingService(context, loggerMock.Object);
 
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentException>(
-            () => service.CreateAnalysisMapping("", "Oil Level", AnalysisType.ConstantLevelOiler)
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.CreateAnalysisMapping("", "Oil Level", AnalysisType.ConstantLevelOiler)
         );
     }
 
@@ -128,8 +129,8 @@ public class AnalysisMappingServiceTests
         );
 
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentException>(
-            () => service.AddAnalysisTypeToMapping(mapping, AnalysisType.ConstantLevelOiler)
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.AddAnalysisTypeToMapping(mapping, AnalysisType.ConstantLevelOiler)
         );
     }
 

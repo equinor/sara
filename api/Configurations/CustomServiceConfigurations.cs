@@ -2,8 +2,7 @@ using System.Reflection;
 using api.Database.Context;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.OpenApi.Models;
-using MQTTnet.Client;
+using Microsoft.OpenApi;
 using MQTTnet.Extensions.ManagedClient;
 
 namespace api.Configurations;
@@ -100,22 +99,10 @@ public static class CustomServiceConfigurations
                 }
             );
             // Show which endpoints have authorization in the UI
-            c.AddSecurityRequirement(
-                new OpenApiSecurityRequirement
-                {
-                    {
-                        new OpenApiSecurityScheme
-                        {
-                            Reference = new OpenApiReference
-                            {
-                                Type = ReferenceType.SecurityScheme,
-                                Id = "oauth2",
-                            },
-                        },
-                        Array.Empty<string>()
-                    },
-                }
-            );
+            c.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+            {
+                [new OpenApiSecuritySchemeReference("oauth2", document)] = [],
+            });
 
             // Make swagger use xml comments from functions
             string xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
