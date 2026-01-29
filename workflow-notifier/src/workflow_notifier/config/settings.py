@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     OTEL_EXPORTER_OTLP_ENDPOINT: str = Field(default="http://localhost:4317")
     OTEL_EXPORTER_OTLP_PROTOCOL: str = Field(default="grpc")
 
+    OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE: str = Field(default="DELTA")
+
     @property
     def authority(self) -> str:
         return f"https://login.microsoftonline.com/{self.TENANT_ID}"
