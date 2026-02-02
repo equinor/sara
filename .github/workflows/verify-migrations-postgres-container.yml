@@ -1,0 +1,67 @@
+# Validates EF Core migrations against a real PostgreSQL container to catch provider-specific SQL errors.
+# Runs "dotnet ef database update" to ensure the full migration history applies successfully.
+
+name: Verify Migrations Against Postgres Container
+
+on:
+  pull_request:
+    paths:
+      - 'api/**'
+      - '.github/workflows/**'
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_VERSION: '10.0.x'
+
+jobs:
+  validate-migrations-temp-container:
+    name: Validate EF Core Migrations Against Temporary Container
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: sara_test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Install dotnet ef tool
+        run: dotnet tool install -g dotnet-ef --version 10.0.*
+
+      - name: Build API
+        working-directory: api
+        run: dotnet build
+
+      - name: Check for Pending Model Changes
+        working-directory: api
+        env:
+          Database__postgresConnectionString: "Host=localhost;Port=5432;Database=sara_test_db;Username=postgres;Password=password;Include Error Detail=true"
+          ASPNETCORE_ENVIRONMENT: "Development"
+        run: dotnet ef migrations has-pending-model-changes
+
+      - name: Verify Migrations Against Postgres Container
+        working-directory: api
+        env:
+          Database__postgresConnectionString: "Host=localhost;Port=5432;Database=sara_test_db;Username=postgres;Password=password;Include Error Detail=true"
+          ASPNETCORE_ENVIRONMENT: "Development"
+        run: |
+          dotnet ef database update --no-build --verbose
