@@ -66,9 +66,10 @@ public class CLOEWorkflowNotificationController(
     )
     {
         logger.LogDebug(
-            "Received notification with result from the CLOE workflow with inspection id {id}. OilLevel: {oilLevel}",
+            "Received notification with result from the CLOE workflow with inspection id {id}. OilLevel: {oilLevel}. Confidence: {confidence}",
             notification.InspectionId,
-            notification.OilLevel
+            notification.OilLevel,
+            notification.Confidence
         );
 
         PlantData updatedPlantData;
@@ -76,7 +77,8 @@ public class CLOEWorkflowNotificationController(
         {
             updatedPlantData = await plantDataService.UpdateCLOEResult(
                 notification.InspectionId,
-                notification.OilLevel
+                notification.OilLevel,
+                notification.Confidence
             );
         }
         catch (InvalidOperationException ex)
@@ -122,18 +124,31 @@ public class CLOEWorkflowNotificationController(
                 $"CLOE analysis is not set up for plant data with inspection id {notification.InspectionId}"
             );
 
+        const float confidenceThreshold = 0.3F;
+        const float lowOilLevelThreshold = 0.05F;
+
         string? warning = null;
-        if (cloeAnalysis.OilLevel < 0.05)
+        if (
+            cloeAnalysis.OilLevel < lowOilLevelThreshold
+            && cloeAnalysis.Confidence >= confidenceThreshold
+        )
         {
             warning = "Oil Level is below 5%";
+        }
+
+        string? value = null;
+        if (cloeAnalysis.Confidence >= confidenceThreshold)
+        {
+            value = (cloeAnalysis.OilLevel * 100).ToString();
         }
 
         var message = new SaraAnalysisResultMessage
         {
             InspectionId = updatedPlantData.InspectionId,
             AnalysisType = nameof(AnalysisType.ConstantLevelOiler),
-            Value = (cloeAnalysis.OilLevel * 100).ToString(),
+            Value = value,
             Unit = "percentage",
+            Confidence = cloeAnalysis.Confidence,
             Warning = warning,
             StorageAccount = cloeAnalysis.DestinationBlobStorageLocation.StorageAccount,
             BlobContainer = cloeAnalysis.DestinationBlobStorageLocation.BlobContainer,

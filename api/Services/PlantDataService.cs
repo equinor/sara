@@ -51,7 +51,7 @@ public interface IPlantDataService
 
     public Task<PlantData> UpdateAnonymizerResult(string inspectionId, bool isPersonInImage);
 
-    public Task<PlantData> UpdateCLOEResult(string inspectionId, float oilLevel);
+    public Task<PlantData> UpdateCLOEResult(string inspectionId, float oilLevel, float confidence);
 
     public Task<PlantData> UpdateFencillaResult(
         string inspectionId,
@@ -336,7 +336,11 @@ public class PlantDataService(
         return plantData;
     }
 
-    public async Task<PlantData> UpdateCLOEResult(string inspectionId, float oilLevel)
+    public async Task<PlantData> UpdateCLOEResult(
+        string inspectionId,
+        float oilLevel,
+        float confidence
+    )
     {
         var plantData = await ReadByInspectionId(inspectionId);
         if (plantData.CLOEAnalysis == null)
@@ -352,6 +356,7 @@ public class PlantDataService(
             );
         }
         plantData.CLOEAnalysis.OilLevel = oilLevel;
+        plantData.CLOEAnalysis.Confidence = confidence;
         await context.SaveChangesAsync();
         return plantData;
     }
