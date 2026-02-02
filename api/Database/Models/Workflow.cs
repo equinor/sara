@@ -55,6 +55,7 @@ public class Anonymization : Workflow
 public class CLOEAnalysis : Workflow
 {
     public float? OilLevel { get; set; }
+    public float? Confidence { get; set; }
 }
 
 public class FencillaAnalysis : Workflow

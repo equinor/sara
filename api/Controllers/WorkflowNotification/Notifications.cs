@@ -19,6 +19,7 @@ public class AnonymizerWorkflowResultNotification : WorkflowResultNotification
 public class CLOEWorkflowResultNotification : WorkflowResultNotification
 {
     public required float OilLevel { get; set; }
+    public required float Confidence { get; set; }
 }
 
 public class FencillaWorkflowResultNotification : WorkflowResultNotification

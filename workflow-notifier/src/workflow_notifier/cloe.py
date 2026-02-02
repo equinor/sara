@@ -22,9 +22,11 @@ def notify_constant_level_oiler_estimator_started(
 
 
 @app.command()
-def notify_constant_level_oiler_estimator_result(inspection_id: str, oil_level: str):
+def notify_constant_level_oiler_estimator_result(
+    inspection_id: str, oil_level: str, confidence: float
+):
     logger.info(f"Notify CLOE result for inspection {inspection_id}")
-    result = {"OilLevel": oil_level}
+    result = {"OilLevel": oil_level, "Confidence": confidence}
     notify_result(WORKFLOW_TYPE, inspection_id, result)
 
 
