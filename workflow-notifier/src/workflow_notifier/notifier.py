@@ -126,7 +126,10 @@ def notify_exited(
                 "status": workflow_status,
             },
         )
-        metrics.get_meter_provider().force_flush()
+        
+        meter_provider = metrics.get_meter_provider()
+        if hasattr(meter_provider, "force_flush"):
+            meter_provider.force_flush()
 
         send_authenticated_put_request(url, payload)
     except requests.exceptions.RequestException as e:
