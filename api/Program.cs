@@ -61,6 +61,7 @@ else
 
 builder.Services.Configure<AzureAdOptions>(builder.Configuration.GetSection("AzureAd"));
 builder.Services.Configure<BlobOptions>(builder.Configuration.GetSection("Storage"));
+builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email"));
 
 builder.Services.AddScoped<IBlobService, BlobService>();
 builder.Services.AddScoped<IPlantDataService, PlantDataService>();
@@ -70,6 +71,7 @@ builder.Services.AddScoped<IMqttPublisherService, MqttPublisherService>();
 
 builder.Services.AddScoped<IArgoWorkflowService, ArgoWorkflowService>();
 builder.Services.AddScoped<ITimeseriesService, TimeseriesService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
 
 builder.Services.AddHostedService<MqttEventHandler>();
 builder.Services.AddHostedService<MqttService>();
