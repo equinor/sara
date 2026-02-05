@@ -1,5 +1,6 @@
 using System.Reflection;
 using api.Database.Context;
+using Api.Database.Context;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
@@ -34,7 +35,7 @@ public static class CustomServiceConfigurations
 
             using var context = new SaraDbContext(dbBuilder.Options);
             context.Database.EnsureCreated();
-            // InitDb.PopulateDb(context);
+            InitDb.PopulateDb(context);
 
             // Setting splitting behavior explicitly to avoid warning
             services.AddDbContext<SaraDbContext>(options =>
