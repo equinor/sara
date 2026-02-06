@@ -14,7 +14,8 @@ public class FencillaWorkflowNotificationController(
     ILogger<FencillaWorkflowNotificationController> logger,
     IPlantDataService plantDataService,
     IArgoWorkflowService workflowService,
-    IMqttPublisherService mqttPublisherService
+    IMqttPublisherService mqttPublisherService,
+    IEmailService emailService
 ) : ControllerBase
 {
     /// <summary>
@@ -148,6 +149,19 @@ public class FencillaWorkflowNotificationController(
             message.StorageAccount = fencillaAnalysis.DestinationBlobStorageLocation.StorageAccount;
             message.BlobContainer = fencillaAnalysis.DestinationBlobStorageLocation.BlobContainer;
             message.BlobName = fencillaAnalysis.DestinationBlobStorageLocation.BlobName;
+            try
+            {
+                await emailService.SendFencillaResultEmail(
+                    updatedPlantData.InspectionId,
+                    fencillaAnalysis.Confidence,
+                    updatedPlantData.InstallationCode
+                );
+            }
+            catch (Exception ex)
+            {
+                // This is expected if the application does not have Email.Send permission
+                logger.LogWarning("Unable to send fencilla results email: {error}", ex.Message);
+            }
         }
 
         await mqttPublisherService.PublishSaraAnalysisResultAvailable(message);
