@@ -2,9 +2,12 @@ apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
   name: sara
+  description: SARA (Storage and Analysis of Robot Acquired plant data) is a web service that facilitates the processing of incoming plant data from autonomous robots. Various workflows will be triggered to analyse the plant data, based on metadata provided. The workflows themselves are not in the scope of this solution. This solution only needs to have an overview of which workflows are available and how to call them with their API.
   annotations:
     github.com/project-slug: equinor/sara
+    github.com/team-slug: equinor/eq-robot-developer
 spec:
-  type: other
-  lifecycle: unknown
-  owner: eq-robot-developer
+  type: service
+  lifecycle: production
+  owner: group:default/eq-robot-developer
+  system: system:default/flotilla
