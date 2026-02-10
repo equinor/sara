@@ -101,7 +101,10 @@ public class TriggerAnalysisController(
             }
 
             var analysesToRun = new List<string>();
-            if (plantData.CLOEAnalysis?.Status == WorkflowStatus.NotStarted)
+            if (
+                plantData.CLOEAnalysis?.Status == WorkflowStatus.NotStarted
+                || plantData.CLOEAnalysis?.Status == WorkflowStatus.ExitFailure
+            )
             {
                 await argoWorkflowService.TriggerCLOE(
                     plantData.InspectionId,
@@ -109,7 +112,10 @@ public class TriggerAnalysisController(
                 );
                 analysesToRun.Add("CLOE analysis");
             }
-            if (plantData.FencillaAnalysis?.Status == WorkflowStatus.NotStarted)
+            if (
+                plantData.FencillaAnalysis?.Status == WorkflowStatus.NotStarted
+                || plantData.FencillaAnalysis?.Status == WorkflowStatus.ExitFailure
+            )
             {
                 await argoWorkflowService.TriggerFencilla(
                     plantData.InspectionId,
@@ -119,7 +125,10 @@ public class TriggerAnalysisController(
             }
 
             if (
-                plantData.ThermalReadingAnalysis?.Status == WorkflowStatus.NotStarted
+                (
+                    plantData.ThermalReadingAnalysis?.Status == WorkflowStatus.NotStarted
+                    || plantData.ThermalReadingAnalysis?.Status == WorkflowStatus.ExitFailure
+                )
                 && plantData.Tag != null
                 && plantData.InspectionDescription != null
             )
