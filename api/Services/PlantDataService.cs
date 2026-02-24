@@ -161,8 +161,14 @@ public class PlantDataService(
                 inspectionDescription
             );
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            logger.LogError(
+                ex,
+                "Error occurred while fetching analysis mapping for TagID: {TagID} and InspectionDescription: {InspectionDescription}",
+                tagID,
+                inspectionDescription
+            );
             throw new InvalidOperationException("Error occurred while fetching analysis mapping");
         }
 
