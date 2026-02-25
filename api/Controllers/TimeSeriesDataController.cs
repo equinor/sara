@@ -31,6 +31,7 @@ public class TimeSeriesDataController(
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<double>> GetCO2ConcentrationFromSARATimeSeries(
         [FromBody] FetchCO2MeasurementRequest fetchRequest
@@ -43,12 +44,24 @@ public class TimeSeriesDataController(
             fetchRequest.TaskEndTime,
             fetchRequest.InspectionName
         );
-        var co2Value = await timeseriesService.FetchCO2ConcentrationFromTimeseries(fetchRequest);
 
-        if (co2Value == null)
+        try
         {
-            return NotFound("CO2 concentration not found for the given parameters.");
+            var co2Value = await timeseriesService.FetchCO2ConcentrationFromTimeseries(
+                fetchRequest
+            );
+            if (co2Value == null)
+            {
+                return NotFound("CO2 concentration not found for the given parameters.");
+            }
+            return Ok(co2Value);
         }
-        return Ok(co2Value);
+        catch (HttpRequestException e)
+        {
+            return StatusCode(
+                (int)(e.StatusCode ?? System.Net.HttpStatusCode.InternalServerError),
+                e.Message
+            );
+        }
     }
 }

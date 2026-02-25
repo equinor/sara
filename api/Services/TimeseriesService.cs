@@ -97,11 +97,17 @@ public class TimeseriesService(IConfiguration configuration, ILogger<TimeseriesS
         }
         else
         {
+            var errorMessage = await response.Content.ReadAsStringAsync();
             logger.LogError(
-                "Failed to fetch CO2 concentration from Timeseries with statusCode: {StatusCode}",
+                "Failed to fetch CO2 concentration from Timeseries with statusCode: '{StatusCode}' and message: '{Message}'",
+                response.StatusCode,
+                errorMessage
+            );
+            throw new HttpRequestException(
+                errorMessage ?? "Failed to fetch CO2 concentration from Timeseries",
+                null,
                 response.StatusCode
             );
-            return null;
         }
     }
 }
