@@ -14,6 +14,7 @@ public class CLOEWorkflowNotificationController(
     ILogger<CLOEWorkflowNotificationController> logger,
     IPlantDataService plantDataService,
     IArgoWorkflowService workflowService,
+    ITimeseriesService timeseriesService,
     IMqttPublisherService mqttPublisherService
 ) : ControllerBase
 {
@@ -86,6 +87,25 @@ public class CLOEWorkflowNotificationController(
             logger.LogError(ex, "Error occurred while updating CLOE result");
             return BadRequest(ex.Message);
         }
+
+        var uploadRequest = new TriggerTimeseriesUploadRequest
+        {
+            Name =
+                $"{updatedPlantData.InstallationCode}_{updatedPlantData.Tag}_{updatedPlantData.InspectionDescription}",
+            Facility = updatedPlantData.InstallationCode,
+            ExternalId = "",
+            Description = "CLOE-oil-level",
+            Unit = "percentage",
+            AssetId = updatedPlantData.InstallationCode,
+            Value = notification.OilLevel,
+            Timestamp = updatedPlantData.Timestamp ?? DateTime.UtcNow,
+            Step = true,
+            Metadata = new Dictionary<string, string>
+            {
+                { "Confidence", notification.Confidence.ToString() },
+            },
+        };
+        await timeseriesService.TriggerTimeseriesUpload(uploadRequest);
 
         return Ok(updatedPlantData);
     }
