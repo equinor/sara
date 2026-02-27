@@ -148,7 +148,7 @@ public class CLOEWorkflowNotificationController(
             AnalysisType = nameof(AnalysisType.ConstantLevelOiler),
             Value = value,
             Unit = "percentage",
-            Confidence = cloeAnalysis.Confidence,
+            Confidence = cloeAnalysis.Confidence * 100,
             Warning = warning,
             StorageAccount = cloeAnalysis.DestinationBlobStorageLocation.StorageAccount,
             BlobContainer = cloeAnalysis.DestinationBlobStorageLocation.BlobContainer,
