@@ -15,7 +15,8 @@ public class CLOEWorkflowNotificationController(
     IPlantDataService plantDataService,
     IArgoWorkflowService workflowService,
     ITimeseriesService timeseriesService,
-    IMqttPublisherService mqttPublisherService
+    IMqttPublisherService mqttPublisherService,
+    IConfiguration configuration
 ) : ControllerBase
 {
     /// <summary>
@@ -86,6 +87,20 @@ public class CLOEWorkflowNotificationController(
         {
             logger.LogError(ex, "Error occurred while updating CLOE result");
             return BadRequest(ex.Message);
+        }
+
+        float cloeConfidenceThreshold = configuration
+            .GetSection("Thresholds")
+            .GetValue<float>("CLOETimeseriesUploadConfidenceThreshold");
+
+        if (notification.Confidence < cloeConfidenceThreshold)
+        {
+            logger.LogWarning(
+                "Not sending CLOE result to timeseries upload due to low confidence of {confidence} for inspection id {id}",
+                notification.Confidence,
+                notification.InspectionId
+            );
+            return Ok(updatedPlantData);
         }
 
         var uploadRequest = new TriggerTimeseriesUploadRequest
