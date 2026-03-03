@@ -23,16 +23,16 @@ public record TriggerTimeseriesUploadRequest
 public record FetchCO2MeasurementRequest
 {
     [JsonPropertyName("facility")]
-    public required string Facility { get; init; }
+    public required string Facility { get; set; }
 
     [JsonPropertyName("task_start_time")]
-    public required string TaskStartTime { get; init; }
+    public required string TaskStartTime { get; set; }
 
     [JsonPropertyName("task_end_time")]
-    public required string TaskEndTime { get; init; }
+    public required string TaskEndTime { get; set; }
 
     [JsonPropertyName("inspection_name")]
-    public required string InspectionName { get; init; }
+    public required string InspectionName { get; set; }
 }
 
 public interface ITimeseriesService

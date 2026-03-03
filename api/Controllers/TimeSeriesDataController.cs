@@ -1,6 +1,7 @@
 using System.Text.Json;
 using api.Controllers.Models;
 using api.Services;
+using api.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -37,6 +38,8 @@ public class TimeSeriesDataController(
         [FromBody] FetchCO2MeasurementRequest fetchRequest
     )
     {
+        fetchRequest = Sanitize.SanitizeUserInput(fetchRequest);
+
         logger.LogInformation(
             "Received request to fetch CO2 concentration from Timeseries for Facility: {Facility}, TaskStartTime: {TaskStartTime}, TaskEndTime: {TaskEndTime}, InspectionName: {InspectionName}",
             fetchRequest.Facility,
