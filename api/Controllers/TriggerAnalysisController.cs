@@ -1,6 +1,7 @@
 using api.Controllers.Models;
 using api.Database.Models;
 using api.Services;
+using api.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -67,6 +68,8 @@ public class TriggerAnalysisController(
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> TriggerAnalysis([FromRoute] string plantDataId)
     {
+        plantDataId = Sanitize.SanitizeUserInput(plantDataId);
+
         try
         {
             var plantData = await plantDataService.ReadById(plantDataId);

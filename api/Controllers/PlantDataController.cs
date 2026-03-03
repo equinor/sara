@@ -59,6 +59,8 @@ public class PlantDataController(
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult> CreatePlantData([FromBody] PlantDataRequest request)
     {
+        request = Sanitize.SanitizeUserInput(request);
+
         if (
             string.IsNullOrWhiteSpace(request.InspectionId)
             || string.IsNullOrWhiteSpace(request.InstallationCode)
