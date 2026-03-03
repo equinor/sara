@@ -179,18 +179,9 @@ public class PlantDataController(
         inspectionId = Sanitize.SanitizeUserInput(inspectionId);
         try
         {
-            PlantData plantData;
-            try
+            var plantData = await plantDataService.ReadByInspectionId(inspectionId);
+            if (plantData == null)
             {
-                plantData = await plantDataService.ReadByInspectionId(inspectionId);
-            }
-            catch (InvalidOperationException ex)
-            {
-                logger.LogWarning(
-                    ex,
-                    "No plant data found for InspectionId: {inspectionId}",
-                    inspectionId
-                );
                 return NotFound($"Could not find plant data with inspection id {inspectionId}");
             }
 
