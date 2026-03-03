@@ -17,7 +17,7 @@ public interface IPlantDataService
     );
     public Task<bool> ExistsByInspectionId(string inspectionId);
 
-    public Task<PlantData> ReadByInspectionId(string inspectionId);
+    public Task<PlantData?> ReadByInspectionId(string inspectionId);
 
     public Task<PlantData> CreatePlantData(
         string inspectionId,
@@ -123,7 +123,7 @@ public class PlantDataService(
             .ToListAsync();
     }
 
-    public async Task<PlantData> ReadByInspectionId(string inspectionId)
+    public async Task<PlantData?> ReadByInspectionId(string inspectionId)
     {
         var plantData = await context
             .PlantData.Include(plantData => plantData.Anonymization)
@@ -131,12 +131,6 @@ public class PlantDataService(
             .Include(plantData => plantData.FencillaAnalysis)
             .Include(plantData => plantData.ThermalReadingAnalysis)
             .FirstOrDefaultAsync(i => i.InspectionId.Equals(inspectionId));
-        if (plantData == null)
-        {
-            throw new InvalidOperationException(
-                $"Could not find plantData with inspection id {inspectionId}"
-            );
-        }
         return plantData;
     }
 
@@ -275,7 +269,11 @@ public class PlantDataService(
         WorkflowStatus status
     )
     {
-        var plantData = await ReadByInspectionId(inspectionId);
+        var plantData =
+            await ReadByInspectionId(inspectionId)
+            ?? throw new InvalidOperationException(
+                $"Could not find plant data with inspection id {inspectionId}"
+            );
         plantData.Anonymization.Status = status;
         await context.SaveChangesAsync();
         return plantData;
@@ -286,7 +284,11 @@ public class PlantDataService(
         WorkflowStatus status
     )
     {
-        var plantData = await ReadByInspectionId(inspectionId);
+        var plantData =
+            await ReadByInspectionId(inspectionId)
+            ?? throw new InvalidOperationException(
+                $"Could not find plant data with inspection id {inspectionId}"
+            );
         if (plantData.CLOEAnalysis == null)
         {
             throw new InvalidOperationException(
@@ -303,7 +305,11 @@ public class PlantDataService(
         WorkflowStatus status
     )
     {
-        var plantData = await ReadByInspectionId(inspectionId);
+        var plantData =
+            await ReadByInspectionId(inspectionId)
+            ?? throw new InvalidOperationException(
+                $"Could not find plant data with inspection id {inspectionId}"
+            );
         if (plantData.FencillaAnalysis == null)
         {
             throw new InvalidOperationException(
@@ -320,7 +326,11 @@ public class PlantDataService(
         WorkflowStatus status
     )
     {
-        var plantData = await ReadByInspectionId(inspectionId);
+        var plantData =
+            await ReadByInspectionId(inspectionId)
+            ?? throw new InvalidOperationException(
+                $"Could not find plant data with inspection id {inspectionId}"
+            );
         if (plantData.ThermalReadingAnalysis == null)
         {
             throw new InvalidOperationException(
@@ -334,7 +344,11 @@ public class PlantDataService(
 
     public async Task<PlantData> UpdateAnonymizerResult(string inspectionId, bool isPersonInImage)
     {
-        var plantData = await ReadByInspectionId(inspectionId);
+        var plantData =
+            await ReadByInspectionId(inspectionId)
+            ?? throw new InvalidOperationException(
+                $"Could not find plant data with inspection id {inspectionId}"
+            );
         plantData.Anonymization.IsPersonInImage = isPersonInImage;
         await context.SaveChangesAsync();
         return plantData;
@@ -346,7 +360,11 @@ public class PlantDataService(
         float confidence
     )
     {
-        var plantData = await ReadByInspectionId(inspectionId);
+        var plantData =
+            await ReadByInspectionId(inspectionId)
+            ?? throw new InvalidOperationException(
+                $"Could not find plant data with inspection id {inspectionId}"
+            );
         if (plantData.CLOEAnalysis == null)
         {
             throw new InvalidOperationException(
@@ -371,7 +389,11 @@ public class PlantDataService(
         float confidence
     )
     {
-        var plantData = await ReadByInspectionId(inspectionId);
+        var plantData =
+            await ReadByInspectionId(inspectionId)
+            ?? throw new InvalidOperationException(
+                $"Could not find plant data with inspection id {inspectionId}"
+            );
         if (plantData.FencillaAnalysis == null)
         {
             throw new InvalidOperationException(
@@ -398,7 +420,11 @@ public class PlantDataService(
 
     public async Task<PlantData> UpdateThermalReadingResult(string inspectionId, float temperature)
     {
-        var plantData = await ReadByInspectionId(inspectionId);
+        var plantData =
+            await ReadByInspectionId(inspectionId)
+            ?? throw new InvalidOperationException(
+                $"Could not find plant data with inspection id {inspectionId}"
+            );
         if (plantData.ThermalReadingAnalysis == null)
         {
             throw new InvalidOperationException(
