@@ -62,6 +62,7 @@ else
 builder.Services.Configure<AzureAdOptions>(builder.Configuration.GetSection("AzureAd"));
 builder.Services.Configure<BlobOptions>(builder.Configuration.GetSection("Storage"));
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email"));
+builder.Services.Configure<EndpointConfig>(builder.Configuration.GetSection("EndpointConfig"));
 
 builder.Services.AddScoped<IBlobService, BlobService>();
 builder.Services.AddScoped<IPlantDataService, PlantDataService>();
@@ -105,13 +106,15 @@ var app = builder.Build();
 string basePath = builder.Configuration["ApiBaseRoute"] ?? "";
 app.UseSwagger(c =>
 {
+    var swaggerScheme = builder.Configuration["EndpointConfig:DefaultScheme"] ?? "https";
+    swaggerScheme = swaggerScheme.Trim().TrimEnd(':');
+
     c.PreSerializeFilters.Add(
         (swaggerDoc, httpReq) =>
         {
             swaggerDoc.Servers =
             [
-                new() { Url = $"http://{httpReq.Host.Value}{basePath}" },
-                new() { Url = $"https://{httpReq.Host.Value}{basePath}" },
+                new() { Url = $"{swaggerScheme}://{httpReq.Host.Value}{basePath}" },
             ];
         }
     );
