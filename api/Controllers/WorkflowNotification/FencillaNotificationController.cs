@@ -141,7 +141,7 @@ public class FencillaWorkflowNotificationController(
             Value = fencillaAnalysis.IsBreak.ToString(),
             Unit = "bool [isBreach]",
             Warning = warning,
-            Confidence = fencillaAnalysis.Confidence,
+            Confidence = fencillaAnalysis.Confidence * 100,
         };
 
         if (fencillaAnalysis.IsBreak == true)

@@ -93,7 +93,7 @@ public class SaraAnalysisResultMessage : MqttMessage
     public string? Unit { get; set; }
 
     [JsonPropertyName("confidence")]
-    public float? Confidence { get; set; }
+    public float? Confidence { get; set; } // As percentage (0-100)
 
     [JsonPropertyName("warning")]
     public string? Warning { get; set; }
