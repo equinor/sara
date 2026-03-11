@@ -6,12 +6,10 @@ param location string
 param deploymentId string = newGuid()
 
 param storageAccountNameRaw string
-
 param storageAccountNameAnon string
-
 param storageAccountNameVis string
-
-param thermalReadingStorageAccount string
+param storageAccountNameThermalRef string
+param storageAccountNameTimeseries string
 
 param keyVaultName string
 param objectIdFgRobots string
@@ -23,7 +21,6 @@ param principalId string
 param roleDefinitionId string
 
 param principalIdFlotillaApp string
-param roleDefinitionIDFlotillaApp string
 
 resource resourceGroup 'Microsoft.Resources/resourceGroups@2024-03-01' = {
   name: resourceGroupName
@@ -46,7 +43,6 @@ module storageAccountAnon 'modules/storage-account-anon.bicep' = {
     location: location
     storageAccountNameAnon: storageAccountNameAnon
     principalIdFlotillaApp: principalIdFlotillaApp
-    roleDefinitionIDFlotillaApp: roleDefinitionIDFlotillaApp
   }
 }
 
@@ -64,7 +60,17 @@ module storageAccountThermal 'modules/storage-account-thermal-ref.bicep' = {
   name: 'infrastructure-sa-thermal-${deploymentId}'
   params: {
     location: location
-    thermalReadingStorageAccount: thermalReadingStorageAccount
+    storageAccountNameThermalRef: storageAccountNameThermalRef
+  }
+}
+
+module storageAccountTimeseries 'modules/storage-account-timeseries.bicep' = {
+  scope: resourceGroup
+  name: 'infrastructure-sa-time-${deploymentId}'
+  params: {
+    location: location
+    storageAccountNameTimeseries: storageAccountNameTimeseries
+    objectIdEnterpriseApplication: objectIdEnterpriseApplication
   }
 }
 

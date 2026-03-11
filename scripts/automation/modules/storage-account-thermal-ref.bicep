@@ -1,8 +1,8 @@
-param thermalReadingStorageAccount string
+param storageAccountNameThermalRef string
 param location string
 
 resource storageAccountThermalRef 'Microsoft.Storage/storageAccounts@2023-05-01' = {
-  name: thermalReadingStorageAccount
+  name: storageAccountNameThermalRef
   location: location
   sku: {
     name: 'Standard_LRS'
