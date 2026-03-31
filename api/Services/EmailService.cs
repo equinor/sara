@@ -29,7 +29,7 @@ namespace api.Services
 
     public record AnalysisImageEmailOptions
     {
-        public string TargetEmail { get; set; } = "";
+        public List<string> TargetEmails { get; set; } = [];
         public string EmailGroup { get; set; } = "";
         public string? AnalysedImageBasePath { get; set; } = "";
     }
@@ -77,13 +77,13 @@ namespace api.Services
         {
             installation = installation.ToUpperInvariant();
 
-            var recipientEmail = recipient switch
+            var recipientEmails = recipient switch
             {
                 EmailTarget.Fencilla => _emailOptions
                     .Fencilla
                     .Installations[installation]
-                    .TargetEmail,
-                _ => throw new ArgumentException("No email found for given email target"),
+                    .TargetEmails,
+                _ => throw new ArgumentException("No emails found for given email targets"),
             };
 
             var emailGroup = recipient switch
@@ -95,23 +95,26 @@ namespace api.Services
                 _ => throw new ArgumentException("No email found for given email group"),
             };
 
-            // Create a new message
-            var message = new Message
+            foreach (var targetEmail in recipientEmails)
             {
-                Subject = subject,
-                Body = new ItemBody { Content = body, ContentType = BodyType.Text },
-                ToRecipients =
-                [
-                    new Recipient { EmailAddress = new EmailAddress { Address = recipientEmail } },
-                ],
-            };
+                // Create a new message
+                var message = new Message
+                {
+                    Subject = subject,
+                    Body = new ItemBody { Content = body, ContentType = BodyType.Text },
+                    ToRecipients =
+                    [
+                        new Recipient { EmailAddress = new EmailAddress { Address = targetEmail } },
+                    ],
+                };
 
-            // Send the message
-            await appClient
-                .Users[emailGroup]
-                .SendMail.PostAsync(
-                    new SendMailPostRequestBody { Message = message, SaveToSentItems = true }
-                );
+                // Send the message
+                await appClient
+                    .Users[emailGroup]
+                    .SendMail.PostAsync(
+                        new SendMailPostRequestBody { Message = message, SaveToSentItems = true }
+                    );
+            }
         }
 
         public async Task SendFencillaResultEmail(
