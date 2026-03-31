@@ -32,7 +32,7 @@ public abstract class Workflow
 {
     [Key]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-    public string Id { get; set; }
+    public Guid Id { get; set; }
 
     [Required]
     public required BlobStorageLocation SourceBlobStorageLocation { get; set; }

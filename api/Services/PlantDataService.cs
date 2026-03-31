@@ -9,7 +9,7 @@ public interface IPlantDataService
 {
     public Task<PagedList<PlantData>> GetPlantData(QueryParameters parameters);
 
-    public Task<PlantData?> ReadById(string id);
+    public Task<PlantData?> ReadById(Guid id);
 
     public Task<List<PlantData>> ReadByTagIdAndInspectionDescription(
         string tagId,
@@ -89,14 +89,14 @@ public class PlantDataService(
         );
     }
 
-    public async Task<PlantData?> ReadById(string id)
+    public async Task<PlantData?> ReadById(Guid id)
     {
         return await context
             .PlantData.Include(plantData => plantData.Anonymization)
             .Include(plantData => plantData.CLOEAnalysis)
             .Include(plantData => plantData.FencillaAnalysis)
             .Include(plantData => plantData.ThermalReadingAnalysis)
-            .FirstOrDefaultAsync(i => i.Id.Equals(id));
+            .FirstOrDefaultAsync(i => i.Id == id);
     }
 
     public async Task<bool> ExistsByInspectionId(string inspectionId)

@@ -105,7 +105,7 @@ public class PlantDataController(
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<PlantData>> GetPlantDataById([FromRoute] string id)
+    public async Task<ActionResult<PlantData>> GetPlantDataById([FromRoute] Guid id)
     {
         try
         {
