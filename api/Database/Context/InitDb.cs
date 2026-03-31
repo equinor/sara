@@ -40,6 +40,23 @@ namespace Api.Database.Context
                         BlobName = "",
                     },
                 },
+                FencillaAnalysis = new FencillaAnalysis
+                {
+                    SourceBlobStorageLocation = new BlobStorageLocation
+                    {
+                        StorageAccount = "",
+                        BlobContainer = "",
+                        BlobName = "",
+                    },
+                    DestinationBlobStorageLocation = new BlobStorageLocation
+                    {
+                        StorageAccount = "",
+                        BlobContainer = "",
+                        BlobName = "",
+                    },
+                    IsBreak = true,
+                    Confidence = 90,
+                },
             };
 
             return new List<PlantData>([data1]);
