@@ -8,7 +8,7 @@ namespace api.Controllers.Models
 {
     public class PlantDataResponse
     {
-        public string id { get; set; }
+        public Guid id { get; set; }
 
         [JsonConstructor]
         public PlantDataResponse() { }
