@@ -7,7 +7,7 @@ namespace api.Utilities
     {
         public static string SanitizeUserInput(string inputString)
         {
-            return inputString.Replace("\n", "").Replace("\r", "");
+            return inputString.Replace("\n", string.Empty).Replace("\r", string.Empty);
         }
 
         public static FetchCO2MeasurementRequest SanitizeUserInput(
