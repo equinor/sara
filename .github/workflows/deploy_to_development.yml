@@ -52,7 +52,7 @@ jobs:
             path_to_dockerfile: Dockerfile
             path_to_context: .
             short_sha_output: ${{ needs.get-short-sha.outputs.tag }}
-          - image_name: robotics/workflow-notifier
+          - image_name: ${{ github.repository }}-workflow-notifier
             path_to_dockerfile: workflow-notifier/Dockerfile
             path_to_context: workflow-notifier
             short_sha_output: ${{ needs.get-short-sha-for-workflow-notifier-folder.outputs.tag }}
