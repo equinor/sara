@@ -44,6 +44,7 @@ jobs:
 
   build-and-push-dev-image-to-aurora-dev-registry:
     name: Build and push dev image to aurora dev registry
+    needs: get-short-sha
     uses: equinor/armada/.github/workflows/build_and_publish_docker_image_to_container_registry.yml@main
     permissions:
       contents: read
