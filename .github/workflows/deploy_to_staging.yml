@@ -24,48 +24,73 @@ jobs:
       ClientId: ${{secrets.CLIENTID}}
       ClientSecret: ${{secrets.CLIENTSECRET}}
 
-  build-and-push-latest-release-image-to-ghcr:
-    name: Build and push latest release image to github container registry
+  build-and-push-latest-release-images-to-ghcr:
+    name: Build and push latest release images to github container registry
     uses: equinor/armada/.github/workflows/build_and_publish_docker_image_to_container_registry.yml@main
     permissions:
       contents: read
       packages: write
+    strategy:
+      matrix:
+        include:
+          - image_name: ${{ github.repository }}
+            path_to_dockerfile: Dockerfile
+            path_to_context: .
+          - image_name: robotics/workflow-notifier
+            path_to_dockerfile: workflow-notifier/Dockerfile
+            path_to_context: workflow-notifier
     with:
       registry: ghcr.io
-      image_name: ${{ github.repository }}
+      image_name: ${{ matrix.image_name }}
       tag: "${{ github.event.release.tag_name }}"
       secondary_tag: latest
-      path_to_dockerfile: Dockerfile
-      path_to_context: .
+      path_to_dockerfile: ${{ matrix.path_to_dockerfile }}
+      path_to_context: ${{ matrix.path_to_context }}
     secrets:
       registry_password: ${{ secrets.GITHUB_TOKEN }}
       registry_username: ${{ github.actor }}
 
-  build-and-push-latest-release-image-to-aurora-prod-registry:
-    name: Build and push latest release image to aurora prod registry
+  build-and-push-latest-release-images-to-aurora-prod-registry:
+    name: Build and push latest release images to aurora prod registry
     uses: equinor/armada/.github/workflows/build_and_publish_docker_image_to_container_registry.yml@main
     permissions:
       contents: read
       packages: write
+    strategy:
+      matrix:
+        include:
+          - image_name: robotics/sara
+            path_to_dockerfile: Dockerfile
+            path_to_context: .
+          - image_name: robotics/workflow-notifier
+            path_to_dockerfile: workflow-notifier/Dockerfile
+            path_to_context: workflow-notifier
     with:
       registry: auroraprodacr.azurecr.io
-      image_name: robotics/sara
+      image_name: ${{ matrix.image_name }}
       tag: "${{ github.event.release.tag_name }}"
       secondary_tag: latest
-      path_to_dockerfile: Dockerfile
-      path_to_context: .
+      path_to_dockerfile: ${{ matrix.path_to_dockerfile }}
+      path_to_context: ${{ matrix.path_to_context }}
     secrets:
       registry_password: ${{ secrets.ROBOTICS_AURORAPRODACR_PASSWORD }}
       registry_username: ${{ secrets.ROBOTICS_AURORAPRODACR_USERNAME }}
 
   deploy:
     name: Update deployment in Staging
-    needs: build-and-push-latest-release-image-to-aurora-prod-registry
+    needs: build-and-push-latest-release-images-to-aurora-prod-registry
     uses: ./.github/workflows/update_aurora_deployment.yml
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        include:
+          - image_name: robotics/sara
+          - image_name: robotics/workflow-notifier
     with:
       Environment: staging
       Registry: auroraprodacr.azurecr.io
-      ImageName: robotics/sara
+      ImageName: ${{ matrix.image_name }}
       Tag: ${{ github.event.release.tag_name }}
       AuthorName: ${{ github.event.release.author.login }}
     secrets:
