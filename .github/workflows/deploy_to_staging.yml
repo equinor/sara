@@ -83,6 +83,7 @@ jobs:
     permissions:
       contents: read
     strategy:
+      max-parallel: 1
       matrix:
         include:
           - image_name: robotics/sara
