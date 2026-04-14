@@ -155,4 +155,12 @@ app.UseAuthorization();
 
 app.MapControllers();
 
+app.Lifetime.ApplicationStarted.Register(() =>
+{
+    foreach (var url in app.Urls)
+    {
+        Console.WriteLine($"Now listening on: {url}");
+    }
+});
+
 app.Run();
