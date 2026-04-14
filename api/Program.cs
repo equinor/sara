@@ -78,7 +78,10 @@ builder.Services.AddHostedService<MqttEventHandler>();
 builder.Services.AddHostedService<MqttService>();
 
 builder
-    .Services.AddControllers()
+    .Services.AddControllers(options =>
+    {
+        options.Conventions.Add(new ApiRoutePrefixConvention("api"));
+    })
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
