@@ -36,7 +36,7 @@ jobs:
           - image_name: ${{ github.repository }}
             path_to_dockerfile: Dockerfile
             path_to_context: .
-          - image_name: robotics/workflow-notifier
+          - image_name: ${{ github.repository }}-workflow-notifier
             path_to_dockerfile: workflow-notifier/Dockerfile
             path_to_context: workflow-notifier
     with:
