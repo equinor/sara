@@ -1,0 +1,13 @@
+services:
+  sara:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8100:8100"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Local
+      - ENABLE_FRONTEND=true
+      - DISPLAY_URL=http://localhost:8100
+      - KeyVault__UseKeyVault=false
+      - Database__UseInMemoryDatabase=true

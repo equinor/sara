@@ -36,3 +36,8 @@ bld/
 
 # JetBrains Editors
 .idea
+
+# Frontend
+node_modules/
+api/wwwroot/
+*.tsbuildinfo

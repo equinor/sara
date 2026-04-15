@@ -1,4 +1,12 @@
 # https://hub.docker.com/_/microsoft-dotnet
+FROM node:22-slim AS frontend-build
+RUN corepack enable && corepack prepare pnpm@latest --activate
+WORKDIR /app
+COPY frontend/package.json frontend/pnpm-lock.yaml frontend/.npmrc ./
+RUN pnpm install --frozen-lockfile
+COPY frontend/ .
+RUN pnpm build --outDir /frontend-dist
+
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /source
 
@@ -12,6 +20,7 @@ RUN dotnet publish -c release -o /app
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
 COPY --from=build /app ./
+COPY --from=frontend-build /frontend-dist ./wwwroot
 RUN apt-get update && apt-get install -y  --no-install-recommends apt-utils libgdiplus libc6-dev
 
 EXPOSE 8100
