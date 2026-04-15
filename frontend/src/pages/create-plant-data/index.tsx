@@ -6,6 +6,7 @@ import {
   Icon,
 } from "@equinor/eds-core-react";
 import { arrow_back } from "@equinor/eds-icons";
+import { useNavigate } from "react-router";
 import {
   createPlantData,
   getAnalysisMappings,
@@ -30,6 +31,7 @@ const emptyForm: PlantDataRequest = {
 };
 
 export default function CreatePlantDataPage() {
+  const navigate = useNavigate();
   const [form, setForm] = useState<PlantDataRequest>(emptyForm);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,10 +51,7 @@ export default function CreatePlantDataPage() {
     fetchMappings();
   }, [fetchMappings]);
 
-  const navigateBack = () => {
-    window.history.pushState(null, "", "/plant-data");
-    window.dispatchEvent(new PopStateEvent("popstate"));
-  };
+  const navigateBack = () => navigate("/plant-data");
 
   const handleCreate = async () => {
     setCreating(true);

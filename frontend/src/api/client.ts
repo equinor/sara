@@ -1,4 +1,5 @@
 import { getAppConfig, createLoginRequest } from "../authConfig";
+import { apiUrl } from "../utils/routing";
 import type { IPublicClientApplication } from "@azure/msal-browser";
 
 let msalInstance: IPublicClientApplication | null = null;
@@ -122,20 +123,20 @@ export async function getPlantData(
   pageSize = 100
 ): Promise<PlantData[]> {
   return apiFetch<PlantData[]>(
-    `/api/PlantData?PageNumber=${pageNumber}&PageSize=${pageSize}`
+    apiUrl(`/api/PlantData?PageNumber=${pageNumber}&PageSize=${pageSize}`)
   );
 }
 
 export async function getPlantDataById(id: string): Promise<PlantData> {
   return apiFetch<PlantData>(
-    `/api/PlantData/id/${encodeURIComponent(id)}`
+    apiUrl(`/api/PlantData/id/${encodeURIComponent(id)}`)
   );
 }
 
 export async function createPlantData(
   request: PlantDataRequest
 ): Promise<PlantData> {
-  return apiFetch<PlantData>("/api/PlantData", {
+  return apiFetch<PlantData>(apiUrl("/api/PlantData"), {
     method: "POST",
     body: JSON.stringify(request),
   });
@@ -143,7 +144,7 @@ export async function createPlantData(
 
 export async function triggerAnonymizer(plantDataId: string): Promise<string> {
   return apiFetch<string>(
-    `/api/TriggerAnalysis/trigger-anonymizer/${encodeURIComponent(plantDataId)}`,
+    apiUrl(`/api/TriggerAnalysis/trigger-anonymizer/${encodeURIComponent(plantDataId)}`),
     { method: "POST" }
   );
 }
@@ -153,7 +154,7 @@ export async function getAnalysisMappings(
   pageSize = 100
 ): Promise<AnalysisMapping[]> {
   return apiFetch<AnalysisMapping[]>(
-    `/api/AnalysisMapping?PageNumber=${pageNumber}&PageSize=${pageSize}`
+    apiUrl(`/api/AnalysisMapping?PageNumber=${pageNumber}&PageSize=${pageSize}`)
   );
 }
 
@@ -163,14 +164,14 @@ export async function createAnalysisMapping(
   analysisType: AnalysisType
 ): Promise<AnalysisMapping> {
   return apiFetch<AnalysisMapping>(
-    `/api/AnalysisMapping/tag/${encodeURIComponent(tagId)}/inspection/${encodeURIComponent(inspectionDescription)}/analysisType/${encodeURIComponent(analysisType)}`,
+    apiUrl(`/api/AnalysisMapping/tag/${encodeURIComponent(tagId)}/inspection/${encodeURIComponent(inspectionDescription)}/analysisType/${encodeURIComponent(analysisType)}`),
     { method: "POST" }
   );
 }
 
 export async function deleteAnalysisMapping(id: string): Promise<void> {
   await apiFetch<void>(
-    `/api/AnalysisMapping/analysisMappingId/${encodeURIComponent(id)}`,
+    apiUrl(`/api/AnalysisMapping/analysisMappingId/${encodeURIComponent(id)}`),
     { method: "DELETE" }
   );
 }

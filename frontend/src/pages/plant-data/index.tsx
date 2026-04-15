@@ -5,6 +5,7 @@ import {
   Icon,
 } from "@equinor/eds-core-react";
 import { add, refresh } from "@equinor/eds-icons";
+import { useNavigate } from "react-router";
 import {
   getPlantData,
   triggerAnonymizer,
@@ -15,6 +16,7 @@ import PlantDataTable from "./PlantDataTable";
 Icon.add({ add, refresh });
 
 export default function PlantDataPage() {
+  const navigate = useNavigate();
   const [data, setData] = useState<PlantData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,10 +72,7 @@ export default function PlantDataPage() {
           >
             <Icon name="refresh" />
           </Button>
-          <Button onClick={() => {
-            window.history.pushState(null, "", "/create-plant-data");
-            window.dispatchEvent(new PopStateEvent("popstate"));
-          }}>
+          <Button onClick={() => navigate("/create-plant-data")}>
             <Icon name="add" />
             New Plant Data
           </Button>

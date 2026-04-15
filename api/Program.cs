@@ -180,6 +180,7 @@ app.MapGet(
                     ClientId = configuration["AzureAd:ClientId"] ?? "",
                     TenantId = configuration["AzureAd:TenantId"] ?? "",
                 },
+                BasePath = (configuration["ApiBaseRoute"] ?? "").TrimEnd('/'),
             }
     )
     .AllowAnonymous();

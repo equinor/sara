@@ -13,9 +13,19 @@ run-frontend:
 build:
 	dotnet build api
 
+check:
+	dotnet build api
+	cd frontend && pnpm exec tsc --noEmit
+
 test:
 	dotnet test
 
 format:
 	dotnet tool restore
 	dotnet csharpier format .
+
+run-docker-compose:
+	docker compose up --build
+
+run-docker-compose-nginx:
+	docker compose -f various/docker-compose.nginx.yaml up --build
