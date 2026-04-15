@@ -3,9 +3,10 @@ import { Configuration, LogLevel } from "@azure/msal-browser";
 export interface AppConfig {
   clientId: string;
   tenantId: string;
+  basePath: string;
 }
 
-let appConfig: AppConfig = { clientId: "", tenantId: "" };
+let appConfig: AppConfig = { clientId: "", tenantId: "", basePath: "" };
 
 export function getAppConfig(): AppConfig {
   return appConfig;
@@ -13,12 +14,13 @@ export function getAppConfig(): AppConfig {
 
 export async function loadAppConfig(): Promise<AppConfig> {
   try {
-    const res = await fetch("/api/config");
+    const res = await fetch("api/config");
     if (res.ok) {
       const data = await res.json();
       appConfig = {
         clientId: data.azureAd?.clientId ?? "",
         tenantId: data.azureAd?.tenantId ?? "",
+        basePath: data.basePath ?? "",
       };
     }
   } catch {
@@ -26,6 +28,7 @@ export async function loadAppConfig(): Promise<AppConfig> {
     appConfig = {
       clientId: import.meta.env.VITE_AZURE_AD_CLIENT_ID ?? "",
       tenantId: import.meta.env.VITE_AZURE_AD_TENANT_ID ?? "",
+      basePath: "",
     };
   }
   return appConfig;
@@ -36,7 +39,7 @@ export function createMsalConfig(config: AppConfig): Configuration {
     auth: {
       clientId: config.clientId,
       authority: `https://login.microsoftonline.com/${config.tenantId}`,
-      redirectUri: window.location.origin,
+      redirectUri: window.location.origin + config.basePath,
     },
     cache: {
       cacheLocation: "sessionStorage",

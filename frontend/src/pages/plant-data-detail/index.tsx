@@ -5,6 +5,7 @@ import {
   Icon,
 } from "@equinor/eds-core-react";
 import { arrow_back } from "@equinor/eds-icons";
+import { useNavigate, useParams } from "react-router";
 import {
   getPlantDataById,
   triggerAnonymizer,
@@ -16,13 +17,16 @@ import AnalysisSections from "./AnalysisSections";
 
 Icon.add({ arrow_back });
 
-export default function PlantDataDetailPage({ id }: { id: string }) {
+export default function PlantDataDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [data, setData] = useState<PlantData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [triggering, setTriggering] = useState(false);
 
   const fetchData = useCallback(async () => {
+    if (!id) return;
     setLoading(true);
     setError(null);
     try {
@@ -39,10 +43,7 @@ export default function PlantDataDetailPage({ id }: { id: string }) {
     fetchData();
   }, [fetchData]);
 
-  const navigateBack = () => {
-    window.history.pushState(null, "", "/plant-data");
-    window.dispatchEvent(new PopStateEvent("popstate"));
-  };
+  const navigateBack = () => navigate("/plant-data");
 
   const handleTriggerAnonymizer = async () => {
     if (!data) return;

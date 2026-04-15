@@ -6,6 +6,7 @@ import {
 } from "@equinor/eds-core-react";
 import { play } from "@equinor/eds-icons";
 import type { PlantData } from "../../api/client";
+import { useNavigate } from "react-router";
 import StatusChip from "../../components/StatusChip";
 
 Icon.add({ play });
@@ -17,6 +18,7 @@ interface PlantDataTableProps {
 }
 
 export default function PlantDataTable({ data, triggeringId, onTriggerAnonymizer }: PlantDataTableProps) {
+  const navigate = useNavigate();
   return (
     <Table>
       <Table.Head>
@@ -37,10 +39,7 @@ export default function PlantDataTable({ data, triggeringId, onTriggerAnonymizer
             <Table.Cell>
               <Button
                 variant="ghost"
-                onClick={() => {
-                  window.history.pushState(null, "", `/plant-data/${row.id}`);
-                  window.dispatchEvent(new PopStateEvent("popstate"));
-                }}
+                onClick={() => navigate(`/plant-data/${row.id}`)}
                 style={{ padding: 0, textDecoration: "underline" }}
               >
                 {row.inspectionId}

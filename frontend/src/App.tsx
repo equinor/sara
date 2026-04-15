@@ -3,11 +3,13 @@ import {
   UnauthenticatedTemplate,
   useMsal,
 } from "@azure/msal-react";
-import { useEffect, useCallback, useState } from "react";
+import { useEffect } from "react";
+import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router";
 import { Tabs, Typography, Button, TopBar, Icon } from "@equinor/eds-core-react";
 import { code } from "@equinor/eds-icons";
 import { getAppConfig, createLoginRequest } from "./authConfig";
 import { setMsalInstance } from "./api/client";
+import { apiUrl } from "./utils/routing";
 import PlantDataPage from "./pages/plant-data";
 import AnalysisMappingsPage from "./pages/analysis-mappings";
 import CreatePlantDataPage from "./pages/create-plant-data";
@@ -20,42 +22,21 @@ const TABS = [
   { path: "/analysis-mappings", label: "Analysis Mappings" },
 ];
 
-function getTabFromPath(): number {
-  const idx = TABS.findIndex((t) => window.location.pathname === t.path);
-  return idx >= 0 ? idx : 0;
-}
-
 function App() {
   const { instance } = useMsal();
-  const [, setForceRender] = useState(0);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     setMsalInstance(instance);
   }, [instance]);
 
-  useEffect(() => {
-    if (window.location.pathname === "/" && !window.location.hash) {
-      window.history.replaceState(null, "", TABS[0].path);
-    }
-  }, []);
+  const activeTab = TABS.findIndex((t) => location.pathname.startsWith(t.path));
+  const tabIndex = activeTab >= 0 ? activeTab : 0;
 
-  const activeTab = getTabFromPath();
-
-  const handleTabChange = useCallback((val: string | number) => {
-    const idx = Number(val);
-    window.history.pushState(null, "", TABS[idx].path);
-    // Force re-render after pushState
-    window.dispatchEvent(new PopStateEvent("popstate"));
-  }, []);
-
-  useEffect(() => {
-    const onPopState = () => {
-      // Force re-render on back/forward navigation
-      setForceRender((n) => n + 1);
-    };
-    window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
-  }, []);
+  const handleTabChange = (val: string | number) => {
+    navigate(TABS[Number(val)].path);
+  };
 
   const handleLogin = () => {
     instance.loginRedirect(createLoginRequest(getAppConfig()));
@@ -68,7 +49,7 @@ function App() {
         <TopBar.Actions>
           <Button
             variant="ghost"
-            href="/swagger"
+            href={apiUrl("/swagger")}
             target="_blank"
             rel="noopener noreferrer"
             as="a"
@@ -99,32 +80,54 @@ function App() {
 
       <AuthenticatedTemplate>
         <div style={{ padding: "1rem" }}>
-          {window.location.pathname === "/create-plant-data" ? (
-            <CreatePlantDataPage />
-          ) : /^\/plant-data\/(.+)$/.exec(window.location.pathname) ? (
-            <PlantDataDetailPage
-              id={/^\/plant-data\/(.+)$/.exec(window.location.pathname)![1]}
-            />
-          ) : (
-            <Tabs activeTab={activeTab} onChange={handleTabChange}>
-              <Tabs.List>
-                {TABS.map((t) => (
-                  <Tabs.Tab key={t.path}>{t.label}</Tabs.Tab>
-                ))}
-              </Tabs.List>
-              <Tabs.Panels>
-                <Tabs.Panel>
+          <Routes>
+            <Route index element={<Navigate to="/plant-data" replace />} />
+            <Route
+              path="/plant-data"
+              element={
+                <TabbedLayout activeTab={tabIndex} onChange={handleTabChange}>
                   <PlantDataPage />
-                </Tabs.Panel>
-                <Tabs.Panel>
+                </TabbedLayout>
+              }
+            />
+            <Route
+              path="/analysis-mappings"
+              element={
+                <TabbedLayout activeTab={tabIndex} onChange={handleTabChange}>
                   <AnalysisMappingsPage />
-                </Tabs.Panel>
-              </Tabs.Panels>
-            </Tabs>
-          )}
+                </TabbedLayout>
+              }
+            />
+            <Route path="/create-plant-data" element={<CreatePlantDataPage />} />
+            <Route path="/plant-data/:id" element={<PlantDataDetailPage />} />
+          </Routes>
         </div>
       </AuthenticatedTemplate>
     </>
+  );
+}
+
+function TabbedLayout({
+  activeTab,
+  onChange,
+  children,
+}: {
+  activeTab: number;
+  onChange: (val: string | number) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <Tabs activeTab={activeTab} onChange={onChange}>
+      <Tabs.List>
+        {TABS.map((t) => (
+          <Tabs.Tab key={t.path}>{t.label}</Tabs.Tab>
+        ))}
+      </Tabs.List>
+      <Tabs.Panels>
+        <Tabs.Panel>{activeTab === 0 ? children : null}</Tabs.Panel>
+        <Tabs.Panel>{activeTab === 1 ? children : null}</Tabs.Panel>
+      </Tabs.Panels>
+    </Tabs>
   );
 }
 
