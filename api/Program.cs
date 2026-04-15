@@ -139,9 +139,19 @@ app.UseSwaggerUI(c =>
     c.OAuthUsePkce();
 });
 
-var option = new RewriteOptions();
-option.AddRedirect("^$", "swagger");
-app.UseRewriter(option);
+var enableFrontend = builder.Configuration.GetValue<bool>("ENABLE_FRONTEND");
+
+if (enableFrontend)
+{
+    app.UseDefaultFiles();
+    app.UseStaticFiles();
+}
+else
+{
+    var option = new RewriteOptions();
+    option.AddRedirect("^$", "swagger");
+    app.UseRewriter(option);
+}
 
 string[] allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? [];
 app.UseCors(corsBuilder =>
@@ -158,11 +168,40 @@ app.UseAuthorization();
 
 app.MapControllers();
 
+app.MapGet("/api/health", () => Results.Ok(new { status = "healthy" })).AllowAnonymous();
+
+app.MapGet(
+        "/api/config",
+        (IConfiguration configuration) =>
+            new
+            {
+                AzureAd = new
+                {
+                    ClientId = configuration["AzureAd:ClientId"] ?? "",
+                    TenantId = configuration["AzureAd:TenantId"] ?? "",
+                },
+            }
+    )
+    .AllowAnonymous();
+
+if (enableFrontend)
+{
+    app.MapFallbackToFile("index.html").AllowAnonymous();
+}
+
 app.Lifetime.ApplicationStarted.Register(() =>
 {
-    foreach (var url in app.Urls)
+    var displayUrl = builder.Configuration["DISPLAY_URL"];
+    if (!string.IsNullOrEmpty(displayUrl))
     {
-        Console.WriteLine($"Now listening on: {url}");
+        Console.WriteLine($"Now listening on: \x1b[36m{displayUrl}\x1b[0m");
+    }
+    else
+    {
+        foreach (var url in app.Urls)
+        {
+            Console.WriteLine($"Now listening on: \x1b[36m{url}\x1b[0m");
+        }
     }
 });
 
