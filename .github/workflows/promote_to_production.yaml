@@ -51,25 +51,19 @@ jobs:
   deploy:
     name: Update deployment in Production
     needs: get_staging_version
-    uses: ./.github/workflows/update_aurora_deployment.yml
+    uses: equinor/armada/.github/workflows/update_kubernetes_deployment.yml@main
+    strategy:
+      max-parallel: 1
+      matrix:
+        include:
+          - image_name: robotics/sara
+          - image_name: robotics/workflow-notifier
     with:
-      Environment: production
-      Tag: ${{ needs.get_staging_version.outputs.versionTag }}
-      Registry: auroraprodacr.azurecr.io
-      ImageName: robotics/sara
-      AuthorName: ${{ github.actor }}
+      environment: production
+      tag: ${{ needs.get_staging_version.outputs.versionTag }}
+      registry: auroraprodacr.azurecr.io
+      image_name: ${{ matrix.image_name }}
+      author_name: ${{ github.actor }}
+      infrastructure_repository: equinor/analytics-infrastructure
     secrets:
-      DeployKey: ${{ secrets.ANALYTICS_INFRASTRUCTURE_DEPLOY_KEY }}
-
-  deploy_workflow-notifier:
-    name: Update workflow notifier in Production
-    needs: [get_staging_version, deploy]
-    uses: ./.github/workflows/update_aurora_deployment.yml
-    with:
-      Environment: production
-      Tag: ${{ needs.get_staging_version.outputs.versionTag }}
-      Registry: auroraprodacr.azurecr.io
-      ImageName: robotics/workflow-notifier
-      AuthorName: ${{ github.actor }}
-    secrets:
-      DeployKey: ${{ secrets.ANALYTICS_INFRASTRUCTURE_DEPLOY_KEY }}
+      deploy_key: ${{ secrets.ANALYTICS_INFRASTRUCTURE_DEPLOY_KEY }}
