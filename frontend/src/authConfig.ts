@@ -39,7 +39,7 @@ export function createMsalConfig(config: AppConfig): Configuration {
     auth: {
       clientId: config.clientId,
       authority: `https://login.microsoftonline.com/${config.tenantId}`,
-      redirectUri: window.location.origin + config.basePath,
+      redirectUri: window.location.origin + (config.basePath || "") + "/",
     },
     cache: {
       cacheLocation: "sessionStorage",
