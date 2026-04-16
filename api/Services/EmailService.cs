@@ -129,7 +129,7 @@ namespace api.Services
 
             var title = "[AI] Potensielt perimeterbrudd";
             var flotillaImageUrl =
-                $"{_emailOptions.Fencilla.Installations[installation].AnalysedImageBasePath}{installation}:mission-simple?analysisId={inspectionId}";
+                $"{_emailOptions.Fencilla.Installations[installation].AnalysedImageBasePath}{installation}/mission-simple?analysisId={inspectionId}";
             var urlMessage = $"\nBildet er tilgjengelig her:\n\n{flotillaImageUrl}";
             var confidenceMessage =
                 confidence != null
