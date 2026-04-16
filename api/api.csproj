@@ -6,7 +6,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <!--disable missing comment warning-->
-    <NoWarn>$(NoWarn);1591</NoWarn>
+    <!-- disable NU1510 temporary to handle vulnerabilities -->
+    <NoWarn>$(NoWarn);1591;NU1510</NoWarn>
     <UserSecretsId>2febe2ef-3c95-4e60-925e-85e1fdba53cf</UserSecretsId>
   </PropertyGroup>
 
@@ -39,6 +40,8 @@
     <PackageReference Include="MQTTnet" Version="4.3.7.1207" />
     <PackageReference Include="MQTTnet.Extensions.ManagedClient" Version="4.3.7.1207" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.1.0" />
+    <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.6" />
+    <!-- To force update to latest version to handle vulnerabilities-->
   </ItemGroup>
 
 </Project>
