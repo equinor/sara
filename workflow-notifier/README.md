@@ -22,11 +22,11 @@ Argo Workflows locally, we have written a mock for the /trigger-analysis endpoin
 usually triggers the workflow, which again uses the various commands in this package to
 notify SARA about the process.
 
-To run the mock, first install this package (we recommend in a virtual environment) with
-`pip install -e ".[dev]"`
+To run the mock, first install this package with
+`uv sync --extra dev`
 
 ,populate a `.env` file with the keys presented in `.env.example`
 
 and run it with
 
-`python mocks/argo_workflow_mock.py`
+`uv run python mocks/argo_workflow_mock.py`
