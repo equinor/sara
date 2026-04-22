@@ -118,11 +118,21 @@ export interface PlantDataRequest {
 
 // --- API calls ---
 
+export interface PagedResponse<T> {
+  items: T[];
+  pageNumber: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  hasPrevious: boolean;
+  hasNext: boolean;
+}
+
 export async function getPlantData(
   pageNumber = 1,
-  pageSize = 100
-): Promise<PlantData[]> {
-  return apiFetch<PlantData[]>(
+  pageSize = 25
+): Promise<PagedResponse<PlantData>> {
+  return apiFetch<PagedResponse<PlantData>>(
     apiUrl(`/api/PlantData?PageNumber=${pageNumber}&PageSize=${pageSize}`)
   );
 }

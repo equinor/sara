@@ -28,20 +28,28 @@ public class PlantDataController(
     /// </remarks>
     [HttpGet]
     [Authorize(Roles = Role.Any)]
-    [ProducesResponseType(typeof(IList<PlantData>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PagedResponse<PlantData>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<IList<PlantData>>> GetAllPlantData(
+    public async Task<ActionResult<PagedResponse<PlantData>>> GetAllPlantData(
         [FromQuery] QueryParameters parameters
     )
     {
-        PagedList<PlantData> plantData;
         try
         {
-            plantData = await plantDataService.GetPlantData(parameters);
-            return Ok(plantData);
+            var plantData = await plantDataService.GetPlantData(parameters);
+            return Ok(
+                new PagedResponse<PlantData>
+                {
+                    Items = plantData,
+                    PageNumber = plantData.CurrentPage,
+                    PageSize = plantData.PageSize,
+                    TotalCount = plantData.TotalCount,
+                    TotalPages = plantData.TotalPages,
+                }
+            );
         }
         catch (Exception e)
         {
