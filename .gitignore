@@ -41,3 +41,5 @@ bld/
 node_modules/
 api/wwwroot/
 *.tsbuildinfo
+
+AGENTS.md
