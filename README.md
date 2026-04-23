@@ -76,3 +76,4 @@ See the `/docs` folder for more documentation, for example
 - [Deploying resources](docs/deploying_resources.md)
 - [Database and migrations](docs/database_and_migrations.md)
 - [Formatting](docs/formatting.md)
+
