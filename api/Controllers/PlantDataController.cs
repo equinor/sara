@@ -34,7 +34,7 @@ public class PlantDataController(
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<PagedResponse<PlantData>>> GetAllPlantData(
-        [FromQuery] QueryParameters parameters
+        [FromQuery] PlantDataParameters parameters
     )
     {
         try

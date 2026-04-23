@@ -128,13 +128,32 @@ export interface PagedResponse<T> {
   hasNext: boolean;
 }
 
+export interface PlantDataFilterParams {
+  inspectionId?: string;
+  tag?: string;
+  installationCode?: string;
+  anonymizationStatus?: string;
+  analysisType?: string;
+  hasIncompleteWorkflows?: boolean;
+}
+
 export async function getPlantData(
   pageNumber = 1,
-  pageSize = 25
+  pageSize = 25,
+  filters: PlantDataFilterParams = {}
 ): Promise<PagedResponse<PlantData>> {
-  return apiFetch<PagedResponse<PlantData>>(
-    apiUrl(`/api/PlantData?PageNumber=${pageNumber}&PageSize=${pageSize}`)
-  );
+  const params = new URLSearchParams({
+    PageNumber: String(pageNumber),
+    PageSize: String(pageSize),
+  });
+  if (filters.inspectionId) params.set("InspectionId", filters.inspectionId);
+  if (filters.tag) params.set("Tag", filters.tag);
+  if (filters.installationCode) params.set("InstallationCode", filters.installationCode);
+  if (filters.anonymizationStatus) params.set("AnonymizationStatus", filters.anonymizationStatus);
+  if (filters.analysisType) params.set("AnalysisType", filters.analysisType);
+  if (filters.hasIncompleteWorkflows != null)
+    params.set("HasIncompleteWorkflows", String(filters.hasIncompleteWorkflows));
+  return apiFetch<PagedResponse<PlantData>>(apiUrl(`/api/PlantData?${params.toString()}`));
 }
 
 export async function getPlantDataById(id: string): Promise<PlantData> {

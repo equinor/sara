@@ -88,6 +88,39 @@ namespace api.Utilities
         public string? AnalysisType { get; set; }
     }
 
+    public class PlantDataParameters : QueryParameters
+    {
+        /// <summary>
+        /// Partial text search on InspectionId.
+        /// </summary>
+        public string? InspectionId { get; set; }
+
+        /// <summary>
+        /// Partial text search on Tag.
+        /// </summary>
+        public string? Tag { get; set; }
+
+        /// <summary>
+        /// Partial text search on InstallationCode.
+        /// </summary>
+        public string? InstallationCode { get; set; }
+
+        /// <summary>
+        /// Filter by anonymization workflow status (NotStarted, Started, ExitSuccess, ExitFailure).
+        /// </summary>
+        public string? AnonymizationStatus { get; set; }
+
+        /// <summary>
+        /// Filter by analysis type assigned to the plant data (ConstantLevelOiler, Fencilla, ThermalReading).
+        /// </summary>
+        public string? AnalysisType { get; set; }
+
+        /// <summary>
+        /// When true, only returns entries where at least one workflow has not completed successfully.
+        /// </summary>
+        public bool? HasIncompleteWorkflows { get; set; }
+    }
+
     public class PlantDataRequest
     {
         public required string InspectionId { get; set; }

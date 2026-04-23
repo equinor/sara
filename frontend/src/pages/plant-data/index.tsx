@@ -7,8 +7,10 @@ import {
   triggerAnonymizer,
   type PagedResponse,
   type PlantData,
+  type PlantDataFilterParams,
 } from "../../api/client";
 import PlantDataTable from "./PlantDataTable";
+import PlantDataFilterSection from "./PlantDataFilterSection";
 import PaginationFooter from "../../components/PaginationFooter";
 import styled from "styled-components";
 
@@ -51,6 +53,16 @@ export default function PlantDataPage() {
     return readStoredPageSize();
   }, [searchParams]);
 
+  const filters = useMemo<PlantDataFilterParams>(() => ({
+    inspectionId: searchParams.get("inspectionId") ?? undefined,
+    tag: searchParams.get("tag") ?? undefined,
+    installationCode: searchParams.get("installationCode") ?? undefined,
+    anonymizationStatus: searchParams.get("anonymizationStatus") ?? undefined,
+    analysisType: searchParams.get("analysisType") ?? undefined,
+    hasIncompleteWorkflows:
+      searchParams.get("hasIncompleteWorkflows") === "true" ? true : undefined,
+  }), [searchParams]);
+
   const [response, setResponse] = useState<PagedResponse<PlantData> | null>(
     null
   );
@@ -62,14 +74,14 @@ export default function PlantDataPage() {
     setLoading(true);
     setError(null);
     try {
-      const result = await getPlantData(pageNumber, pageSize);
+      const result = await getPlantData(pageNumber, pageSize, filters);
       setResponse(result);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to fetch plant data");
     } finally {
       setLoading(false);
     }
-  }, [pageNumber, pageSize]);
+  }, [pageNumber, pageSize, filters]);
 
   useEffect(() => {
     fetchData();
@@ -107,6 +119,26 @@ export default function PlantDataPage() {
       localStorage.setItem(PAGE_SIZE_STORAGE_KEY, String(newSize));
     } catch { }
     updateParams({ pageSize: newSize, page: 1 });
+  };
+
+  const handleFilterChange = (newFilters: PlantDataFilterParams) => {
+    const next = new URLSearchParams(searchParams);
+    const filterKeys: (keyof PlantDataFilterParams)[] = [
+      "inspectionId",
+      "tag",
+      "installationCode",
+      "anonymizationStatus",
+      "analysisType",
+      "hasIncompleteWorkflows",
+    ];
+    for (const key of filterKeys) {
+      const value = newFilters[key];
+      if (value == null || value === "") next.delete(key);
+      else next.set(key, String(value));
+    }
+    // Reset to page 1 when filters change
+    next.set("page", "1");
+    setSearchParams(next);
   };
 
   const handleTriggerAnonymizer = async (id: string) => {
@@ -147,6 +179,8 @@ export default function PlantDataPage() {
           </Button>
         </div>
       </StyledPageHeader>
+
+      <PlantDataFilterSection filters={filters} onChange={handleFilterChange} />
 
       {error && (
         <Typography
