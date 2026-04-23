@@ -40,6 +40,11 @@ export default function PlantDataTable({
   onTriggerAnonymizer,
 }: PlantDataTableProps) {
   const navigate = useNavigate();
+
+  const sortedData = [...data].sort(
+    (a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime()
+  );
+
   return (
     <StyledTableContainer>
       <Table style={{ width: "100%" }}>
@@ -70,7 +75,7 @@ export default function PlantDataTable({
               </Table.Cell>
             </Table.Row>
           ) : (
-            data.map((row) => (
+            sortedData.map((row) => (
               <Table.Row key={row.id}>
                 <Table.Cell>
                   <Button
