@@ -12,6 +12,14 @@ import {
 } from "../../api/client";
 import CreateMappingDialog from "./CreateMappingDialog";
 import MappingsTable from "./MappingsTable";
+import styled from "styled-components";
+
+const StyledPageHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+`;
 
 Icon.add({ add, refresh });
 
@@ -53,14 +61,7 @@ export default function AnalysisMappingsPage() {
 
   return (
     <div style={{ paddingTop: "1rem" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "1rem",
-        }}
-      >
+      <StyledPageHeader>
         <Typography variant="h3">Analysis Mappings</Typography>
         <div style={{ display: "flex", gap: "0.5rem" }}>
           <Button
@@ -75,7 +76,7 @@ export default function AnalysisMappingsPage() {
             New Mapping
           </Button>
         </div>
-      </div>
+      </StyledPageHeader>
 
       {error && (
         <Typography

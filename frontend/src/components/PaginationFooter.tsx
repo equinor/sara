@@ -1,4 +1,14 @@
 import { NativeSelect, Pagination, Typography } from "@equinor/eds-core-react";
+import styled from "styled-components";
+
+const StyledFooter = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 0.25rem;
+  flex-wrap: wrap;
+`;
 
 interface PaginationFooterProps {
   hasResponse: boolean;
@@ -31,16 +41,7 @@ export default function PaginationFooter({
   const end = totalCount === null ? 0 : Math.min(pageNumber * pageSize, totalCount);
 
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: "1rem",
-        padding: "0.75rem 0.25rem",
-        flexWrap: "wrap",
-      }}
-    >
+    <StyledFooter>
       <div style={{ minWidth: "8rem" }}>
         <NativeSelect
           id="plant-data-page-size"
@@ -83,6 +84,6 @@ export default function PaginationFooter({
           />
         )}
       </div>
-    </div>
+    </StyledFooter>
   );
 }

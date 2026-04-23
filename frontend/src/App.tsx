@@ -14,6 +14,14 @@ import PlantDataPage from "./pages/plant-data";
 import AnalysisMappingsPage from "./pages/analysis-mappings";
 import CreatePlantDataPage from "./pages/create-plant-data";
 import PlantDataDetailPage from "./pages/plant-data-detail";
+import styled from "styled-components";
+
+const StyledSignInContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 80vh;
+`;
 
 Icon.add({ code });
 
@@ -66,16 +74,9 @@ function App() {
       </TopBar>
 
       <UnauthenticatedTemplate>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            height: "80vh",
-          }}
-        >
+        <StyledSignInContainer>
           <Button onClick={handleLogin}>Sign in</Button>
-        </div>
+        </StyledSignInContainer>
       </UnauthenticatedTemplate>
 
       <AuthenticatedTemplate>

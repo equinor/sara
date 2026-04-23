@@ -5,6 +5,13 @@ import {
   Chip,
 } from "@equinor/eds-core-react";
 import type { AnalysisMapping, AnalysisType, PlantDataRequest } from "../../api/client";
+import styled from "styled-components";
+
+const StyledChipGroup = styled.div`
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+`;
 
 interface MappingPair {
   tag: string;
@@ -69,11 +76,11 @@ export default function MappingPickerDialog({ open, onClose, mappings, onSelect 
                 <Table.Cell>{p.tag}</Table.Cell>
                 <Table.Cell>{p.inspectionDescription}</Table.Cell>
                 <Table.Cell>
-                  <div style={{ display: "flex", gap: "0.25rem", flexWrap: "wrap" }}>
+                  <StyledChipGroup>
                     {p.analysesToBeRun.map((a) => (
                       <Chip key={a}>{a}</Chip>
                     ))}
-                  </div>
+                  </StyledChipGroup>
                 </Table.Cell>
                 <Table.Cell>
                   <Button

@@ -2,6 +2,14 @@ import { Button, Typography, Icon } from "@equinor/eds-core-react";
 import { play } from "@equinor/eds-icons";
 import type { PlantData } from "../../api/client";
 import WorkflowSection from "./WorkflowSection";
+import styled from "styled-components";
+
+const StyledSectionHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+`;
 
 Icon.add({ play });
 
@@ -18,7 +26,7 @@ export default function AnonymizationSection({ data, triggering, onTrigger }: An
 
   return (
     <>
-      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.75rem" }}>
+      <StyledSectionHeader>
         <Typography variant="h5">Anonymization</Typography>
         {canTrigger && (
           <Button
@@ -30,7 +38,7 @@ export default function AnonymizationSection({ data, triggering, onTrigger }: An
             {triggering ? "Triggering..." : "Trigger Anonymizer"}
           </Button>
         )}
-      </div>
+      </StyledSectionHeader>
       <WorkflowSection
         title=""
         workflow={data.anonymization}

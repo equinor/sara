@@ -15,6 +15,33 @@ import {
 } from "../../api/client";
 import MappingPickerDialog from "./MappingPickerDialog";
 import BlobStorageFields from "./BlobStorageFields";
+import styled from "styled-components";
+
+const StyledBackNavRowLg = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+`;
+
+const StyledFormContainer = styled.div`
+  max-width: 640px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+`;
+
+const StyledTwoColumnGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+`;
+
+const StyledActionRow = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+`;
 
 Icon.add({ arrow_back });
 
@@ -68,12 +95,12 @@ export default function CreatePlantDataPage() {
 
   return (
     <div style={{ paddingTop: "1rem" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1.5rem" }}>
+      <StyledBackNavRowLg>
         <Button variant="ghost_icon" onClick={navigateBack} aria-label="Back">
           <Icon name="arrow_back" />
         </Button>
         <Typography variant="h3">Create Plant Data</Typography>
-      </div>
+      </StyledBackNavRowLg>
 
       {error && (
         <Typography
@@ -84,7 +111,7 @@ export default function CreatePlantDataPage() {
         </Typography>
       )}
 
-      <div style={{ maxWidth: 640, display: "flex", flexDirection: "column", gap: "1rem" }}>
+      <StyledFormContainer>
         <TextField
           id="inspectionId"
           label="Inspection ID"
@@ -102,7 +129,7 @@ export default function CreatePlantDataPage() {
           }
         />
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+        <StyledTwoColumnGrid>
           <TextField
             id="tagId"
             label="Tag ID"
@@ -119,7 +146,7 @@ export default function CreatePlantDataPage() {
               setForm({ ...form, inspectionDescription: e.target.value })
             }
           />
-        </div>
+        </StyledTwoColumnGrid>
         {mappings.length > 0 && (
           <Button
             variant="ghost"
@@ -137,15 +164,15 @@ export default function CreatePlantDataPage() {
           }
         />
 
-        <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
+        <StyledActionRow>
           <Button onClick={handleCreate} disabled={creating}>
             {creating ? "Creating..." : "Create"}
           </Button>
           <Button variant="ghost" onClick={navigateBack}>
             Cancel
           </Button>
-        </div>
-      </div>
+        </StyledActionRow>
+      </StyledFormContainer>
 
       <MappingPickerDialog
         open={showMappingPicker}

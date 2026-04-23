@@ -9,6 +9,14 @@ import type { PlantData } from "../../api/client";
 import { useNavigate } from "react-router";
 import StatusChip from "../../components/StatusChip";
 import TableSkeleton from "../../components/TableSkeleton";
+import styled from "styled-components";
+
+const StyledTableContainer = styled.div`
+  max-height: calc(100vh - 22rem);
+  overflow: auto;
+  border: 1px solid #dcdcdc;
+  border-radius: 4px;
+`;
 
 Icon.add({ play });
 
@@ -33,14 +41,7 @@ export default function PlantDataTable({
 }: PlantDataTableProps) {
   const navigate = useNavigate();
   return (
-    <div
-      style={{
-        maxHeight: "calc(100vh - 22rem)",
-        overflow: "auto",
-        border: "1px solid #dcdcdc",
-        borderRadius: "4px",
-      }}
-    >
+    <StyledTableContainer>
       <Table style={{ width: "100%" }}>
         <Table.Head sticky>
           <Table.Row>
@@ -109,6 +110,6 @@ export default function PlantDataTable({
           )}
         </Table.Body>
       </Table>
-    </div>
+    </StyledTableContainer>
   );
 }
