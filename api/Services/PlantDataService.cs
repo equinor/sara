@@ -138,6 +138,10 @@ public class PlantDataService(
                 )
             );
 
+        // Default ordering: newest first. Id is included as a deterministic
+        // tiebreaker so pagination is stable even when DateCreated values collide.
+        query = query.OrderByDescending(p => p.DateCreated).ThenByDescending(p => p.Id);
+
         return await PagedList<PlantData>.ToPagedListAsync(
             query,
             parameters.PageNumber,

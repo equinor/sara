@@ -29,6 +29,12 @@ namespace api.Database.Context
                 .Entity<AnalysisMapping>()
                 .HasIndex(am => new { am.Tag, am.InspectionDescription })
                 .IsUnique();
+
+            modelBuilder
+                .Entity<PlantData>()
+                .HasIndex(p => new { p.DateCreated, p.Id })
+                .IsDescending(true, true)
+                .HasDatabaseName("IX_PlantData_DateCreated_Id_Desc");
         }
 
         private static void AddConverterForListOfEnums<T>(PropertyBuilder<List<T>> propertyBuilder)
