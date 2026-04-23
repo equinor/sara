@@ -10,6 +10,14 @@ import {
 } from "../../api/client";
 import PlantDataTable from "./PlantDataTable";
 import PaginationFooter from "../../components/PaginationFooter";
+import styled from "styled-components";
+
+const StyledPageHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+`;
 
 Icon.add({ add, refresh });
 
@@ -122,14 +130,7 @@ export default function PlantDataPage() {
 
   return (
     <div style={{ paddingTop: "1rem" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "1rem",
-        }}
-      >
+      <StyledPageHeader>
         <Typography variant="h3">Plant Data</Typography>
         <div style={{ display: "flex", gap: "0.5rem" }}>
           <Button
@@ -145,7 +146,7 @@ export default function PlantDataPage() {
             New Plant Data
           </Button>
         </div>
-      </div>
+      </StyledPageHeader>
 
       {error && (
         <Typography

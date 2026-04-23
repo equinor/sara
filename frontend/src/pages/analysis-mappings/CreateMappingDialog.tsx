@@ -9,6 +9,13 @@ import {
   createAnalysisMapping,
   type AnalysisType,
 } from "../../api/client";
+import styled from "styled-components";
+
+const StyledFormContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+`;
 
 const ANALYSIS_TYPES: AnalysisType[] = [
   "ConstantLevelOiler",
@@ -51,7 +58,7 @@ export default function CreateMappingDialog({ open, onClose, onCreated, onError 
         <Dialog.Title>Create Analysis Mapping</Dialog.Title>
       </Dialog.Header>
       <Dialog.CustomContent>
-        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+        <StyledFormContainer>
           <TextField
             id="tagId"
             label="Tag ID"
@@ -82,7 +89,7 @@ export default function CreateMappingDialog({ open, onClose, onCreated, onError 
               </option>
             ))}
           </NativeSelect>
-        </div>
+        </StyledFormContainer>
       </Dialog.CustomContent>
       <Dialog.Actions>
         <Button onClick={handleCreate} disabled={creating}>

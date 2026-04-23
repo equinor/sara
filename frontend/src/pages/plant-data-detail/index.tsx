@@ -13,6 +13,21 @@ import {
 } from "../../api/client";
 import GeneralInfoTable from "./GeneralInfoTable";
 import AnonymizationSection from "./AnonymizationSection";
+import styled from "styled-components";
+
+const StyledBackNavRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+`;
+
+const StyledBackNavRowLg = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+`;
 import AnalysisSections from "./AnalysisSections";
 
 Icon.add({ arrow_back });
@@ -69,12 +84,12 @@ export default function PlantDataDetailPage() {
   if (error || !data) {
     return (
       <div style={{ paddingTop: "1rem" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1rem" }}>
+        <StyledBackNavRow>
           <Button variant="ghost_icon" onClick={navigateBack} aria-label="Back">
             <Icon name="arrow_back" />
           </Button>
           <Typography variant="h3">Plant Data</Typography>
-        </div>
+        </StyledBackNavRow>
         <Typography variant="body_short" style={{ color: "#eb0000" }}>
           {error ?? "Not found"}
         </Typography>
@@ -84,12 +99,12 @@ export default function PlantDataDetailPage() {
 
   return (
     <div style={{ paddingTop: "1rem", maxWidth: 900 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1.5rem" }}>
+      <StyledBackNavRowLg>
         <Button variant="ghost_icon" onClick={navigateBack} aria-label="Back">
           <Icon name="arrow_back" />
         </Button>
         <Typography variant="h3">{data.inspectionId}</Typography>
-      </div>
+      </StyledBackNavRowLg>
 
       <GeneralInfoTable data={data} />
       <AnonymizationSection data={data} triggering={triggering} onTrigger={handleTriggerAnonymizer} />

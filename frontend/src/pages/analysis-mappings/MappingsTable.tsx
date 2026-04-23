@@ -7,6 +7,13 @@ import {
 } from "@equinor/eds-core-react";
 import { delete_to_trash } from "@equinor/eds-icons";
 import type { AnalysisMapping } from "../../api/client";
+import styled from "styled-components";
+
+const StyledChipGroup = styled.div`
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+`;
 
 Icon.add({ delete_to_trash });
 
@@ -32,11 +39,11 @@ export default function MappingsTable({ data, onDelete }: MappingsTableProps) {
             <Table.Cell>{row.tag}</Table.Cell>
             <Table.Cell>{row.inspectionDescription}</Table.Cell>
             <Table.Cell>
-              <div style={{ display: "flex", gap: "0.25rem", flexWrap: "wrap" }}>
+              <StyledChipGroup>
                 {row.analysesToBeRun.map((type) => (
                   <Chip key={type}>{type}</Chip>
                 ))}
-              </div>
+              </StyledChipGroup>
             </Table.Cell>
             <Table.Cell>
               <Button
