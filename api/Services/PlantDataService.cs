@@ -7,7 +7,7 @@ namespace api.Services;
 
 public interface IPlantDataService
 {
-    public Task<PagedList<PlantData>> GetPlantData(QueryParameters parameters);
+    public Task<PagedList<PlantData>> GetPlantData(PlantDataParameters parameters);
 
     public Task<PlantData?> ReadById(Guid id);
 
@@ -73,7 +73,7 @@ public class PlantDataService(
     ILogger<PlantDataService> logger
 ) : IPlantDataService
 {
-    public async Task<PagedList<PlantData>> GetPlantData(QueryParameters parameters)
+    public async Task<PagedList<PlantData>> GetPlantData(PlantDataParameters parameters)
     {
         var query = context
             .PlantData.Include(plantData => plantData.Anonymization)
@@ -81,6 +81,62 @@ public class PlantDataService(
             .Include(plantData => plantData.FencillaAnalysis)
             .Include(plantData => plantData.ThermalReadingAnalysis)
             .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(parameters.InspectionId))
+            query = query.Where(p =>
+                p.InspectionId.ToLower().Contains(parameters.InspectionId.ToLower())
+            );
+
+        if (!string.IsNullOrWhiteSpace(parameters.Tag))
+            query = query.Where(p =>
+                p.Tag != null && p.Tag.ToLower().Contains(parameters.Tag.ToLower())
+            );
+
+        if (!string.IsNullOrWhiteSpace(parameters.InstallationCode))
+            query = query.Where(p =>
+                p.InstallationCode.ToLower().Contains(parameters.InstallationCode.ToLower())
+            );
+
+        if (
+            !string.IsNullOrWhiteSpace(parameters.AnonymizationStatus)
+            && Enum.TryParse<WorkflowStatus>(
+                parameters.AnonymizationStatus,
+                true,
+                out var parsedStatus
+            )
+        )
+            query = query.Where(p => p.Anonymization.Status == parsedStatus);
+
+        if (!string.IsNullOrWhiteSpace(parameters.AnalysisType))
+        {
+            if (
+                parameters.AnalysisType.Equals(
+                    "ConstantLevelOiler",
+                    StringComparison.OrdinalIgnoreCase
+                )
+            )
+                query = query.Where(p => p.CLOEAnalysis != null);
+            else if (parameters.AnalysisType.Equals("Fencilla", StringComparison.OrdinalIgnoreCase))
+                query = query.Where(p => p.FencillaAnalysis != null);
+            else if (
+                parameters.AnalysisType.Equals("ThermalReading", StringComparison.OrdinalIgnoreCase)
+            )
+                query = query.Where(p => p.ThermalReadingAnalysis != null);
+        }
+
+        if (parameters.HasIncompleteWorkflows == true)
+            query = query.Where(p =>
+                p.Anonymization.Status != WorkflowStatus.ExitSuccess
+                || (p.CLOEAnalysis != null && p.CLOEAnalysis.Status != WorkflowStatus.ExitSuccess)
+                || (
+                    p.FencillaAnalysis != null
+                    && p.FencillaAnalysis.Status != WorkflowStatus.ExitSuccess
+                )
+                || (
+                    p.ThermalReadingAnalysis != null
+                    && p.ThermalReadingAnalysis.Status != WorkflowStatus.ExitSuccess
+                )
+            );
 
         return await PagedList<PlantData>.ToPagedListAsync(
             query,
