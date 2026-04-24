@@ -2,13 +2,12 @@ import {
   Button,
   Table,
   Typography,
-  Icon,
 } from "@equinor/eds-core-react";
-import { play } from "@equinor/eds-icons";
 import type { PlantData } from "../../api/client";
 import { useNavigate } from "react-router";
 import StatusChip from "../../components/StatusChip";
 import TableSkeleton from "../../components/TableSkeleton";
+import WorkflowTriggerButton from "../../components/WorkflowTriggerButton";
 import styled from "styled-components";
 
 const StyledTableContainer = styled.div`
@@ -18,15 +17,13 @@ const StyledTableContainer = styled.div`
   border-radius: 4px;
 `;
 
-Icon.add({ play });
-
 interface PlantDataTableProps {
   data: PlantData[];
   hasLoaded: boolean;
   loading: boolean;
   pageSize: number;
   triggeringId: string | null;
-  onTriggerAnonymizer: (id: string) => void;
+  onTriggerWorkflow: (plantData: PlantData) => Promise<void> | void;
 }
 
 const COLUMN_COUNT = 8;
@@ -37,7 +34,7 @@ export default function PlantDataTable({
   loading,
   pageSize,
   triggeringId,
-  onTriggerAnonymizer,
+  onTriggerWorkflow,
 }: PlantDataTableProps) {
   const navigate = useNavigate();
   return (
@@ -92,18 +89,11 @@ export default function PlantDataTable({
                   <StatusChip status={row.anonymization.status} />
                 </Table.Cell>
                 <Table.Cell>
-                  <Button
-                    variant="ghost"
-                    onClick={() => onTriggerAnonymizer(row.id)}
-                    disabled={
-                      triggeringId === row.id ||
-                      row.anonymization.status === "Started" ||
-                      row.anonymization.status === "ExitSuccess"
-                    }
-                  >
-                    <Icon name="play" />
-                    {triggeringId === row.id ? "Triggering..." : "Anonymize"}
-                  </Button>
+                  <WorkflowTriggerButton
+                    data={row}
+                    triggering={triggeringId === row.id}
+                    onTrigger={onTriggerWorkflow}
+                  />
                 </Table.Cell>
               </Table.Row>
             ))
