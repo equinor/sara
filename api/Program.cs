@@ -10,8 +10,6 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Rewrite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Web;
-using MQTTnet.Client;
-using MQTTnet.Extensions.ManagedClient;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,17 +20,10 @@ builder.AddDotEnvironmentVariables(Path.Combine(Directory.GetCurrentDirectory(),
 
 if (builder.Configuration.GetSection("KeyVault").GetValue<bool>("UseKeyVault"))
 {
-    // The ExcludeSharedTokenCacheCredential option is a recommended workaround by Azure for dockerization
-    // See https://github.com/Azure/azure-sdk-for-net/issues/17052
     string? vaultUri = builder.Configuration.GetSection("KeyVault")["VaultUri"];
     if (!string.IsNullOrEmpty(vaultUri))
     {
-        builder.Configuration.AddAzureKeyVault(
-            new Uri(vaultUri),
-            new DefaultAzureCredential(
-                new DefaultAzureCredentialOptions { ExcludeSharedTokenCacheCredential = true }
-            )
-        );
+        builder.Configuration.AddAzureKeyVault(new Uri(vaultUri), new DefaultAzureCredential());
     }
     else
     {
