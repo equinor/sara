@@ -18,7 +18,6 @@ jobs:
     name: Update database in Staging
     uses: ./.github/workflows/runMigrations.yml
     with:
-      PullRequestCheckout: false
       Environment: Staging
     secrets:
       ClientId: ${{secrets.CLIENTID}}

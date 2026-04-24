@@ -41,7 +41,6 @@ jobs:
     needs: get_staging_version
     uses: ./.github/workflows/runMigrations.yml
     with:
-      PullRequestCheckout: false
       Environment: Production
       CheckoutRef: ${{ needs.get_staging_version.outputs.versionTag }}
     secrets:
