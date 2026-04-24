@@ -141,14 +141,14 @@ export default function PlantDataPage() {
     setSearchParams(next);
   };
 
-  const handleTriggerAnonymizer = async (id: string) => {
-    setTriggeringId(id);
+  const handleTriggerWorkflow = async (plantData: PlantData) => {
+    setTriggeringId(plantData.id);
     try {
-      await triggerAnonymizer(id);
+      await triggerAnonymizer(plantData.id);
       await fetchData();
     } catch (e) {
       setError(
-        e instanceof Error ? e.message : "Failed to trigger anonymizer"
+        e instanceof Error ? e.message : "Failed to trigger workflow chain"
       );
     } finally {
       setTriggeringId(null);
@@ -198,7 +198,7 @@ export default function PlantDataPage() {
         loading={showTableSkeleton}
         pageSize={pageSize}
         triggeringId={triggeringId}
-        onTriggerAnonymizer={handleTriggerAnonymizer}
+        onTriggerWorkflow={handleTriggerWorkflow}
       />
 
       <PaginationFooter

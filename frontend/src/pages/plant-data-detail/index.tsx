@@ -60,14 +60,13 @@ export default function PlantDataDetailPage() {
 
   const navigateBack = () => navigate("/plant-data");
 
-  const handleTriggerAnonymizer = async () => {
-    if (!data) return;
+  const handleTriggerWorkflow = async (plantData: PlantData) => {
     setTriggering(true);
     try {
-      await triggerAnonymizer(data.id);
+      await triggerAnonymizer(plantData.id);
       await fetchData();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to trigger anonymizer");
+      setError(e instanceof Error ? e.message : "Failed to trigger workflow chain");
     } finally {
       setTriggering(false);
     }
@@ -107,7 +106,7 @@ export default function PlantDataDetailPage() {
       </StyledBackNavRowLg>
 
       <GeneralInfoTable data={data} />
-      <AnonymizationSection data={data} triggering={triggering} onTrigger={handleTriggerAnonymizer} />
+      <AnonymizationSection data={data} triggering={triggering} onTrigger={handleTriggerWorkflow} />
       <AnalysisSections data={data} />
     </div>
   );

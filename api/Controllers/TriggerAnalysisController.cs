@@ -17,8 +17,11 @@ public class TriggerAnalysisController(
 {
     private readonly ILogger<TriggerAnalysisController> _logger = logger;
 
+    private static bool IsWorkflowRunning(Workflow? workflow) =>
+        workflow?.Status == WorkflowStatus.Started;
+
     /// <summary>
-    /// Trigger the anonymization workflow for existing PlantData entry, by PlantData ID.
+    /// Trigger the workflow chain for an existing PlantData entry, by PlantData ID.
     /// </summary>
     [HttpPost]
     [Route("trigger-anonymizer/{plantDataId}")]
@@ -36,16 +39,20 @@ public class TriggerAnalysisController(
         }
 
         _logger.LogInformation(
-            "Triggering anonymization workflow from controller for InspectionId: {InspectionId}",
+            "Triggering workflow chain from controller for InspectionId: {InspectionId}",
             plantData.InspectionId
         );
 
         if (
-            plantData.Anonymization.Status == WorkflowStatus.Started
-            || plantData.Anonymization.Status == WorkflowStatus.ExitSuccess
+            IsWorkflowRunning(plantData.Anonymization)
+            || IsWorkflowRunning(plantData.CLOEAnalysis)
+            || IsWorkflowRunning(plantData.FencillaAnalysis)
+            || IsWorkflowRunning(plantData.ThermalReadingAnalysis)
         )
         {
-            return Conflict("Anonymization has already been triggered and will not run again.");
+            return Conflict(
+                "A workflow in the analysis chain is still running. Wait until the full chain has completed before triggering it again."
+            );
         }
 
         await argoWorkflowService.TriggerAnonymizer(
@@ -53,7 +60,7 @@ public class TriggerAnalysisController(
             plantData.Anonymization
         );
 
-        return Ok("Anonymization workflow triggered successfully.");
+        return Ok("Workflow chain triggered successfully.");
     }
 
     /// <summary>
