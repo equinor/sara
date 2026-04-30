@@ -28,6 +28,8 @@ public class PlantData
 
     public string? Tag { get; set; }
 
+    public string TempString { get; set; }
+
     public string? Coordinates { get; set; }
 
     public string? InspectionDescription { get; set; }
