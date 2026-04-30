@@ -136,7 +136,7 @@ def start_constant_level_oiler_estimator_workflow(
     oil_level = "0.777"
 
     cloe.notify_constant_level_oiler_estimator_result(
-        trigger_constant_level_oiler_estimator_request.inspectionId, oil_level
+        trigger_constant_level_oiler_estimator_request.inspectionId, oil_level, 0.95
     )
 
     time.sleep(2)
