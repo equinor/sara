@@ -117,8 +117,19 @@ namespace api.MQTT
             {
                 _logger.LogError(
                     ex,
-                    "Error occurred while processing MQTT message from ISAR for InspectionId: {InspectionId}.",
-                    isarInspectionResultMessage.InspectionId
+                    "Error occurred while processing MQTT message from ISAR for InspectionId: {InspectionId}. "
+                        + "TagID: {TagID}, InstallationCode: {InstallationCode}, RobotName: {RobotName}, "
+                        + "RawBlobPath: {RawStorageAccount}/{RawBlobContainer}/{RawBlobName}, ErrorMessage: {ErrorMessage}, "
+                        + "InnerErrorMessage: {InnerErrorMessage}.",
+                    isarInspectionResultMessage.InspectionId,
+                    isarInspectionResultMessage.TagID,
+                    isarInspectionResultMessage.InstallationCode,
+                    isarInspectionResultMessage.RobotName,
+                    isarInspectionResultMessage.InspectionDataPath.StorageAccount,
+                    isarInspectionResultMessage.InspectionDataPath.BlobContainer,
+                    isarInspectionResultMessage.InspectionDataPath.BlobName,
+                    ex.Message,
+                    ex.InnerException?.Message
                 );
                 return;
             }
