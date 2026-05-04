@@ -19,6 +19,7 @@ jobs:
     uses: equinor/armada/.github/workflows/run_dotnet_migrations.yml@main
     with:
       environment: Staging
+      checkout_ref: ${{ github.event.release.tag_name }}
       working_directory: api
     secrets:
       client_id: ${{ secrets.CLIENTID }}
