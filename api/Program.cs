@@ -130,7 +130,7 @@ app.UseSwaggerUI(c =>
     c.OAuthUsePkce();
 });
 
-var enableFrontend = builder.Configuration.GetValue<bool>("ENABLE_FRONTEND");
+var enableFrontend = builder.Configuration.GetValue<bool?>("Frontend:Enabled") ?? true;
 
 if (enableFrontend)
 {
