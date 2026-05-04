@@ -21,7 +21,6 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
 COPY --from=build /app ./
 COPY --from=frontend-build /frontend-dist ./wwwroot
-RUN apt-get update && apt-get install -y  --no-install-recommends apt-utils libgdiplus libc6-dev
 
 EXPOSE 8100
 
