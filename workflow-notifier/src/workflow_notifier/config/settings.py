@@ -28,7 +28,7 @@ class Settings(BaseSettings):
 
     @property
     def workflow_notification_url(self) -> str:
-        return f"{self.SARA_SERVER_URL}/api/workflow-notification"
+        return f"{self.SARA_SERVER_URL}/workflow-notification"
 
 
 settings = Settings()
