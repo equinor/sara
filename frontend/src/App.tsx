@@ -12,6 +12,7 @@ import { setMsalInstance } from "./api/client";
 import { apiUrl } from "./utils/routing";
 import PlantDataPage from "./pages/plant-data";
 import AnalysisMappingsPage from "./pages/analysis-mappings";
+import ThermalReferenceImagesPage from "./pages/thermal-reference-images";
 import CreatePlantDataPage from "./pages/create-plant-data";
 import PlantDataDetailPage from "./pages/plant-data-detail";
 import styled from "styled-components";
@@ -28,6 +29,7 @@ Icon.add({ code });
 const TABS = [
   { path: "/plant-data", label: "Plant Data" },
   { path: "/analysis-mappings", label: "Analysis Mappings" },
+  { path: "/thermal-reference-images", label: "Thermal Reference Images" },
 ];
 
 function App() {
@@ -99,6 +101,14 @@ function App() {
                 </TabbedLayout>
               }
             />
+            <Route
+              path="/thermal-reference-images"
+              element={
+                <TabbedLayout activeTab={tabIndex} onChange={handleTabChange}>
+                  <ThermalReferenceImagesPage />
+                </TabbedLayout>
+              }
+            />
             <Route path="/create-plant-data" element={<CreatePlantDataPage />} />
             <Route path="/plant-data/:id" element={<PlantDataDetailPage />} />
           </Routes>
@@ -127,6 +137,7 @@ function TabbedLayout({
       <Tabs.Panels>
         <Tabs.Panel>{activeTab === 0 ? children : null}</Tabs.Panel>
         <Tabs.Panel>{activeTab === 1 ? children : null}</Tabs.Panel>
+        <Tabs.Panel>{activeTab === 2 ? children : null}</Tabs.Panel>
       </Tabs.Panels>
     </Tabs>
   );
