@@ -27,11 +27,10 @@ public record TriggerFencillaRequest(
 
 public record TriggerThermalReadingRequest(
     string InspectionId,
-    string TagId,
-    string InspectionDescription,
-    string InstallationCode,
     BlobStorageLocation SourceBlobStorageLocation,
-    BlobStorageLocation VisualizedBlobStorageLocation
+    BlobStorageLocation VisualizedBlobStorageLocation,
+    BlobStorageLocation ReferenceImageBlobStorageLocation,
+    BlobStorageLocation ReferencePolygonBlobStorageLocation
 );
 
 public interface IArgoWorkflowService
@@ -52,8 +51,11 @@ public interface IArgoWorkflowService
     );
 }
 
-public class ArgoWorkflowService(IConfiguration configuration, ILogger<ArgoWorkflowService> logger)
-    : IArgoWorkflowService
+public class ArgoWorkflowService(
+    IConfiguration configuration,
+    ILogger<ArgoWorkflowService> logger,
+    IThermalReferenceMetadataService thermalReferenceMetadataService
+) : IArgoWorkflowService
 {
     private static readonly HttpClient client = new();
     private readonly string _baseUrlAnonymizer =
@@ -183,29 +185,42 @@ public class ArgoWorkflowService(IConfiguration configuration, ILogger<ArgoWorkf
         ThermalReadingAnalysis analysis
     )
     {
+        var thermalReferenceMetadata = await thermalReferenceMetadataService.ReadByUniqueKey(
+            installationCode,
+            tagId,
+            inspectionDescription
+        );
+
+        if (thermalReferenceMetadata is null)
+        {
+            var errorMessage =
+                $"Could not find thermal reference metadata for installationCode '{installationCode}', tagId '{tagId}', inspectionDescription '{inspectionDescription}'";
+            logger.LogError(errorMessage);
+            throw new ApplicationException(errorMessage);
+        }
+
         var postRequestData = new TriggerThermalReadingRequest(
             InspectionId: inspectionId,
-            TagId: tagId,
-            InspectionDescription: inspectionDescription,
-            InstallationCode: installationCode,
             SourceBlobStorageLocation: analysis.SourceBlobStorageLocation,
-            VisualizedBlobStorageLocation: analysis.DestinationBlobStorageLocation
+            VisualizedBlobStorageLocation: analysis.DestinationBlobStorageLocation,
+            ReferenceImageBlobStorageLocation: thermalReferenceMetadata.ReferenceImageBlobStorageLocation,
+            ReferencePolygonBlobStorageLocation: thermalReferenceMetadata.ReferencePolygonBlobStorageLocation
         );
 
         var json = JsonSerializer.Serialize(postRequestData, useCamelCaseOption);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
 
         logger.LogInformation(
-            "Triggering ThermalReading. InspectionId: {InspectionId}, TagId: {TagId}, "
-                + "InspectionDescription: {InspectionDescription}, InstallationCode: {InstallationCode}, "
+            "Triggering ThermalReading. InspectionId: {InspectionId}, "
                 + "SourceBlobStorageLocation: {SourceBlobStorageLocation}, "
-                + "VisualizedBlobStorageLocation: {VisualizedBlobStorageLocation}",
+                + "VisualizedBlobStorageLocation: {VisualizedBlobStorageLocation}, "
+                + "ReferenceImageBlobStorageLocation: {ReferenceImageBlobStorageLocation}, "
+                + "ReferencePolygonBlobStorageLocation: {ReferencePolygonBlobStorageLocation}",
             inspectionId,
-            tagId,
-            inspectionDescription,
-            installationCode,
             analysis.SourceBlobStorageLocation,
-            analysis.DestinationBlobStorageLocation
+            analysis.DestinationBlobStorageLocation,
+            thermalReferenceMetadata.ReferenceImageBlobStorageLocation,
+            thermalReferenceMetadata.ReferencePolygonBlobStorageLocation
         );
 
         var response = await client.PostAsync(_baseUrlThermalReading, content);
