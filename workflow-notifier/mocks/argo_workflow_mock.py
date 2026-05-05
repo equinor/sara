@@ -1,3 +1,4 @@
+import random
 import threading
 import time
 from typing import Optional
@@ -133,7 +134,7 @@ def start_constant_level_oiler_estimator_workflow(
 
     # Mock Constant Level Oiler
     time.sleep(2)
-    oil_level = "0.777"
+    oil_level = random.uniform(0, 1)
 
     cloe.notify_constant_level_oiler_estimator_result(
         trigger_constant_level_oiler_estimator_request.inspectionId, oil_level, 0.95
