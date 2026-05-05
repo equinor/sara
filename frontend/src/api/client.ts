@@ -103,6 +103,23 @@ export interface AnalysisMapping {
   analysesToBeRun: AnalysisType[];
 }
 
+export interface ThermalReferenceMetadata {
+  id: string;
+  tagId: string;
+  installationCode: string;
+  inspectionDescription: string;
+  dateCreated: string;
+  referenceImageBlobStorageLocation: BlobStorageLocation;
+  referencePolygonBlobStorageLocation: BlobStorageLocation;
+}
+
+export interface ThermalReferenceMetadataInput {
+  tagId: string;
+  installationCode: string;
+  inspectionDescription: string;
+  referenceBlobStorageDirectoryLocation: BlobStorageLocation;
+}
+
 export type AnalysisType =
   | "ConstantLevelOiler"
   | "Fencilla"
@@ -201,6 +218,41 @@ export async function createAnalysisMapping(
 export async function deleteAnalysisMapping(id: string): Promise<void> {
   await apiFetch<void>(
     apiUrl(`/api/AnalysisMapping/analysisMappingId/${encodeURIComponent(id)}`),
+    { method: "DELETE" }
+  );
+}
+
+export async function getThermalReferenceMetadata(): Promise<ThermalReferenceMetadata[]> {
+  return apiFetch<ThermalReferenceMetadata[]>(
+    apiUrl(`/api/ThermalReferenceMetadata`)
+  );
+}
+
+export async function createThermalReferenceMetadata(
+  request: ThermalReferenceMetadataInput
+): Promise<ThermalReferenceMetadata> {
+  return apiFetch<ThermalReferenceMetadata>(apiUrl("/api/ThermalReferenceMetadata"), {
+    method: "POST",
+    body: JSON.stringify(request),
+  });
+}
+
+export async function updateThermalReferenceMetadata(
+  id: string,
+  request: ThermalReferenceMetadataInput
+): Promise<ThermalReferenceMetadata> {
+  return apiFetch<ThermalReferenceMetadata>(
+    apiUrl(`/api/ThermalReferenceMetadata/id/${encodeURIComponent(id)}`),
+    {
+      method: "PUT",
+      body: JSON.stringify(request),
+    }
+  );
+}
+
+export async function deleteThermalReferenceMetadata(id: string): Promise<void> {
+  await apiFetch<void>(
+    apiUrl(`/api/ThermalReferenceMetadata/id/${encodeURIComponent(id)}`),
     { method: "DELETE" }
   );
 }
