@@ -58,6 +58,7 @@ builder.Services.Configure<EndpointConfig>(builder.Configuration.GetSection("End
 builder.Services.AddScoped<IBlobService, BlobService>();
 builder.Services.AddScoped<IPlantDataService, PlantDataService>();
 builder.Services.AddScoped<IAnalysisMappingService, AnalysisMappingService>();
+builder.Services.AddScoped<IThermalReferenceMetadataService, ThermalReferenceMetadataService>();
 builder.Services.AddScoped<IMqttMessageService, MqttMessageService>();
 builder.Services.AddScoped<IMqttPublisherService, MqttPublisherService>();
 

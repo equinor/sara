@@ -19,6 +19,8 @@ namespace api.Database.Context
 
         public DbSet<ThermalReadingAnalysis> ThermalReading { get; set; } = null!;
 
+        public DbSet<ThermalReferenceMetadata> ThermalReferenceMetadata { get; set; } = null!;
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             AddConverterForListOfEnums(
@@ -28,6 +30,16 @@ namespace api.Database.Context
             modelBuilder
                 .Entity<AnalysisMapping>()
                 .HasIndex(am => new { am.Tag, am.InspectionDescription })
+                .IsUnique();
+
+            modelBuilder
+                .Entity<ThermalReferenceMetadata>()
+                .HasIndex(tri => new
+                {
+                    tri.InstallationCode,
+                    tri.TagId,
+                    tri.InspectionDescription,
+                })
                 .IsUnique();
 
             modelBuilder

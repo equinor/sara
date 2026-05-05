@@ -1,5 +1,6 @@
 # https://hub.docker.com/_/microsoft-dotnet
 FROM node:22-slim AS frontend-build
+ENV CI=true
 RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
