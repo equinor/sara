@@ -103,11 +103,11 @@ public class ArgoWorkflowService(IConfiguration configuration, ILogger<ArgoWorkf
 
         if (response.IsSuccessStatusCode)
         {
-            logger.LogInformation("Function triggered successfully.");
+            logger.LogInformation("Anonymizer function triggered successfully.");
         }
         else
         {
-            logger.LogError("Failed to trigger function.");
+            logger.LogError("Failed to trigger anonymizer function.");
         }
     }
 
@@ -135,11 +135,11 @@ public class ArgoWorkflowService(IConfiguration configuration, ILogger<ArgoWorkf
 
         if (response.IsSuccessStatusCode)
         {
-            logger.LogInformation("Function triggered successfully.");
+            logger.LogInformation("CLOE function triggered successfully.");
         }
         else
         {
-            logger.LogError("Failed to trigger function.");
+            logger.LogError("Failed to trigger CLOE function.");
         }
     }
 
@@ -167,11 +167,11 @@ public class ArgoWorkflowService(IConfiguration configuration, ILogger<ArgoWorkf
 
         if (response.IsSuccessStatusCode)
         {
-            logger.LogInformation("Function triggered successfully.");
+            logger.LogInformation("Fencilla function triggered successfully.");
         }
         else
         {
-            logger.LogError("Failed to trigger function.");
+            logger.LogError("Failed to trigger Fencilla function.");
         }
     }
 
@@ -212,11 +212,11 @@ public class ArgoWorkflowService(IConfiguration configuration, ILogger<ArgoWorkf
 
         if (response.IsSuccessStatusCode)
         {
-            logger.LogInformation("Function triggered successfully.");
+            logger.LogInformation("ThermalReading function triggered successfully.");
         }
         else
         {
-            logger.LogError("Failed to trigger function.");
+            logger.LogError("Failed to trigger ThermalReading function.");
         }
     }
 
