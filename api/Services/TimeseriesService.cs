@@ -69,11 +69,19 @@ public class TimeseriesService(IConfiguration configuration, ILogger<TimeseriesS
 
         if (response.IsSuccessStatusCode)
         {
-            logger.LogInformation("Uploaded to Timeseries successfully.");
+            logger.LogInformation(
+                "Successfully uploaded datapoint with name: {Name} and description: {Description} to Timeseries.",
+                uploadRequest.Name,
+                uploadRequest.Description
+            );
         }
         else
         {
-            logger.LogError("Failed to upload to Timeseries.");
+            logger.LogError(
+                "Failed to upload datapoint with name: {Name} and description: {Description} to Timeseries.",
+                uploadRequest.Name,
+                uploadRequest.Description
+            );
         }
     }
 
