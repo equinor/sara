@@ -196,7 +196,7 @@ public class PlantDataController(
             }
 
             var anonymizerWorkflowStatus = plantData.Anonymization.Status;
-            logger.LogInformation(
+            logger.LogDebug(
                 "Anonymization workflow status for InspectionId: {inspectionId} is {Status}",
                 inspectionId,
                 anonymizerWorkflowStatus
@@ -206,7 +206,7 @@ public class PlantDataController(
             {
                 case WorkflowStatus.ExitSuccess:
                     var plantDataJson = JsonSerializer.Serialize(plantData, _jsonSerializerOptions);
-                    logger.LogInformation(
+                    logger.LogDebug(
                         "Full Plant Data for InspectionId: {inspectionId}: {PlantData}",
                         inspectionId,
                         plantDataJson
