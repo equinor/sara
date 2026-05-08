@@ -212,6 +212,13 @@ public class PlantDataService(
                 tagID,
                 inspectionDescription
             );
+            logger.LogInformation(
+                "Analyses to be run for InspectionId: {InspectionId}, TagId: {TagId}, InspectionDescription: {InspectionDescription}: {AnalysesToBeRun}",
+                inspectionId,
+                tagID,
+                inspectionDescription,
+                string.Join(", ", analysisToBeRun.Select(analysis => analysis.ToString()))
+            );
         }
         catch (Exception ex)
         {
@@ -281,7 +288,7 @@ public class PlantDataService(
                 inspectionId
             );
 
-            var preProcessedBlobName = BlobService.ReplaceFileEnding(rawBlobName, ".fff");
+            var preProcessedBlobName = BlobService.ReplaceFileEnding(rawBlobName, ".tiff");
             var preProcessedBlobStorageLocation = blobService.CreatePreProcessedBlobStorageLocation(
                 rawBlobContainer,
                 preProcessedBlobName
