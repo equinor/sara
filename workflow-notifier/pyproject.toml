@@ -21,7 +21,7 @@ dependencies = [
     "python-dotenv",
     "typer~=0.14",
     "requests~=2.32",
-    "msal~=1.31",
+    "azure-identity~=1.19",
     "pydantic",
     "pydantic-settings",
     "opentelemetry-api",

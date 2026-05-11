@@ -1,13 +1,24 @@
 import logging
+import os
+from functools import lru_cache
 
 import requests
 import typer
-from msal import ConfidentialClientApplication
+from azure.core.credentials import TokenCredential
+from azure.identity import (
+    ChainedTokenCredential,
+    ClientSecretCredential,
+    WorkloadIdentityCredential,
+)
 from opentelemetry import metrics
 
 from workflow_notifier.config.settings import settings
 
 logger = logging.getLogger(__name__)
+
+# Default path where the azure-workload-identity mutating webhook projects the
+# service-account token in the pod.
+_DEFAULT_FEDERATED_TOKEN_FILE = "/var/run/secrets/azure/tokens/azure-identity-token"
 
 meter = metrics.get_meter("workflow-notifier")
 workflow_counter = meter.create_counter(
@@ -18,32 +29,106 @@ workflow_counter = meter.create_counter(
 app = typer.Typer()
 
 
+@lru_cache(maxsize=1)
+def _get_credential() -> TokenCredential:
+    """
+    Build a TokenCredential.
+
+    The set of credential types to try is configured via
+    ``settings.ALLOWED_AUTH_METHODS``, an ordered list whose entries may be
+    ``"WorkloadIdentity"`` and/or ``"ClientSecret"`` (case-insensitive). When
+    more than one method is configured, the order determines the order inside
+    the resulting ``ChainedTokenCredential``.
+
+    In cloud (AKS with Azure Workload Identity), the standard ``AZURE_CLIENT_ID``,
+    ``AZURE_TENANT_ID``, ``AZURE_FEDERATED_TOKEN_FILE`` and ``AZURE_AUTHORITY_HOST``
+    environment variables are injected by the azure-workload-identity mutating
+    webhook, and ``WorkloadIdentityCredential`` exchanges the projected service
+    account token for an Entra ID access token.
+
+    For local development, include ``"ClientSecret"`` in
+    ``ALLOWED_AUTH_METHODS`` and provide ``NOTIFIER_CLIENT_SECRET``.
+    """
+    token_file_path = os.environ.get(
+        "AZURE_FEDERATED_TOKEN_FILE", _DEFAULT_FEDERATED_TOKEN_FILE
+    )
+    client_secret = settings.NOTIFIER_CLIENT_SECRET
+
+    credentials: list[TokenCredential] = []
+    activated: list[str] = []
+
+    allowed_methods = settings.ALLOWED_AUTH_METHODS or ["WorkloadIdentity"]
+
+    for method in allowed_methods:
+        normalized = method.strip().lower()
+        if normalized == "workloadidentity":
+            if os.path.exists(token_file_path):
+                credentials.append(
+                    WorkloadIdentityCredential(
+                        tenant_id=settings.TENANT_ID,
+                        client_id=settings.NOTIFIER_CLIENT_ID,
+                        token_file_path=token_file_path,
+                    )
+                )
+                activated.append("WorkloadIdentityCredential")
+            else:
+                logger.warning(
+                    "ALLOWED_AUTH_METHODS includes 'WorkloadIdentity' but no federated "
+                    f"token file found at '{token_file_path}'; skipping "
+                    "WorkloadIdentityCredential."
+                )
+        elif normalized == "clientsecret":
+            if client_secret and not client_secret.lower().startswith("fill in"):
+                credentials.append(
+                    ClientSecretCredential(
+                        tenant_id=settings.TENANT_ID,
+                        client_id=settings.NOTIFIER_CLIENT_ID,
+                        client_secret=client_secret,
+                    )
+                )
+                activated.append("ClientSecretCredential")
+            else:
+                logger.warning(
+                    "ALLOWED_AUTH_METHODS includes 'ClientSecret' but "
+                    "NOTIFIER_CLIENT_SECRET is missing/placeholder; skipping "
+                    "ClientSecretCredential."
+                )
+        else:
+            logger.warning(
+                f"Unknown auth method '{method}' in ALLOWED_AUTH_METHODS; "
+                "expected 'WorkloadIdentity' or 'ClientSecret'."
+            )
+
+    if not credentials:
+        raise RuntimeError(
+            "No usable Azure credential could be constructed from "
+            "ALLOWED_AUTH_METHODS. Configure at least one of 'WorkloadIdentity' "
+            "(with a federated token file present) or 'ClientSecret' (with "
+            "NOTIFIER_CLIENT_SECRET set)."
+        )
+
+    if len(credentials) == 1:
+        logger.info(f"Using {activated[0]} only")
+        return credentials[0]
+
+    logger.info(
+        "Using ChainedTokenCredential: " + " -> ".join(activated)
+    )
+    return ChainedTokenCredential(*credentials)
+
+
+
 def get_access_token() -> str:
     """
-    Acquire an access token using MSAL.
+    Acquire an access token for the SARA API using azure-identity.
     """
-    client_app = ConfidentialClientApplication(
-        client_id=settings.NOTIFIER_CLIENT_ID,
-        client_credential=settings.NOTIFIER_CLIENT_SECRET,
-        authority=settings.authority,
-    )
-    result = client_app.acquire_token_for_client(scopes=settings.scopes)
-
-    if result is None:
-        logger.error("Error acquiring token: MSAL returned None.")
+    credential = _get_credential()
+    try:
+        token = credential.get_token(*settings.scopes)
+    except Exception as e:
+        logger.error(f"Error acquiring token: {e}")
         raise typer.Exit(1)
-
-    if isinstance(result, dict) and "access_token" in result:
-        return result["access_token"]
-
-    error_message = (
-        f"Error acquiring token: {result.get('error', 'Unknown')} - "
-        f"{result.get('error_description', 'No description provided')}"
-        if isinstance(result, dict)
-        else "Error acquiring token: Unexpected result type."
-    )
-    logger.error(error_message)
-    raise typer.Exit(1)
+    return token.token
 
 
 def send_authenticated_put_request(url: str, payload: dict) -> None:

@@ -5,7 +5,6 @@ using api.Configurations;
 using api.Database.Context;
 using api.MQTT;
 using api.Services;
-using Azure.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Rewrite;
 using Microsoft.EntityFrameworkCore;
@@ -23,7 +22,10 @@ if (builder.Configuration.GetSection("KeyVault").GetValue<bool>("UseKeyVault"))
     string? vaultUri = builder.Configuration.GetSection("KeyVault")["VaultUri"];
     if (!string.IsNullOrEmpty(vaultUri))
     {
-        builder.Configuration.AddAzureKeyVault(new Uri(vaultUri), new DefaultAzureCredential());
+        builder.Configuration.AddAzureKeyVault(
+            new Uri(vaultUri),
+            CustomServiceConfigurations.CreateCredential(builder.Configuration)
+        );
     }
     else
     {

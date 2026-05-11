@@ -1,4 +1,4 @@
-using Azure.Identity;
+using api.Configurations;
 using Azure.Security.KeyVault.Secrets;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
@@ -38,7 +38,10 @@ namespace api.Database.Context
                     config.GetSection("KeyVault")["VaultUri"]
                     ?? throw new KeyNotFoundException("No key vault in config");
 
-                var keyVault = new SecretClient(new Uri(keyVaultUri), new DefaultAzureCredential());
+                var keyVault = new SecretClient(
+                    new Uri(keyVaultUri),
+                    CustomServiceConfigurations.CreateCredential(config)
+                );
 
                 connectionString = keyVault
                     .GetSecret("Database--postgresConnectionString")
