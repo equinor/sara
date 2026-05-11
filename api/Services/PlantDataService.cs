@@ -205,6 +205,11 @@ public class PlantDataService(
         string? robotName = null
     )
     {
+        inspectionId = Sanitize.SanitizeUserInput(inspectionId);
+        installationCode = Sanitize.SanitizeUserInput(installationCode);
+        tagID = Sanitize.SanitizeUserInput(tagID);
+        inspectionDescription = Sanitize.SanitizeUserInput(inspectionDescription);
+
         List<AnalysisType> analysisToBeRun;
         try
         {
