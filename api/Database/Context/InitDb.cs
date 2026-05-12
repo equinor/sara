@@ -1,5 +1,6 @@
 using api.Database.Context;
 using api.Database.Models;
+using Microsoft.Extensions.Configuration;
 
 namespace Api.Database.Context
 {
@@ -14,7 +15,9 @@ namespace Api.Database.Context
 
             var mapping2 = new AnalysisMapping("tag", "cloe", [AnalysisType.ConstantLevelOiler]);
 
-            return new List<AnalysisMapping>([mapping1, mapping2]);
+            var mapping3 = new AnalysisMapping("thermal", "thermal", [AnalysisType.ThermalReading]);
+
+            return new List<AnalysisMapping>([mapping1, mapping2, mapping3]);
         }
 
         private static List<PlantData> GetPlantData()
@@ -62,10 +65,39 @@ namespace Api.Database.Context
             return new List<PlantData>([data1]);
         }
 
-        public static void PopulateDb(SaraDbContext context)
+        private static List<ThermalReferenceMetadata> GetThermalReferenceMetadata(
+            IConfiguration configuration
+        )
+        {
+            var storageAccount = configuration["Storage:ThermalReferenceStorageAccount"] ?? "";
+
+            var entry1 = new ThermalReferenceMetadata
+            {
+                TagId = "thermal",
+                InstallationCode = "hua",
+                InspectionDescription = "thermal",
+                ReferenceImageBlobStorageLocation = new BlobStorageLocation
+                {
+                    StorageAccount = storageAccount,
+                    BlobContainer = "hua",
+                    BlobName = "thermal_thermal/reference_image.tiff",
+                },
+                ReferencePolygonBlobStorageLocation = new BlobStorageLocation
+                {
+                    StorageAccount = storageAccount,
+                    BlobContainer = "hua",
+                    BlobName = "thermal_thermal/reference_polygon.json",
+                },
+            };
+
+            return new List<ThermalReferenceMetadata>([entry1]);
+        }
+
+        public static void PopulateDb(SaraDbContext context, IConfiguration configuration)
         {
             context.AddRange(analysisMappings);
             context.AddRange(plantData);
+            context.AddRange(GetThermalReferenceMetadata(configuration));
 
             context.SaveChanges();
             context.ChangeTracker.Clear();

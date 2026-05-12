@@ -35,7 +35,7 @@ public static class CustomServiceConfigurations
 
             using var context = new SaraDbContext(dbBuilder.Options);
             context.Database.EnsureCreated();
-            InitDb.PopulateDb(context);
+            InitDb.PopulateDb(context, configuration);
 
             // Setting splitting behavior explicitly to avoid warning
             services.AddDbContext<SaraDbContext>(options =>
