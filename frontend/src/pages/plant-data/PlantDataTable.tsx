@@ -1,5 +1,6 @@
 import {
   Button,
+  Checkbox,
   Table,
   Typography,
 } from "@equinor/eds-core-react";
@@ -24,9 +25,13 @@ interface PlantDataTableProps {
   pageSize: number;
   triggeringId: string | null;
   onTriggerWorkflow: (plantData: PlantData) => Promise<void> | void;
+  selectedIds: Set<string>;
+  onSelectionChange: (id: string) => void;
+  onSelectAll: () => void;
+  allSelected: boolean;
 }
 
-const COLUMN_COUNT = 8;
+const COLUMN_COUNT = 9;
 
 export default function PlantDataTable({
   data,
@@ -35,6 +40,10 @@ export default function PlantDataTable({
   pageSize,
   triggeringId,
   onTriggerWorkflow,
+  selectedIds,
+  onSelectionChange,
+  onSelectAll,
+  allSelected,
 }: PlantDataTableProps) {
   const navigate = useNavigate();
   return (
@@ -42,6 +51,15 @@ export default function PlantDataTable({
       <Table style={{ width: "100%" }}>
         <Table.Head sticky>
           <Table.Row>
+            <Table.Cell style={{ width: "48px" }}>
+              <Checkbox
+                checked={allSelected && data.length > 0}
+                indeterminate={selectedIds.size > 0 && !allSelected}
+                onChange={onSelectAll}
+                aria-label="Select all"
+                disabled={loading || data.length === 0}
+              />
+            </Table.Cell>
             <Table.Cell>Inspection ID</Table.Cell>
             <Table.Cell>Installation Code</Table.Cell>
             <Table.Cell>Tag</Table.Cell>
@@ -69,6 +87,13 @@ export default function PlantDataTable({
           ) : (
             data.map((row) => (
               <Table.Row key={row.id}>
+                <Table.Cell>
+                  <Checkbox
+                    checked={selectedIds.has(row.id)}
+                    onChange={() => onSelectionChange(row.id)}
+                    aria-label={`Select ${row.inspectionId}`}
+                  />
+                </Table.Cell>
                 <Table.Cell>
                   <Button
                     variant="ghost"
