@@ -1,5 +1,11 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { Button, Typography, Icon } from "@equinor/eds-core-react";
+import {
+  Button,
+  Dialog,
+  Progress,
+  Typography,
+  Icon,
+} from "@equinor/eds-core-react";
 import { add, refresh } from "@equinor/eds-icons";
 import { useNavigate, useSearchParams } from "react-router";
 import {
@@ -69,6 +75,18 @@ export default function PlantDataPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [triggeringId, setTriggeringId] = useState<string | null>(null);
+
+  // Selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Bulk rerun state
+  const [bulkRerunning, setBulkRerunning] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{
+    current: number;
+    total: number;
+    inspectionId: string;
+  } | null>(null);
+  const [showBulkConfirm, setShowBulkConfirm] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -155,6 +173,71 @@ export default function PlantDataPage() {
     }
   };
 
+  // Selection handlers
+  const handleSelectionChange = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleSelectAll = useCallback(() => {
+    const currentItems = response?.items ?? [];
+    const allSelected = currentItems.length > 0 && currentItems.every((item) => selectedIds.has(item.id));
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(currentItems.map((item) => item.id)));
+    }
+  }, [response, selectedIds]);
+
+  const allSelected = useMemo(() => {
+    const currentItems = response?.items ?? [];
+    return currentItems.length > 0 && currentItems.every((item) => selectedIds.has(item.id));
+  }, [response, selectedIds]);
+
+  // Clear selection when page/filters change
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [pageNumber, pageSize, filters]);
+
+  // Bulk rerun
+  const handleBulkRerun = async () => {
+    setShowBulkConfirm(false);
+    setBulkRerunning(true);
+    setError(null);
+
+    const selectedItems = (response?.items ?? []).filter((item) =>
+      selectedIds.has(item.id)
+    );
+    const failures: string[] = [];
+
+    for (let i = 0; i < selectedItems.length; i++) {
+      const item = selectedItems[i];
+      setBulkProgress({
+        current: i + 1,
+        total: selectedItems.length,
+        inspectionId: item.inspectionId,
+      });
+      try {
+        await triggerAnonymizer(item.id);
+      } catch (e) {
+        failures.push(item.inspectionId);
+      }
+    }
+
+    setBulkRerunning(false);
+    setBulkProgress(null);
+    setSelectedIds(new Set());
+    await fetchData();
+
+    if (failures.length > 0) {
+      setError(`Failed to trigger: ${failures.join(", ")}`);
+    }
+  };
+
   const hasResponse = response !== null;
   const showTableSkeleton = loading || (!hasResponse && error === null);
   const items = response?.items ?? [];
@@ -192,6 +275,33 @@ export default function PlantDataPage() {
         </Typography>
       )}
 
+      {bulkRerunning && bulkProgress ? (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.75rem",
+            marginBottom: "1rem",
+          }}
+        >
+          <Progress.Dots color="primary" />
+          <Typography variant="body_short">
+            Triggering {bulkProgress.current} of {bulkProgress.total}:{" "}
+            {bulkProgress.inspectionId}
+          </Typography>
+        </div>
+      ) : selectedIds.size > 0 ? (
+        <div style={{ marginBottom: "1rem" }}>
+          <Button
+            variant="outlined"
+            onClick={() => setShowBulkConfirm(true)}
+            disabled={bulkRerunning}
+          >
+            Rerun analysis on selected ({selectedIds.size})
+          </Button>
+        </div>
+      ) : null}
+
       <PlantDataTable
         data={items}
         hasLoaded={hasResponse}
@@ -199,6 +309,10 @@ export default function PlantDataPage() {
         pageSize={pageSize}
         triggeringId={triggeringId}
         onTriggerWorkflow={handleTriggerWorkflow}
+        selectedIds={selectedIds}
+        onSelectionChange={handleSelectionChange}
+        onSelectAll={handleSelectAll}
+        allSelected={allSelected}
       />
 
       <PaginationFooter
@@ -213,6 +327,24 @@ export default function PlantDataPage() {
         onPageSizeChange={handlePageSizeChange}
         resetKey={`${pageSize}-${pageNumber}`}
       />
+
+      <Dialog open={showBulkConfirm} onClose={() => setShowBulkConfirm(false)}>
+        <Dialog.Header>
+          <Dialog.Title>Rerun analysis</Dialog.Title>
+        </Dialog.Header>
+        <Dialog.CustomContent>
+          <Typography variant="body_short">
+            Are you sure you want to rerun analysis on {selectedIds.size}{" "}
+            {selectedIds.size === 1 ? "item" : "items"}?
+          </Typography>
+        </Dialog.CustomContent>
+        <Dialog.Actions>
+          <Button onClick={handleBulkRerun}>Confirm</Button>
+          <Button variant="ghost" onClick={() => setShowBulkConfirm(false)}>
+            Cancel
+          </Button>
+        </Dialog.Actions>
+      </Dialog>
     </div>
   );
 }
