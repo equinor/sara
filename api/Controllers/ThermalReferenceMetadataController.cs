@@ -10,7 +10,8 @@ namespace api.Controllers;
 [Route("[controller]")]
 public class ThermalReferenceMetadataController(
     ILogger<ThermalReferenceMetadataController> logger,
-    IThermalReferenceMetadataService thermalReferenceMetadataService
+    IThermalReferenceMetadataService thermalReferenceMetadataService,
+    IConfiguration configuration
 ) : ControllerBase
 {
     [HttpGet]
@@ -71,7 +72,7 @@ public class ThermalReferenceMetadataController(
         try
         {
             var (imageLocation, polygonLocation) = BuildReferenceLocations(
-                input.ReferenceBlobStorageDirectoryLocation
+                input.ReferenceBlobStorageDirectory
             );
             var thermalReferenceMetadata =
                 await thermalReferenceMetadataService.CreateThermalReferenceMetadata(
@@ -107,7 +108,7 @@ public class ThermalReferenceMetadataController(
         try
         {
             var (imageLocation, polygonLocation) = BuildReferenceLocations(
-                input.ReferenceBlobStorageDirectoryLocation
+                input.ReferenceBlobStorageDirectory
             );
             var thermalReferenceMetadata =
                 await thermalReferenceMetadataService.UpdateThermalReferenceMetadata(
@@ -163,23 +164,29 @@ public class ThermalReferenceMetadataController(
         }
     }
 
-    private static (
+    private (
         BlobStorageLocation imageLocation,
         BlobStorageLocation polygonLocation
-    ) BuildReferenceLocations(BlobStorageLocation directoryLocation)
+    ) BuildReferenceLocations(BlobDirectoryInput directoryInput)
     {
+        var storageAccount =
+            configuration["Storage:ThermalReferenceStorageAccount"]
+            ?? throw new InvalidOperationException(
+                "Storage:ThermalReferenceStorageAccount is not configured"
+            );
+
         var imageLocation = new BlobStorageLocation
         {
-            StorageAccount = directoryLocation.StorageAccount,
-            BlobContainer = directoryLocation.BlobContainer,
-            BlobName = $"{directoryLocation.BlobName}/reference_image.tiff",
+            StorageAccount = storageAccount,
+            BlobContainer = directoryInput.BlobContainer,
+            BlobName = $"{directoryInput.BlobName}/reference_image.tiff",
         };
 
         var polygonLocation = new BlobStorageLocation
         {
-            StorageAccount = directoryLocation.StorageAccount,
-            BlobContainer = directoryLocation.BlobContainer,
-            BlobName = $"{directoryLocation.BlobName}/reference_polygon.json",
+            StorageAccount = storageAccount,
+            BlobContainer = directoryInput.BlobContainer,
+            BlobName = $"{directoryInput.BlobName}/reference_polygon.json",
         };
 
         return (imageLocation, polygonLocation);

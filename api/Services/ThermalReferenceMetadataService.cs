@@ -4,6 +4,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace api.Services;
 
+public class BlobDirectoryInput
+{
+    public required string BlobContainer { get; set; }
+
+    public required string BlobName { get; set; }
+}
+
 public class ThermalReferenceMetadataInput
 {
     public required string TagId { get; set; }
@@ -12,7 +19,7 @@ public class ThermalReferenceMetadataInput
 
     public required string InspectionDescription { get; set; }
 
-    public required BlobStorageLocation ReferenceBlobStorageDirectoryLocation { get; set; }
+    public required BlobDirectoryInput ReferenceBlobStorageDirectory { get; set; }
 }
 
 public interface IThermalReferenceMetadataService

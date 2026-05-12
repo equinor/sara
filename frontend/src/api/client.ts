@@ -113,11 +113,16 @@ export interface ThermalReferenceMetadata {
   referencePolygonBlobStorageLocation: BlobStorageLocation;
 }
 
+export interface BlobDirectoryInput {
+  blobContainer: string;
+  blobName: string;
+}
+
 export interface ThermalReferenceMetadataInput {
   tagId: string;
   installationCode: string;
   inspectionDescription: string;
-  referenceBlobStorageDirectoryLocation: BlobStorageLocation;
+  referenceBlobStorageDirectory: BlobDirectoryInput;
 }
 
 export type AnalysisType =
@@ -225,6 +230,12 @@ export async function deleteAnalysisMapping(id: string): Promise<void> {
 export async function getThermalReferenceMetadata(): Promise<ThermalReferenceMetadata[]> {
   return apiFetch<ThermalReferenceMetadata[]>(
     apiUrl(`/api/ThermalReferenceMetadata`)
+  );
+}
+
+export async function getThermalReferenceMetadataById(id: string): Promise<ThermalReferenceMetadata> {
+  return apiFetch<ThermalReferenceMetadata>(
+    apiUrl(`/api/ThermalReferenceMetadata/id/${encodeURIComponent(id)}`)
   );
 }
 

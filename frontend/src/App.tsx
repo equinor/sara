@@ -14,7 +14,9 @@ import PlantDataPage from "./pages/plant-data";
 import AnalysisMappingsPage from "./pages/analysis-mappings";
 import ThermalReferenceImagesPage from "./pages/thermal-reference-images";
 import CreatePlantDataPage from "./pages/create-plant-data";
+import CreateThermalReferenceMetadataPage from "./pages/thermal-reference-images/create";
 import PlantDataDetailPage from "./pages/plant-data-detail";
+import ThermalReferenceMetadataDetailPage from "./pages/thermal-reference-images/detail";
 import styled from "styled-components";
 
 const StyledSignInContainer = styled.div`
@@ -110,7 +112,9 @@ function App() {
               }
             />
             <Route path="/create-plant-data" element={<CreatePlantDataPage />} />
+            <Route path="/create-thermal-reference-metadata" element={<CreateThermalReferenceMetadataPage />} />
             <Route path="/plant-data/:id" element={<PlantDataDetailPage />} />
+            <Route path="/thermal-reference-images/:id" element={<ThermalReferenceMetadataDetailPage />} />
           </Routes>
         </div>
       </AuthenticatedTemplate>
