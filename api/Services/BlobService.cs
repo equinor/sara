@@ -1,6 +1,7 @@
 using System.Globalization;
 using api.Database.Models;
 using Azure;
+using Azure.Core;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using Microsoft.Extensions.Options;
@@ -39,22 +40,23 @@ namespace api.Services
     public record BlobOptions
     {
         public string RawStorageAccount { get; init; } = "";
-        public string RawConnectionString { get; init; } = "";
         public string AnonStorageAccount { get; init; } = "";
-        public string AnonConnectionString { get; init; } = "";
         public string VisStorageAccount { get; init; } = "";
-        public string VisConnectionString { get; init; } = "";
     }
 
     public class BlobService(
         ILogger<BlobService> logger,
         IOptions<BlobOptions> blobOptions,
-        IConfiguration configuration
+        IConfiguration configuration,
+        TokenCredential credential
     ) : IBlobService
     {
         public async Task<byte[]> DownloadBlob(string blobName, string containerName)
         {
-            var blobContainerClient = GetBlobContainerClient(containerName);
+            var blobContainerClient = GetBlobContainerClient(
+                blobOptions.Value.AnonStorageAccount,
+                containerName
+            );
             var blobClient = blobContainerClient.GetBlobClient(blobName);
 
             using var memoryStream = new MemoryStream();
@@ -65,11 +67,14 @@ namespace api.Services
 
         public AsyncPageable<BlobItem> FetchAllBlobs(string containerName)
         {
-            var blobContainerClient = GetBlobContainerClient(containerName);
+            var blobContainerClient = GetBlobContainerClient(
+                blobOptions.Value.AnonStorageAccount,
+                containerName
+            );
             try
             {
-                GetBlobsOptions blobOptions = new() { Traits = BlobTraits.Metadata };
-                return blobContainerClient.GetBlobsAsync(options: blobOptions);
+                GetBlobsOptions options = new() { Traits = BlobTraits.Metadata };
+                return blobContainerClient.GetBlobsAsync(options: options);
             }
             catch (RequestFailedException e)
             {
@@ -79,10 +84,15 @@ namespace api.Services
             }
         }
 
-        // TODO: Set up possibility to use different containers
-        private BlobContainerClient GetBlobContainerClient(string containerName)
+        private BlobContainerClient GetBlobContainerClient(
+            string storageAccount,
+            string containerName
+        )
         {
-            var serviceClient = new BlobServiceClient(blobOptions.Value.AnonConnectionString);
+            var serviceClient = new BlobServiceClient(
+                new Uri($"https://{storageAccount}.blob.core.windows.net"),
+                credential
+            );
             var containerClient = serviceClient.GetBlobContainerClient(
                 containerName.ToLower(CultureInfo.CurrentCulture)
             );
