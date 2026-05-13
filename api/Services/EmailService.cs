@@ -1,5 +1,5 @@
 using api.Configurations;
-using Azure.Identity;
+using Azure.Core;
 using Microsoft.Extensions.Options;
 using Microsoft.Graph;
 using Microsoft.Graph.Models;
@@ -49,19 +49,10 @@ namespace api.Services
         private readonly GraphServiceClient appClient;
         private readonly EmailOptions _emailOptions;
 
-        public EmailService(
-            IOptions<AzureAdOptions> azureAdOptions,
-            IOptions<EmailOptions> emailOptions
-        )
+        public EmailService(TokenCredential credential, IOptions<EmailOptions> emailOptions)
         {
-            var clientSecretCredential = new ClientSecretCredential(
-                azureAdOptions.Value.TenantId,
-                azureAdOptions.Value.ClientId,
-                azureAdOptions.Value.ClientSecret
-            );
-
             appClient = new GraphServiceClient(
-                clientSecretCredential,
+                credential,
                 ["https://graph.microsoft.com/.default"]
             );
 

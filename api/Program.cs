@@ -5,6 +5,7 @@ using api.Configurations;
 using api.Database.Context;
 using api.MQTT;
 using api.Services;
+using Azure.Core;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Rewrite;
 using Microsoft.EntityFrameworkCore;
@@ -32,6 +33,11 @@ if (builder.Configuration.GetSection("KeyVault").GetValue<bool>("UseKeyVault"))
         Console.WriteLine("NO KEYVAULT IN CONFIG");
     }
 }
+
+// Register the runtime credential (ClientSecret / WorkloadIdentity) as a singleton.
+builder.Services.AddSingleton<TokenCredential>(
+    CustomServiceConfigurations.CreateRuntimeCredential(builder.Configuration)
+);
 
 var applicationName = builder.Configuration["AppName"] ?? "SaraBackend";
 

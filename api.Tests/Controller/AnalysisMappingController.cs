@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using api.Database.Context;
 using api.Database.Models;
 using api.Services;
+using Azure.Core;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -45,7 +46,8 @@ namespace api.Controllers.Tests
             var blobService = new BlobService(
                 new Mock<ILogger<BlobService>>().Object,
                 null!,
-                configurationMock.Object
+                configurationMock.Object,
+                new Mock<TokenCredential>().Object
             );
 
             _analysisMappingService = new AnalysisMappingService(

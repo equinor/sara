@@ -17,10 +17,10 @@ public static class CustomServiceConfigurations
     ///
     /// The set of credential types to try is configured via
     /// <c>AzureAd:AllowedAuthMethods</c>, an ordered list whose entries may be
-    /// <c>"WorkloadIdentity"</c> and/or <c>"ClientSecret"</c> (case-insensitive). The
-    /// order of the list determines the order in which credentials are tried when more
-    /// than one method is enabled (i.e. it controls the order inside the resulting
-    /// <see cref="ChainedTokenCredential"/>).
+    /// <c>"WorkloadIdentity"</c>, <c>"ClientSecret"</c> and/or <c>"AzureCliBootstrap"</c>
+    /// (case-insensitive). The order of the list determines the order in which
+    /// credentials are tried when more than one method is enabled (i.e. it controls
+    /// the order inside the resulting <see cref="ChainedTokenCredential"/>).
     ///
     /// In cloud (AKS with Azure Workload Identity), set
     /// <c>"AllowedAuthMethods": [ "WorkloadIdentity" ]</c> and rely on the standard
@@ -28,8 +28,15 @@ public static class CustomServiceConfigurations
     /// and <c>AZURE_AUTHORITY_HOST</c> environment variables injected by the
     /// azure-workload-identity mutating webhook.
     ///
-    /// For local development (and CI) set e.g.
-    /// <c>"AllowedAuthMethods": [ "WorkloadIdentity", "ClientSecret" ]</c> together with
+    /// For local development set
+    /// <c>"AllowedAuthMethods": [ "AzureCliBootstrap" ]</c>. This uses the developer's
+    /// <c>az login</c> session to bootstrap Key Vault access on startup. Key Vault then
+    /// supplies the app registration's client secret into configuration, so all subsequent
+    /// Azure calls (e.g. Graph API in <c>EmailService</c>) authenticate as the app
+    /// registration — not the developer's personal identity.
+    ///
+    /// For CI, set e.g.
+    /// <c>"AllowedAuthMethods": [ "ClientSecret" ]</c> together with
     /// <c>AzureAd:ClientSecret</c> (or <c>AZURE_CLIENT_SECRET</c>). When environment
     /// variables are used, the .NET configuration array binding pattern is e.g.
     /// <c>AzureAd__AllowedAuthMethods__0=ClientSecret</c>.
@@ -87,11 +94,20 @@ public static class CustomServiceConfigurations
                     );
                 }
             }
+            else if (string.Equals(method, "AzureCliBootstrap", StringComparison.OrdinalIgnoreCase))
+            {
+                Console.WriteLine(
+                    "AzureCliBootstrap: using Azure CLI credential to bootstrap Key Vault access. "
+                        + "The app registration's client secret will be loaded from Key Vault for subsequent Azure calls."
+                );
+                credentials.Add(new AzureCliCredential());
+                activated.Add("AzureCliCredential (bootstrap)");
+            }
             else
             {
                 Console.WriteLine(
                     $"Unknown auth method '{method}' in AzureAd:AllowedAuthMethods; "
-                        + "expected 'WorkloadIdentity' or 'ClientSecret'."
+                        + "expected 'WorkloadIdentity', 'ClientSecret' or 'AzureCliBootstrap'."
                 );
             }
         }
@@ -101,7 +117,7 @@ public static class CustomServiceConfigurations
             throw new InvalidOperationException(
                 "No usable Azure credential could be constructed from "
                     + "AzureAd:AllowedAuthMethods. Configure at least one of "
-                    + "'WorkloadIdentity' or 'ClientSecret' (with the required values present)."
+                    + "'WorkloadIdentity', 'ClientSecret' or 'AzureCliBootstrap' (with the required values present)."
             );
         }
 
@@ -112,6 +128,96 @@ public static class CustomServiceConfigurations
         }
 
         Console.WriteLine("Using ChainedTokenCredential: " + string.Join(" -> ", activated));
+        return new ChainedTokenCredential([.. credentials]);
+    }
+
+    /// <summary>
+    /// Build a <see cref="TokenCredential"/> for runtime Azure resource access (storage,
+    /// Graph API, etc.). This method reads the same <c>AzureAd:AllowedAuthMethods</c> list
+    /// but explicitly excludes <c>"AzureCliBootstrap"</c> — ensuring the developer's
+    /// personal identity is never used beyond Key Vault bootstrap.
+    ///
+    /// Call this <b>after</b> Key Vault secrets have been loaded into configuration so that
+    /// <c>AzureAd:ClientSecret</c> is available.
+    /// </summary>
+    public static TokenCredential CreateRuntimeCredential(IConfiguration config)
+    {
+        string? tenantId = config["AzureAd:TenantId"];
+        string? clientId = config["AzureAd:ClientId"];
+        string? clientSecret = config["AzureAd:ClientSecret"];
+
+        tenantId ??= config["AZURE_TENANT_ID"];
+        clientId ??= config["AZURE_CLIENT_ID"];
+        clientSecret ??= config["AZURE_CLIENT_SECRET"];
+
+        string[] allowedAuthMethods =
+            config.GetSection("AzureAd:AllowedAuthMethods").Get<string[]>() ?? [];
+        if (allowedAuthMethods.Length == 0)
+        {
+            allowedAuthMethods = ["WorkloadIdentity"];
+        }
+
+        var credentials = new List<TokenCredential>();
+        var activated = new List<string>();
+
+        foreach (string method in allowedAuthMethods)
+        {
+            if (string.Equals(method, "AzureCliBootstrap", StringComparison.OrdinalIgnoreCase))
+            {
+                // Intentionally skipped — bootstrap credential must not leak into runtime.
+                continue;
+            }
+            else if (string.Equals(method, "WorkloadIdentity", StringComparison.OrdinalIgnoreCase))
+            {
+                var workloadOptions = new WorkloadIdentityCredentialOptions();
+                if (!string.IsNullOrWhiteSpace(clientId))
+                    workloadOptions.ClientId = clientId;
+                if (!string.IsNullOrWhiteSpace(tenantId))
+                    workloadOptions.TenantId = tenantId;
+
+                credentials.Add(new WorkloadIdentityCredential(workloadOptions));
+                activated.Add("WorkloadIdentityCredential");
+            }
+            else if (string.Equals(method, "ClientSecret", StringComparison.OrdinalIgnoreCase))
+            {
+                if (
+                    !string.IsNullOrWhiteSpace(tenantId)
+                    && !string.IsNullOrWhiteSpace(clientId)
+                    && !string.IsNullOrWhiteSpace(clientSecret)
+                    && !clientSecret.StartsWith("Fill in", StringComparison.OrdinalIgnoreCase)
+                )
+                {
+                    credentials.Add(new ClientSecretCredential(tenantId, clientId, clientSecret));
+                    activated.Add("ClientSecretCredential");
+                }
+                else
+                {
+                    Console.WriteLine(
+                        "Runtime credential: 'ClientSecret' configured but tenantId, "
+                            + "clientId or clientSecret is missing/placeholder; skipping."
+                    );
+                }
+            }
+        }
+
+        if (credentials.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "No usable runtime Azure credential could be constructed. "
+                    + "Ensure Key Vault has loaded the app registration's client secret, "
+                    + "or configure 'WorkloadIdentity' in AzureAd:AllowedAuthMethods."
+            );
+        }
+
+        if (credentials.Count == 1)
+        {
+            Console.WriteLine($"Runtime credential: using {activated[0]}");
+            return credentials[0];
+        }
+
+        Console.WriteLine(
+            "Runtime credential: using ChainedTokenCredential: " + string.Join(" -> ", activated)
+        );
         return new ChainedTokenCredential([.. credentials]);
     }
 
