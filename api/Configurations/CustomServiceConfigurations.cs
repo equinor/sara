@@ -47,6 +47,13 @@ public static class CustomServiceConfigurations
         string? clientId = config["AzureAd:ClientId"];
         string? clientSecret = config["AzureAd:ClientSecret"];
 
+        if (string.IsNullOrWhiteSpace(tenantId))
+            tenantId = null;
+        if (string.IsNullOrWhiteSpace(clientId))
+            clientId = null;
+        if (string.IsNullOrWhiteSpace(clientSecret))
+            clientSecret = null;
+
         tenantId ??= config["AZURE_TENANT_ID"];
         clientId ??= config["AZURE_CLIENT_ID"];
         clientSecret ??= config["AZURE_CLIENT_SECRET"];
@@ -145,6 +152,13 @@ public static class CustomServiceConfigurations
         string? tenantId = config["AzureAd:TenantId"];
         string? clientId = config["AzureAd:ClientId"];
         string? clientSecret = config["AzureAd:ClientSecret"];
+
+        if (string.IsNullOrWhiteSpace(tenantId))
+            tenantId = null;
+        if (string.IsNullOrWhiteSpace(clientId))
+            clientId = null;
+        if (string.IsNullOrWhiteSpace(clientSecret))
+            clientSecret = null;
 
         tenantId ??= config["AZURE_TENANT_ID"];
         clientId ??= config["AZURE_CLIENT_ID"];
