@@ -35,7 +35,7 @@ def _get_credential() -> TokenCredential:
     Build a TokenCredential.
 
     The set of credential types to try is configured via
-    ``settings.ALLOWED_AUTH_METHODS``, an ordered list whose entries may be
+    ``settings.allowed_auth_methods``, an ordered list whose entries may be
     ``"WorkloadIdentity"`` and/or ``"ClientSecret"`` (case-insensitive). When
     more than one method is configured, the order determines the order inside
     the resulting ``ChainedTokenCredential``.
@@ -57,7 +57,7 @@ def _get_credential() -> TokenCredential:
     credentials: list[TokenCredential] = []
     activated: list[str] = []
 
-    allowed_methods = settings.ALLOWED_AUTH_METHODS or ["WorkloadIdentity"]
+    allowed_methods = settings.allowed_auth_methods or ["WorkloadIdentity"]
 
     for method in allowed_methods:
         normalized = method.strip().lower()
