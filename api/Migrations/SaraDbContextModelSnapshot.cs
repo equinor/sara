@@ -22,124 +22,119 @@ namespace api.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("api.Database.Models.AnalysisMapping", b =>
+            modelBuilder.Entity("AnalysisInspectionRecord", b =>
+                {
+                    b.Property<Guid>("AnalysesId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("InspectionRecordsId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("AnalysesId", "InspectionRecordsId");
+
+                    b.HasIndex("InspectionRecordsId");
+
+                    b.ToTable("AnalysisInspectionRecord");
+                });
+
+            modelBuilder.Entity("api.Database.Models.Analysis", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("AnalysesToBeRun")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<Guid?>("AnalysisGroupId")
+                        .HasColumnType("uuid");
 
-                    b.Property<string>("InspectionDescription")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("Tag")
+                    b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Tag", "InspectionDescription")
+                    b.HasIndex("AnalysisGroupId");
+
+                    b.ToTable("Analyses");
+                });
+
+            modelBuilder.Entity("api.Database.Models.AnalysisGroup", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ExpectedSize")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("GroupId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("TimeoutAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GroupId")
                         .IsUnique();
 
-                    b.ToTable("AnalysisMapping");
+                    b.ToTable("AnalysisGroups");
                 });
 
-            modelBuilder.Entity("api.Database.Models.Anonymization", b =>
+            modelBuilder.Entity("api.Database.Models.AnalysisRun", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime>("DateCreated")
+                    b.Property<Guid>("AnalysisId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("CompletedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<bool?>("IsPersonInImage")
-                        .HasColumnType("boolean");
+                    b.Property<int>("RunNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
 
-                    b.ToTable("Anonymization");
+                    b.HasIndex("AnalysisId");
+
+                    b.ToTable("AnalysisRuns");
                 });
 
-            modelBuilder.Entity("api.Database.Models.CLOEAnalysis", b =>
+            modelBuilder.Entity("api.Database.Models.InspectionRecord", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<float?>("Confidence")
-                        .HasColumnType("real");
+                    b.Property<Guid?>("AnalysisGroupId")
+                        .HasColumnType("uuid");
 
-                    b.Property<DateTime>("DateCreated")
+                    b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<float?>("OilLevel")
-                        .HasColumnType("real");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("CLOEAnalysis");
-                });
-
-            modelBuilder.Entity("api.Database.Models.FencillaAnalysis", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<float?>("Confidence")
-                        .HasColumnType("real");
-
-                    b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool?>("IsBreak")
-                        .HasColumnType("boolean");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("FencillaAnalysis");
-                });
-
-            modelBuilder.Entity("api.Database.Models.PlantData", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("AnonymizationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("CLOEAnalysisId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Coordinates")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("FencillaAnalysisId")
-                        .HasColumnType("uuid");
 
                     b.Property<string>("InspectionDescription")
                         .HasColumnType("text");
 
                     b.Property<string>("InspectionId")
                         .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("InspectionType")
                         .HasColumnType("text");
 
                     b.Property<string>("InstallationCode")
@@ -152,47 +147,21 @@ namespace api.Migrations
                     b.Property<string>("Tag")
                         .HasColumnType("text");
 
-                    b.Property<Guid?>("ThermalReadingAnalysisId")
-                        .HasColumnType("uuid");
-
                     b.Property<DateTime?>("Timestamp")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AnonymizationId");
+                    b.HasIndex("AnalysisGroupId");
 
-                    b.HasIndex("CLOEAnalysisId");
+                    b.HasIndex("InspectionId")
+                        .IsUnique();
 
-                    b.HasIndex("FencillaAnalysisId");
-
-                    b.HasIndex("ThermalReadingAnalysisId");
-
-                    b.HasIndex("DateCreated", "Id")
+                    b.HasIndex("CreatedAt", "Id")
                         .IsDescending()
-                        .HasDatabaseName("IX_PlantData_DateCreated_Id_Desc");
+                        .HasDatabaseName("IX_InspectionRecord_CreatedAt_Id_Desc");
 
-                    b.ToTable("PlantData");
-                });
-
-            modelBuilder.Entity("api.Database.Models.ThermalReadingAnalysis", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<float?>("Temperature")
-                        .HasColumnType("real");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("ThermalReading");
+                    b.ToTable("InspectionRecords");
                 });
 
             modelBuilder.Entity("api.Database.Models.ThermalReferenceMetadata", b =>
@@ -224,244 +193,88 @@ namespace api.Migrations
                     b.ToTable("ThermalReferenceMetadata");
                 });
 
-            modelBuilder.Entity("api.Database.Models.Anonymization", b =>
+            modelBuilder.Entity("api.Database.Models.Workflow", b =>
                 {
-                    b.OwnsOne("api.Database.Models.BlobStorageLocation", "DestinationBlobStorageLocation", b1 =>
-                        {
-                            b1.Property<Guid>("AnonymizationId")
-                                .HasColumnType("uuid");
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
 
-                            b1.Property<string>("BlobContainer")
-                                .IsRequired()
-                                .HasColumnType("text");
+                    b.Property<Guid>("AnalysisRunId")
+                        .HasColumnType("uuid");
 
-                            b1.Property<string>("BlobName")
-                                .IsRequired()
-                                .HasColumnType("text");
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
 
-                            b1.Property<string>("StorageAccount")
-                                .IsRequired()
-                                .HasColumnType("text");
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("text");
 
-                            b1.HasKey("AnonymizationId");
+                    b.Property<string>("ResultJson")
+                        .HasColumnType("text");
 
-                            b1.ToTable("Anonymization");
+                    b.Property<DateTime?>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
 
-                            b1.WithOwner()
-                                .HasForeignKey("AnonymizationId");
-                        });
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
 
-                    b.OwnsOne("api.Database.Models.BlobStorageLocation", "PreProcessedBlobStorageLocation", b1 =>
-                        {
-                            b1.Property<Guid>("AnonymizationId")
-                                .HasColumnType("uuid");
+                    b.Property<int>("StepNumber")
+                        .HasColumnType("integer");
 
-                            b1.Property<string>("BlobContainer")
-                                .IsRequired()
-                                .HasColumnType("text");
+                    b.Property<string>("WorkflowType")
+                        .IsRequired()
+                        .HasColumnType("text");
 
-                            b1.Property<string>("BlobName")
-                                .IsRequired()
-                                .HasColumnType("text");
+                    b.HasKey("Id");
 
-                            b1.Property<string>("StorageAccount")
-                                .IsRequired()
-                                .HasColumnType("text");
+                    b.HasIndex("AnalysisRunId");
 
-                            b1.HasKey("AnonymizationId");
-
-                            b1.ToTable("Anonymization");
-
-                            b1.WithOwner()
-                                .HasForeignKey("AnonymizationId");
-                        });
-
-                    b.OwnsOne("api.Database.Models.BlobStorageLocation", "SourceBlobStorageLocation", b1 =>
-                        {
-                            b1.Property<Guid>("AnonymizationId")
-                                .HasColumnType("uuid");
-
-                            b1.Property<string>("BlobContainer")
-                                .IsRequired()
-                                .HasColumnType("text");
-
-                            b1.Property<string>("BlobName")
-                                .IsRequired()
-                                .HasColumnType("text");
-
-                            b1.Property<string>("StorageAccount")
-                                .IsRequired()
-                                .HasColumnType("text");
-
-                            b1.HasKey("AnonymizationId");
-
-                            b1.ToTable("Anonymization");
-
-                            b1.WithOwner()
-                                .HasForeignKey("AnonymizationId");
-                        });
-
-                    b.Navigation("DestinationBlobStorageLocation")
-                        .IsRequired();
-
-                    b.Navigation("PreProcessedBlobStorageLocation");
-
-                    b.Navigation("SourceBlobStorageLocation")
-                        .IsRequired();
+                    b.ToTable("Workflows");
                 });
 
-            modelBuilder.Entity("api.Database.Models.CLOEAnalysis", b =>
+            modelBuilder.Entity("AnalysisInspectionRecord", b =>
                 {
-                    b.OwnsOne("api.Database.Models.BlobStorageLocation", "DestinationBlobStorageLocation", b1 =>
-                        {
-                            b1.Property<Guid>("CLOEAnalysisId")
-                                .HasColumnType("uuid");
-
-                            b1.Property<string>("BlobContainer")
-                                .IsRequired()
-                                .HasColumnType("text");
-
-                            b1.Property<string>("BlobName")
-                                .IsRequired()
-                                .HasColumnType("text");
-
-                            b1.Property<string>("StorageAccount")
-                                .IsRequired()
-                                .HasColumnType("text");
-
-                            b1.HasKey("CLOEAnalysisId");
-
-                            b1.ToTable("CLOEAnalysis");
-
-                            b1.WithOwner()
-                                .HasForeignKey("CLOEAnalysisId");
-                        });
-
-                    b.OwnsOne("api.Database.Models.BlobStorageLocation", "SourceBlobStorageLocation", b1 =>
-                        {
-                            b1.Property<Guid>("CLOEAnalysisId")
-                                .HasColumnType("uuid");
-
-                            b1.Property<string>("BlobContainer")
-                                .IsRequired()
-                                .HasColumnType("text");
-
-                            b1.Property<string>("BlobName")
-                                .IsRequired()
-                                .HasColumnType("text");
-
-                            b1.Property<string>("StorageAccount")
-                                .IsRequired()
-                                .HasColumnType("text");
-
-                            b1.HasKey("CLOEAnalysisId");
-
-                            b1.ToTable("CLOEAnalysis");
-
-                            b1.WithOwner()
-                                .HasForeignKey("CLOEAnalysisId");
-                        });
-
-                    b.Navigation("DestinationBlobStorageLocation")
-                        .IsRequired();
-
-                    b.Navigation("SourceBlobStorageLocation")
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("api.Database.Models.FencillaAnalysis", b =>
-                {
-                    b.OwnsOne("api.Database.Models.BlobStorageLocation", "DestinationBlobStorageLocation", b1 =>
-                        {
-                            b1.Property<Guid>("FencillaAnalysisId")
-                                .HasColumnType("uuid");
-
-                            b1.Property<string>("BlobContainer")
-                                .IsRequired()
-                                .HasColumnType("text");
-
-                            b1.Property<string>("BlobName")
-                                .IsRequired()
-                                .HasColumnType("text");
-
-                            b1.Property<string>("StorageAccount")
-                                .IsRequired()
-                                .HasColumnType("text");
-
-                            b1.HasKey("FencillaAnalysisId");
-
-                            b1.ToTable("FencillaAnalysis");
-
-                            b1.WithOwner()
-                                .HasForeignKey("FencillaAnalysisId");
-                        });
-
-                    b.OwnsOne("api.Database.Models.BlobStorageLocation", "SourceBlobStorageLocation", b1 =>
-                        {
-                            b1.Property<Guid>("FencillaAnalysisId")
-                                .HasColumnType("uuid");
-
-                            b1.Property<string>("BlobContainer")
-                                .IsRequired()
-                                .HasColumnType("text");
-
-                            b1.Property<string>("BlobName")
-                                .IsRequired()
-                                .HasColumnType("text");
-
-                            b1.Property<string>("StorageAccount")
-                                .IsRequired()
-                                .HasColumnType("text");
-
-                            b1.HasKey("FencillaAnalysisId");
-
-                            b1.ToTable("FencillaAnalysis");
-
-                            b1.WithOwner()
-                                .HasForeignKey("FencillaAnalysisId");
-                        });
-
-                    b.Navigation("DestinationBlobStorageLocation")
-                        .IsRequired();
-
-                    b.Navigation("SourceBlobStorageLocation")
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("api.Database.Models.PlantData", b =>
-                {
-                    b.HasOne("api.Database.Models.Anonymization", "Anonymization")
+                    b.HasOne("api.Database.Models.Analysis", null)
                         .WithMany()
-                        .HasForeignKey("AnonymizationId")
+                        .HasForeignKey("AnalysesId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("api.Database.Models.CLOEAnalysis", "CLOEAnalysis")
+                    b.HasOne("api.Database.Models.InspectionRecord", null)
                         .WithMany()
-                        .HasForeignKey("CLOEAnalysisId");
-
-                    b.HasOne("api.Database.Models.FencillaAnalysis", "FencillaAnalysis")
-                        .WithMany()
-                        .HasForeignKey("FencillaAnalysisId");
-
-                    b.HasOne("api.Database.Models.ThermalReadingAnalysis", "ThermalReadingAnalysis")
-                        .WithMany()
-                        .HasForeignKey("ThermalReadingAnalysisId");
-
-                    b.Navigation("Anonymization");
-
-                    b.Navigation("CLOEAnalysis");
-
-                    b.Navigation("FencillaAnalysis");
-
-                    b.Navigation("ThermalReadingAnalysis");
+                        .HasForeignKey("InspectionRecordsId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
-            modelBuilder.Entity("api.Database.Models.ThermalReadingAnalysis", b =>
+            modelBuilder.Entity("api.Database.Models.Analysis", b =>
                 {
-                    b.OwnsOne("api.Database.Models.BlobStorageLocation", "DestinationBlobStorageLocation", b1 =>
+                    b.HasOne("api.Database.Models.AnalysisGroup", "AnalysisGroup")
+                        .WithMany("Analyses")
+                        .HasForeignKey("AnalysisGroupId");
+
+                    b.Navigation("AnalysisGroup");
+                });
+
+            modelBuilder.Entity("api.Database.Models.AnalysisRun", b =>
+                {
+                    b.HasOne("api.Database.Models.Analysis", "Analysis")
+                        .WithMany("Runs")
+                        .HasForeignKey("AnalysisId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Analysis");
+                });
+
+            modelBuilder.Entity("api.Database.Models.InspectionRecord", b =>
+                {
+                    b.HasOne("api.Database.Models.AnalysisGroup", "AnalysisGroup")
+                        .WithMany("InspectionRecords")
+                        .HasForeignKey("AnalysisGroupId");
+
+                    b.OwnsOne("api.Database.Models.BlobStorageLocation", "BlobStorageLocation", b1 =>
                         {
-                            b1.Property<Guid>("ThermalReadingAnalysisId")
+                            b1.Property<Guid>("InspectionRecordId")
                                 .HasColumnType("uuid");
 
                             b1.Property<string>("BlobContainer")
@@ -476,44 +289,127 @@ namespace api.Migrations
                                 .IsRequired()
                                 .HasColumnType("text");
 
-                            b1.HasKey("ThermalReadingAnalysisId");
+                            b1.HasKey("InspectionRecordId");
 
-                            b1.ToTable("ThermalReading");
+                            b1.ToTable("InspectionRecords");
 
                             b1.WithOwner()
-                                .HasForeignKey("ThermalReadingAnalysisId");
+                                .HasForeignKey("InspectionRecordId");
                         });
 
-                    b.OwnsOne("api.Database.Models.BlobStorageLocation", "SourceBlobStorageLocation", b1 =>
+                    b.OwnsOne("api.Database.Models.Position", "TargetPosition", b1 =>
                         {
-                            b1.Property<Guid>("ThermalReadingAnalysisId")
+                            b1.Property<Guid>("InspectionRecordId")
                                 .HasColumnType("uuid");
 
-                            b1.Property<string>("BlobContainer")
-                                .IsRequired()
-                                .HasColumnType("text");
+                            b1.Property<float>("X")
+                                .HasColumnType("real")
+                                .HasJsonPropertyName("x");
 
-                            b1.Property<string>("BlobName")
-                                .IsRequired()
-                                .HasColumnType("text");
+                            b1.Property<float>("Y")
+                                .HasColumnType("real")
+                                .HasJsonPropertyName("y");
 
-                            b1.Property<string>("StorageAccount")
-                                .IsRequired()
-                                .HasColumnType("text");
+                            b1.Property<float>("Z")
+                                .HasColumnType("real")
+                                .HasJsonPropertyName("z");
 
-                            b1.HasKey("ThermalReadingAnalysisId");
+                            b1.HasKey("InspectionRecordId");
 
-                            b1.ToTable("ThermalReading");
+                            b1.ToTable("InspectionRecords");
 
                             b1.WithOwner()
-                                .HasForeignKey("ThermalReadingAnalysisId");
+                                .HasForeignKey("InspectionRecordId");
                         });
 
-                    b.Navigation("DestinationBlobStorageLocation")
+                    b.OwnsOne("api.Database.Models.Pose", "RobotPose", b1 =>
+                        {
+                            b1.Property<Guid>("InspectionRecordId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<bool>("HasValue")
+                                .HasColumnType("boolean");
+
+                            b1.HasKey("InspectionRecordId");
+
+                            b1.ToTable("InspectionRecords");
+
+                            b1.WithOwner()
+                                .HasForeignKey("InspectionRecordId");
+
+                            b1.OwnsOne("api.Database.Models.Orientation", "Orientation", b2 =>
+                                {
+                                    b2.Property<Guid>("PoseInspectionRecordId")
+                                        .HasColumnType("uuid");
+
+                                    b2.Property<float>("W")
+                                        .HasColumnType("real")
+                                        .HasJsonPropertyName("w");
+
+                                    b2.Property<float>("X")
+                                        .HasColumnType("real")
+                                        .HasJsonPropertyName("x");
+
+                                    b2.Property<float>("Y")
+                                        .HasColumnType("real")
+                                        .HasJsonPropertyName("y");
+
+                                    b2.Property<float>("Z")
+                                        .HasColumnType("real")
+                                        .HasJsonPropertyName("z");
+
+                                    b2.HasKey("PoseInspectionRecordId");
+
+                                    b2.ToTable("InspectionRecords");
+
+                                    b2.HasJsonPropertyName("orientation");
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("PoseInspectionRecordId");
+                                });
+
+                            b1.OwnsOne("api.Database.Models.Position", "Position", b2 =>
+                                {
+                                    b2.Property<Guid>("PoseInspectionRecordId")
+                                        .HasColumnType("uuid");
+
+                                    b2.Property<float>("X")
+                                        .HasColumnType("real")
+                                        .HasJsonPropertyName("x");
+
+                                    b2.Property<float>("Y")
+                                        .HasColumnType("real")
+                                        .HasJsonPropertyName("y");
+
+                                    b2.Property<float>("Z")
+                                        .HasColumnType("real")
+                                        .HasJsonPropertyName("z");
+
+                                    b2.HasKey("PoseInspectionRecordId");
+
+                                    b2.ToTable("InspectionRecords");
+
+                                    b2.HasJsonPropertyName("position");
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("PoseInspectionRecordId");
+                                });
+
+                            b1.Navigation("Orientation")
+                                .IsRequired();
+
+                            b1.Navigation("Position")
+                                .IsRequired();
+                        });
+
+                    b.Navigation("AnalysisGroup");
+
+                    b.Navigation("BlobStorageLocation")
                         .IsRequired();
 
-                    b.Navigation("SourceBlobStorageLocation")
-                        .IsRequired();
+                    b.Navigation("RobotPose");
+
+                    b.Navigation("TargetPosition");
                 });
 
             modelBuilder.Entity("api.Database.Models.ThermalReferenceMetadata", b =>
@@ -573,6 +469,96 @@ namespace api.Migrations
 
                     b.Navigation("ReferencePolygonBlobStorageLocation")
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("api.Database.Models.Workflow", b =>
+                {
+                    b.HasOne("api.Database.Models.AnalysisRun", "AnalysisRun")
+                        .WithMany("Workflows")
+                        .HasForeignKey("AnalysisRunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.OwnsMany("api.Database.Models.BlobStorageLocation", "InputBlobStorageLocations", b1 =>
+                        {
+                            b1.Property<int>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("integer");
+
+                            NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b1.Property<int>("Id"));
+
+                            b1.Property<string>("BlobContainer")
+                                .IsRequired()
+                                .HasColumnType("text");
+
+                            b1.Property<string>("BlobName")
+                                .IsRequired()
+                                .HasColumnType("text");
+
+                            b1.Property<string>("StorageAccount")
+                                .IsRequired()
+                                .HasColumnType("text");
+
+                            b1.Property<Guid>("WorkflowId")
+                                .HasColumnType("uuid");
+
+                            b1.HasKey("Id");
+
+                            b1.HasIndex("WorkflowId");
+
+                            b1.ToTable("Workflows_InputBlobStorageLocations");
+
+                            b1.WithOwner()
+                                .HasForeignKey("WorkflowId");
+                        });
+
+                    b.OwnsOne("api.Database.Models.BlobStorageLocation", "OutputBlobStorageLocation", b1 =>
+                        {
+                            b1.Property<Guid>("WorkflowId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<string>("BlobContainer")
+                                .IsRequired()
+                                .HasColumnType("text");
+
+                            b1.Property<string>("BlobName")
+                                .IsRequired()
+                                .HasColumnType("text");
+
+                            b1.Property<string>("StorageAccount")
+                                .IsRequired()
+                                .HasColumnType("text");
+
+                            b1.HasKey("WorkflowId");
+
+                            b1.ToTable("Workflows");
+
+                            b1.WithOwner()
+                                .HasForeignKey("WorkflowId");
+                        });
+
+                    b.Navigation("AnalysisRun");
+
+                    b.Navigation("InputBlobStorageLocations");
+
+                    b.Navigation("OutputBlobStorageLocation");
+                });
+
+            modelBuilder.Entity("api.Database.Models.Analysis", b =>
+                {
+                    b.Navigation("Runs");
+                });
+
+            modelBuilder.Entity("api.Database.Models.AnalysisGroup", b =>
+                {
+                    b.Navigation("Analyses");
+
+                    b.Navigation("InspectionRecords");
+                });
+
+            modelBuilder.Entity("api.Database.Models.AnalysisRun", b =>
+                {
+                    b.Navigation("Workflows");
                 });
 #pragma warning restore 612, 618
         }

@@ -5,6 +5,10 @@ using api.Configurations;
 using api.Database.Context;
 using api.MQTT;
 using api.Services;
+using api.Services.HostedServices;
+using api.Services.ResultHandlers.AnalysisResultHandlers;
+using api.Services.ResultHandlers.WorkflowResultHandlers;
+using api.Utilities;
 using Azure.Core;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Rewrite;
@@ -59,23 +63,42 @@ else
 }
 
 builder.Services.Configure<AzureAdOptions>(builder.Configuration.GetSection("AzureAd"));
-builder.Services.Configure<BlobOptions>(builder.Configuration.GetSection("Storage"));
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email"));
 builder.Services.Configure<EndpointConfig>(builder.Configuration.GetSection("EndpointConfig"));
+builder.Services.Configure<AnalysisOptions>(
+    builder.Configuration.GetSection(AnalysisOptions.SectionName)
+);
 
-builder.Services.AddScoped<IBlobService, BlobService>();
-builder.Services.AddScoped<IPlantDataService, PlantDataService>();
-builder.Services.AddScoped<IAnalysisMappingService, AnalysisMappingService>();
 builder.Services.AddScoped<IThermalReferenceMetadataService, ThermalReferenceMetadataService>();
-builder.Services.AddScoped<IMqttMessageService, MqttMessageService>();
+builder.Services.AddScoped<IInspectionRecordService, InspectionRecordService>();
+builder.Services.AddScoped<IAnalysisService, AnalysisService>();
+builder.Services.AddScoped<IAnalysisGroupService, AnalysisGroupService>();
+builder.Services.AddScoped<IAnalysisRunService, AnalysisRunService>();
 builder.Services.AddScoped<IMqttPublisherService, MqttPublisherService>();
 
-builder.Services.AddScoped<IArgoWorkflowService, ArgoWorkflowService>();
+builder.Services.AddScoped<IWorkflowService, WorkflowService>();
+builder.Services.AddHttpClient(WorkflowService.ArgoHttpClientName);
+builder.Services.AddScoped<ITriggerPayloadEnricher, AnonymizerPayloadEnricher>();
+builder.Services.AddScoped<ITriggerPayloadEnricher, ThermalReadingPayloadEnricher>();
+
+// Per-workflow result handlers — fire on each successful Workflow step.
+builder.Services.AddScoped<IWorkflowResultHandler, AnonymizerResultHandler>();
+builder.Services.AddScoped<IWorkflowResultHandler, CLOEResultHandler>();
+builder.Services.AddScoped<IWorkflowResultHandler, FencillaResultHandler>();
+builder.Services.AddScoped<IWorkflowResultHandler, ThermalReadingResultHandler>();
+
+// Per-analysis result handlers — fire once per successful AnalysisRun for cross-step
+// / aggregate reporting. Interface defined for future use; no implementations
+// registered yet, so dispatch is a no-op. Add registrations here when needed:
+//   builder.Services.AddScoped<IAnalysisResultHandler, MyAggregateResultHandler>();
+builder.Services.AddScoped<IAnalysisTriggerService, AnalysisTriggerService>();
 builder.Services.AddScoped<ITimeseriesService, TimeseriesService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IAnalysisGroupTimeoutProcessor, AnalysisGroupTimeoutProcessor>();
 
 builder.Services.AddHostedService<MqttEventHandler>();
 builder.Services.AddHostedService<MqttService>();
+builder.Services.AddHostedService<AnalysisGroupTimeoutService>();
 
 builder
     .Services.AddControllers(options =>
@@ -184,6 +207,17 @@ app.MapGet(
             }
     )
     .AllowAnonymous();
+
+app.MapGet(
+        "/api/config/analyses",
+        (Microsoft.Extensions.Options.IOptions<AnalysisOptions> opts) =>
+            opts.Value.Analyses.Select(kvp => new
+            {
+                Name = kvp.Key,
+                Workflows = kvp.Value.Workflows,
+            })
+    )
+    .RequireAuthorization();
 
 if (enableFrontend)
 {

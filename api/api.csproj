@@ -11,6 +11,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="api.test" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Azure.Storage.Blobs" Version="12.27.0" />
     <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" Version="3.1.0" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.7" />

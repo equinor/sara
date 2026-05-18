@@ -7,10 +7,10 @@ namespace api.Database.Models;
 
 public enum WorkflowStatus
 {
-    NotStarted,
-    Started,
-    ExitSuccess,
-    ExitFailure,
+    Pending,
+    InProgress,
+    Succeeded,
+    Failed,
 }
 
 [Owned]
@@ -28,43 +28,36 @@ public class BlobStorageLocation
     public override string ToString() => $"{StorageAccount}/{BlobContainer}/{BlobName}";
 }
 
-public abstract class Workflow
+public class Workflow
 {
     [Key]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public Guid Id { get; set; }
 
     [Required]
-    public required BlobStorageLocation SourceBlobStorageLocation { get; set; }
+    public Guid AnalysisRunId { get; set; }
+
+    [ForeignKey(nameof(AnalysisRunId))]
+    public required AnalysisRun AnalysisRun { get; set; }
 
     [Required]
-    public required BlobStorageLocation DestinationBlobStorageLocation { get; set; }
+    public int StepNumber { get; set; }
 
     [Required]
-    public DateTime DateCreated { get; set; } = DateTime.UtcNow;
+    public required string WorkflowType { get; set; }
 
-    public WorkflowStatus Status { get; set; } = WorkflowStatus.NotStarted;
-}
+    [Required]
+    public required List<BlobStorageLocation> InputBlobStorageLocations { get; set; }
 
-public class Anonymization : Workflow
-{
-    public bool? IsPersonInImage { get; set; }
-    public BlobStorageLocation? PreProcessedBlobStorageLocation { get; set; }
-}
+    public WorkflowStatus Status { get; set; } = WorkflowStatus.Pending;
 
-public class CLOEAnalysis : Workflow
-{
-    public float? OilLevel { get; set; }
-    public float? Confidence { get; set; }
-}
+    public BlobStorageLocation? OutputBlobStorageLocation { get; set; }
 
-public class FencillaAnalysis : Workflow
-{
-    public bool? IsBreak { get; set; }
-    public float? Confidence { get; set; }
-}
+    public string? ResultJson { get; set; }
 
-public class ThermalReadingAnalysis : Workflow
-{
-    public float? Temperature { get; set; }
+    public DateTime? StartedAt { get; set; }
+
+    public DateTime? CompletedAt { get; set; }
+
+    public string? ErrorMessage { get; set; }
 }

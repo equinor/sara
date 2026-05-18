@@ -23,10 +23,14 @@ namespace api.MQTT
             Subscribe();
         }
 
-        private IMqttMessageService MqttMessageService =>
-            _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IMqttMessageService>();
-        private IArgoWorkflowService ArgoWorkflowService =>
-            _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IArgoWorkflowService>();
+        private IInspectionRecordService InspectionRecordService =>
+            _scopeFactory
+                .CreateScope()
+                .ServiceProvider.GetRequiredService<IInspectionRecordService>();
+        private IAnalysisTriggerService AnalysisTriggerService =>
+            _scopeFactory
+                .CreateScope()
+                .ServiceProvider.GetRequiredService<IAnalysisTriggerService>();
         private ITimeseriesService TimeseriesService =>
             _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<ITimeseriesService>();
 
@@ -68,6 +72,51 @@ namespace api.MQTT
                 validationResults,
                 true
             );
+            if (message.AnalysisGroup is not null)
+            {
+                isValid &= Validator.TryValidateObject(
+                    message.AnalysisGroup,
+                    new ValidationContext(message.AnalysisGroup),
+                    validationResults,
+                    true
+                );
+            }
+            if (message.RobotPose is not null)
+            {
+                isValid &= Validator.TryValidateObject(
+                    message.RobotPose,
+                    new ValidationContext(message.RobotPose),
+                    validationResults,
+                    true
+                );
+                if (message.RobotPose.Position is not null)
+                {
+                    isValid &= Validator.TryValidateObject(
+                        message.RobotPose.Position,
+                        new ValidationContext(message.RobotPose.Position),
+                        validationResults,
+                        true
+                    );
+                }
+                if (message.RobotPose.Orientation is not null)
+                {
+                    isValid &= Validator.TryValidateObject(
+                        message.RobotPose.Orientation,
+                        new ValidationContext(message.RobotPose.Orientation),
+                        validationResults,
+                        true
+                    );
+                }
+            }
+            if (message.TargetPosition is not null)
+            {
+                isValid &= Validator.TryValidateObject(
+                    message.TargetPosition,
+                    new ValidationContext(message.TargetPosition),
+                    validationResults,
+                    true
+                );
+            }
             if (!isValid)
             {
                 foreach (var validationResult in validationResults)
@@ -90,6 +139,19 @@ namespace api.MQTT
                 );
                 return;
             }
+            await ProcessIsarInspectionResult(isarInspectionResultMessage);
+        }
+
+        /// <summary>
+        /// Processes a validated ISAR inspection result message: creates the
+        /// inspection record and triggers analyses. Exposed as <c>internal</c>
+        /// so integration tests can drive the pipeline deterministically
+        /// without relying on the MQTT static event.
+        /// </summary>
+        internal async Task ProcessIsarInspectionResult(
+            IsarInspectionResultMessage isarInspectionResultMessage
+        )
+        {
             if (!ValidateIsarInspectionResultMessage(isarInspectionResultMessage))
             {
                 _logger.LogError(
@@ -106,10 +168,10 @@ namespace api.MQTT
                 isarInspectionResultMessage.InspectionDescription
             );
 
-            PlantData? plantData;
+            InspectionRecord? inspectionRecord;
             try
             {
-                plantData = await MqttMessageService.CreateFromMqttMessage(
+                inspectionRecord = await InspectionRecordService.CreateFromMqttMessage(
                     isarInspectionResultMessage
                 );
             }
@@ -136,16 +198,19 @@ namespace api.MQTT
 
             try
             {
-                await ArgoWorkflowService.TriggerAnonymizer(
-                    plantData.InspectionId,
-                    plantData.Anonymization
-                );
+                var createdEvent = new InspectionRecordCreatedEvent
+                {
+                    InspectionRecordId = inspectionRecord.Id,
+                    RequiredAnalysis = isarInspectionResultMessage.RequiredAnalysis,
+                    AnalysisGroup = isarInspectionResultMessage.AnalysisGroup,
+                };
+                await AnalysisTriggerService.OnInspectionRecordCreated(createdEvent);
             }
             catch (Exception ex)
             {
                 _logger.LogError(
                     ex,
-                    "Error occurred while triggering anonymizer workflow for InspectionId: {InspectionId}",
+                    "Error occurred while triggering analyses for InspectionId: {InspectionId}",
                     isarInspectionResultMessage.InspectionId
                 );
                 return;

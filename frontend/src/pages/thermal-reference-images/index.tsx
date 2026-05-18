@@ -13,6 +13,7 @@ import {
   getThermalReferenceMetadata,
   type ThermalReferenceMetadata,
 } from "../../api/client";
+import IdCell from "../../components/IdCell";
 
 Icon.add({ add, refresh });
 
@@ -90,7 +91,7 @@ export default function ThermalReferenceImagesPage() {
           >
             <Icon name="refresh" />
           </Button>
-          <Button onClick={() => navigate("/create-thermal-reference-metadata")}>
+          <Button onClick={() => navigate("/thermal-reference-images/new")}>
             <Icon name="add" />
             New Reference Metadata
           </Button>
@@ -112,6 +113,7 @@ export default function ThermalReferenceImagesPage() {
         <Table>
           <Table.Head>
             <Table.Row>
+              <Table.Cell>ID</Table.Cell>
               <Table.Cell>Installation</Table.Cell>
               <Table.Cell>Tag</Table.Cell>
               <Table.Cell>Inspection Description</Table.Cell>
@@ -125,6 +127,9 @@ export default function ThermalReferenceImagesPage() {
                 onClick={() => navigate(`/thermal-reference-images/${metadata.id}`)}
                 style={{ cursor: "pointer" }}
               >
+                <Table.Cell>
+                  <IdCell id={metadata.id} />
+                </Table.Cell>
                 <Table.Cell>{metadata.installationCode}</Table.Cell>
                 <Table.Cell>{metadata.tagId}</Table.Cell>
                 <Table.Cell>{metadata.inspectionDescription}</Table.Cell>
@@ -146,7 +151,7 @@ export default function ThermalReferenceImagesPage() {
             ))}
             {sortedData.length === 0 && (
               <Table.Row>
-                <Table.Cell colSpan={4}>
+                <Table.Cell colSpan={5}>
                   <Typography variant="body_short">
                     No thermal reference metadata found.
                   </Typography>

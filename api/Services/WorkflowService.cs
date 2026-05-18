@@ -1,270 +1,393 @@
 using System.Text;
 using System.Text.Json;
-using api.Controllers.WorkflowNotification;
+using api.Configurations;
+using api.Database.Context;
 using api.Database.Models;
+using api.Services.ResultHandlers.AnalysisResultHandlers;
+using api.Services.ResultHandlers.WorkflowResultHandlers;
 using api.Utilities;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace api.Services;
 
-public record TriggerAnonymizerRequest(
-    string InspectionId,
-    BlobStorageLocation RawDataBlobStorageLocation,
-    BlobStorageLocation AnonymizedBlobStorageLocation,
-    BlobStorageLocation? PreProcessedBlobStorageLocation
-);
-
-public record TriggerCLOERequest(
-    string InspectionId,
-    BlobStorageLocation SourceBlobStorageLocation,
-    BlobStorageLocation VisualizedBlobStorageLocation
-);
-
-public record TriggerFencillaRequest(
-    string InspectionId,
-    BlobStorageLocation SourceBlobStorageLocation,
-    BlobStorageLocation VisualizedBlobStorageLocation
-);
-
-public record TriggerThermalReadingRequest(
-    string InspectionId,
-    BlobStorageLocation SourceBlobStorageLocation,
-    BlobStorageLocation VisualizedBlobStorageLocation,
-    BlobStorageLocation ReferenceImageBlobStorageLocation,
-    BlobStorageLocation ReferencePolygonBlobStorageLocation
-);
-
-public interface IArgoWorkflowService
+public interface IWorkflowService
 {
-    public Task TriggerAnonymizer(string inspectionId, Anonymization anonymization);
-    public Task TriggerCLOE(string inspectionId, CLOEAnalysis analysis);
-    public Task TriggerFencilla(string inspectionId, FencillaAnalysis analysis);
-    public Task TriggerThermalReading(
-        string inspectionId,
-        string tagId,
-        string inspectionDescription,
-        string installationCode,
-        ThermalReadingAnalysis analysis
-    );
-    public WorkflowStatus GetWorkflowStatus(
-        WorkflowExitedNotification notification,
-        string workflowType
-    );
+    public Task TriggerWorkflow(Guid workflowId);
+
+    public Task OnWorkflowCompleted(Guid workflowId);
+
+    public Task<Workflow?> ReadById(Guid id);
+
+    public Task<PagedList<Workflow>> GetWorkflows(WorkflowParameters parameters);
+
+    public Task RetryWorkflow(Guid id);
+
+    public Task Delete(Guid id);
 }
 
-public class ArgoWorkflowService(
-    IConfiguration configuration,
-    ILogger<ArgoWorkflowService> logger,
-    IThermalReferenceMetadataService thermalReferenceMetadataService
-) : IArgoWorkflowService
+public class WorkflowParameters
 {
-    private static readonly HttpClient client = new();
-    private readonly string _baseUrlAnonymizer =
-        configuration["ArgoWorkflowAnonymizerBaseUrl"]
-        ?? throw new InvalidOperationException("ArgoWorkflowAnonymizerBaseUrl is not configured.");
-    private readonly string _baseUrlCLOE =
-        configuration["ArgoWorkflowCLOEBaseUrl"]
-        ?? throw new InvalidOperationException("ArgoWorkflowCLOEBaseUrl is not configured.");
-    private readonly string _baseUrlFencilla =
-        configuration["ArgoWorkflowFencillaBaseUrl"]
-        ?? throw new InvalidOperationException("ArgoWorkflowFencillaBaseUrl is not configured.");
-    private readonly string _baseUrlThermalReading =
-        configuration["ArgoWorkflowThermalReadingBaseUrl"]
-        ?? throw new InvalidOperationException(
-            "ArgoWorkflowThermalReadingBaseUrl is not configured."
-        );
+    public int PageNumber { get; set; } = 1;
+    public int PageSize { get; set; } = 25;
+    public string? WorkflowType { get; set; }
+    public WorkflowStatus? Status { get; set; }
+    public Guid? AnalysisRunId { get; set; }
+}
+
+public class WorkflowService(
+    SaraDbContext context,
+    IOptions<AnalysisOptions> analysisOptions,
+    IEnumerable<ITriggerPayloadEnricher> payloadEnrichers,
+    IEnumerable<IWorkflowResultHandler> workflowResultHandlers,
+    IEnumerable<IAnalysisResultHandler> analysisResultHandlers,
+    IHttpClientFactory httpClientFactory,
+    ILogger<WorkflowService> logger
+) : IWorkflowService
+{
+    public const string ArgoHttpClientName = "Argo";
 
     private static readonly JsonSerializerOptions useCamelCaseOption = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
-    public async Task TriggerAnonymizer(string inspectionId, Anonymization anonymization)
+    private readonly AnalysisOptions _options = analysisOptions.Value;
+
+    private readonly Dictionary<string, ITriggerPayloadEnricher> _enrichersByType =
+        payloadEnrichers.ToDictionary(e => e.WorkflowType, StringComparer.OrdinalIgnoreCase);
+
+    private readonly Dictionary<string, IWorkflowResultHandler> _workflowResultHandlersByType =
+        workflowResultHandlers.ToDictionary(h => h.WorkflowType, StringComparer.OrdinalIgnoreCase);
+
+    private readonly Dictionary<string, IAnalysisResultHandler> _analysisResultHandlersByName =
+        analysisResultHandlers.ToDictionary(h => h.AnalysisName, StringComparer.OrdinalIgnoreCase);
+
+    public async Task TriggerWorkflow(Guid workflowId)
     {
-        var postRequestData = new TriggerAnonymizerRequest(
-            InspectionId: inspectionId,
-            RawDataBlobStorageLocation: anonymization.SourceBlobStorageLocation,
-            AnonymizedBlobStorageLocation: anonymization.DestinationBlobStorageLocation,
-            PreProcessedBlobStorageLocation: anonymization.PreProcessedBlobStorageLocation
-        );
-
-        var json = JsonSerializer.Serialize(postRequestData, useCamelCaseOption);
-        var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-        logger.LogInformation(
-            "Triggering Anonymizer. InspectionId: {InspectionId}, "
-                + "RawDataBlobStorageLocation: {RawDataBlobStorageLocation}, "
-                + "AnonymizedBlobStorageLocation: {AnonymizedBlobStorageLocation}, "
-                + "PreProcessedBlobStorageLocation: {PreProcessedBlobStorageLocation}",
-            inspectionId,
-            anonymization.SourceBlobStorageLocation,
-            anonymization.DestinationBlobStorageLocation,
-            anonymization.PreProcessedBlobStorageLocation
-        );
-
-        var response = await client.PostAsync(_baseUrlAnonymizer, content);
-
-        if (response.IsSuccessStatusCode)
+        var workflow = await context.Workflows.FirstOrDefaultAsync(w => w.Id == workflowId);
+        if (workflow is null)
         {
-            logger.LogInformation("Anonymizer function triggered successfully.");
-        }
-        else
-        {
-            logger.LogError("Failed to trigger anonymizer function.");
-        }
-    }
-
-    public async Task TriggerCLOE(string inspectionId, CLOEAnalysis analysis)
-    {
-        var postRequestData = new TriggerCLOERequest(
-            InspectionId: inspectionId,
-            SourceBlobStorageLocation: analysis.SourceBlobStorageLocation,
-            VisualizedBlobStorageLocation: analysis.DestinationBlobStorageLocation
-        );
-
-        var json = JsonSerializer.Serialize(postRequestData, useCamelCaseOption);
-        var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-        logger.LogInformation(
-            "Triggering CLOE. InspectionId: {InspectionId}, "
-                + "SourceBlobStorageLocation: {SourceBlobStorageLocation}, "
-                + "VisualizedBlobStorageLocation: {VisualizedBlobStorageLocation}",
-            inspectionId,
-            analysis.SourceBlobStorageLocation,
-            analysis.DestinationBlobStorageLocation
-        );
-
-        var response = await client.PostAsync(_baseUrlCLOE, content);
-
-        if (response.IsSuccessStatusCode)
-        {
-            logger.LogInformation("CLOE function triggered successfully.");
-        }
-        else
-        {
-            logger.LogError("Failed to trigger CLOE function.");
-        }
-    }
-
-    public async Task TriggerFencilla(string inspectionId, FencillaAnalysis analysis)
-    {
-        var postRequestData = new TriggerFencillaRequest(
-            InspectionId: inspectionId,
-            SourceBlobStorageLocation: analysis.SourceBlobStorageLocation,
-            VisualizedBlobStorageLocation: analysis.DestinationBlobStorageLocation
-        );
-
-        var json = JsonSerializer.Serialize(postRequestData, useCamelCaseOption);
-        var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-        logger.LogInformation(
-            "Triggering Fencilla. InspectionId: {InspectionId}, "
-                + "SourceBlobStorageLocation: {SourceBlobStorageLocation}, "
-                + "VisualizedBlobStorageLocation: {VisualizedBlobStorageLocation}",
-            inspectionId,
-            analysis.SourceBlobStorageLocation,
-            analysis.DestinationBlobStorageLocation
-        );
-
-        var response = await client.PostAsync(_baseUrlFencilla, content);
-
-        if (response.IsSuccessStatusCode)
-        {
-            logger.LogInformation("Fencilla function triggered successfully.");
-        }
-        else
-        {
-            logger.LogError("Failed to trigger Fencilla function.");
-        }
-    }
-
-    public async Task TriggerThermalReading(
-        string inspectionId,
-        string tagId,
-        string inspectionDescription,
-        string installationCode,
-        ThermalReadingAnalysis analysis
-    )
-    {
-        var thermalReferenceMetadata = await thermalReferenceMetadataService.ReadByUniqueKey(
-            installationCode,
-            tagId,
-            inspectionDescription
-        );
-
-        if (thermalReferenceMetadata is null)
-        {
-            var errorMessage =
-                $"Could not find thermal reference metadata for installationCode '{installationCode}', tagId '{tagId}', inspectionDescription '{inspectionDescription}'";
-            logger.LogError(errorMessage);
-            throw new ApplicationException(errorMessage);
-        }
-
-        var postRequestData = new TriggerThermalReadingRequest(
-            InspectionId: inspectionId,
-            SourceBlobStorageLocation: analysis.SourceBlobStorageLocation,
-            VisualizedBlobStorageLocation: analysis.DestinationBlobStorageLocation,
-            ReferenceImageBlobStorageLocation: thermalReferenceMetadata.ReferenceImageBlobStorageLocation,
-            ReferencePolygonBlobStorageLocation: thermalReferenceMetadata.ReferencePolygonBlobStorageLocation
-        );
-
-        var json = JsonSerializer.Serialize(postRequestData, useCamelCaseOption);
-        var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-        logger.LogInformation(
-            "Triggering ThermalReading. InspectionId: {InspectionId}, "
-                + "SourceBlobStorageLocation: {SourceBlobStorageLocation}, "
-                + "VisualizedBlobStorageLocation: {VisualizedBlobStorageLocation}, "
-                + "ReferenceImageBlobStorageLocation: {ReferenceImageBlobStorageLocation}, "
-                + "ReferencePolygonBlobStorageLocation: {ReferencePolygonBlobStorageLocation}",
-            inspectionId,
-            analysis.SourceBlobStorageLocation,
-            analysis.DestinationBlobStorageLocation,
-            thermalReferenceMetadata.ReferenceImageBlobStorageLocation,
-            thermalReferenceMetadata.ReferencePolygonBlobStorageLocation
-        );
-
-        var response = await client.PostAsync(_baseUrlThermalReading, content);
-
-        if (response.IsSuccessStatusCode)
-        {
-            logger.LogInformation("ThermalReading function triggered successfully.");
-        }
-        else
-        {
-            logger.LogError("Failed to trigger ThermalReading function.");
-        }
-    }
-
-    public WorkflowStatus GetWorkflowStatus(
-        WorkflowExitedNotification notification,
-        string workflowType
-    )
-    {
-        var inspectionId = Sanitize.SanitizeUserInput(notification.InspectionId);
-        var workflowFailures = Sanitize.SanitizeUserInput(notification.WorkflowFailures);
-
-        if (
-            notification.ExitHandlerWorkflowStatus == ExitHandlerWorkflowStatus.Failed
-            || notification.ExitHandlerWorkflowStatus == ExitHandlerWorkflowStatus.Error
-        )
-        {
-            logger.LogWarning(
-                "{WorkflowType} workflow for InspectionId: {InspectionId} exited with status: {Status} and failures: {WorkflowFailures}.",
-                workflowType,
-                inspectionId,
-                notification.ExitHandlerWorkflowStatus,
-                workflowFailures
+            logger.LogError(
+                "Workflow {WorkflowId} not found when attempting to trigger",
+                workflowId
             );
-            return WorkflowStatus.ExitFailure;
+            return;
         }
-        else
+
+        // Owned collection (InputBlobStorageLocations) is not loaded by the
+        // FirstOrDefaultAsync above, and the in-memory state can drift from
+        // DB when the entity was modified earlier in the same scope (e.g.
+        // by AnonymizerResultHandler.RewireNextWorkflowIfThermalReading,
+        // which mutates the collection then SaveChangesAsync's; the rewire
+        // is persisted correctly to DB but EF leaves stale child entries on
+        // the in-memory navigation property). Detach the cached entity and
+        // re-fetch with explicit Include so we ship exactly what's
+        // persisted.
+        context.Entry(workflow).State = EntityState.Detached;
+        workflow = await context
+            .Workflows.Include(w => w.InputBlobStorageLocations)
+            .FirstAsync(w => w.Id == workflowId);
+
+        if (!_options.Workflows.TryGetValue(workflow.WorkflowType, out var workflowConfig))
         {
+            throw new InvalidOperationException(
+                $"Unknown workflow type '{workflow.WorkflowType}' — not found in configuration"
+            );
+        }
+
+        if (workflow.OutputBlobStorageLocation is null)
+        {
+            throw new InvalidOperationException(
+                $"Workflow {workflow.Id} ({workflow.WorkflowType}) has no OutputBlobStorageLocation"
+            );
+        }
+
+        try
+        {
+            var extras = new Dictionary<string, object>();
+            if (_enrichersByType.TryGetValue(workflow.WorkflowType, out var enricher))
+            {
+                var inspectionRecords = await InspectionRecordResolver.GetInspectionRecords(
+                    context,
+                    workflow
+                );
+                extras = await enricher.EnrichAsync(workflow, inspectionRecords);
+            }
+
+            var payload = new Dictionary<string, object>
+            {
+                ["workflowId"] = workflow.Id,
+                ["inputBlobStorageLocations"] = workflow.InputBlobStorageLocations,
+                ["outputBlobStorageLocation"] = workflow.OutputBlobStorageLocation,
+                ["extras"] = extras,
+            };
+
+            var json = JsonSerializer.Serialize(payload, useCamelCaseOption);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
             logger.LogInformation(
-                "{WorkflowType} workflow for InspectionId: {InspectionId} exited successfully",
-                workflowType,
-                inspectionId
+                "Triggering workflow {WorkflowType} (Id: {WorkflowId}) with {InputCount} input(s) and output {OutputLocation}",
+                workflow.WorkflowType,
+                workflow.Id,
+                workflow.InputBlobStorageLocations.Count,
+                workflow.OutputBlobStorageLocation
             );
-            return WorkflowStatus.ExitSuccess;
+
+            var response = await httpClientFactory
+                .CreateClient(ArgoHttpClientName)
+                .PostAsync(workflowConfig.TriggerUrl, content);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var responseBody = await response.Content.ReadAsStringAsync();
+                throw new HttpRequestException(
+                    $"Argo trigger returned {(int)response.StatusCode} {response.StatusCode}: {responseBody}"
+                );
+            }
+
+            workflow.Status = WorkflowStatus.InProgress;
+            workflow.StartedAt = DateTime.UtcNow;
+            await context.SaveChangesAsync();
+
+            logger.LogInformation(
+                "Workflow {WorkflowType} (Id: {WorkflowId}) triggered successfully",
+                workflow.WorkflowType,
+                workflow.Id
+            );
         }
+        catch (Exception ex)
+        {
+            logger.LogError(
+                ex,
+                "Failed to trigger workflow {WorkflowType} (Id: {WorkflowId}): {ErrorMessage}",
+                workflow.WorkflowType,
+                workflow.Id,
+                ex.Message
+            );
+
+            await MarkWorkflowFailed(workflow, ex.Message);
+        }
+    }
+
+    public async Task OnWorkflowCompleted(Guid workflowId)
+    {
+        var workflow = await context
+            .Workflows.Include(w => w.AnalysisRun)
+            .FirstOrDefaultAsync(w => w.Id == workflowId);
+        if (workflow is null)
+        {
+            logger.LogError("Workflow {WorkflowId} not found when handling completion", workflowId);
+            return;
+        }
+
+        var run = await context
+            .AnalysisRuns.Include(r => r.Workflows)
+            .FirstAsync(r => r.Id == workflow.AnalysisRunId);
+
+        if (workflow.Status == WorkflowStatus.Failed)
+        {
+            run.Status = AnalysisRunStatus.Failed;
+            run.CompletedAt = DateTime.UtcNow;
+            await context.SaveChangesAsync();
+
+            logger.LogWarning(
+                "AnalysisRun {AnalysisRunId} failed at workflow {WorkflowType} (step {StepNumber})",
+                run.Id,
+                workflow.WorkflowType,
+                workflow.StepNumber
+            );
+            return;
+        }
+
+        await DispatchWorkflowResultHandler(workflow);
+
+        var nextWorkflow = run
+            .Workflows.OrderBy(w => w.StepNumber)
+            .FirstOrDefault(w => w.StepNumber > workflow.StepNumber);
+
+        if (nextWorkflow is null)
+        {
+            run.Status = AnalysisRunStatus.Succeeded;
+            run.CompletedAt = DateTime.UtcNow;
+            await context.SaveChangesAsync();
+
+            logger.LogInformation(
+                "AnalysisRun {AnalysisRunId} completed successfully after workflow {WorkflowType} (step {StepNumber})",
+                run.Id,
+                workflow.WorkflowType,
+                workflow.StepNumber
+            );
+
+            await DispatchAnalysisResultHandler(run);
+            return;
+        }
+
+        logger.LogInformation(
+            "Advancing AnalysisRun {AnalysisRunId} to next workflow {NextWorkflowType} (step {NextStepNumber})",
+            run.Id,
+            nextWorkflow.WorkflowType,
+            nextWorkflow.StepNumber
+        );
+
+        await TriggerWorkflow(nextWorkflow.Id);
+    }
+
+    private async Task MarkWorkflowFailed(Workflow workflow, string errorMessage)
+    {
+        workflow.Status = WorkflowStatus.Failed;
+        workflow.ErrorMessage = errorMessage;
+        workflow.CompletedAt = DateTime.UtcNow;
+        await context.SaveChangesAsync();
+
+        await OnWorkflowCompleted(workflow.Id);
+    }
+
+    private async Task DispatchWorkflowResultHandler(Workflow workflow)
+    {
+        if (workflow.Status != WorkflowStatus.Succeeded)
+        {
+            return;
+        }
+
+        if (!_workflowResultHandlersByType.TryGetValue(workflow.WorkflowType, out var handler))
+        {
+            logger.LogDebug(
+                "No IWorkflowResultHandler registered for workflow type '{WorkflowType}' — skipping result dispatch for workflow {WorkflowId}",
+                workflow.WorkflowType,
+                workflow.Id
+            );
+            return;
+        }
+
+        try
+        {
+            await handler.OnWorkflowCompleted(workflow);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(
+                ex,
+                "Workflow result handler for type '{WorkflowType}' threw while processing workflow {WorkflowId}",
+                workflow.WorkflowType,
+                workflow.Id
+            );
+        }
+    }
+
+    private async Task DispatchAnalysisResultHandler(AnalysisRun run)
+    {
+        var analysis = await context
+            .Analyses.Include(a => a.InspectionRecords)
+            .FirstOrDefaultAsync(a => a.Id == run.AnalysisId);
+
+        if (analysis is null)
+        {
+            logger.LogError(
+                "Analysis {AnalysisId} not found when dispatching result handler for run {AnalysisRunId}",
+                run.AnalysisId,
+                run.Id
+            );
+            return;
+        }
+
+        if (!_analysisResultHandlersByName.TryGetValue(analysis.Name, out var handler))
+        {
+            logger.LogDebug(
+                "No IAnalysisResultHandler registered for analysis '{AnalysisName}' — skipping result dispatch for run {AnalysisRunId}",
+                analysis.Name,
+                run.Id
+            );
+            return;
+        }
+
+        try
+        {
+            await handler.OnAnalysisCompleted(analysis, run);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(
+                ex,
+                "Analysis result handler for '{AnalysisName}' threw while processing run {AnalysisRunId}",
+                analysis.Name,
+                run.Id
+            );
+        }
+    }
+
+    public async Task<Workflow?> ReadById(Guid id)
+    {
+        return await context
+            .Workflows.Include(w => w.InputBlobStorageLocations)
+            .Include(w => w.AnalysisRun)
+            .FirstOrDefaultAsync(w => w.Id == id);
+    }
+
+    public async Task<PagedList<Workflow>> GetWorkflows(WorkflowParameters parameters)
+    {
+        var query = context
+            .Workflows.Include(w => w.InputBlobStorageLocations)
+            .Include(w => w.AnalysisRun)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(parameters.WorkflowType))
+            query = query.Where(w =>
+                w.WorkflowType.ToLower().Contains(parameters.WorkflowType.ToLower())
+            );
+
+        if (parameters.Status is { } status)
+            query = query.Where(w => w.Status == status);
+
+        if (parameters.AnalysisRunId is { } runId)
+            query = query.Where(w => w.AnalysisRunId == runId);
+
+        query = query.OrderByDescending(w => w.StartedAt ?? DateTime.MinValue).ThenBy(w => w.Id);
+
+        return await PagedList<Workflow>.ToPagedListAsync(
+            query,
+            parameters.PageNumber,
+            parameters.PageSize
+        );
+    }
+
+    public async Task RetryWorkflow(Guid id)
+    {
+        var workflow = await context.Workflows.FirstOrDefaultAsync(w => w.Id == id);
+        if (workflow is null)
+        {
+            throw new KeyNotFoundException($"Workflow with id {id} not found");
+        }
+
+        workflow.Status = WorkflowStatus.Pending;
+        workflow.StartedAt = null;
+        workflow.CompletedAt = null;
+        workflow.ErrorMessage = null;
+        workflow.ResultJson = null;
+
+        var run = await context.AnalysisRuns.FirstOrDefaultAsync(r =>
+            r.Id == workflow.AnalysisRunId
+        );
+        if (run is not null && run.Status == AnalysisRunStatus.Failed)
+        {
+            run.Status = AnalysisRunStatus.InProgress;
+            run.CompletedAt = null;
+        }
+
+        await context.SaveChangesAsync();
+        await TriggerWorkflow(id);
+    }
+
+    public async Task Delete(Guid id)
+    {
+        var workflow = await context
+            .Workflows.Include(w => w.InputBlobStorageLocations)
+            .FirstOrDefaultAsync(w => w.Id == id);
+        if (workflow is null)
+        {
+            throw new KeyNotFoundException($"Workflow with id {id} not found");
+        }
+        context.Workflows.Remove(workflow);
+        await context.SaveChangesAsync();
     }
 }

@@ -1,32 +1,52 @@
 # Workflow Notifier
 
 The purpose of the workflow notifier is to serve as communication between SARA and Argo
-Workflow.
+Workflows.
 
-The workflow notifier has its own identity and authorizes towards SARA to reach SARA's
-endpoints for notifying about the progress of the various steps in the workflow.
+The notifier has its own identity and authenticates towards SARA to reach SARA's
+generic workflow notification endpoints. Each workflow execution is identified by an
+opaque `workflowId` (UUID) that SARA hands to Argo when triggering the workflow; the
+notifier passes this same id back when reporting lifecycle events.
 
-The workflow notifier sends notifications to the following endpoints on SARA
+## Endpoints called
 
-/WorkflowNotification/<workflow_type>/started
-/WorkflowNotification/<workflow_type>/result
-/WorkflowNotification/<workflow_type>/exited
+```
+PUT /api/workflow/{workflowId}/started
+PUT /api/workflow/{workflowId}/result    body: {"resultJson": "<stringified json>"}
+PUT /api/workflow/{workflowId}/exited    body: {"exitStatus": "Succeeded|Failed|Error",
+                                                "errorMessage": "..."}
+```
 
-and currently supports the following workflow types:
-"anonymizer", "constant-level-oiler-estimator", "fencilla", "thermal-reading"
+The same three commands work for every workflow type (anonymizer, fencilla, cloe,
+thermal-reading, ...). The `result` payload is forwarded verbatim and is interpreted
+on the SARA side by the workflow's result handler.
+
+## CLI
+
+```
+notifier started <workflow-id>
+notifier result  <workflow-id> <result-json>
+notifier exited  <workflow-id> <Succeeded|Failed|Error> [--error-message TEXT]
+```
+
+`<workflow-id>` is validated as a UUID before any HTTP call. `<result-json>` is
+validated as parseable JSON and then transmitted verbatim.
 
 ## Running the mock
 
-When developing, it can be useful to run SARA locally. Since it is a bit harder to run
-Argo Workflows locally, we have written a mock for the /trigger-analysis endpoint. This
-usually triggers the workflow, which again uses the various commands in this package to
-notify SARA about the process.
+When developing it is useful to run SARA locally. Running real Argo Workflows locally
+is awkward, so a Flask mock simulates the trigger endpoints SARA POSTs to. The mock
+spins up a thread per trigger and uses this notifier package to call back into SARA
+with `started` -> `result` -> `exited`.
 
-To run the mock, first install this package with
-`uv sync --extra dev`
+Install:
 
-,populate a `.env` file with the keys presented in `.env.example`
+```
+uv sync --extra dev
+```
 
-and run it with
+Populate a `.env` file with the keys shown in `.env.example`, then run:
 
-`uv run python mocks/argo_workflow_mock.py`
+```
+uv run python mocks/argo_workflow_mock.py
+```
