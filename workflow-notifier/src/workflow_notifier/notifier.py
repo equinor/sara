@@ -1,6 +1,10 @@
+import json
 import logging
 import os
+from enum import Enum
 from functools import lru_cache
+from typing import Optional
+from uuid import UUID
 
 import requests
 import typer
@@ -27,6 +31,11 @@ workflow_counter = meter.create_counter(
 )
 
 app = typer.Typer()
+
+
+class WorkflowExitStatus(str, Enum):
+    Succeeded = "Succeeded"
+    Failed = "Failed"
 
 
 @lru_cache(maxsize=1)
@@ -111,17 +120,12 @@ def _get_credential() -> TokenCredential:
         logger.info(f"Using {activated[0]} only")
         return credentials[0]
 
-    logger.info(
-        "Using ChainedTokenCredential: " + " -> ".join(activated)
-    )
+    logger.info("Using ChainedTokenCredential: " + " -> ".join(activated))
     return ChainedTokenCredential(*credentials)
 
 
-
 def get_access_token() -> str:
-    """
-    Acquire an access token for the SARA API using azure-identity.
-    """
+    """Acquire an access token for the SARA API using azure-identity."""
     credential = _get_credential()
     try:
         token = credential.get_token(*settings.scopes)
@@ -131,10 +135,8 @@ def get_access_token() -> str:
     return token.token
 
 
-def send_authenticated_put_request(url: str, payload: dict) -> None:
-    """
-    Send an authenticated PUT request with the access token.
-    """
+def _send_authenticated_put(url: str, payload: Optional[dict]) -> None:
+    """Send an authenticated PUT request and raise on non-2xx responses."""
     access_token = get_access_token()
     logger.info(f"Sending PUT request to {url} with payload: {payload}")
     headers = {"Authorization": f"Bearer {access_token}"}
@@ -142,81 +144,82 @@ def send_authenticated_put_request(url: str, payload: dict) -> None:
     response.raise_for_status()
 
 
-def notify_started(workflow_type: str, inspection_id: str, workflow_name: str) -> None:
-    """
-    Notify SARA that the workflow has started
-    """
+def _workflow_url(workflow_id: UUID, suffix: str) -> str:
+    return f"{settings.workflow_base_url}/{workflow_id}/{suffix}"
 
-    url = f"{settings.workflow_notification_url}/{workflow_type}/started"
-    payload = {"InspectionId": inspection_id, "WorkflowName": workflow_name}
 
-    logger.info(
-        f"The {workflow_type} workflow has started for inspectionId: {inspection_id}"
-    )
-
+def _validate_result_json(value: str) -> str:
+    """Typer callback: ensure result_json is parseable JSON; return verbatim."""
     try:
-        send_authenticated_put_request(url, payload)
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Error notifying {workflow_type} workflow start: {e}")
-        raise typer.Exit(1)
+        json.loads(value)
+    except (json.JSONDecodeError, TypeError) as exc:
+        raise typer.BadParameter(f"result_json must be valid JSON: {exc}")
+    return value
 
 
-def notify_result(workflow_type: str, inspection_id: str, result: dict) -> None:
-    """
-    Notify SARA about a result from the workflow
-    """
-    url = f"{settings.workflow_notification_url}/{workflow_type}/result"
-
-    payload = {"InspectionId": inspection_id}
-    payload.update(result)
-
-    logger.info(
-        f"The {workflow_type} workflow notifies about result: {result}"
-        f" for inspectionId: {inspection_id}"
-    )
-
-    try:
-        send_authenticated_put_request(url, payload)
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Error notifying {workflow_type} workflow result: {e}")
-        raise typer.Exit(1)
-
-
-def notify_exited(
-    workflow_type: str,
-    inspection_id: str,
-    workflow_status: str,
-    workflow_failures: str,
+@app.command()
+def started(
+    workflow_id: UUID = typer.Argument(...),
 ) -> None:
-    """
-    Notify SARA that the workflow has exited
-    """
-    url = f"{settings.workflow_notification_url}/{workflow_type}/exited"
-    payload = {
-        "InspectionId": inspection_id,
-        "ExitHandlerWorkflowStatus": workflow_status,
-        "WorkflowFailures": workflow_failures,
-    }
+    """Notify SARA that the workflow has started executing."""
+    url = _workflow_url(workflow_id, "started")
+    logger.info(f"Workflow {workflow_id} reporting started")
+    try:
+        _send_authenticated_put(url, payload=None)
+    except requests.exceptions.RequestException as exc:
+        logger.error(f"Error notifying workflow {workflow_id} start: {exc}")
+        raise typer.Exit(1)
+
+
+@app.command()
+def result(
+    workflow_id: UUID = typer.Argument(...),
+    result_json: str = typer.Argument(..., callback=_validate_result_json),
+) -> None:
+    """Forward the workflow's result payload to SARA verbatim as a JSON string."""
+    url = _workflow_url(workflow_id, "result")
+    logger.info(f"Workflow {workflow_id} reporting result ({len(result_json)} bytes)")
+    try:
+        _send_authenticated_put(url, payload={"resultJson": result_json})
+    except requests.exceptions.RequestException as exc:
+        logger.error(f"Error notifying workflow {workflow_id} result: {exc}")
+        raise typer.Exit(1)
+
+
+@app.command()
+def exited(
+    workflow_id: UUID = typer.Argument(...),
+    exit_status: WorkflowExitStatus = typer.Argument(...),
+    error_message: Optional[str] = typer.Argument(
+        None,
+        help="Error detail; only meaningful when exit_status is Failed.",
+    ),
+) -> None:
+    """Notify SARA that the workflow has exited with the given status."""
+    url = _workflow_url(workflow_id, "exited")
+    payload: dict = {"exitStatus": exit_status.value}
+    if error_message is not None:
+        payload["errorMessage"] = error_message
 
     logger.info(
-        f"The {workflow_type} workflow has exited for inspectionId: {inspection_id}"
-        f" with status: {workflow_status} and failures: {workflow_failures}"
+        f"Workflow {workflow_id} reporting exit: status={exit_status.value}"
+        + (f", errorMessage={error_message!r}" if error_message else "")
     )
 
     try:
         workflow_counter.add(
             1,
             {
-                "workflow_type": workflow_type,
-                "status": workflow_status,
+                "status": exit_status.value,
+                "workflow_id": str(workflow_id),
             },
         )
-        
+
         meter_provider = metrics.get_meter_provider()
         if hasattr(meter_provider, "force_flush"):
             meter_provider.force_flush()
 
-        send_authenticated_put_request(url, payload)
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Error notifying {workflow_type} workflow exit: {e}")
+        _send_authenticated_put(url, payload=payload)
+    except requests.exceptions.RequestException as exc:
+        logger.error(f"Error notifying workflow {workflow_id} exit: {exc}")
         raise typer.Exit(1)

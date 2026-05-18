@@ -1,63 +1,84 @@
 # Storage and Analysis of Robot Acquired plant data
 
-SARA (Storage and Analysis of Robot Acquired plant data) is a web service that facilitates
-the processing of incoming plant data from autonomous robots. Various workflows will be
-triggered to analyse the plant data, based on metadata provided. The workflows themselves
-are not in the scope of this solution. This solution only needs to have an overview of
-which workflows are available and how to call them with their API.
+SARA (Storage and Analysis of Robot Acquired plant data) is an ASP.NET Core
+Web API that indexes inspection data published by ISAR and orchestrates
+Argo-based analysis workflows on it, exposing the results to Flotilla. Each
+incoming inspection becomes an `InspectionRecord`; one or more records are
+grouped into an `Analysis` (the use-case), which executes as an `AnalysisRun`
+made up of one or more sequential `Workflow` steps.
 
-SARA is responsible for indexing the incoming data, including information on where the
-raw data is stored, which analysis are to be run, the status on these, where to
-temporarily store artifacts and where to store the finalized results and visualizations.
-SARA can then be queried later from other solutions and use the indexing to look up data and
-generate a response.
+When running locally the endpoint is reachable at https://localhost:8100
+(`/` redirects to Swagger).
 
-Examples of plant data are pictures, videos, thermal pictures, thermal videos and audio.
+## Architecture at a glance
 
-The resulting service is available in three environments (development, staging and production).
+- `InspectionRecord` -- one row per ISAR inspection result, persisted on
+  receipt of an `isar/+/inspection_result` MQTT message.
+- `Analysis` -> `AnalysisRun` -> `Workflow` -- three-tier model where an
+  Analysis describes the use-case, an AnalysisRun is one execution attempt,
+  and each Workflow is a single Argo step.
+- `AnalysisGroup` -- lets a single Analysis span multiple InspectionRecords. 
+  The group is buffered until all expected records arrive or 
+  `AnalysisGroupTimeoutMinutes` elapses.
+- Workflow chains run sequentially. By default each step's output blob
+  becomes the next step's input; per-workflow rewiring lives in the matching
+  `IWorkflowResultHandler`.
+- The Argo trigger payload has a stable core (`workflowId`,
+  `inputBlobStorageLocations`, `outputBlobStorageLocation`) plus an `extras`
+  object populated by `ITriggerPayloadEnricher` implementations matched on
+  workflow type.
+- Result handling is split: `WorkflowResultHandlers/` runs per step,
+  `AnalysisResultHandlers/` runs once the whole Analysis is done.
 
-When running locally the endpoint can be reached at https://localhost:8100.
+## Run locally
 
-## Services
-
-SARA uses several services to upload data to other sources for storage or analysis.
-A list of these services can be found below.
-
-- [Sara Timeseries](https://github.com/equinor/sara-timeseries/)
-- [Sara Anonymizer](https://github.com/equinor/sara-anonymizer/)
-
-## Workflow
-
-There will be several analysis available for SARA. These are triggered through an
-Argo Workflow which can have a conditional flow based on the type of inspection.
-
-```
-anonymizer-->constant-level-oiler
-         \-->stid-uploader
-```
-
-## Analysis Mapping
-
-Which analysis pipeline is run is chosen by the analysis mapping. A tag + an insepction descripts maps to an analysis type.
-To add a new analysis type, add a value to the [AnalysisType](api/Database/Models/Analysis.cs) enum. Then add which tag + inspection description should map to the new AnalysisType. This can be done through the [AddOrCreateAnalysisMapping](api/Controllers/AnalysisMappingController.cs) endpoint. Then include code in the [MqttEventHandler](api/MQTT/MqttEventHandler.cs) to run the desiered pipeline for you AnalysisType. At the moment the supported analysis types are:
-
-- Anonymizer
-- ConstantLevelOiler
-- ThermalReading
-
-At the moment Anonymizer is configured to always run on IsarInspectionResultMessage
-
-## Run
-
-To build and run SARA, run the following command in the root folder:
-
-```
-dotnet run --project api
+```bash
+make run            # or: dotnet run --project api
 ```
 
-## Running the argo workflow mock
 
-`python mocks/argo_workflow_mock.py`
+## Test & format
+
+```bash
+make test           # xUnit; integration tests use Postgres Testcontainers (Docker required)
+make format         # CSharpier
+```
+
+
+## Creating a new workflow
+
+1. Register the workflow under `Analysis:Workflows` in `appsettings.json`
+   with its `TriggerUrl`, `OutputStorageAccount`, `OutputBlobContainer` and
+   (optionally) `OutputFileExtension`.
+2. Reference it from one or more chains under `Analysis:Analyses`, e.g.
+   `"my-analysis": { "Workflows": ["anonymizer", "my-workflow"] }`.
+3. Add an `IWorkflowResultHandler` in
+   `api/Services/ResultHandlers/WorkflowResultHandlers/` that matches the
+   new workflow type.
+4. If the analyzer needs per-workflow parameters in the Argo trigger
+   payload, add an `ITriggerPayloadEnricher` that populates `extras`.
+5. Add the matching Argo `WorkflowTemplate` + `Sensor` in
+   [analytics-infrastructure](https://github.com/equinor/analytics-infrastructure)
+   and an analyzer image repo that implements the generic CLI contract
+   (`--input-blob-storage-locations`, `--output-blob-storage-location`,
+   `--extras`).
+
+## workflow-notifier
+
+`workflow-notifier/` is a standalone Python CLI, shipped as its own Docker
+image and invoked from inside Argo `WorkflowTemplate` steps. It exposes
+three subcommands -- `started`, `result` and `exited` -- each of which
+performs an authenticated `PUT` against `/api/workflow/{id}/...` so SARA can
+track workflow progress and persist results.
+
+## Analyzer services
+
+- [sara-anonymizer](https://github.com/equinor/sara-anonymizer/) -- anonymizes images
+- [sara-thermal-reading](https://github.com/equinor/sara-thermal-reading/) -- extracts temperatures from thermal images
+- [sara-fence-detection](https://github.com/equinor/sara-fence-detection/) -- detects fence breaches
+- [sara-constant-level-oiler](https://github.com/equinor/sara-constant-level-oiler/) -- reads constant-level oiler spherical glasses
+- [sara-timeseries](https://github.com/equinor/sara-timeseries/) -- timeseries ingestion
+- [sara-sap](https://github.com/equinor/sara-sap/) -- SAP integration
 
 ## Deployments
 
@@ -68,13 +89,3 @@ We currently have 3 environments (Development, Staging, and Production) deployed
 | Development | [Backend](https://shared.dev.aurora.equinor.com/sara-dev-backend/swagger/index.html) |
 | Staging     | [Backend](https://shared.aurora.equinor.com/sara-staging-backend/swagger/index.html) |
 | Production  | [Backend](https://shared.aurora.equinor.com/sara-prod-backend/swagger/index.html)    |
-
-## More documentation
-
-See the `/docs` folder for more documentation, for example
-
-- [Deploying resources](docs/deploying_resources.md)
-- [Database and migrations](docs/database_and_migrations.md)
-- [Formatting](docs/formatting.md)
-
-

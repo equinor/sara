@@ -26,12 +26,10 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
 )
 from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
 from opentelemetry.sdk._logs.export import BatchLogRecordProcessor, LogRecordExporter
-from opentelemetry.sdk.metrics import (
-    Counter as SdkCounter,
-    Histogram as SdkHistogram,
-    MeterProvider,
-    ObservableCounter as SdkObservableCounter,
-)
+from opentelemetry.sdk.metrics import Counter as SdkCounter
+from opentelemetry.sdk.metrics import Histogram as SdkHistogram
+from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.sdk.metrics import ObservableCounter as SdkObservableCounter
 from opentelemetry.sdk.metrics.export import (
     AggregationTemporality,
     MetricExporter,

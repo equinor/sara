@@ -1,0 +1,169 @@
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using api.Configurations;
+using api.Database.Context;
+using api.MQTT;
+using api.Services;
+using Api.Test.Mocks;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
+
+namespace Api.Test;
+
+/// <summary>
+/// Test-time <see cref="WebApplicationFactory{TEntryPoint}"/> for the SARA API.
+/// Wires the SaraDbContext to a caller-supplied PostgreSQL connection string,
+/// replaces <see cref="IMqttPublisherService"/> with a recording fake, swaps
+/// the named "Argo" HttpClient onto a recording handler, and removes background
+/// hosted services so the test host does not connect to a real broker.
+/// </summary>
+public class TestWebApplicationFactory<TProgram>(string postgresConnectionString)
+    : WebApplicationFactory<Program>
+    where TProgram : class
+{
+    private readonly string _postgresConnectionString = postgresConnectionString;
+
+    public RecordingMqttPublisher MqttPublisher { get; } = new();
+    public RecordingHttpMessageHandler ArgoHttpHandler { get; } = new();
+    public RecordingEmailService EmailService { get; } = new();
+
+    /// <summary>
+    /// Returns the configured Argo trigger URL for the given workflow type.
+    /// </summary>
+    public string TriggerUrlFor(string workflowType)
+    {
+        using var scope = Services.CreateScope();
+        var options = scope.ServiceProvider.GetRequiredService<IOptions<AnalysisOptions>>().Value;
+        return options.Workflows[workflowType].TriggerUrl;
+    }
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        string projectDir = Directory.GetCurrentDirectory();
+        string testConfigPath = Path.Combine(projectDir, "appsettings.Test.json");
+
+        builder.UseEnvironment("Test");
+        builder.ConfigureAppConfiguration(
+            (_, config) =>
+            {
+                config.AddJsonFile(testConfigPath, optional: false);
+                config.AddInMemoryCollection(
+                    new Dictionary<string, string?>
+                    {
+                        ["Database:UseInMemoryDatabase"] = "false",
+                        ["Database:postgresConnectionString"] = _postgresConnectionString,
+                    }
+                );
+            }
+        );
+
+        builder.ConfigureTestServices(services =>
+        {
+            ReplaceDbContext(services);
+            ReplaceMqttPublisher(services);
+            ReplaceArgoHttpClient(services);
+            ReplaceEmailService(services);
+            ReplaceAuthentication(services);
+            RegisterMqttEventHandler(services);
+            RemoveHostedServices(services);
+        });
+    }
+
+    private void ReplaceDbContext(IServiceCollection services)
+    {
+        var dbContextDescriptors = services
+            .Where(d =>
+                d.ServiceType == typeof(DbContextOptions<SaraDbContext>)
+                || d.ServiceType == typeof(SaraDbContext)
+            )
+            .ToList();
+        foreach (var descriptor in dbContextDescriptors)
+        {
+            services.Remove(descriptor);
+        }
+
+        services.AddDbContext<SaraDbContext>(
+            options =>
+                options.UseNpgsql(
+                    _postgresConnectionString,
+                    o => o.UseQuerySplittingBehavior(QuerySplittingBehavior.SingleQuery)
+                ),
+            ServiceLifetime.Transient
+        );
+    }
+
+    private void ReplaceMqttPublisher(IServiceCollection services)
+    {
+        var existing = services.Where(d => d.ServiceType == typeof(IMqttPublisherService)).ToList();
+        foreach (var descriptor in existing)
+        {
+            services.Remove(descriptor);
+        }
+        services.AddSingleton<IMqttPublisherService>(MqttPublisher);
+    }
+
+    private void ReplaceArgoHttpClient(IServiceCollection services)
+    {
+        services
+            .AddHttpClient(WorkflowService.ArgoHttpClientName)
+            .ConfigurePrimaryHttpMessageHandler(() => ArgoHttpHandler);
+    }
+
+    private void ReplaceEmailService(IServiceCollection services)
+    {
+        var existing = services.Where(d => d.ServiceType == typeof(IEmailService)).ToList();
+        foreach (var descriptor in existing)
+        {
+            services.Remove(descriptor);
+        }
+        services.AddSingleton<IEmailService>(EmailService);
+    }
+
+    private static void RemoveHostedServices(IServiceCollection services)
+    {
+        var hostedDescriptors = services
+            .Where(d => d.ServiceType == typeof(IHostedService))
+            .ToList();
+        foreach (var descriptor in hostedDescriptors)
+        {
+            services.Remove(descriptor);
+        }
+    }
+
+    private static void ReplaceAuthentication(IServiceCollection services)
+    {
+        services
+            .AddAuthentication(defaultScheme: TestAuthHandler.SchemeName)
+            .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
+                TestAuthHandler.SchemeName,
+                _ => { }
+            );
+
+        services.PostConfigure<AuthenticationOptions>(options =>
+        {
+            options.DefaultAuthenticateScheme = TestAuthHandler.SchemeName;
+            options.DefaultChallengeScheme = TestAuthHandler.SchemeName;
+            options.DefaultScheme = TestAuthHandler.SchemeName;
+        });
+    }
+
+    /// <summary>
+    /// Registers <see cref="MqttEventHandler"/> as a singleton so integration
+    /// tests can resolve it and drive the inspection-result pipeline directly.
+    /// The handler's constructor subscribes to a static MQTT event; this is a
+    /// no-op in tests because <c>MqttService</c> is removed from hosted
+    /// services and never raises the event.
+    /// </summary>
+    private static void RegisterMqttEventHandler(IServiceCollection services)
+    {
+        services.AddSingleton<MqttEventHandler>();
+    }
+}

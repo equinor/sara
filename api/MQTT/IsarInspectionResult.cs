@@ -61,12 +61,48 @@ public class IsarInspectionResultMessage : MqttMessage
     [JsonPropertyName("timestamp")]
     [Required]
     public required DateTime Timestamp { get; set; }
+
+    [JsonPropertyName("required_analysis")]
+    public List<string>? RequiredAnalysis { get; set; }
+
+    [JsonPropertyName("robot_pose")]
+    public Database.Models.Pose? RobotPose { get; set; }
+
+    [JsonPropertyName("target_position")]
+    public Database.Models.Position? TargetPosition { get; set; }
+
+    [JsonPropertyName("analysis_group")]
+    public IsarAnalysisGroupMessage? AnalysisGroup { get; set; }
+}
+
+public class IsarAnalysisGroupMessage
+{
+    [JsonPropertyName("analysis_group_id")]
+    [Required]
+    public required string AnalysisGroupId { get; set; }
+
+    [JsonPropertyName("analysis_group_size")]
+    [Required]
+    public required int AnalysisGroupSize { get; set; }
+
+    [JsonPropertyName("analysis_group_analyses")]
+    [Required]
+    public required List<string> AnalysisGroupAnalyses { get; set; }
 }
 
 public class SaraVisualizationAvailableMessage : MqttMessage
 {
     [JsonPropertyName("inspection_id")]
     public required string InspectionId { get; set; }
+
+    [JsonPropertyName("workflow_id")]
+    public required Guid WorkflowId { get; set; }
+
+    [JsonPropertyName("analysis_run_id")]
+    public required Guid AnalysisRunId { get; set; }
+
+    [JsonPropertyName("analysis_id")]
+    public required Guid AnalysisId { get; set; }
 
     [JsonPropertyName("storageAccount")]
     public required string StorageAccount { get; set; }
@@ -80,8 +116,20 @@ public class SaraVisualizationAvailableMessage : MqttMessage
 
 public class SaraAnalysisResultMessage : MqttMessage
 {
-    [JsonPropertyName("inspection_id")]
-    public required string InspectionId { get; set; }
+    [JsonPropertyName("inspection_ids")]
+    public required List<string> InspectionIds { get; set; }
+
+    [JsonPropertyName("analysis_group_id")]
+    public string? AnalysisGroupId { get; set; }
+
+    [JsonPropertyName("workflow_id")]
+    public required Guid WorkflowId { get; set; }
+
+    [JsonPropertyName("analysis_run_id")]
+    public required Guid AnalysisRunId { get; set; }
+
+    [JsonPropertyName("analysis_id")]
+    public required Guid AnalysisId { get; set; }
 
     [JsonPropertyName("analysisType")]
     public required string AnalysisType { get; set; }

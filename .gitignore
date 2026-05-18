@@ -44,6 +44,9 @@ api/wwwroot/
 
 AGENTS.md
 
+# Throwaway local fixtures (DB dumps used by ad-hoc migration tests)
+api.Tests/tmp/
+
 # macOS
 .DS_Store
 

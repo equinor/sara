@@ -34,7 +34,7 @@ dynamic = ["version"]
 repository = "https://github.com/equinor/sara/workflow-notifier"
 
 [project.optional-dependencies]
-dev = ["black", "isort", "mypy", "flask", "pydantic"]
+dev = ["black", "isort", "mypy", "pytest", "flask", "pydantic", "requests-mock"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

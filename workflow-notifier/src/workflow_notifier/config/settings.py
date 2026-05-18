@@ -46,8 +46,8 @@ class Settings(BaseSettings):
         return [m.strip() for m in self.ALLOWED_AUTH_METHODS.split(",") if m.strip()]
 
     @property
-    def workflow_notification_url(self) -> str:
-        return f"{self.SARA_SERVER_URL}/workflow-notification"
+    def workflow_base_url(self) -> str:
+        return f"{self.SARA_SERVER_URL}/api/workflow"
 
 
 settings = Settings()

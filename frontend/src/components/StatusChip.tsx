@@ -1,20 +1,24 @@
 import { Chip } from "@equinor/eds-core-react";
 
-function statusVariant(
-  status: string
-): "default" | "active" | "error" | undefined {
+type Variant = "default" | "active" | "error";
+
+function variantFor(status: string): Variant {
   switch (status) {
-    case "ExitSuccess":
+    case "Succeeded":
+    case "Complete":
       return "active";
-    case "ExitFailure":
-      return "error";
+    case "InProgress":
     case "Started":
-      return "active";
+    case "Pending":
+      return "default";
+    case "Failed":
+    case "TimedOut":
+      return "error";
     default:
       return "default";
   }
 }
 
 export default function StatusChip({ status }: { status: string }) {
-  return <Chip variant={statusVariant(status)}>{status}</Chip>;
+  return <Chip variant={variantFor(status)}>{status}</Chip>;
 }

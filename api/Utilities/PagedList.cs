@@ -1,4 +1,3 @@
-using api.Database.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace api.Utilities
@@ -68,69 +67,5 @@ namespace api.Utilities
         /// <para>Format: "OrderBy=Id, Name desc, DateCreated"</para>
         /// </summary>
         public string OrderBy { get; set; } = "";
-    }
-
-    public class AnalysisMappingParameters : QueryParameters
-    {
-        /// <summary>
-        /// Filter for the tag ID
-        /// </summary>
-        public string? Tag { get; set; }
-
-        /// <summary>
-        /// Filter for the inspection description
-        /// </summary>
-        public string? InspectionDescription { get; set; }
-
-        /// <summary>
-        /// The search parameter for the analysis type.
-        /// </summary>
-        public string? AnalysisType { get; set; }
-    }
-
-    public class PlantDataParameters : QueryParameters
-    {
-        /// <summary>
-        /// Partial text search on InspectionId.
-        /// </summary>
-        public string? InspectionId { get; set; }
-
-        /// <summary>
-        /// Partial text search on Tag.
-        /// </summary>
-        public string? Tag { get; set; }
-
-        /// <summary>
-        /// Partial text search on InstallationCode.
-        /// </summary>
-        public string? InstallationCode { get; set; }
-
-        /// <summary>
-        /// Filter by anonymization workflow status (NotStarted, Started, ExitSuccess, ExitFailure).
-        /// </summary>
-        public string? AnonymizationStatus { get; set; }
-
-        /// <summary>
-        /// Filter by analysis type assigned to the plant data (ConstantLevelOiler, Fencilla, ThermalReading).
-        /// </summary>
-        public string? AnalysisType { get; set; }
-
-        /// <summary>
-        /// When true, only returns entries where at least one workflow has not completed successfully.
-        /// </summary>
-        public bool? HasIncompleteWorkflows { get; set; }
-    }
-
-    public class PlantDataRequest
-    {
-        public required string InspectionId { get; set; }
-
-        public required string InstallationCode { get; set; }
-
-        public required string TagId { get; set; }
-
-        public required string InspectionDescription { get; set; }
-
-        public required BlobStorageLocation RawDataBlobStorageLocation { get; set; }
     }
 }

@@ -10,12 +10,19 @@ import { code } from "@equinor/eds-icons";
 import { getAppConfig, createLoginRequest } from "./authConfig";
 import { setMsalInstance } from "./api/client";
 import { apiUrl } from "./utils/routing";
-import PlantDataPage from "./pages/plant-data";
-import AnalysisMappingsPage from "./pages/analysis-mappings";
+import InspectionRecordsPage from "./pages/inspection-records";
+import CreateInspectionRecordPage from "./pages/inspection-records/create";
+import InspectionRecordDetailPage from "./pages/inspection-records/detail";
+import AnalysesPage from "./pages/analyses";
+import AnalysisDetailPage from "./pages/analyses/detail";
+import AnalysisGroupsPage from "./pages/analysis-groups";
+import AnalysisGroupDetailPage from "./pages/analysis-groups/detail";
+import AnalysisRunsPage from "./pages/analysis-runs";
+import AnalysisRunDetailPage from "./pages/analysis-runs/detail";
+import WorkflowsPage from "./pages/workflows";
+import WorkflowDetailPage from "./pages/workflows/detail";
 import ThermalReferenceImagesPage from "./pages/thermal-reference-images";
-import CreatePlantDataPage from "./pages/create-plant-data";
 import CreateThermalReferenceMetadataPage from "./pages/thermal-reference-images/create";
-import PlantDataDetailPage from "./pages/plant-data-detail";
 import ThermalReferenceMetadataDetailPage from "./pages/thermal-reference-images/detail";
 import styled from "styled-components";
 
@@ -29,8 +36,11 @@ const StyledSignInContainer = styled.div`
 Icon.add({ code });
 
 const TABS = [
-  { path: "/plant-data", label: "Plant Data" },
-  { path: "/analysis-mappings", label: "Analysis Mappings" },
+  { path: "/inspection-records", label: "Inspection Records" },
+  { path: "/analyses", label: "Analyses" },
+  { path: "/analysis-groups", label: "Analysis Groups" },
+  { path: "/analysis-runs", label: "Analysis Runs" },
+  { path: "/workflows", label: "Workflows" },
   { path: "/thermal-reference-images", label: "Thermal Reference Images" },
 ];
 
@@ -54,10 +64,28 @@ function App() {
     instance.loginRedirect(createLoginRequest(getAppConfig()));
   };
 
+  const tabbed = (node: React.ReactNode) => (
+    <TabbedLayout activeTab={tabIndex} onChange={handleTabChange}>
+      {node}
+    </TabbedLayout>
+  );
+
   return (
     <>
       <TopBar>
-        <TopBar.Header>SARA</TopBar.Header>
+        <TopBar.Header>
+          <span
+            role="link"
+            tabIndex={0}
+            onClick={() => navigate("/inspection-records")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") navigate("/inspection-records");
+            }}
+            style={{ cursor: "pointer" }}
+          >
+            SARA
+          </span>
+        </TopBar.Header>
         <TopBar.Actions>
           <Button
             variant="ghost"
@@ -86,35 +114,36 @@ function App() {
       <AuthenticatedTemplate>
         <div style={{ padding: "1rem" }}>
           <Routes>
-            <Route index element={<Navigate to="/plant-data" replace />} />
-            <Route
-              path="/plant-data"
-              element={
-                <TabbedLayout activeTab={tabIndex} onChange={handleTabChange}>
-                  <PlantDataPage />
-                </TabbedLayout>
-              }
-            />
-            <Route
-              path="/analysis-mappings"
-              element={
-                <TabbedLayout activeTab={tabIndex} onChange={handleTabChange}>
-                  <AnalysisMappingsPage />
-                </TabbedLayout>
-              }
-            />
+            <Route index element={<Navigate to="/inspection-records" replace />} />
+
+            <Route path="/inspection-records" element={tabbed(<InspectionRecordsPage />)} />
+            <Route path="/inspection-records/new" element={<CreateInspectionRecordPage />} />
+            <Route path="/inspection-records/:id" element={<InspectionRecordDetailPage />} />
+
+            <Route path="/analyses" element={tabbed(<AnalysesPage />)} />
+            <Route path="/analyses/:id" element={<AnalysisDetailPage />} />
+
+            <Route path="/analysis-groups" element={tabbed(<AnalysisGroupsPage />)} />
+            <Route path="/analysis-groups/:id" element={<AnalysisGroupDetailPage />} />
+
+            <Route path="/analysis-runs" element={tabbed(<AnalysisRunsPage />)} />
+            <Route path="/analysis-runs/:id" element={<AnalysisRunDetailPage />} />
+
+            <Route path="/workflows" element={tabbed(<WorkflowsPage />)} />
+            <Route path="/workflows/:id" element={<WorkflowDetailPage />} />
+
             <Route
               path="/thermal-reference-images"
-              element={
-                <TabbedLayout activeTab={tabIndex} onChange={handleTabChange}>
-                  <ThermalReferenceImagesPage />
-                </TabbedLayout>
-              }
+              element={tabbed(<ThermalReferenceImagesPage />)}
             />
-            <Route path="/create-plant-data" element={<CreatePlantDataPage />} />
-            <Route path="/create-thermal-reference-metadata" element={<CreateThermalReferenceMetadataPage />} />
-            <Route path="/plant-data/:id" element={<PlantDataDetailPage />} />
-            <Route path="/thermal-reference-images/:id" element={<ThermalReferenceMetadataDetailPage />} />
+            <Route
+              path="/thermal-reference-images/new"
+              element={<CreateThermalReferenceMetadataPage />}
+            />
+            <Route
+              path="/thermal-reference-images/:id"
+              element={<ThermalReferenceMetadataDetailPage />}
+            />
           </Routes>
         </div>
       </AuthenticatedTemplate>
@@ -139,9 +168,9 @@ function TabbedLayout({
         ))}
       </Tabs.List>
       <Tabs.Panels>
-        <Tabs.Panel>{activeTab === 0 ? children : null}</Tabs.Panel>
-        <Tabs.Panel>{activeTab === 1 ? children : null}</Tabs.Panel>
-        <Tabs.Panel>{activeTab === 2 ? children : null}</Tabs.Panel>
+        {TABS.map((t, i) => (
+          <Tabs.Panel key={t.path}>{activeTab === i ? children : null}</Tabs.Panel>
+        ))}
       </Tabs.Panels>
     </Tabs>
   );
