@@ -321,9 +321,7 @@ public class AnalysisTriggerService(
 
         var blobName = $"analysis-runs/{analysisRunId}/{stepNumber}-{workflowType}{extension}";
 
-        var blobContainer = !string.IsNullOrEmpty(workflowConfig.OutputBlobContainer)
-            ? workflowConfig.OutputBlobContainer
-            : fallbackInputLocation.BlobContainer;
+        var blobContainer = fallbackInputLocation.BlobContainer;
 
         return new BlobStorageLocation
         {
