@@ -130,4 +130,59 @@ public class CLOEResultHandlerTests : IAsyncLifetime
         Assert.Null(published.Value);
         Assert.Null(published.Confidence);
     }
+
+    [Fact]
+    public async Task OnWorkflowCompleted_LowConfidenceResultWithNullFields_PublishesNullValueAndConfidence()
+    {
+        var record = await _db.NewInspectionRecord(inspectionId: "insp-123");
+        var analysis = await _db.NewAnalysis(inspectionRecords: [record]);
+        var run = await _db.NewAnalysisRun(analysis);
+        var workflow = await _db.NewWorkflow(run, workflowType: "cloe");
+        workflow.ResultJson = JsonSerializer.Serialize(
+            new { oilLevel = (float?)null, confidence = (float?)null }
+        );
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        using var scope = _factory.Services.CreateScope();
+        var handler = ResolveHandler(scope);
+
+        await handler.OnWorkflowCompleted(workflow);
+
+        var published = Assert.Single(_factory.MqttPublisher.AnalysisResultMessages);
+        Assert.Null(published.Value);
+        Assert.Null(published.Confidence);
+        Assert.Null(published.Warning);
+    }
+
+    [Fact]
+    public async Task OnWorkflowCompleted_ResultWithWarning_PublishesWarning()
+    {
+        const float oilLevel = 0.02f;
+        const float confidence = 0.80f;
+        const string warning = "Oil level is below 5 %";
+
+        var record = await _db.NewInspectionRecord(inspectionId: "insp-123");
+        var analysis = await _db.NewAnalysis(inspectionRecords: [record]);
+        var run = await _db.NewAnalysisRun(analysis);
+        var workflow = await _db.NewWorkflow(run, workflowType: "cloe");
+        workflow.ResultJson = JsonSerializer.Serialize(
+            new
+            {
+                oilLevel = oilLevel,
+                confidence = confidence,
+                warning = warning,
+            }
+        );
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        using var scope = _factory.Services.CreateScope();
+        var handler = ResolveHandler(scope);
+
+        await handler.OnWorkflowCompleted(workflow);
+
+        var published = Assert.Single(_factory.MqttPublisher.AnalysisResultMessages);
+        Assert.Equal(oilLevel.ToString("F2"), published.Value);
+        Assert.Equal(confidence * 100, published.Confidence);
+        Assert.Equal(warning, published.Warning);
+    }
 }
