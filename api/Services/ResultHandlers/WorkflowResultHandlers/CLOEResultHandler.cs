@@ -7,8 +7,8 @@ namespace api.Services.ResultHandlers.WorkflowResultHandlers;
 
 internal sealed class CLOEResult
 {
-    public float OilLevel { get; set; }
-    public float Confidence { get; set; }
+    public float? OilLevel { get; set; }
+    public float? Confidence { get; set; }
     public string? Warning { get; set; }
 }
 
@@ -58,9 +58,9 @@ public class CLOEResultHandler(
             AnalysisRunId = workflow.AnalysisRunId,
             AnalysisId = workflow.AnalysisRun.AnalysisId,
             AnalysisType = workflow.WorkflowType,
-            Value = result?.OilLevel.ToString("F2"),
+            Value = result?.OilLevel?.ToString("F2"),
             Unit = "fraction [oilLevel]",
-            Confidence = result is null ? null : result.Confidence * 100,
+            Confidence = result?.Confidence is { } c ? c * 100 : null,
             Warning = result?.Warning,
         };
 
