@@ -15,6 +15,7 @@ internal sealed class ThermalReadingResult
 public class ThermalReadingResultHandler(
     SaraDbContext context,
     IMqttPublisherService mqttPublisherService,
+    ITimeseriesService timeseriesService,
     ILogger<ThermalReadingResultHandler> logger
 ) : IWorkflowResultHandler
 {
@@ -75,5 +76,56 @@ public class ThermalReadingResultHandler(
         }
 
         await mqttPublisherService.PublishSaraAnalysisResultAvailable(message);
+
+        await TryUploadTimeseries(workflow, inspectionRecord, result);
+    }
+
+    private async Task TryUploadTimeseries(
+        Workflow workflow,
+        InspectionRecord inspectionRecord,
+        ThermalReadingResult? result
+    )
+    {
+        if (result is null)
+        {
+            logger.LogWarning(
+                "Skipping thermal-reading timeseries upload for workflow {WorkflowId}: result is null",
+                workflow.Id
+            );
+            return;
+        }
+
+        var uploadRequest = new TriggerTimeseriesUploadRequest
+        {
+            Name =
+                $"{inspectionRecord.InstallationCode}_{inspectionRecord.Tag}_{inspectionRecord.InspectionDescription?.Replace(" ", "-")}",
+            Facility = inspectionRecord.InstallationCode,
+            ExternalId = "",
+            Description = "ThermalReading",
+            Unit = "°C",
+            AssetId = inspectionRecord.InstallationCode,
+            Value = result.Temperature,
+            Timestamp = inspectionRecord.Timestamp ?? DateTime.UtcNow,
+            Step = true,
+            Metadata = new Dictionary<string, string>
+            {
+                { "tag_id", inspectionRecord.Tag ?? "" },
+                { "inspection_description", inspectionRecord.InspectionDescription ?? "" },
+                { "robot_name", inspectionRecord.RobotName ?? "" },
+            },
+        };
+
+        try
+        {
+            await timeseriesService.TriggerTimeseriesUpload(uploadRequest);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(
+                ex,
+                "Failed to upload thermal-reading datapoint to Timeseries for workflow {WorkflowId}",
+                workflow.Id
+            );
+        }
     }
 }

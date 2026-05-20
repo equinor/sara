@@ -138,4 +138,40 @@ public class ThermalReadingResultHandlerTests : IAsyncLifetime
         Assert.Null(published.Value);
         Assert.Null(published.Confidence);
     }
+
+    [Fact]
+    public async Task OnWorkflowCompleted_ValidResult_UploadsTimeseries()
+    {
+        var record = await _db.NewInspectionRecord(inspectionId: "insp-123");
+        var analysis = await _db.NewAnalysis(inspectionRecords: [record]);
+        var run = await _db.NewAnalysisRun(analysis);
+        var workflow = await _db.NewWorkflow(run, workflowType: "thermal-reading");
+        const float temperature = 23.5f;
+        workflow.ResultJson = JsonSerializer.Serialize(new { temperature = temperature });
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        using var scope = _factory.Services.CreateScope();
+        var handler = ResolveHandler(scope);
+
+        await handler.OnWorkflowCompleted(workflow);
+
+        var upload = Assert.Single(_factory.TimeseriesService.Uploads);
+        Assert.Equal(temperature, upload.Value);
+    }
+
+    [Fact]
+    public async Task OnWorkflowCompleted_NullResultJson_DoesNotUploadTimeseries()
+    {
+        var record = await _db.NewInspectionRecord(inspectionId: "insp-123");
+        var analysis = await _db.NewAnalysis(inspectionRecords: [record]);
+        var run = await _db.NewAnalysisRun(analysis);
+        var workflow = await _db.NewWorkflow(run, workflowType: "thermal-reading");
+
+        using var scope = _factory.Services.CreateScope();
+        var handler = ResolveHandler(scope);
+
+        await handler.OnWorkflowCompleted(workflow);
+
+        Assert.Empty(_factory.TimeseriesService.Uploads);
+    }
 }
