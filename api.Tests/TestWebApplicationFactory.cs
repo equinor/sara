@@ -34,6 +34,7 @@ public class TestWebApplicationFactory<TProgram>(string postgresConnectionString
     public RecordingMqttPublisher MqttPublisher { get; } = new();
     public RecordingHttpMessageHandler ArgoHttpHandler { get; } = new();
     public RecordingEmailService EmailService { get; } = new();
+    public RecordingTimeseriesService TimeseriesService { get; } = new();
 
     /// <summary>
     /// Returns the configured Argo trigger URL for the given workflow type.
@@ -71,6 +72,7 @@ public class TestWebApplicationFactory<TProgram>(string postgresConnectionString
             ReplaceMqttPublisher(services);
             ReplaceArgoHttpClient(services);
             ReplaceEmailService(services);
+            ReplaceTimeseriesService(services);
             ReplaceAuthentication(services);
             RegisterMqttEventHandler(services);
             RemoveHostedServices(services);
@@ -125,6 +127,16 @@ public class TestWebApplicationFactory<TProgram>(string postgresConnectionString
             services.Remove(descriptor);
         }
         services.AddSingleton<IEmailService>(EmailService);
+    }
+
+    private void ReplaceTimeseriesService(IServiceCollection services)
+    {
+        var existing = services.Where(d => d.ServiceType == typeof(ITimeseriesService)).ToList();
+        foreach (var descriptor in existing)
+        {
+            services.Remove(descriptor);
+        }
+        services.AddSingleton<ITimeseriesService>(TimeseriesService);
     }
 
     private static void RemoveHostedServices(IServiceCollection services)

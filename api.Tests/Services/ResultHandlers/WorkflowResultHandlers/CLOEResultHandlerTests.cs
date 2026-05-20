@@ -75,6 +75,9 @@ public class CLOEResultHandlerTests : IAsyncLifetime
         var published = Assert.Single(_factory.MqttPublisher.AnalysisResultMessages);
         Assert.Equal(oilLevel.ToString("F2"), published.Value);
         Assert.Equal(confidence * 100, published.Confidence);
+
+        var upload = Assert.Single(_factory.TimeseriesService.Uploads);
+        Assert.Equal(oilLevel, upload.Value);
     }
 
     [Fact]
@@ -184,5 +187,45 @@ public class CLOEResultHandlerTests : IAsyncLifetime
         Assert.Equal(oilLevel.ToString("F2"), published.Value);
         Assert.Equal(confidence * 100, published.Confidence);
         Assert.Equal(warning, published.Warning);
+    }
+
+    [Fact]
+    public async Task OnWorkflowCompleted_NullOilLevel_DoesNotUploadTimeseries()
+    {
+        var record = await _db.NewInspectionRecord(inspectionId: "insp-123");
+        var analysis = await _db.NewAnalysis(inspectionRecords: [record]);
+        var run = await _db.NewAnalysisRun(analysis);
+        var workflow = await _db.NewWorkflow(run, workflowType: "cloe");
+        workflow.ResultJson = JsonSerializer.Serialize(
+            new { oilLevel = (float?)null, confidence = 0.9f }
+        );
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        using var scope = _factory.Services.CreateScope();
+        var handler = ResolveHandler(scope);
+
+        await handler.OnWorkflowCompleted(workflow);
+
+        Assert.Empty(_factory.TimeseriesService.Uploads);
+    }
+
+    [Fact]
+    public async Task OnWorkflowCompleted_NullConfidence_DoesNotUploadTimeseries()
+    {
+        var record = await _db.NewInspectionRecord(inspectionId: "insp-123");
+        var analysis = await _db.NewAnalysis(inspectionRecords: [record]);
+        var run = await _db.NewAnalysisRun(analysis);
+        var workflow = await _db.NewWorkflow(run, workflowType: "cloe");
+        workflow.ResultJson = JsonSerializer.Serialize(
+            new { oilLevel = 0.42f, confidence = (float?)null }
+        );
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        using var scope = _factory.Services.CreateScope();
+        var handler = ResolveHandler(scope);
+
+        await handler.OnWorkflowCompleted(workflow);
+
+        Assert.Empty(_factory.TimeseriesService.Uploads);
     }
 }
