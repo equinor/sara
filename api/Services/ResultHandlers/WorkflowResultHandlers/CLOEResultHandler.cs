@@ -60,8 +60,8 @@ public class CLOEResultHandler(
             AnalysisRunId = workflow.AnalysisRunId,
             AnalysisId = workflow.AnalysisRun.AnalysisId,
             AnalysisType = workflow.WorkflowType,
-            Value = result?.OilLevel?.ToString("F2"),
-            Unit = "fraction [oilLevel]",
+            Value = result?.OilLevel is { } oil ? (oil * 100).ToString("F2") : null,
+            Unit = "percentage",
             Confidence = result?.Confidence is { } c ? c * 100 : null,
             Warning = result?.Warning,
         };
@@ -102,7 +102,7 @@ public class CLOEResultHandler(
             Description = "CLOE-oil-level",
             Unit = "percentage",
             AssetId = inspectionRecord.InstallationCode,
-            Value = oilLevel,
+            Value = oilLevel * 100,
             Timestamp = inspectionRecord.Timestamp ?? DateTime.UtcNow,
             Step = true,
             Metadata = new Dictionary<string, string>

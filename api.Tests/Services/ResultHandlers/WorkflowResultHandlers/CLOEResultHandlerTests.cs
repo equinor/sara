@@ -73,11 +73,11 @@ public class CLOEResultHandlerTests : IAsyncLifetime
         await handler.OnWorkflowCompleted(workflow);
 
         var published = Assert.Single(_factory.MqttPublisher.AnalysisResultMessages);
-        Assert.Equal(oilLevel.ToString("F2"), published.Value);
+        Assert.Equal((oilLevel * 100).ToString("F2"), published.Value);
         Assert.Equal(confidence * 100, published.Confidence);
 
         var upload = Assert.Single(_factory.TimeseriesService.Uploads);
-        Assert.Equal(oilLevel, upload.Value);
+        Assert.Equal(oilLevel * 100, upload.Value);
     }
 
     [Fact]
@@ -184,7 +184,7 @@ public class CLOEResultHandlerTests : IAsyncLifetime
         await handler.OnWorkflowCompleted(workflow);
 
         var published = Assert.Single(_factory.MqttPublisher.AnalysisResultMessages);
-        Assert.Equal(oilLevel.ToString("F2"), published.Value);
+        Assert.Equal((oilLevel * 100).ToString("F2"), published.Value);
         Assert.Equal(confidence * 100, published.Confidence);
         Assert.Equal(warning, published.Warning);
     }
