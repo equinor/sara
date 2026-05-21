@@ -11,6 +11,7 @@ namespace api.Controllers;
 public class ThermalReferenceMetadataController(
     ILogger<ThermalReferenceMetadataController> logger,
     IThermalReferenceMetadataService thermalReferenceMetadataService,
+    IThermalImageService thermalImageService,
     IConfiguration configuration
 ) : ControllerBase
 {
@@ -160,6 +161,51 @@ public class ThermalReferenceMetadataController(
             return StatusCode(
                 StatusCodes.Status500InternalServerError,
                 "An error occurred while removing the thermal reference metadata"
+            );
+        }
+    }
+
+    [HttpGet("id/{id}/image")]
+    [Authorize(Roles = Role.Any)]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> GetThermalReferenceImage([FromRoute] Guid id)
+    {
+        try
+        {
+            var metadata = await thermalReferenceMetadataService.ReadById(id);
+            if (metadata is null)
+            {
+                return NotFound($"Could not find thermal reference metadata with id {id}");
+            }
+
+            var result = await thermalImageService.GetThermalImageDataAsync(
+                metadata.ReferenceImageBlobStorageLocation
+            );
+
+            Response.Headers["X-Image-Width"] = result.Width.ToString();
+            Response.Headers["X-Image-Height"] = result.Height.ToString();
+            Response.Headers["X-Temperature-Min"] = result.MinTemperature.ToString(
+                "G9",
+                System.Globalization.CultureInfo.InvariantCulture
+            );
+            Response.Headers["X-Temperature-Max"] = result.MaxTemperature.ToString(
+                "G9",
+                System.Globalization.CultureInfo.InvariantCulture
+            );
+            Response.Headers.Append(
+                "Access-Control-Expose-Headers",
+                "X-Image-Width, X-Image-Height, X-Temperature-Min, X-Temperature-Max"
+            );
+
+            return File(result.FloatBytes, "application/octet-stream");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error generating thermal reference image for id {Id}", id);
+            return StatusCode(
+                StatusCodes.Status500InternalServerError,
+                "An error occurred while generating the thermal reference image"
             );
         }
     }

@@ -69,6 +69,8 @@ builder.Services.Configure<AnalysisOptions>(
 );
 
 builder.Services.AddScoped<IThermalReferenceMetadataService, ThermalReferenceMetadataService>();
+builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
+builder.Services.AddScoped<IThermalImageService, ThermalImageService>();
 builder.Services.AddScoped<IInspectionRecordService, InspectionRecordService>();
 builder.Services.AddScoped<IAnalysisService, AnalysisService>();
 builder.Services.AddScoped<IAnalysisGroupService, AnalysisGroupService>();
