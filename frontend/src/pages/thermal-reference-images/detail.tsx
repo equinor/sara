@@ -12,10 +12,13 @@ import {
   getThermalReferenceMetadataById,
   updateThermalReferenceMetadata,
   deleteThermalReferenceMetadata,
+  getThermalReferenceImageData,
   type ThermalReferenceMetadata,
   type ThermalReferenceMetadataInput,
+  type ThermalImageData,
   type BlobStorageLocation,
 } from "../../api/client";
+import ThermalImageViewer from "../../components/ThermalImageViewer";
 
 const StyledBackNavRowLg = styled.div`
   display: flex;
@@ -53,6 +56,10 @@ const StyledActionRow = styled.div`
   margin-top: 0.5rem;
 `;
 
+const StyledImageSection = styled.div`
+  margin-bottom: 1.5rem;
+`;
+
 Icon.add({ arrow_back });
 
 function formatBlobLocation(location: BlobStorageLocation) {
@@ -82,6 +89,11 @@ export default function ThermalReferenceMetadataDetailPage() {
     inspectionDescription: "",
     referenceBlobStorageDirectory: { blobContainer: "", blobName: "" },
   });
+  const [thermalImage, setThermalImage] = useState<ThermalImageData | null>(
+    null
+  );
+  const [imageLoading, setImageLoading] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!id) return;
@@ -104,6 +116,30 @@ export default function ThermalReferenceMetadataDetailPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    setImageLoading(true);
+    setImageError(null);
+    setThermalImage(null);
+    getThermalReferenceImageData(id)
+      .then((result) => {
+        if (!cancelled) setThermalImage(result);
+      })
+      .catch((e) => {
+        if (!cancelled)
+          setImageError(
+            e instanceof Error ? e.message : "Failed to load thermal image"
+          );
+      })
+      .finally(() => {
+        if (!cancelled) setImageLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
   const navigateBack = () => navigate("/thermal-reference-images");
 
@@ -200,6 +236,29 @@ export default function ThermalReferenceMetadataDetailPage() {
           {error}
         </Typography>
       )}
+
+      <StyledImageSection>
+        <Typography variant="h5" style={{ marginBottom: "0.75rem" }}>
+          Reference Image
+        </Typography>
+        {imageLoading && (
+          <Typography variant="body_short">Loading image...</Typography>
+        )}
+        {imageError && (
+          <Typography variant="body_short" style={{ color: "#eb0000" }}>
+            {imageError}
+          </Typography>
+        )}
+        {thermalImage && (
+          <ThermalImageViewer
+            temperatures={thermalImage.temperatures}
+            width={thermalImage.width}
+            height={thermalImage.height}
+            minTemperature={thermalImage.minTemperature}
+            maxTemperature={thermalImage.maxTemperature}
+          />
+        )}
+      </StyledImageSection>
 
       {editing ? (
         <StyledFormContainer>

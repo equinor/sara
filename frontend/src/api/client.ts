@@ -432,3 +432,39 @@ export async function deleteThermalReferenceMetadata(id: string): Promise<void> 
     method: "DELETE",
   });
 }
+
+export interface ThermalImageData {
+  temperatures: Float32Array;
+  width: number;
+  height: number;
+  minTemperature: number;
+  maxTemperature: number;
+}
+
+export async function getThermalReferenceImageData(
+  id: string
+): Promise<ThermalImageData> {
+  const token = await getAccessToken();
+  const response = await fetch(
+    apiUrl(`/api/ThermalReferenceMetadata/id/${encodeURIComponent(id)}/image`),
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`${response.status}: ${text}`);
+  }
+  const buffer = await response.arrayBuffer();
+  return {
+    temperatures: new Float32Array(buffer),
+    width: parseInt(response.headers.get("X-Image-Width") ?? "0", 10),
+    height: parseInt(response.headers.get("X-Image-Height") ?? "0", 10),
+    minTemperature: parseFloat(
+      response.headers.get("X-Temperature-Min") ?? "0"
+    ),
+    maxTemperature: parseFloat(
+      response.headers.get("X-Temperature-Max") ?? "0"
+    ),
+  };
+}
