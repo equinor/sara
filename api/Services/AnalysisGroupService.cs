@@ -29,7 +29,7 @@ public class AnalysisGroupService(SaraDbContext context) : IAnalysisGroupService
         return await context
             .AnalysisGroups.Include(g => g.InspectionRecords)
             .Include(g => g.Analyses)
-            .ThenInclude(a => a.Runs)
+                .ThenInclude(a => a.Runs)
             .FirstOrDefaultAsync(g => g.Id == id);
     }
 
@@ -59,8 +59,8 @@ public class AnalysisGroupService(SaraDbContext context) : IAnalysisGroupService
     {
         var group = await context
             .AnalysisGroups.Include(g => g.Analyses)
-            .ThenInclude(a => a.Runs)
-            .ThenInclude(r => r.Workflows)
+                .ThenInclude(a => a.Runs)
+                    .ThenInclude(r => r.Workflows)
             .Include(g => g.InspectionRecords)
             .FirstOrDefaultAsync(g => g.Id == id);
 

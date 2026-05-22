@@ -22,7 +22,9 @@ public class RecordingTimeseriesService : ITimeseriesService
         return Task.CompletedTask;
     }
 
-    public Task<double?> FetchCO2ConcentrationFromTimeseries(FetchCO2MeasurementRequest fetchRequest)
+    public Task<double?> FetchCO2ConcentrationFromTimeseries(
+        FetchCO2MeasurementRequest fetchRequest
+    )
     {
         return Task.FromResult<double?>(null);
     }

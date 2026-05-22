@@ -32,7 +32,7 @@ public class AnalysisService(SaraDbContext context) : IAnalysisService
         return await context
             .Analyses.Include(a => a.InspectionRecords)
             .Include(a => a.Runs)
-            .ThenInclude(r => r.Workflows)
+                .ThenInclude(r => r.Workflows)
             .FirstOrDefaultAsync(a => a.Id == id);
     }
 
@@ -49,7 +49,7 @@ public class AnalysisService(SaraDbContext context) : IAnalysisService
         var query = context
             .Analyses.Include(a => a.InspectionRecords)
             .Include(a => a.Runs)
-            .ThenInclude(r => r.Workflows)
+                .ThenInclude(r => r.Workflows)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(parameters.Name))
@@ -74,7 +74,7 @@ public class AnalysisService(SaraDbContext context) : IAnalysisService
     {
         var analysis = await context
             .Analyses.Include(a => a.Runs)
-            .ThenInclude(r => r.Workflows)
+                .ThenInclude(r => r.Workflows)
             .FirstOrDefaultAsync(a => a.Id == id);
 
         if (analysis is null)
