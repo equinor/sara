@@ -59,4 +59,4 @@ jobs:
         working-directory: ./api
         run: |
           dotnet tool restore
-          dotnet csharpier . --check
+          dotnet csharpier check .

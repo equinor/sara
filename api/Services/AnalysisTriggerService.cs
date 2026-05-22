@@ -273,7 +273,8 @@ public class AnalysisTriggerService(
             await context
                 .AnalysisRuns.Where(r => r.AnalysisId == analysis.Id)
                 .Select(r => (int?)r.RunNumber)
-                .MaxAsync() ?? 0;
+                .MaxAsync()
+            ?? 0;
         nextRunNumber += 1;
 
         var run = new AnalysisRun

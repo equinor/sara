@@ -29,7 +29,7 @@ public class AnalysisRunService(SaraDbContext context) : IAnalysisRunService
         return await context
             .AnalysisRuns.Include(r => r.Analysis)
             .Include(r => r.Workflows)
-            .ThenInclude(w => w.InputBlobStorageLocations)
+                .ThenInclude(w => w.InputBlobStorageLocations)
             .FirstOrDefaultAsync(r => r.Id == id);
     }
 

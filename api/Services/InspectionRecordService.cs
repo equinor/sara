@@ -113,8 +113,8 @@ public class InspectionRecordService(
     {
         return await context
             .InspectionRecords.Include(ir => ir.Analyses)
-            .ThenInclude(a => a.Runs)
-            .ThenInclude(r => r.Workflows)
+                .ThenInclude(a => a.Runs)
+                    .ThenInclude(r => r.Workflows)
             .FirstOrDefaultAsync(ir => ir.Id == id);
     }
 
@@ -122,8 +122,8 @@ public class InspectionRecordService(
     {
         return await context
             .InspectionRecords.Include(ir => ir.Analyses)
-            .ThenInclude(a => a.Runs)
-            .ThenInclude(r => r.Workflows)
+                .ThenInclude(a => a.Runs)
+                    .ThenInclude(r => r.Workflows)
             .FirstOrDefaultAsync(ir => ir.InspectionId == inspectionId);
     }
 
@@ -182,8 +182,8 @@ public class InspectionRecordService(
     {
         var record = await context
             .InspectionRecords.Include(ir => ir.Analyses)
-            .ThenInclude(a => a.Runs)
-            .ThenInclude(r => r.Workflows)
+                .ThenInclude(a => a.Runs)
+                    .ThenInclude(r => r.Workflows)
             .FirstOrDefaultAsync(ir => ir.Id == id);
 
         if (record is null)
@@ -226,8 +226,8 @@ public class InspectionRecordService(
     {
         var query = context
             .InspectionRecords.Include(ir => ir.Analyses)
-            .ThenInclude(a => a.Runs)
-            .ThenInclude(r => r.Workflows)
+                .ThenInclude(a => a.Runs)
+                    .ThenInclude(r => r.Workflows)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(parameters.InspectionId))
