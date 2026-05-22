@@ -2,6 +2,7 @@ using api.Configurations;
 using api.Database.Context;
 using api.Database.Models;
 using api.MQTT;
+using api.Utilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -35,6 +36,23 @@ public class AnalysisTriggerService(
                 createdEvent.InspectionRecordId
             );
             return;
+        }
+
+        inspectionRecord.InspectionId = Sanitize.SanitizeUserInput(inspectionRecord.InspectionId);
+        if (createdEvent.AnalysisGroup is not null)
+        {
+            createdEvent.AnalysisGroup.AnalysisGroupId = Sanitize.SanitizeUserInput(
+                createdEvent.AnalysisGroup.AnalysisGroupId
+            );
+            createdEvent.AnalysisGroup.AnalysisGroupAnalyses = createdEvent
+                .AnalysisGroup.AnalysisGroupAnalyses.Select(Sanitize.SanitizeUserInput)
+                .ToList();
+        }
+        if (createdEvent.RequiredAnalysis is not null)
+        {
+            createdEvent.RequiredAnalysis = createdEvent
+                .RequiredAnalysis.Select(Sanitize.SanitizeUserInput)
+                .ToList();
         }
 
         var analysisNames = GetAnalysesToRun(createdEvent, inspectionRecord);
@@ -167,6 +185,7 @@ public class AnalysisTriggerService(
 
         if (existing is not null)
         {
+            existing.GroupId = Sanitize.SanitizeUserInput(existing.GroupId);
             return existing;
         }
 
@@ -396,6 +415,12 @@ public class AnalysisTriggerService(
         if (analysis is null)
         {
             throw new KeyNotFoundException($"Analysis with id {analysisId} not found");
+        }
+
+        analysis.Name = Sanitize.SanitizeUserInput(analysis.Name);
+        foreach (var record in analysis.InspectionRecords)
+        {
+            record.InspectionId = Sanitize.SanitizeUserInput(record.InspectionId);
         }
 
         if (!_options.Analyses.ContainsKey(analysis.Name))

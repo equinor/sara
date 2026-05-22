@@ -1,5 +1,6 @@
 using api.Database.Context;
 using api.Database.Models;
+using api.Utilities;
 using Microsoft.EntityFrameworkCore;
 
 namespace api.Services;
@@ -91,6 +92,10 @@ public class ThermalReferenceMetadataService(
         BlobStorageLocation referencePolygonLocation
     )
     {
+        input.InstallationCode = Sanitize.SanitizeUserInput(input.InstallationCode);
+        input.TagId = Sanitize.SanitizeUserInput(input.TagId);
+        input.InspectionDescription = Sanitize.SanitizeUserInput(input.InspectionDescription);
+
         await ThrowIfDuplicateExists(input, null);
 
         var thermalReferenceMetadata = new ThermalReferenceMetadata
@@ -114,6 +119,10 @@ public class ThermalReferenceMetadataService(
         BlobStorageLocation referencePolygonLocation
     )
     {
+        input.InstallationCode = Sanitize.SanitizeUserInput(input.InstallationCode);
+        input.TagId = Sanitize.SanitizeUserInput(input.TagId);
+        input.InspectionDescription = Sanitize.SanitizeUserInput(input.InspectionDescription);
+
         var thermalReferenceMetadata =
             await ReadById(id)
             ?? throw new KeyNotFoundException(
