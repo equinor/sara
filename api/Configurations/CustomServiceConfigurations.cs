@@ -95,9 +95,21 @@ public static class CustomServiceConfigurations
                 }
                 else
                 {
+                    var missing = new List<string>();
+                    if (string.IsNullOrWhiteSpace(tenantId))
+                        missing.Add("tenantId");
+                    if (string.IsNullOrWhiteSpace(clientId))
+                        missing.Add("clientId");
+                    if (
+                        string.IsNullOrWhiteSpace(clientSecret)
+                        || clientSecret.StartsWith("Fill in", StringComparison.OrdinalIgnoreCase)
+                    )
+                        missing.Add("clientSecret");
+
                     Console.WriteLine(
-                        "AzureAd:AllowedAuthMethods includes 'ClientSecret' but tenantId, "
-                            + "clientId or clientSecret is missing/placeholder; skipping ClientSecretCredential."
+                        $"AzureAd:AllowedAuthMethods includes 'ClientSecret' but "
+                            + $"{string.Join(", ", missing)} is missing/placeholder; "
+                            + "skipping ClientSecretCredential."
                     );
                 }
             }
