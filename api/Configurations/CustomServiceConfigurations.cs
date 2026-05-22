@@ -92,6 +92,9 @@ public static class CustomServiceConfigurations
                 {
                     credentials.Add(new ClientSecretCredential(tenantId, clientId, clientSecret));
                     activated.Add("ClientSecretCredential");
+                    Console.WriteLine(
+                        $"ClientSecretCredential configured with tenantId='{tenantId}', clientId='{clientId}'."
+                    );
                 }
                 else
                 {
@@ -215,6 +218,9 @@ public static class CustomServiceConfigurations
                 {
                     credentials.Add(new ClientSecretCredential(tenantId, clientId, clientSecret));
                     activated.Add("ClientSecretCredential");
+                    Console.WriteLine(
+                        $"Runtime ClientSecretCredential configured with tenantId='{tenantId}', clientId='{clientId}'."
+                    );
                 }
                 else
                 {
