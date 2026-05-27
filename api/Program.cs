@@ -47,7 +47,7 @@ var applicationName = builder.Configuration["AppName"] ?? "SaraBackend";
 
 builder.ConfigureLogger();
 
-builder.Services.ConfigureDatabase(builder.Configuration);
+builder.Services.ConfigureDatabase(builder.Configuration, builder.Environment.EnvironmentName);
 builder.Services.ConfigureMQTT();
 
 var openTelemetryEnabled = builder.Configuration.GetValue<bool?>("OpenTelemetry:Enabled") ?? false;

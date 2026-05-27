@@ -7,11 +7,14 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 using MQTTnet.Extensions.ManagedClient;
+using Npgsql;
 
 namespace api.Configurations;
 
 public static class CustomServiceConfigurations
 {
+    private const string AzurePostgresScope = "https://ossrdbms-aad.database.windows.net/.default";
+
     /// <summary>
     /// Build a <see cref="TokenCredential"/> for authenticating against Azure resources.
     ///
@@ -253,17 +256,65 @@ public static class CustomServiceConfigurations
         return new ChainedTokenCredential([.. credentials]);
     }
 
+    /// <summary>
+    /// Configure the database connection for the application.
+    ///
+    /// When <c>Database:UseInMemoryDatabase</c> is <c>true</c>, an in-memory SQLite database
+    /// is used (local development).
+    ///
+    /// Otherwise, the method reads <c>Database:AllowedAuthMethods</c> — an ordered list whose
+    /// entries may be <c>"AppRegIdentity"</c> and/or <c>"ConnectionString"</c> (case-insensitive).
+    /// Methods are tried in the order specified; the first one that succeeds wins.
+    ///
+    /// <list type="bullet">
+    ///   <item>
+    ///     <term>AppRegIdentity</term>
+    ///     <description>
+    ///       Acquires an Entra ID (Azure AD) access token via <see cref="CreateRuntimeCredential"/>
+    ///       and connects to PostgreSQL using <c>UsePeriodicPasswordProvider</c> (token refreshed
+    ///       every 55 minutes). Requires <c>Database:Server</c>, <c>Database:PostgresDatabase</c>
+    ///       and <c>Database:User</c> to be configured.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <term>ConnectionString</term>
+    ///     <description>
+    ///       Uses a traditional connection string from <c>Database:postgresConnectionString</c>
+    ///       (typically loaded from Azure Key Vault).
+    ///     </description>
+    ///   </item>
+    /// </list>
+    ///
+    /// If the list is empty or absent, defaults to <c>["ConnectionString"]</c> for backward
+    /// compatibility.
+    ///
+    /// When <paramref name="environmentName"/> is <c>"Test"</c>, database configuration is
+    /// skipped entirely — test infrastructure is expected to register the DbContext itself.
+    /// </summary>
     public static IServiceCollection ConfigureDatabase(
         this IServiceCollection services,
-        IConfiguration configuration
+        IConfiguration configuration,
+        string environmentName
     )
     {
+        Console.WriteLine("Configuring Database...");
+
+        if (environmentName.Equals("Test", StringComparison.Ordinal))
+        {
+            Console.WriteLine(
+                "The application is running in a test environment and database "
+                    + "configuration is part of the test setup."
+            );
+            return services;
+        }
+
         bool useInMemoryDatabase = configuration
             .GetSection("Database")
             .GetValue<bool>("UseInMemoryDatabase");
 
         if (useInMemoryDatabase)
         {
+            Console.WriteLine("Using InMemory Database");
             DbContextOptionsBuilder dbBuilder = new DbContextOptionsBuilder<SaraDbContext>();
             string sqlConnectionString = new SqliteConnectionStringBuilder
             {
@@ -290,22 +341,223 @@ public static class CustomServiceConfigurations
         }
         else
         {
-            string? connection = configuration["Database:postgresConnectionString"];
-            // Setting splitting behavior explicitly to avoid warning
-            services.AddDbContext<SaraDbContext>(
-                options =>
-                    options.UseNpgsql(
-                        connection,
-                        o =>
+            string[] allowedDbAuthMethods =
+                configuration.GetSection("Database:AllowedAuthMethods").Get<string[]>() ?? [];
+            if (allowedDbAuthMethods.Length == 0)
+            {
+                allowedDbAuthMethods = ["ConnectionString"];
+            }
+
+            Console.WriteLine(
+                $"Database auth methods to try (in order): {string.Join(", ", allowedDbAuthMethods)}"
+            );
+
+            var errors = new List<(string method, Exception ex)>();
+            bool configured = false;
+
+            foreach (string method in allowedDbAuthMethods)
+            {
+                if (configured)
+                    break;
+
+                if (string.Equals(method, "AppRegIdentity", StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        Console.WriteLine(
+                            "Trying AppRegIdentity (Entra ID token) for PostgreSQL..."
+                        );
+                        ConfigureDatabaseWithAppRegIdentity(services, configuration);
+                        Console.WriteLine("AppRegIdentity configured successfully.");
+                        configured = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(
+                            $"AppRegIdentity failed: {ex.GetType().Name}: {ex.Message}"
+                        );
+                        errors.Add(("AppRegIdentity", ex));
+                    }
+                }
+                else if (
+                    string.Equals(method, "ConnectionString", StringComparison.OrdinalIgnoreCase)
+                )
+                {
+                    try
+                    {
+                        Console.WriteLine("Trying ConnectionString (Key Vault) for PostgreSQL...");
+                        ConfigureDatabaseWithConnectionString(services, configuration);
+                        Console.WriteLine("ConnectionString configured successfully.");
+                        configured = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(
+                            $"ConnectionString failed: {ex.GetType().Name}: {ex.Message}"
+                        );
+                        errors.Add(("ConnectionString", ex));
+                    }
+                }
+                else
+                {
+                    Console.WriteLine(
+                        $"Unknown database auth method '{method}' in Database:AllowedAuthMethods; "
+                            + "expected 'AppRegIdentity' or 'ConnectionString'."
+                    );
+                }
+            }
+
+            if (!configured)
+            {
+                var summary = string.Join(
+                    "; ",
+                    errors.Select(e => $"{e.method}: {e.ex.GetType().Name}: {e.ex.Message}")
+                );
+                throw new InvalidOperationException(
+                    "All database authentication methods failed. "
+                        + $"Tried: {string.Join(", ", allowedDbAuthMethods)}. Details: {summary}"
+                );
+            }
+        }
+
+        return services;
+    }
+
+    /// <summary>
+    /// Configure PostgreSQL using Entra ID (Azure AD) token-based authentication via the
+    /// app registration identity. The token is used as the PostgreSQL password and refreshed
+    /// periodically via <c>UsePeriodicPasswordProvider</c>.
+    /// </summary>
+    private static void ConfigureDatabaseWithAppRegIdentity(
+        IServiceCollection services,
+        IConfiguration configuration
+    )
+    {
+        var server =
+            configuration["Database:Server"]
+            ?? throw new InvalidOperationException(
+                "Database:Server is required for AppRegIdentity auth."
+            );
+        var postgresDb =
+            configuration["Database:PostgresDatabase"]
+            ?? throw new InvalidOperationException(
+                "Database:PostgresDatabase is required for AppRegIdentity auth."
+            );
+        var dbUser =
+            configuration["Database:User"]
+            ?? throw new InvalidOperationException(
+                "Database:User is required for AppRegIdentity auth."
+            );
+
+        var credential = CreateRuntimeCredential(configuration);
+
+        // Probe: acquire an initial token to verify connectivity before registering the DbContext.
+        Console.WriteLine("Requesting Entra ID token via credential...");
+        var tokenRequestContext = new TokenRequestContext([AzurePostgresScope]);
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+        AccessToken token;
+        try
+        {
+            token = credential.GetToken(tokenRequestContext, cts.Token);
+        }
+        catch (OperationCanceledException oce)
+        {
+            throw new TimeoutException("Timed out acquiring Entra ID token for PostgreSQL.", oce);
+        }
+        Console.WriteLine("Entra ID token acquired successfully.");
+
+        var baseConnString = new NpgsqlConnectionStringBuilder
+        {
+            Host = $"{server}.postgres.database.azure.com",
+            Database = postgresDb,
+            Username = dbUser,
+            SslMode = SslMode.VerifyFull,
+        }.ToString();
+
+        int databaseTimeout = GetDatabaseTimeout(configuration);
+
+        services.AddDbContext<SaraDbContext>(
+            options =>
+                options.UseNpgsql(
+                    baseConnString,
+                    o =>
+                    {
+                        o.ConfigureDataSource(ds =>
                         {
-                            o.UseQuerySplittingBehavior(QuerySplittingBehavior.SingleQuery);
-                            o.EnableRetryOnFailure();
-                        }
-                    ),
-                ServiceLifetime.Transient
+                            var dsCredential = CreateRuntimeCredential(configuration);
+                            ds.UsePeriodicPasswordProvider(
+                                async (_, ct) =>
+                                {
+                                    using var tokenCts = new CancellationTokenSource(
+                                        TimeSpan.FromSeconds(5)
+                                    );
+                                    var accessToken = await dsCredential.GetTokenAsync(
+                                        new TokenRequestContext([AzurePostgresScope]),
+                                        CancellationTokenSource
+                                            .CreateLinkedTokenSource(ct, tokenCts.Token)
+                                            .Token
+                                    );
+                                    return accessToken.Token;
+                                },
+                                successRefreshInterval: TimeSpan.FromMinutes(55),
+                                failureRefreshInterval: TimeSpan.FromSeconds(5)
+                            );
+                        });
+                        o.UseQuerySplittingBehavior(QuerySplittingBehavior.SingleQuery);
+                        o.EnableRetryOnFailure();
+                        o.CommandTimeout(databaseTimeout);
+                    }
+                ),
+            ServiceLifetime.Transient
+        );
+    }
+
+    /// <summary>
+    /// Configure PostgreSQL using a traditional connection string (typically loaded from
+    /// Azure Key Vault via the <c>Database:postgresConnectionString</c> configuration key).
+    /// </summary>
+    private static void ConfigureDatabaseWithConnectionString(
+        IServiceCollection services,
+        IConfiguration configuration
+    )
+    {
+        string? connection = configuration["Database:postgresConnectionString"];
+        if (string.IsNullOrEmpty(connection))
+        {
+            throw new InvalidOperationException(
+                "Database:postgresConnectionString is empty or missing. "
+                    + "Ensure the connection string is loaded (e.g. from Azure Key Vault)."
             );
         }
-        return services;
+
+        int databaseTimeout = GetDatabaseTimeout(configuration);
+
+        // Setting splitting behavior explicitly to avoid warning
+        services.AddDbContext<SaraDbContext>(
+            options =>
+                options.UseNpgsql(
+                    connection,
+                    o =>
+                    {
+                        o.UseQuerySplittingBehavior(QuerySplittingBehavior.SingleQuery);
+                        o.EnableRetryOnFailure();
+                        o.CommandTimeout(databaseTimeout);
+                    }
+                ),
+            ServiceLifetime.Transient
+        );
+    }
+
+    private static int GetDatabaseTimeout(IConfiguration configuration)
+    {
+        var timeoutValue = configuration["Database:Timeout"];
+        if (
+            !string.IsNullOrEmpty(timeoutValue) && int.TryParse(timeoutValue, out var parsedTimeout)
+        )
+        {
+            return parsedTimeout;
+        }
+        return 30;
     }
 
     public static IServiceCollection ConfigureSwagger(
