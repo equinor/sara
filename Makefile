@@ -1,7 +1,17 @@
 run:
 	$(MAKE) -j2 run-api run-frontend
 
+run-devdb:
+	$(MAKE) -j2 run-api-devdb run-frontend
+
 run-api:
+	dotnet run --project api
+
+run-api-devdb:
+	ASPNETCORE_ENVIRONMENT=Local \
+	Database__UseInMemoryDatabase=false \
+	Database__AllowedAuthMethods__0=AppRegIdentity \
+	Database__AllowedAuthMethods__1="" \
 	dotnet run --project api
 
 run-frontend:
