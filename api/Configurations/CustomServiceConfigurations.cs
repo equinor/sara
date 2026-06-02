@@ -54,6 +54,14 @@ public static class CustomServiceConfigurations
         if (string.IsNullOrWhiteSpace(clientSecret))
             clientSecret = null;
 
+        // Fallback to the standard AZURE_* environment variables (read here via
+        // IConfiguration's environment-variable provider) when the corresponding
+        // AzureAd:* keys are not set in any config source. This matches the
+        // convention used by the Azure SDK credentials and keeps env-only
+        // configuration (e.g. cloud pods that only set AZURE_TENANT_ID /
+        // AZURE_CLIENT_ID via the deployment manifest, or local shells / CI
+        // jobs that only export AZURE_CLIENT_SECRET) working without requiring
+        // a parallel AzureAd:* entry in appsettings.
         tenantId ??= config["AZURE_TENANT_ID"];
         clientId ??= config["AZURE_CLIENT_ID"];
         clientSecret ??= config["AZURE_CLIENT_SECRET"];
@@ -175,6 +183,9 @@ public static class CustomServiceConfigurations
         if (string.IsNullOrWhiteSpace(clientSecret))
             clientSecret = null;
 
+        // See CreateCredential above for rationale: same fallback to the
+        // standard AZURE_* environment variables when the AzureAd:* keys are
+        // not populated in any other config source.
         tenantId ??= config["AZURE_TENANT_ID"];
         clientId ??= config["AZURE_CLIENT_ID"];
         clientSecret ??= config["AZURE_CLIENT_SECRET"];
