@@ -36,6 +36,39 @@ When running locally the endpoint is reachable at https://localhost:8100
 make run            # or: dotnet run --project api
 ```
 
+### Local authentication
+
+Cloud deployments authenticate via Azure Workload Identity (federated
+credentials on the sara app registration). Locally you have two options,
+selected by `ASPNETCORE_ENVIRONMENT`:
+
+- **`Local` (default for `make run`)** — uses `appsettings.Local.json`
+  with `AllowedAuthMethods: ["AzureCliBootstrap", "ClientSecret"]`.
+  Requires `az login` first; the developer's Azure CLI session is used
+  to bootstrap Key Vault access, and the app registration's client
+  secret is loaded from Key Vault for subsequent Azure calls.
+
+- **`Development` (mimics deployed dev)** — uses
+  `appsettings.Development.json` with
+  `AllowedAuthMethods: ["WorkloadIdentity", "ClientSecret"]`. Workload
+  Identity is unavailable outside AKS, so the chain falls through to
+  `ClientSecretCredential`. Provide the secret via an `api/.env` file
+  (gitignored):
+
+  ```
+  AzureAd__ClientSecret=<value of AzureAd--ClientSecret in saradev-kv>
+  ```
+
+  Then run:
+
+  ```bash
+  ASPNETCORE_ENVIRONMENT=Development dotnet run --project api
+  ```
+
+Use `Local` for normal day-to-day development. Use `Development` when
+you need behaviour identical to the deployed dev pod (real Postgres,
+real OpenTelemetry export, etc.).
+
 
 ## Test & format
 
