@@ -9,28 +9,6 @@ namespace api.Database.Context
 {
     /// <summary>
     /// This class is not called by anything explicitly, but is used by EF core when adding migrations and updating database.
-    ///
-    /// Supports the same <c>Database:AllowedAuthMethods</c> configuration as the runtime
-    /// <see cref="CustomServiceConfigurations.ConfigureDatabase"/>:
-    /// <list type="bullet">
-    ///   <item>
-    ///     <term>AppRegIdentity</term>
-    ///     <description>
-    ///       Acquires a single Entra ID token and uses it as the PostgreSQL password.
-    ///       Requires <c>Database:Server</c>, <c>Database:PostgresDatabase</c> and
-    ///       <c>Database:User</c>.
-    ///     </description>
-    ///   </item>
-    ///   <item>
-    ///     <term>ConnectionString</term>
-    ///     <description>
-    ///       Uses <c>Database:postgresConnectionString</c> from config or falls back to
-    ///       the <c>Database--postgresConnectionString</c> secret in Azure Key Vault.
-    ///     </description>
-    ///   </item>
-    /// </list>
-    /// Defaults to <c>["ConnectionString"]</c> when the list is absent or empty (backward
-    /// compatible).
     /// </summary>
     public class DesignTimeContextFactory : IDesignTimeDbContextFactory<SaraDbContext>
     {
@@ -144,10 +122,6 @@ namespace api.Database.Context
             return new SaraDbContext(optionsBuilder.Options);
         }
 
-        /// <summary>
-        /// Acquire a single Entra ID token and build a connection string with it as the password.
-        /// Migrations are short-lived so a single token (valid ~1 hour) is sufficient.
-        /// </summary>
         private static string BuildAppRegIdentityConnectionString(IConfiguration config)
         {
             var server =
@@ -196,9 +170,6 @@ namespace api.Database.Context
             }.ToString();
         }
 
-        /// <summary>
-        /// Resolve the connection string from config or fall back to Azure Key Vault.
-        /// </summary>
         private static string ResolveKeyVaultConnectionString(IConfiguration config)
         {
             string? connectionString = config["Database:postgresConnectionString"];

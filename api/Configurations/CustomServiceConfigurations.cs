@@ -15,35 +15,6 @@ public static class CustomServiceConfigurations
 {
     private const string AzurePostgresScope = "https://ossrdbms-aad.database.windows.net/.default";
 
-    /// <summary>
-    /// Build a <see cref="TokenCredential"/> for authenticating against Azure resources.
-    ///
-    /// The set of credential types to try is configured via
-    /// <c>AzureAd:AllowedAuthMethods</c>, an ordered list whose entries may be
-    /// <c>"WorkloadIdentity"</c>, <c>"ClientSecret"</c> and/or <c>"AzureCliBootstrap"</c>
-    /// (case-insensitive). The order of the list determines the order in which
-    /// credentials are tried when more than one method is enabled (i.e. it controls
-    /// the order inside the resulting <see cref="ChainedTokenCredential"/>).
-    ///
-    /// In cloud (AKS with Azure Workload Identity), set
-    /// <c>"AllowedAuthMethods": [ "WorkloadIdentity" ]</c> and rely on the standard
-    /// <c>AZURE_CLIENT_ID</c>, <c>AZURE_TENANT_ID</c>, <c>AZURE_FEDERATED_TOKEN_FILE</c>
-    /// and <c>AZURE_AUTHORITY_HOST</c> environment variables injected by the
-    /// azure-workload-identity mutating webhook.
-    ///
-    /// For local development set
-    /// <c>"AllowedAuthMethods": [ "AzureCliBootstrap" ]</c>. This uses the developer's
-    /// <c>az login</c> session to bootstrap Key Vault access on startup. Key Vault then
-    /// supplies the app registration's client secret into configuration, so all subsequent
-    /// Azure calls (e.g. Graph API in <c>EmailService</c>) authenticate as the app
-    /// registration — not the developer's personal identity.
-    ///
-    /// For CI, set e.g.
-    /// <c>"AllowedAuthMethods": [ "ClientSecret" ]</c> together with
-    /// <c>AzureAd:ClientSecret</c> (or <c>AZURE_CLIENT_SECRET</c>). When environment
-    /// variables are used, the .NET configuration array binding pattern is e.g.
-    /// <c>AzureAd__AllowedAuthMethods__0=ClientSecret</c>.
-    /// </summary>
     public static TokenCredential CreateCredential(IConfiguration config)
     {
         string? tenantId = config["AzureAd:TenantId"];
@@ -164,15 +135,6 @@ public static class CustomServiceConfigurations
         return new ChainedTokenCredential([.. credentials]);
     }
 
-    /// <summary>
-    /// Build a <see cref="TokenCredential"/> for runtime Azure resource access (storage,
-    /// Graph API, etc.). This method reads the same <c>AzureAd:AllowedAuthMethods</c> list
-    /// but explicitly excludes <c>"AzureCliBootstrap"</c> — ensuring the developer's
-    /// personal identity is never used beyond Key Vault bootstrap.
-    ///
-    /// Call this <b>after</b> Key Vault secrets have been loaded into configuration so that
-    /// <c>AzureAd:ClientSecret</c> is available.
-    /// </summary>
     public static TokenCredential CreateRuntimeCredential(IConfiguration config)
     {
         string? tenantId = config["AzureAd:TenantId"];
@@ -207,7 +169,6 @@ public static class CustomServiceConfigurations
         {
             if (string.Equals(method, "AzureCliBootstrap", StringComparison.OrdinalIgnoreCase))
             {
-                // Intentionally skipped — bootstrap credential must not leak into runtime.
                 continue;
             }
             else if (string.Equals(method, "WorkloadIdentity", StringComparison.OrdinalIgnoreCase))
@@ -267,41 +228,6 @@ public static class CustomServiceConfigurations
         return new ChainedTokenCredential([.. credentials]);
     }
 
-    /// <summary>
-    /// Configure the database connection for the application.
-    ///
-    /// When <c>Database:UseInMemoryDatabase</c> is <c>true</c>, an in-memory SQLite database
-    /// is used (local development).
-    ///
-    /// Otherwise, the method reads <c>Database:AllowedAuthMethods</c> — an ordered list whose
-    /// entries may be <c>"AppRegIdentity"</c> and/or <c>"ConnectionString"</c> (case-insensitive).
-    /// Methods are tried in the order specified; the first one that succeeds wins.
-    ///
-    /// <list type="bullet">
-    ///   <item>
-    ///     <term>AppRegIdentity</term>
-    ///     <description>
-    ///       Acquires an Entra ID (Azure AD) access token via <see cref="CreateRuntimeCredential"/>
-    ///       and connects to PostgreSQL using <c>UsePeriodicPasswordProvider</c> (token refreshed
-    ///       every 55 minutes). Requires <c>Database:Server</c>, <c>Database:PostgresDatabase</c>
-    ///       and <c>Database:User</c> to be configured.
-    ///     </description>
-    ///   </item>
-    ///   <item>
-    ///     <term>ConnectionString</term>
-    ///     <description>
-    ///       Uses a traditional connection string from <c>Database:postgresConnectionString</c>
-    ///       (typically loaded from Azure Key Vault).
-    ///     </description>
-    ///   </item>
-    /// </list>
-    ///
-    /// If the list is empty or absent, defaults to <c>["ConnectionString"]</c> for backward
-    /// compatibility.
-    ///
-    /// When <paramref name="environmentName"/> is <c>"Test"</c>, database configuration is
-    /// skipped entirely — test infrastructure is expected to register the DbContext itself.
-    /// </summary>
     public static IServiceCollection ConfigureDatabase(
         this IServiceCollection services,
         IConfiguration configuration,
@@ -434,11 +360,6 @@ public static class CustomServiceConfigurations
         return services;
     }
 
-    /// <summary>
-    /// Configure PostgreSQL using Entra ID (Azure AD) token-based authentication via the
-    /// app registration identity. The token is used as the PostgreSQL password and refreshed
-    /// periodically via <c>UsePeriodicPasswordProvider</c>.
-    /// </summary>
     private static void ConfigureDatabaseWithAppRegIdentity(
         IServiceCollection services,
         IConfiguration configuration
@@ -462,7 +383,6 @@ public static class CustomServiceConfigurations
 
         var credential = CreateRuntimeCredential(configuration);
 
-        // Probe: acquire an initial token to verify connectivity before registering the DbContext.
         Console.WriteLine("Requesting Entra ID token via credential...");
         var tokenRequestContext = new TokenRequestContext([AzurePostgresScope]);
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
@@ -523,10 +443,6 @@ public static class CustomServiceConfigurations
         );
     }
 
-    /// <summary>
-    /// Configure PostgreSQL using a traditional connection string (typically loaded from
-    /// Azure Key Vault via the <c>Database:postgresConnectionString</c> configuration key).
-    /// </summary>
     private static void ConfigureDatabaseWithConnectionString(
         IServiceCollection services,
         IConfiguration configuration
