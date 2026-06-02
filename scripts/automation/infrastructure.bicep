@@ -16,10 +16,6 @@ param objectIdFgRobots string
 
 param objectIdEnterpriseApplication string
 
-param managedIdentityName string
-param principalId string
-param roleDefinitionId string
-
 param principalIdFlotillaApp string
 
 resource resourceGroup 'Microsoft.Resources/resourceGroups@2024-03-01' = {
@@ -74,17 +70,6 @@ module storageAccountTimeseries 'modules/storage-account-timeseries.bicep' = {
   }
 }
 
-module managedIdentity 'modules/managed-identity.bicep' = {
-  scope: resourceGroup
-  name: 'infrastructure-mi-${deploymentId}'
-  params: {
-    location: location
-    managedIdentityName: managedIdentityName
-    principalId: principalId
-    roleDefinitionID: roleDefinitionId
-  }
-}
-
 module keyVault 'modules/key-vault.bicep' = {
   scope: resourceGroup
   name: 'infrastructure-kv-${deploymentId}'
@@ -93,8 +78,5 @@ module keyVault 'modules/key-vault.bicep' = {
     keyVaultName: keyVaultName
     objectIdFgRobots: objectIdFgRobots
     objectIdEnterpriseApplication: objectIdEnterpriseApplication
-    principalId: principalId
-    managedIdentityName: managedIdentityName
-    roleDefinitionID: roleDefinitionId
   }
 }
