@@ -7,6 +7,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 using MQTTnet.Extensions.ManagedClient;
+using Npgsql;
 
 namespace api.Configurations;
 
@@ -287,6 +288,68 @@ public static class CustomServiceConfigurations
                     o => o.UseQuerySplittingBehavior(QuerySplittingBehavior.SingleQuery)
                 )
             );
+
+            return services;
+        }
+
+        string? server = configuration["Database:Server"];
+        string? database = configuration["Database:Name"];
+        string? user = configuration["Database:User"];
+
+        bool useEntraAuth =
+            !string.IsNullOrWhiteSpace(server)
+            && !string.IsNullOrWhiteSpace(database)
+            && !string.IsNullOrWhiteSpace(user);
+
+        if (useEntraAuth)
+        {
+            // Build a single shared NpgsqlDataSource (connection pool) that fetches
+            // a fresh Entra-ID access token via the registered TokenCredential and
+            // uses it as the Postgres password. The PeriodicPasswordProvider keeps
+            // the token cached and refreshes it ahead of expiry.
+            services.AddSingleton<NpgsqlDataSource>(sp =>
+            {
+                var credential = sp.GetRequiredService<TokenCredential>();
+
+                string baseConnectionString =
+                    $"Host={server};Database={database};Username={user};SSL Mode=Require;Trust Server Certificate=true;";
+
+                var dataSourceBuilder = new NpgsqlDataSourceBuilder(baseConnectionString);
+                dataSourceBuilder.UsePeriodicPasswordProvider(
+                    async (_, ct) =>
+                    {
+                        var token = await credential
+                            .GetTokenAsync(
+                                new TokenRequestContext(
+                                    ["https://ossrdbms-aad.database.windows.net/.default"]
+                                ),
+                                ct
+                            )
+                            .ConfigureAwait(false);
+                        return token.Token;
+                    },
+                    successRefreshInterval: TimeSpan.FromMinutes(50),
+                    failureRefreshInterval: TimeSpan.FromSeconds(10)
+                );
+
+                return dataSourceBuilder.Build();
+            });
+
+            services.AddDbContext<SaraDbContext>(
+                (sp, options) =>
+                {
+                    var dataSource = sp.GetRequiredService<NpgsqlDataSource>();
+                    options.UseNpgsql(
+                        dataSource,
+                        o =>
+                        {
+                            o.UseQuerySplittingBehavior(QuerySplittingBehavior.SingleQuery);
+                            o.EnableRetryOnFailure();
+                        }
+                    );
+                },
+                ServiceLifetime.Transient
+            );
         }
         else
         {
@@ -305,6 +368,7 @@ public static class CustomServiceConfigurations
                 ServiceLifetime.Transient
             );
         }
+
         return services;
     }
 

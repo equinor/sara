@@ -1,7 +1,9 @@
 using api.Configurations;
+using Azure.Core;
 using Azure.Security.KeyVault.Secrets;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using Npgsql;
 
 namespace api.Database.Context
 {
@@ -30,6 +32,55 @@ namespace api.Database.Context
                 .AddEnvironmentVariables()
                 .Build();
 
+            string? server = config["Database:Server"];
+            string? database = config["Database:Name"];
+            string? user = config["Database:User"];
+
+            bool useEntraAuth =
+                !string.IsNullOrWhiteSpace(server)
+                && !string.IsNullOrWhiteSpace(database)
+                && !string.IsNullOrWhiteSpace(user);
+
+            var optionsBuilder = new DbContextOptionsBuilder<SaraDbContext>();
+
+            if (useEntraAuth)
+            {
+                TokenCredential credential = CustomServiceConfigurations.CreateRuntimeCredential(
+                    config
+                );
+
+                string baseConnectionString =
+                    $"Host={server};Database={database};Username={user};SSL Mode=Require;Trust Server Certificate=true;";
+
+                var dataSourceBuilder = new NpgsqlDataSourceBuilder(baseConnectionString);
+                dataSourceBuilder.UsePeriodicPasswordProvider(
+                    async (_, ct) =>
+                    {
+                        var token = await credential
+                            .GetTokenAsync(
+                                new TokenRequestContext(
+                                    ["https://ossrdbms-aad.database.windows.net/.default"]
+                                ),
+                                ct
+                            )
+                            .ConfigureAwait(false);
+                        return token.Token;
+                    },
+                    successRefreshInterval: TimeSpan.FromMinutes(50),
+                    failureRefreshInterval: TimeSpan.FromSeconds(10)
+                );
+
+                var dataSource = dataSourceBuilder.Build();
+
+                // Setting splitting behavior explicitly to avoid warning
+                optionsBuilder.UseNpgsql(
+                    dataSource,
+                    o => o.UseQuerySplittingBehavior(QuerySplittingBehavior.SingleQuery)
+                );
+
+                return new SaraDbContext(optionsBuilder.Options);
+            }
+
             string? connectionString = config["Database:postgresConnectionString"];
 
             if (string.IsNullOrEmpty(connectionString))
@@ -47,8 +98,6 @@ namespace api.Database.Context
                     .GetSecret("Database--postgresConnectionString")
                     .Value.Value;
             }
-
-            var optionsBuilder = new DbContextOptionsBuilder<SaraDbContext>();
 
             // Setting splitting behavior explicitly to avoid warning
             optionsBuilder.UseNpgsql(
