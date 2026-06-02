@@ -19,7 +19,6 @@ var builder = WebApplication.CreateBuilder(args);
 
 Console.WriteLine($"\nENVIRONMENT IS SET TO '{builder.Environment.EnvironmentName}'\n");
 
-builder.AddAppSettingsEnvironmentVariables();
 builder.AddDotEnvironmentVariables(Path.Combine(Directory.GetCurrentDirectory(), ".env"));
 
 if (builder.Configuration.GetSection("KeyVault").GetValue<bool>("UseKeyVault"))
