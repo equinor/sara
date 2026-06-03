@@ -29,4 +29,15 @@ public class WorkflowConfig
     public required string OutputBlobContainer { get; set; }
 
     public string? OutputFileExtension { get; set; }
+
+    public bool IsGate { get; set; }
+
+    public SkipRule? SkipChainIf { get; set; }
+}
+
+public class SkipRule
+{
+    public required string ResultJsonKeyToCheckForSkipBoolean { get; set; }
+
+    public required string Value { get; set; }
 }
