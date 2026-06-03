@@ -16,14 +16,17 @@ on:
 jobs:
   run_migrations:
     name: Update database in Staging
+    permissions:
+      contents: read
+      pull-requests: read
+      id-token: write
     uses: equinor/armada/.github/workflows/run_dotnet_migrations.yml@main
     with:
       environment: Staging
       checkout_ref: ${{ github.event.release.tag_name }}
       working_directory: api
-    secrets:
-      client_id: ${{ secrets.CLIENTID }}
-      client_secret: ${{ secrets.CLIENTSECRET }}
+      azure_client_id: ${{ secrets.CLIENTID }}
+      azure_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
   build-and-push-latest-release-images-to-ghcr:
     name: Build and push latest release images to github container registry
