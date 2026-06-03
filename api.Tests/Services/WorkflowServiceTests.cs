@@ -290,4 +290,129 @@ public class WorkflowServiceTests : IAsyncLifetime
         public Task OnWorkflowCompleted(Workflow workflow) =>
             throw new InvalidOperationException("handler failure for testing");
     }
+
+    [Fact]
+    public async Task OnWorkflowCompleted_GateMatches_SkipsDownstreamWorkflows()
+    {
+        var analysis = await _db.NewAnalysis();
+        var run = await _db.NewAnalysisRun(analysis);
+        var gate = await _db.NewWorkflow(run, workflowType: "test-gate", stepNumber: 1);
+        gate.Status = WorkflowStatus.Succeeded;
+        gate.ResultJson = JsonSerializer.Serialize(new { skip = true });
+        var downstream = await _db.NewWorkflow(
+            run,
+            workflowType: "test-workflow-2",
+            stepNumber: 2,
+            outputBlobStorageLocation: _db.NewBlobStorageLocation()
+        );
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        await OnWorkflowCompletedInScope(gate.Id);
+
+        await _context.Entry(run).ReloadAsync(TestContext.Current.CancellationToken);
+        await _context.Entry(downstream).ReloadAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(AnalysisRunStatus.Skipped, run.Status);
+        Assert.NotNull(run.SkipReason);
+        Assert.Equal(WorkflowStatus.Skipped, downstream.Status);
+        Assert.Empty(_factory.ArgoHttpHandler.Requests);
+    }
+
+    [Fact]
+    public async Task OnWorkflowCompleted_GateDoesNotMatch_ContinuesToNextWorkflow()
+    {
+        const string nextWorkflowType = "test-workflow-2";
+        var analysis = await _db.NewAnalysis();
+        var run = await _db.NewAnalysisRun(analysis);
+        var gate = await _db.NewWorkflow(run, workflowType: "test-gate", stepNumber: 1);
+        gate.Status = WorkflowStatus.Succeeded;
+        gate.ResultJson = JsonSerializer.Serialize(new { skip = false });
+        await _db.NewWorkflow(
+            run,
+            workflowType: nextWorkflowType,
+            stepNumber: 2,
+            outputBlobStorageLocation: _db.NewBlobStorageLocation()
+        );
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        await OnWorkflowCompletedInScope(gate.Id);
+
+        var request = Assert.Single(_factory.ArgoHttpHandler.Requests);
+        Assert.Equal(_factory.TriggerUrlFor(nextWorkflowType), request.RequestUri?.ToString());
+    }
+
+    [Fact]
+    public async Task OnWorkflowCompleted_GateResultMissing_SkipsChainFailClosed()
+    {
+        const string nextWorkflowType = "test-workflow-2";
+        var analysis = await _db.NewAnalysis();
+        var run = await _db.NewAnalysisRun(analysis);
+        var gate = await _db.NewWorkflow(run, workflowType: "test-gate", stepNumber: 1);
+        gate.Status = WorkflowStatus.Succeeded;
+        gate.ResultJson = null;
+        var downstream = await _db.NewWorkflow(
+            run,
+            workflowType: nextWorkflowType,
+            stepNumber: 2,
+            outputBlobStorageLocation: _db.NewBlobStorageLocation()
+        );
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        await OnWorkflowCompletedInScope(gate.Id);
+
+        await _context.Entry(run).ReloadAsync(TestContext.Current.CancellationToken);
+        await _context.Entry(downstream).ReloadAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(AnalysisRunStatus.Skipped, run.Status);
+        Assert.Equal(WorkflowStatus.Skipped, downstream.Status);
+        Assert.Empty(_factory.ArgoHttpHandler.Requests);
+    }
+
+    [Fact]
+    public async Task RetryWorkflow_OnGate_ResetsSkippedRunAndDownstreamSiblings()
+    {
+        const string gateType = "test-gate";
+        var analysis = await _db.NewAnalysis();
+        var run = await _db.NewAnalysisRun(analysis);
+        var gate = await _db.NewWorkflow(
+            run,
+            workflowType: gateType,
+            stepNumber: 1,
+            outputBlobStorageLocation: _db.NewBlobStorageLocation()
+        );
+        gate.Status = WorkflowStatus.Succeeded;
+        gate.ResultJson = "{\"skip\":true}";
+        gate.CompletedAt = DateTime.UtcNow;
+        var downstream = await _db.NewWorkflow(
+            run,
+            workflowType: "test-workflow-2",
+            stepNumber: 2,
+            outputBlobStorageLocation: _db.NewBlobStorageLocation()
+        );
+        downstream.Status = WorkflowStatus.Skipped;
+        downstream.CompletedAt = DateTime.UtcNow;
+        run.Status = AnalysisRunStatus.Skipped;
+        run.SkipReason = "previous skip";
+        run.CompletedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            await ResolveService(scope).RetryWorkflow(gate.Id);
+        }
+
+        await _context.Entry(run).ReloadAsync(TestContext.Current.CancellationToken);
+        await _context.Entry(gate).ReloadAsync(TestContext.Current.CancellationToken);
+        await _context.Entry(downstream).ReloadAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(AnalysisRunStatus.InProgress, run.Status);
+        Assert.Null(run.SkipReason);
+        Assert.Null(run.CompletedAt);
+        Assert.Equal(WorkflowStatus.InProgress, gate.Status);
+        Assert.Null(gate.ResultJson);
+        Assert.Equal(WorkflowStatus.Pending, downstream.Status);
+        Assert.Null(downstream.CompletedAt);
+        var request = Assert.Single(_factory.ArgoHttpHandler.Requests);
+        Assert.Equal(_factory.TriggerUrlFor(gateType), request.RequestUri?.ToString());
+    }
 }
