@@ -202,6 +202,11 @@ public class WorkflowService(
 
         await DispatchWorkflowResultHandler(workflow);
 
+        if (await TrySkipChainIfGateDictates(workflow, run))
+        {
+            return;
+        }
+
         var nextWorkflow = run
             .Workflows.OrderBy(w => w.StepNumber)
             .FirstOrDefault(w => w.StepNumber > workflow.StepNumber);
@@ -241,6 +246,121 @@ public class WorkflowService(
         await context.SaveChangesAsync();
 
         await OnWorkflowCompleted(workflow.Id);
+    }
+
+    private async Task<bool> TrySkipChainIfGateDictates(Workflow workflow, AnalysisRun run)
+    {
+        if (
+            workflow.Status != WorkflowStatus.Succeeded
+            || !_options.Workflows.TryGetValue(workflow.WorkflowType, out var workflowConfig)
+            || !workflowConfig.IsGate
+            || workflowConfig.SkipChainIf is null
+        )
+        {
+            return false;
+        }
+
+        var skipReason = EvaluateSkipRule(workflow, workflowConfig.SkipChainIf);
+        if (skipReason is null)
+        {
+            return false;
+        }
+
+        var skippedWorkflows = run
+            .Workflows.Where(w =>
+                w.StepNumber > workflow.StepNumber && w.Status == WorkflowStatus.Pending
+            )
+            .ToList();
+
+        foreach (var pending in skippedWorkflows)
+        {
+            pending.Status = WorkflowStatus.Skipped;
+            pending.CompletedAt = DateTime.UtcNow;
+        }
+
+        run.Status = AnalysisRunStatus.Skipped;
+        run.SkipReason = skipReason;
+        run.CompletedAt = DateTime.UtcNow;
+        await context.SaveChangesAsync();
+
+        logger.LogInformation(
+            "AnalysisRun {AnalysisRunId} skipped by gate {GatingWorkflow} "
+                + "(step {StepNumber}). Marked {SkippedCount} downstream workflow(s) "
+                + "[{SkippedTypes}] as Skipped. Reason: {SkipReason}",
+            run.Id,
+            workflow.WorkflowType,
+            workflow.StepNumber,
+            skippedWorkflows.Count,
+            string.Join(", ", skippedWorkflows.Select(w => w.WorkflowType)),
+            skipReason
+        );
+
+        return true;
+    }
+
+    private string? EvaluateSkipRule(Workflow workflow, SkipRule rule)
+    {
+        logger.LogDebug(
+            "Evaluating skip rule for gate workflow {WorkflowType} with Id: {WorkflowId}",
+            workflow.WorkflowType,
+            workflow.Id
+        );
+
+        string? actualValue = null;
+        string? failReason = null;
+
+        if (string.IsNullOrWhiteSpace(workflow.ResultJson))
+        {
+            failReason = "Gate result missing";
+        }
+        else
+        {
+            try
+            {
+                using var result = JsonDocument.Parse(workflow.ResultJson);
+                if (
+                    result.RootElement.TryGetProperty(
+                        rule.ResultJsonKeyToCheckForSkipBoolean,
+                        out var node
+                    )
+                )
+                    actualValue = node.ToString();
+                else
+                    failReason =
+                        $"Gate result missing field '{rule.ResultJsonKeyToCheckForSkipBoolean}'";
+            }
+            catch (JsonException)
+            {
+                failReason = "Gate result unparseable";
+            }
+        }
+
+        if (failReason is not null)
+        {
+            logger.LogWarning(
+                "Gate workflow {WorkflowType} with Id: {WorkflowId} cannot be evaluated, skipping chain as a precaution: {Error}",
+                workflow.WorkflowType,
+                workflow.Id,
+                failReason
+            );
+            return $"{workflow.WorkflowType} gate could not be evaluated: {failReason}, skipping chain as a precaution";
+        }
+
+        var matches = string.Equals(actualValue, rule.Value, StringComparison.OrdinalIgnoreCase);
+
+        logger.LogDebug(
+            "Gate workflow {WorkflowType} with Id: {WorkflowId}: expected {Key}={Expected} and received {Key}={Actual}",
+            workflow.WorkflowType,
+            workflow.Id,
+            rule.ResultJsonKeyToCheckForSkipBoolean,
+            rule.Value,
+            rule.ResultJsonKeyToCheckForSkipBoolean,
+            actualValue
+        );
+
+        return matches
+            ? $"{workflow.WorkflowType} gate matched: {rule.ResultJsonKeyToCheckForSkipBoolean}={rule.Value}"
+            : null;
     }
 
     private async Task DispatchWorkflowResultHandler(Workflow workflow)
@@ -368,10 +488,30 @@ public class WorkflowService(
         var run = await context.AnalysisRuns.FirstOrDefaultAsync(r =>
             r.Id == workflow.AnalysisRunId
         );
-        if (run is not null && run.Status == AnalysisRunStatus.Failed)
+        if (
+            run is not null
+            && (run.Status == AnalysisRunStatus.Failed || run.Status == AnalysisRunStatus.Skipped)
+        )
         {
             run.Status = AnalysisRunStatus.InProgress;
             run.CompletedAt = null;
+            run.SkipReason = null;
+        }
+
+        var skippedSiblings = await context
+            .Workflows.Where(w =>
+                w.AnalysisRunId == workflow.AnalysisRunId
+                && w.Id != workflow.Id
+                && w.Status == WorkflowStatus.Skipped
+            )
+            .ToListAsync();
+        foreach (var sibling in skippedSiblings)
+        {
+            sibling.Status = WorkflowStatus.Pending;
+            sibling.StartedAt = null;
+            sibling.CompletedAt = null;
+            sibling.ErrorMessage = null;
+            sibling.ResultJson = null;
         }
 
         await context.SaveChangesAsync();

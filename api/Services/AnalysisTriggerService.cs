@@ -288,6 +288,9 @@ public class AnalysisTriggerService(
         await context.SaveChangesAsync();
 
         // First step takes all input records' blobs; subsequent steps chain on previous output.
+        // Clone every BlobStorageLocation assigned to a workflow's inputs so each Workflow owns its
+        // own copies — sharing instances across owners (InspectionRecord, sibling Workflows, the
+        // current workflow's own output) confuses EF's owned-entity tracking.
         var currentInputs = inspectionRecords.Select(r => r.BlobStorageLocation).ToList();
 
         for (var i = 0; i < workflowChain.Count; i++)
@@ -300,7 +303,7 @@ public class AnalysisTriggerService(
                 AnalysisRun = run,
                 StepNumber = stepNumber,
                 WorkflowType = workflowType,
-                InputBlobStorageLocations = currentInputs,
+                InputBlobStorageLocations = currentInputs.Select(b => b.Clone()).ToList(),
             };
             run.Workflows.Add(workflow);
 
@@ -312,8 +315,12 @@ public class AnalysisTriggerService(
             );
             workflow.OutputBlobStorageLocation = outputLocation;
 
-            // Next step gets the single output of this step.
-            currentInputs = [outputLocation];
+            // Gating steps don't transform the pipeline payload; the next step
+            // keeps consuming the previous non-gating step's output.
+            if (!_options.Workflows[workflowType].IsGate)
+            {
+                currentInputs = [outputLocation];
+            }
         }
 
         await context.SaveChangesAsync();

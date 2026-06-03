@@ -10,6 +10,7 @@ public enum AnalysisRunStatus
     InProgress,
     Succeeded,
     Failed,
+    Skipped,
 }
 
 public class AnalysisRun
@@ -32,6 +33,8 @@ public class AnalysisRun
     public DateTime? StartedAt { get; set; }
 
     public DateTime? CompletedAt { get; set; }
+
+    public string? SkipReason { get; set; }
 
     public List<Workflow> Workflows { get; set; } = [];
 }

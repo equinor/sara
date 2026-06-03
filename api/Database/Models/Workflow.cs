@@ -11,6 +11,7 @@ public enum WorkflowStatus
     InProgress,
     Succeeded,
     Failed,
+    Skipped,
 }
 
 [Owned]
@@ -26,6 +27,14 @@ public class BlobStorageLocation
     public required string BlobName { get; set; }
 
     public override string ToString() => $"{StorageAccount}/{BlobContainer}/{BlobName}";
+
+    public BlobStorageLocation Clone() =>
+        new()
+        {
+            StorageAccount = StorageAccount,
+            BlobContainer = BlobContainer,
+            BlobName = BlobName,
+        };
 }
 
 public class Workflow

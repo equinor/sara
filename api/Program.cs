@@ -64,9 +64,14 @@ else
 builder.Services.Configure<AzureAdOptions>(builder.Configuration.GetSection("AzureAd"));
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email"));
 builder.Services.Configure<EndpointConfig>(builder.Configuration.GetSection("EndpointConfig"));
-builder.Services.Configure<AnalysisOptions>(
-    builder.Configuration.GetSection(AnalysisOptions.SectionName)
-);
+builder
+    .Services.AddOptions<AnalysisOptions>()
+    .Bind(builder.Configuration.GetSection(AnalysisOptions.SectionName))
+    .Validate(
+        options => options.Workflows.Values.All(w => w.IsGate == (w.SkipChainIf is not null)),
+        "Invalid Analysis.Workflows configuration: IsGate and SkipChainIf must both be set or both be unset on every workflow."
+    )
+    .ValidateOnStart();
 
 builder.Services.AddScoped<IThermalReferenceMetadataService, ThermalReferenceMetadataService>();
 builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
