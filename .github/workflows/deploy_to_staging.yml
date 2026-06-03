@@ -25,7 +25,6 @@ jobs:
       environment: Staging
       checkout_ref: ${{ github.event.release.tag_name }}
       working_directory: api
-      azure_client_id: ${{ secrets.CLIENTID }}
       azure_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
   build-and-push-latest-release-images-to-ghcr:
