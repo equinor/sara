@@ -233,4 +233,43 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
         var request = Assert.Single(_factory.ArgoHttpHandler.Requests);
         Assert.Equal(_factory.TriggerUrlFor(firstWorkflowType), request.RequestUri?.ToString());
     }
+
+    [Fact]
+    public async Task OnInspectionRecordCreated_GatedChain_PersistsDistinctBlobsPerWorkflow()
+    {
+        const string analysisName = "multi-step-gated-test";
+        var record = await _db.NewInspectionRecord();
+
+        await OnInspectionRecordCreatedInScope(
+            _db.NewInspectionRecordCreatedEvent(record, requiredAnalysis: [analysisName])
+        );
+
+        var analysis = await _context
+            .Analyses.Include(a => a.Runs)
+                .ThenInclude(r => r.Workflows)
+                    .ThenInclude(w => w.InputBlobStorageLocations)
+            .SingleAsync(a => a.Name == analysisName, TestContext.Current.CancellationToken);
+
+        var run = Assert.Single(analysis.Runs);
+        var workflows = run.Workflows.OrderBy(w => w.StepNumber).ToList();
+        Assert.Equal(3, workflows.Count);
+
+        // Each Workflow's owned inputs/output must be distinct CLR instances so EF's
+        // OwnsMany / OwnsOne tracking assigns rows to a single owner.
+        var allOwnedBlobs = workflows
+            .SelectMany(w => w.InputBlobStorageLocations)
+            .Concat(workflows.Select(w => w.OutputBlobStorageLocation!))
+            .ToList();
+        Assert.Equal(allOwnedBlobs.Count, allOwnedBlobs.Distinct().Count());
+
+        // Step 2 is the gate; step 3 must inherit step 2's input (the pre-gate output of step 1),
+        // not step 2's own output — and the blobs must be equal-by-value but distinct instances.
+        var preGateOutput = workflows[0].OutputBlobStorageLocation!;
+        var gateInput = Assert.Single(workflows[1].InputBlobStorageLocations);
+        var postGateInput = Assert.Single(workflows[2].InputBlobStorageLocations);
+        Assert.Equal(preGateOutput.BlobName, gateInput.BlobName);
+        Assert.Equal(preGateOutput.BlobName, postGateInput.BlobName);
+        Assert.NotSame(preGateOutput, gateInput);
+        Assert.NotSame(gateInput, postGateInput);
+    }
 }
