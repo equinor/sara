@@ -96,6 +96,19 @@ def trigger_fencilla():
     return jsonify({"message": "Fencilla triggered"}), 200
 
 
+@flask_app.route("/trigger-rain-drop", methods=["POST"])
+def trigger_rain_drop():
+    data = request.get_json()
+    print(f"Received rain-drop trigger: {data}")
+    workflow_id = _extract_workflow_id(data)
+    if workflow_id is None:
+        return jsonify({"error": "workflowId missing"}), 400
+
+    payload = {"rain": random.random() < 0.2}
+    threading.Thread(target=_run_workflow, args=(workflow_id, payload)).start()
+    return jsonify({"message": "Rain-drop triggered"}), 200
+
+
 @flask_app.route("/trigger-thermal-reading", methods=["POST"])
 def trigger_thermal_reading():
     data = request.get_json()
