@@ -365,19 +365,19 @@ public static class CustomServiceConfigurations
         IConfiguration configuration
     )
     {
-        var server =
-            configuration["Database:Server"]
-            ?? throw new InvalidOperationException(
+        var server = configuration["Database:Server"];
+        if (string.IsNullOrWhiteSpace(server))
+            throw new InvalidOperationException(
                 "Database:Server is required for AppRegIdentity auth."
             );
-        var postgresDb =
-            configuration["Database:PostgresDatabase"]
-            ?? throw new InvalidOperationException(
+        var postgresDb = configuration["Database:PostgresDatabase"];
+        if (string.IsNullOrWhiteSpace(postgresDb))
+            throw new InvalidOperationException(
                 "Database:PostgresDatabase is required for AppRegIdentity auth."
             );
-        var dbUser =
-            configuration["Database:User"]
-            ?? throw new InvalidOperationException(
+        var dbUser = configuration["Database:User"];
+        if (string.IsNullOrWhiteSpace(dbUser))
+            throw new InvalidOperationException(
                 "Database:User is required for AppRegIdentity auth."
             );
 
