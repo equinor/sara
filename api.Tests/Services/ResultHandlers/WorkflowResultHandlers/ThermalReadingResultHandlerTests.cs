@@ -147,7 +147,9 @@ public class ThermalReadingResultHandlerTests : IAsyncLifetime
         var run = await _db.NewAnalysisRun(analysis);
         var workflow = await _db.NewWorkflow(run, workflowType: "thermal-reading");
         const float temperature = 23.5f;
-        workflow.ResultJson = JsonSerializer.Serialize(new { temperature = temperature });
+        workflow.ResultJson = JsonSerializer.Serialize(
+            new { temperature = temperature, confidence = 1.00f }
+        );
         await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         using var scope = _factory.Services.CreateScope();

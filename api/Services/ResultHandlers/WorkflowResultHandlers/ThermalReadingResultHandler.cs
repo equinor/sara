@@ -77,7 +77,10 @@ public class ThermalReadingResultHandler(
 
         await mqttPublisherService.PublishSaraAnalysisResultAvailable(message);
 
-        await TryUploadTimeseries(workflow, inspectionRecord, result);
+        if (result?.Confidence is not null && result.Confidence > 0.99)
+        {
+            await TryUploadTimeseries(workflow, inspectionRecord, result);
+        }
     }
 
     private async Task TryUploadTimeseries(
