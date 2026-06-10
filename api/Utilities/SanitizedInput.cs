@@ -9,6 +9,11 @@ namespace api.Utilities
             return inputString.Replace("\n", "").Replace("\r", "");
         }
 
+        public static List<string> SanitizeUserInput(List<string> inputList)
+        {
+            return inputList.Select(SanitizeUserInput).ToList();
+        }
+
         public static FetchCO2MeasurementRequest SanitizeUserInput(
             FetchCO2MeasurementRequest inputQuery
         )

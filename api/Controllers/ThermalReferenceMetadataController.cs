@@ -1,6 +1,7 @@
 using api.Controllers.Models;
 using api.Database.Models;
 using api.Services;
+using api.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -70,6 +71,10 @@ public class ThermalReferenceMetadataController(
         [FromBody] ThermalReferenceMetadataInput input
     )
     {
+        input.InstallationCode = Sanitize.SanitizeUserInput(input.InstallationCode);
+        input.TagId = Sanitize.SanitizeUserInput(input.TagId);
+        input.InspectionDescription = Sanitize.SanitizeUserInput(input.InspectionDescription);
+
         try
         {
             var (imageLocation, polygonLocation) = BuildReferenceLocations(

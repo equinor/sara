@@ -182,6 +182,19 @@ public class InspectionRecordController(
         [FromBody] CreateInspectionRecordRequest request
     )
     {
+        request.RequiredAnalysis = request.RequiredAnalysis is not null
+            ? Sanitize.SanitizeUserInput(request.RequiredAnalysis)
+            : null;
+        if (request.AnalysisGroup is not null)
+        {
+            request.AnalysisGroup.AnalysisGroupId = Sanitize.SanitizeUserInput(
+                request.AnalysisGroup.AnalysisGroupId
+            );
+            request.AnalysisGroup.AnalysisGroupAnalyses = Sanitize.SanitizeUserInput(
+                request.AnalysisGroup.AnalysisGroupAnalyses
+            );
+        }
+
         try
         {
             var created = await inspectionRecordService.CreateAndTrigger(request);
