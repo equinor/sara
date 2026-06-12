@@ -38,23 +38,6 @@ public class AnalysisTriggerService(
             return;
         }
 
-        inspectionRecord.InspectionId = Sanitize.SanitizeUserInput(inspectionRecord.InspectionId);
-        if (createdEvent.AnalysisGroup is not null)
-        {
-            createdEvent.AnalysisGroup.AnalysisGroupId = Sanitize.SanitizeUserInput(
-                createdEvent.AnalysisGroup.AnalysisGroupId
-            );
-            createdEvent.AnalysisGroup.AnalysisGroupAnalyses = createdEvent
-                .AnalysisGroup.AnalysisGroupAnalyses.Select(Sanitize.SanitizeUserInput)
-                .ToList();
-        }
-        if (createdEvent.RequiredAnalysis is not null)
-        {
-            createdEvent.RequiredAnalysis = createdEvent
-                .RequiredAnalysis.Select(Sanitize.SanitizeUserInput)
-                .ToList();
-        }
-
         var analysisNames = GetAnalysesToRun(createdEvent, inspectionRecord);
         if (analysisNames.Count == 0)
         {
@@ -87,9 +70,9 @@ public class AnalysisTriggerService(
             {
                 logger.LogInformation(
                     "Deferring analysis '{AnalysisName}' for InspectionId: {InspectionId} — waiting for group {GroupId}",
-                    analysisName,
-                    inspectionRecord.InspectionId,
-                    group!.GroupId
+                    Sanitize.SanitizeUserInput(analysisName),
+                    Sanitize.SanitizeUserInput(inspectionRecord.InspectionId),
+                    Sanitize.SanitizeUserInput(group!.GroupId)
                 );
             }
             else
@@ -137,7 +120,7 @@ public class AnalysisTriggerService(
         {
             logger.LogInformation(
                 "No analyses to run for InspectionId: {InspectionId}",
-                inspectionRecord.InspectionId
+                Sanitize.SanitizeUserInput(inspectionRecord.InspectionId)
             );
             return [];
         }
@@ -150,8 +133,8 @@ public class AnalysisTriggerService(
             logger.LogError(
                 "Unknown analyses [{UnknownAnalyses}] for InspectionId: {InspectionId} — "
                     + "not found in configuration. These will be skipped.",
-                string.Join(", ", unknownNames),
-                inspectionRecord.InspectionId
+                Sanitize.SanitizeUserInput(string.Join(", ", unknownNames)),
+                Sanitize.SanitizeUserInput(inspectionRecord.InspectionId)
             );
         }
 
@@ -161,15 +144,15 @@ public class AnalysisTriggerService(
         {
             logger.LogInformation(
                 "No known analyses to run for InspectionId: {InspectionId}",
-                inspectionRecord.InspectionId
+                Sanitize.SanitizeUserInput(inspectionRecord.InspectionId)
             );
             return [];
         }
 
         logger.LogInformation(
             "Resolved analyses for InspectionId: {InspectionId}: {Analyses}",
-            inspectionRecord.InspectionId,
-            string.Join(", ", knownNames)
+            Sanitize.SanitizeUserInput(inspectionRecord.InspectionId),
+            Sanitize.SanitizeUserInput(string.Join(", ", knownNames))
         );
 
         return knownNames;
@@ -185,7 +168,6 @@ public class AnalysisTriggerService(
 
         if (existing is not null)
         {
-            existing.GroupId = Sanitize.SanitizeUserInput(existing.GroupId);
             return existing;
         }
 
@@ -202,7 +184,7 @@ public class AnalysisTriggerService(
 
         logger.LogInformation(
             "Created analysis group {GroupId} expecting {ExpectedSize} records, timeout at {TimeoutAt}",
-            group.GroupId,
+            Sanitize.SanitizeUserInput(group.GroupId),
             group.ExpectedSize,
             group.TimeoutAt
         );
@@ -255,7 +237,7 @@ public class AnalysisTriggerService(
         {
             logger.LogWarning(
                 "Analysis '{AnalysisName}' has an empty workflow chain",
-                analysis.Name
+                Sanitize.SanitizeUserInput(analysis.Name)
             );
             return;
         }
@@ -264,7 +246,7 @@ public class AnalysisTriggerService(
         {
             logger.LogWarning(
                 "TriggerAnalysis called for analysis '{AnalysisName}' with no InspectionRecords — skipping",
-                analysis.Name
+                Sanitize.SanitizeUserInput(analysis.Name)
             );
             return;
         }
@@ -368,7 +350,7 @@ public class AnalysisTriggerService(
         {
             logger.LogInformation(
                 "Group {GroupId}: {RecordCount}/{ExpectedSize} records received",
-                group.GroupId,
+                Sanitize.SanitizeUserInput(group.GroupId),
                 recordCount,
                 group.ExpectedSize
             );
@@ -380,8 +362,8 @@ public class AnalysisTriggerService(
 
         logger.LogInformation(
             "Group {GroupId} is complete. Triggering grouped analyses: {Analyses}",
-            group.GroupId,
-            string.Join(", ", groupedAnalyses)
+            Sanitize.SanitizeUserInput(group.GroupId),
+            Sanitize.SanitizeUserInput(string.Join(", ", groupedAnalyses))
         );
 
         // Resolve all records in the group up-front so we can pass them to TriggerAnalysis
@@ -423,12 +405,6 @@ public class AnalysisTriggerService(
         if (analysis is null)
         {
             throw new KeyNotFoundException($"Analysis with id {analysisId} not found");
-        }
-
-        analysis.Name = Sanitize.SanitizeUserInput(analysis.Name);
-        foreach (var record in analysis.InspectionRecords)
-        {
-            record.InspectionId = Sanitize.SanitizeUserInput(record.InspectionId);
         }
 
         if (!_options.Analyses.ContainsKey(analysis.Name))

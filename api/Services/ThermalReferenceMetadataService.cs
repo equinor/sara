@@ -92,10 +92,6 @@ public class ThermalReferenceMetadataService(
         BlobStorageLocation referencePolygonLocation
     )
     {
-        input.InstallationCode = Sanitize.SanitizeUserInput(input.InstallationCode);
-        input.TagId = Sanitize.SanitizeUserInput(input.TagId);
-        input.InspectionDescription = Sanitize.SanitizeUserInput(input.InspectionDescription);
-
         await ThrowIfDuplicateExists(input, null);
 
         var thermalReferenceMetadata = new ThermalReferenceMetadata
@@ -119,10 +115,6 @@ public class ThermalReferenceMetadataService(
         BlobStorageLocation referencePolygonLocation
     )
     {
-        input.InstallationCode = Sanitize.SanitizeUserInput(input.InstallationCode);
-        input.TagId = Sanitize.SanitizeUserInput(input.TagId);
-        input.InspectionDescription = Sanitize.SanitizeUserInput(input.InspectionDescription);
-
         var thermalReferenceMetadata =
             await ReadById(id)
             ?? throw new KeyNotFoundException(
@@ -169,9 +161,9 @@ public class ThermalReferenceMetadataService(
 
         _logger.LogWarning(
             "Thermal reference metadata already exists for InstallationCode {InstallationCode}, TagId {TagId}, InspectionDescription {InspectionDescription}",
-            input.InstallationCode,
-            input.TagId,
-            input.InspectionDescription
+            Sanitize.SanitizeUserInput(input.InstallationCode),
+            Sanitize.SanitizeUserInput(input.TagId),
+            Sanitize.SanitizeUserInput(input.InspectionDescription)
         );
         throw new ArgumentException(
             "A thermal reference metadata already exists for this installation code, tag ID, and inspection description"
