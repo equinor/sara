@@ -15,6 +15,17 @@ public static class CustomServiceConfigurations
 {
     private const string AzurePostgresScope = "https://ossrdbms-aad.database.windows.net/.default";
 
+    // The runtime credential is built once at startup and reused for both the
+    // initial Entra ID token probe (ConfigureDatabaseWithAppRegIdentity) and
+    // the periodic password provider attached to the Npgsql data source.
+    // Sharing a single ChainedTokenCredential instance lets MSAL deduplicate
+    // concurrent token requests on cold start, eliminates a duplicated
+    // "Runtime ClientSecretCredential configured" log line, and avoids a race
+    // where one of two parallel acquisitions is cancelled with
+    // OperationCanceledException.
+    private static readonly object s_runtimeCredentialLock = new();
+    private static TokenCredential? s_runtimeCredential;
+
     public static TokenCredential CreateCredential(IConfiguration config)
     {
         string? tenantId = config["AzureAd:TenantId"];
@@ -136,6 +147,21 @@ public static class CustomServiceConfigurations
     }
 
     public static TokenCredential CreateRuntimeCredential(IConfiguration config)
+    {
+        if (s_runtimeCredential is not null)
+            return s_runtimeCredential;
+
+        lock (s_runtimeCredentialLock)
+        {
+            if (s_runtimeCredential is not null)
+                return s_runtimeCredential;
+
+            s_runtimeCredential = BuildRuntimeCredential(config);
+            return s_runtimeCredential;
+        }
+    }
+
+    private static TokenCredential BuildRuntimeCredential(IConfiguration config)
     {
         string? tenantId = config["AzureAd:TenantId"];
         string? clientId = config["AzureAd:ClientId"];
