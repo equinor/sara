@@ -155,6 +155,19 @@ public static class CustomServiceConfigurations
         clientId ??= config["AZURE_CLIENT_ID"];
         clientSecret ??= config["AZURE_CLIENT_SECRET"];
 
+        // Detect AKS Workload Identity. The AZURE_FEDERATED_TOKEN_FILE env var
+        // is injected automatically by the Workload Identity webhook on pods
+        // labelled 'azure.workload.identity/use=true' and points at the
+        // projected service-account token. When it is present we know we're
+        // running in AKS with WI configured, so the ClientSecret entry in the
+        // chain is dead weight - WorkloadIdentityCredential will always
+        // succeed first. Skipping it eliminates duplicated startup log lines
+        // and the cold-start race where a parallel MSAL request is cancelled
+        // with OperationCanceledException.
+        bool runningWithWorkloadIdentity = !string.IsNullOrWhiteSpace(
+            Environment.GetEnvironmentVariable("AZURE_FEDERATED_TOKEN_FILE")
+        );
+
         string[] allowedAuthMethods =
             config.GetSection("AzureAd:AllowedAuthMethods").Get<string[]>() ?? [];
         if (allowedAuthMethods.Length == 0)
@@ -184,6 +197,15 @@ public static class CustomServiceConfigurations
             }
             else if (string.Equals(method, "ClientSecret", StringComparison.OrdinalIgnoreCase))
             {
+                if (runningWithWorkloadIdentity)
+                {
+                    Console.WriteLine(
+                        "Runtime credential: AZURE_FEDERATED_TOKEN_FILE is present, "
+                            + "skipping ClientSecretCredential (WorkloadIdentity will be used)."
+                    );
+                    continue;
+                }
+
                 if (
                     !string.IsNullOrWhiteSpace(tenantId)
                     && !string.IsNullOrWhiteSpace(clientId)
