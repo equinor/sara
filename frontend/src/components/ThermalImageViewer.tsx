@@ -1,5 +1,5 @@
 import { useMemo, useRef, useEffect } from "react";
-import { Stage, Layer, Image as KonvaImage } from "react-konva";
+import { Stage, Layer, Image as KonvaImage, Line } from "react-konva";
 import styled from "styled-components";
 import { Typography } from "@equinor/eds-core-react";
 import { applyColormap, createColorBarCanvas } from "../utils/thermalColormap";
@@ -12,6 +12,8 @@ export interface ThermalImageViewerProps {
   maxTemperature: number;
   /** Maximum display width in CSS pixels. The image scales to fit. */
   maxDisplayWidth?: number;
+  /** Polygon coordinates in original image pixel space ([[x,y], ...]). */
+  polygon?: number[][];
 }
 
 const Container = styled.div`
@@ -70,6 +72,7 @@ export default function ThermalImageViewer({
   minTemperature,
   maxTemperature,
   maxDisplayWidth = 800,
+  polygon,
 }: ThermalImageViewerProps) {
   const thermalCanvas = useMemo(
     () => applyColormap(temperatures, width, height, minTemperature, maxTemperature),
@@ -102,6 +105,15 @@ export default function ThermalImageViewer({
             width={displayWidth}
             height={displayHeight}
           />
+          {polygon && polygon.length > 0 && (
+            <Line
+              points={polygon.flat().map((v) => v * scale)}
+              closed
+              stroke="lime"
+              strokeWidth={2}
+              fill="rgba(0, 255, 0, 0.15)"
+            />
+          )}
         </Layer>
       </Stage>
 

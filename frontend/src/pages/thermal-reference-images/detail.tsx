@@ -13,6 +13,7 @@ import {
   updateThermalReferenceMetadata,
   deleteThermalReferenceMetadata,
   getThermalReferenceImageData,
+  getThermalReferencePolygonData,
   type ThermalReferenceMetadata,
   type ThermalReferenceMetadataInput,
   type ThermalImageData,
@@ -94,6 +95,8 @@ export default function ThermalReferenceMetadataDetailPage() {
   );
   const [imageLoading, setImageLoading] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
+  const [polygon, setPolygon] = useState<number[][] | null>(null);
+  const [polygonError, setPolygonError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!id) return;
@@ -135,6 +138,26 @@ export default function ThermalReferenceMetadataDetailPage() {
       })
       .finally(() => {
         if (!cancelled) setImageLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    setPolygon(null);
+    setPolygonError(null);
+    getThermalReferencePolygonData(id)
+      .then((result) => {
+        if (!cancelled) setPolygon(result);
+      })
+      .catch((e) => {
+        if (!cancelled)
+          setPolygonError(
+            e instanceof Error ? e.message : "Failed to load reference polygon"
+          );
       });
     return () => {
       cancelled = true;
@@ -249,6 +272,11 @@ export default function ThermalReferenceMetadataDetailPage() {
             {imageError}
           </Typography>
         )}
+        {polygonError && (
+          <Typography variant="body_short" style={{ color: "#eb0000" }}>
+            {polygonError}
+          </Typography>
+        )}
         {thermalImage && (
           <ThermalImageViewer
             temperatures={thermalImage.temperatures}
@@ -256,6 +284,7 @@ export default function ThermalReferenceMetadataDetailPage() {
             height={thermalImage.height}
             minTemperature={thermalImage.minTemperature}
             maxTemperature={thermalImage.maxTemperature}
+            polygon={polygon ?? undefined}
           />
         )}
       </StyledImageSection>

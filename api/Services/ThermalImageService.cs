@@ -15,6 +15,8 @@ public record ThermalImageData(
 public interface IThermalImageService
 {
     Task<ThermalImageData> GetThermalImageDataAsync(BlobStorageLocation location);
+
+    Task<string> GetPolygonJsonAsync(BlobStorageLocation location);
 }
 
 public class ThermalImageService(IBlobStorageService blobStorageService) : IThermalImageService
@@ -41,6 +43,13 @@ public class ThermalImageService(IBlobStorageService blobStorageService) : ITher
         MemoryMarshal.AsBytes(temperatures.AsSpan()).CopyTo(floatBytes);
 
         return new ThermalImageData(floatBytes, width, height, minTemp, maxTemp);
+    }
+
+    public async Task<string> GetPolygonJsonAsync(BlobStorageLocation location)
+    {
+        using var stream = await blobStorageService.DownloadBlobAsync(location);
+        using var reader = new StreamReader(stream, System.Text.Encoding.UTF8);
+        return await reader.ReadToEndAsync();
     }
 
     /// <summary>
