@@ -37,16 +37,18 @@ if (builder.Configuration.GetSection("KeyVault").GetValue<bool>("UseKeyVault"))
     }
 }
 
-// Register the runtime credential (ClientSecret / WorkloadIdentity) as a singleton.
-builder.Services.AddSingleton<TokenCredential>(
-    CustomServiceConfigurations.CreateRuntimeCredential(builder.Configuration)
-);
+var runtimeCredential = CustomServiceConfigurations.CreateRuntimeCredential(builder.Configuration);
+builder.Services.AddSingleton<TokenCredential>(runtimeCredential);
 
 var applicationName = builder.Configuration["AppName"] ?? "SaraBackend";
 
 builder.ConfigureLogger();
 
-builder.Services.ConfigureDatabase(builder.Configuration, builder.Environment.EnvironmentName);
+builder.Services.ConfigureDatabase(
+    builder.Configuration,
+    builder.Environment.EnvironmentName,
+    runtimeCredential
+);
 builder.Services.ConfigureMQTT();
 
 var openTelemetryEnabled = builder.Configuration.GetValue<bool?>("OpenTelemetry:Enabled") ?? false;

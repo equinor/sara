@@ -231,7 +231,8 @@ public static class CustomServiceConfigurations
     public static IServiceCollection ConfigureDatabase(
         this IServiceCollection services,
         IConfiguration configuration,
-        string environmentName
+        string environmentName,
+        TokenCredential runtimeCredential
     )
     {
         Console.WriteLine("Configuring Database...");
@@ -304,7 +305,11 @@ public static class CustomServiceConfigurations
                         Console.WriteLine(
                             "Trying AppRegIdentity (Entra ID token) for PostgreSQL..."
                         );
-                        ConfigureDatabaseWithAppRegIdentity(services, configuration);
+                        ConfigureDatabaseWithAppRegIdentity(
+                            services,
+                            configuration,
+                            runtimeCredential
+                        );
                         Console.WriteLine("AppRegIdentity configured successfully.");
                         configured = true;
                     }
@@ -362,7 +367,8 @@ public static class CustomServiceConfigurations
 
     private static void ConfigureDatabaseWithAppRegIdentity(
         IServiceCollection services,
-        IConfiguration configuration
+        IConfiguration configuration,
+        TokenCredential runtimeCredential
     )
     {
         var server = configuration["Database:Server"];
@@ -381,15 +387,13 @@ public static class CustomServiceConfigurations
                 "Database:User is required for AppRegIdentity auth."
             );
 
-        var credential = CreateRuntimeCredential(configuration);
-
         Console.WriteLine("Requesting Entra ID token via credential...");
         var tokenRequestContext = new TokenRequestContext([AzurePostgresScope]);
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
         AccessToken token;
         try
         {
-            token = credential.GetToken(tokenRequestContext, cts.Token);
+            token = runtimeCredential.GetToken(tokenRequestContext, cts.Token);
         }
         catch (OperationCanceledException oce)
         {
@@ -415,14 +419,13 @@ public static class CustomServiceConfigurations
                     {
                         o.ConfigureDataSource(ds =>
                         {
-                            var dsCredential = CreateRuntimeCredential(configuration);
                             ds.UsePeriodicPasswordProvider(
                                 async (_, ct) =>
                                 {
                                     using var tokenCts = new CancellationTokenSource(
                                         TimeSpan.FromSeconds(5)
                                     );
-                                    var accessToken = await dsCredential.GetTokenAsync(
+                                    var accessToken = await runtimeCredential.GetTokenAsync(
                                         new TokenRequestContext([AzurePostgresScope]),
                                         CancellationTokenSource
                                             .CreateLinkedTokenSource(ct, tokenCts.Token)
