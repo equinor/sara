@@ -468,3 +468,11 @@ export async function getThermalReferenceImageData(
     ),
   };
 }
+
+export async function getThermalReferencePolygonData(
+  id: string
+): Promise<number[][]> {
+  return apiFetch(
+    apiUrl(`/api/ThermalReferenceMetadata/id/${encodeURIComponent(id)}/polygon`)
+  );
+}

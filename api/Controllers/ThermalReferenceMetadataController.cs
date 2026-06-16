@@ -2,6 +2,7 @@ using api.Controllers.Models;
 using api.Database.Models;
 using api.Services;
 using api.Utilities;
+using Azure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -205,12 +206,52 @@ public class ThermalReferenceMetadataController(
 
             return File(result.FloatBytes, "application/octet-stream");
         }
+        catch (RequestFailedException ex) when (ex.Status == 404)
+        {
+            logger.LogWarning(ex, "Reference image blob not found for id {Id}", id);
+            return NotFound("The reference image blob could not be found in storage");
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error generating thermal reference image for id {Id}", id);
             return StatusCode(
                 StatusCodes.Status500InternalServerError,
                 "An error occurred while generating the thermal reference image"
+            );
+        }
+    }
+
+    [HttpGet("id/{id}/polygon")]
+    [Authorize(Roles = Role.Any)]
+    [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> GetThermalReferencePolygon([FromRoute] Guid id)
+    {
+        try
+        {
+            var metadata = await thermalReferenceMetadataService.ReadById(id);
+            if (metadata is null)
+            {
+                return NotFound($"Could not find thermal reference metadata with id {id}");
+            }
+
+            var json = await thermalImageService.GetPolygonJsonAsync(
+                metadata.ReferencePolygonBlobStorageLocation
+            );
+
+            return Content(json, "application/json");
+        }
+        catch (RequestFailedException ex) when (ex.Status == 404)
+        {
+            logger.LogWarning(ex, "Reference polygon blob not found for id {Id}", id);
+            return NotFound("The reference polygon blob could not be found in storage");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error retrieving reference polygon for id {Id}", id);
+            return StatusCode(
+                StatusCodes.Status500InternalServerError,
+                "An error occurred while retrieving the reference polygon"
             );
         }
     }
