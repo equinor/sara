@@ -476,3 +476,58 @@ export async function getThermalReferencePolygonData(
     apiUrl(`/api/ThermalReferenceMetadata/id/${encodeURIComponent(id)}/polygon`)
   );
 }
+
+// --- Thermal Inspection Records ---
+
+export async function getThermalInspectionRecords(
+  pageNumber = 1,
+  pageSize = 20
+): Promise<PagedResponse<InspectionRecord>> {
+  const q = pagedQuery(pageNumber, pageSize);
+  return apiFetch(apiUrl(`/api/inspection-record/thermal?${q}`));
+}
+
+export async function getInspectionRecordThermalImage(
+  id: string
+): Promise<ThermalImageData> {
+  const token = await getAccessToken();
+  const response = await fetch(
+    apiUrl(`/api/inspection-record/id/${encodeURIComponent(id)}/thermal-image`),
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`${response.status}: ${text}`);
+  }
+  const buffer = await response.arrayBuffer();
+  return {
+    temperatures: new Float32Array(buffer),
+    width: parseInt(response.headers.get("X-Image-Width") ?? "0", 10),
+    height: parseInt(response.headers.get("X-Image-Height") ?? "0", 10),
+    minTemperature: parseFloat(
+      response.headers.get("X-Temperature-Min") ?? "0"
+    ),
+    maxTemperature: parseFloat(
+      response.headers.get("X-Temperature-Max") ?? "0"
+    ),
+  };
+}
+
+export interface CreateFromInspectionRecordInput {
+  inspectionRecordId: string;
+  tagId: string;
+  installationCode: string;
+  inspectionDescription: string;
+  polygon: number[][];
+}
+
+export async function createThermalReferenceFromInspectionRecord(
+  input: CreateFromInspectionRecordInput
+): Promise<ThermalReferenceMetadata> {
+  return apiFetch(apiUrl("/api/ThermalReferenceMetadata/from-inspection-record"), {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}

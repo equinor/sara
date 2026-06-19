@@ -2,6 +2,7 @@ using api.Controllers.Models;
 using api.Database.Models;
 using api.Services;
 using api.Utilities;
+using Azure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,7 +12,8 @@ namespace api.Controllers;
 [Route("inspection-record")]
 public class InspectionRecordController(
     ILogger<InspectionRecordController> logger,
-    IInspectionRecordService inspectionRecordService
+    IInspectionRecordService inspectionRecordService,
+    IThermalImageService thermalImageService
 ) : ControllerBase
 {
     // Workflow types whose output forms the visualization base layer for an
@@ -184,6 +186,122 @@ public class InspectionRecordController(
         {
             logger.LogError(e, "Error fetching visualization location for inspection id");
             return StatusCode(StatusCodes.Status500InternalServerError, "Internal server error");
+        }
+    }
+
+    [HttpGet]
+    [Authorize(Roles = Role.Any)]
+    [Route("thermal")]
+    [ProducesResponseType(typeof(PagedResponse<InspectionRecord>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<PagedResponse<InspectionRecord>>> GetThermalInspectionRecords(
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 20
+    )
+    {
+        try
+        {
+            var page = await inspectionRecordService.GetThermalInspectionRecords(
+                pageNumber,
+                pageSize
+            );
+            return Ok(
+                new PagedResponse<InspectionRecord>
+                {
+                    Items = page,
+                    PageNumber = page.CurrentPage,
+                    PageSize = page.PageSize,
+                    TotalCount = page.TotalCount,
+                    TotalPages = page.TotalPages,
+                }
+            );
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Error during GET of thermal inspection records");
+            return StatusCode(
+                StatusCodes.Status500InternalServerError,
+                "An error occurred while retrieving thermal inspection records"
+            );
+        }
+    }
+
+    [HttpGet]
+    [Authorize(Roles = Role.Any)]
+    [Route("id/{id:guid}/thermal-image")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult> GetThermalImage([FromRoute] Guid id)
+    {
+        try
+        {
+            var record = await inspectionRecordService.ReadById(id);
+            if (record is null)
+            {
+                return NotFound($"Could not find inspection record with id {id}");
+            }
+
+            var thermalReadingWorkflow = record
+                .Analyses.SelectMany(a => a.Runs)
+                .SelectMany(r => r.Workflows)
+                .Where(w =>
+                    w.WorkflowType.Equals("thermal-reading", StringComparison.OrdinalIgnoreCase)
+                )
+                .OrderByDescending(w => w.CompletedAt ?? w.StartedAt ?? DateTime.MinValue)
+                .FirstOrDefault();
+
+            if (thermalReadingWorkflow is null)
+            {
+                return NotFound($"No thermal-reading workflow found for inspection record {id}");
+            }
+
+            if (
+                thermalReadingWorkflow.InputBlobStorageLocations is null
+                || thermalReadingWorkflow.InputBlobStorageLocations.Count == 0
+            )
+            {
+                return NotFound(
+                    $"Thermal-reading workflow has no input blob location for inspection record {id}"
+                );
+            }
+
+            var preprocessedLocation = thermalReadingWorkflow.InputBlobStorageLocations[0];
+            var result = await thermalImageService.GetThermalImageDataAsync(preprocessedLocation);
+
+            Response.Headers["X-Image-Width"] = result.Width.ToString();
+            Response.Headers["X-Image-Height"] = result.Height.ToString();
+            Response.Headers["X-Temperature-Min"] = result.MinTemperature.ToString(
+                "G9",
+                System.Globalization.CultureInfo.InvariantCulture
+            );
+            Response.Headers["X-Temperature-Max"] = result.MaxTemperature.ToString(
+                "G9",
+                System.Globalization.CultureInfo.InvariantCulture
+            );
+            Response.Headers.Append(
+                "Access-Control-Expose-Headers",
+                "X-Image-Width, X-Image-Height, X-Temperature-Min, X-Temperature-Max"
+            );
+
+            return File(result.FloatBytes, "application/octet-stream");
+        }
+        catch (RequestFailedException ex) when (ex.Status == 404)
+        {
+            logger.LogWarning(
+                ex,
+                "Preprocessed thermal image blob not found for inspection record {Id}",
+                id
+            );
+            return NotFound("The preprocessed thermal image blob could not be found in storage");
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Error generating thermal image for inspection record {Id}", id);
+            return StatusCode(
+                StatusCodes.Status500InternalServerError,
+                "An error occurred while generating the thermal image"
+            );
         }
     }
 
