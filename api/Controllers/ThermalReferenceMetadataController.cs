@@ -8,12 +8,22 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace api.Controllers;
 
+public class CreateFromInspectionRecordRequest
+{
+    public required Guid InspectionRecordId { get; set; }
+    public required string TagId { get; set; }
+    public required string InstallationCode { get; set; }
+    public required string InspectionDescription { get; set; }
+    public required double[][] Polygon { get; set; }
+}
+
 [ApiController]
 [Route("[controller]")]
 public class ThermalReferenceMetadataController(
     ILogger<ThermalReferenceMetadataController> logger,
     IThermalReferenceMetadataService thermalReferenceMetadataService,
     IThermalImageService thermalImageService,
+    IInspectionRecordService inspectionRecordService,
     IConfiguration configuration
 ) : ControllerBase
 {
@@ -100,6 +110,89 @@ public class ThermalReferenceMetadataController(
             return StatusCode(
                 StatusCodes.Status500InternalServerError,
                 "An error occurred while creating the thermal reference metadata"
+            );
+        }
+    }
+
+    [HttpPost("from-inspection-record")]
+    [Authorize(Roles = Role.Any)]
+    [ProducesResponseType(typeof(ThermalReferenceMetadata), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<ThermalReferenceMetadata>> CreateFromInspectionRecord(
+        [FromBody] CreateFromInspectionRecordRequest request
+    )
+    {
+        request.TagId = Sanitize.SanitizeUserInput(request.TagId);
+        request.InstallationCode = Sanitize.SanitizeUserInput(request.InstallationCode);
+        request.InspectionDescription = Sanitize.SanitizeUserInput(request.InspectionDescription);
+
+        const int MaxPolygonVertices = 100;
+        if (request.Polygon.Length is < 3 or > MaxPolygonVertices)
+        {
+            return BadRequest($"Polygon must have between 3 and {MaxPolygonVertices} vertices.");
+        }
+        if (
+            request.Polygon.Any(vertex =>
+                vertex is null
+                || vertex.Length != 2
+                || !double.IsFinite(vertex[0])
+                || !double.IsFinite(vertex[1])
+            )
+        )
+        {
+            return BadRequest("Each polygon vertex must have exactly two finite coordinates.");
+        }
+
+        try
+        {
+            var record = await inspectionRecordService.ReadById(request.InspectionRecordId);
+            if (record is null)
+            {
+                return NotFound(
+                    $"Could not find inspection record with id {request.InspectionRecordId}"
+                );
+            }
+
+            var thermalReferenceMetadata =
+                await thermalReferenceMetadataService.CreateFromInspectionRecord(
+                    record,
+                    request.TagId,
+                    request.InstallationCode,
+                    request.InspectionDescription,
+                    request.Polygon
+                );
+            return Ok(thermalReferenceMetadata);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            logger.LogWarning(ex, "Resource not found during create from inspection record");
+            return NotFound(ex.Message);
+        }
+        catch (ArgumentException ex)
+        {
+            logger.LogWarning(
+                ex,
+                "Conflicting thermal reference metadata create from inspection record"
+            );
+            return Conflict(ex.Message);
+        }
+        catch (RequestFailedException ex) when (ex.Status == 404)
+        {
+            logger.LogWarning(ex, "Blob not found during create from inspection record");
+            return NotFound("The source blob could not be found in storage");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(
+                ex,
+                "Error during creation of thermal reference metadata from inspection record"
+            );
+            return StatusCode(
+                StatusCodes.Status500InternalServerError,
+                "An error occurred while creating the thermal reference metadata from inspection record"
             );
         }
     }

@@ -24,6 +24,11 @@ public interface IInspectionRecordService
         InspectionRecordParameters parameters
     );
 
+    public Task<PagedList<InspectionRecord>> GetThermalInspectionRecords(
+        int pageNumber,
+        int pageSize
+    );
+
     public Task Delete(Guid id);
 }
 
@@ -176,6 +181,33 @@ public class InspectionRecordService(
         );
 
         return created;
+    }
+
+    public async Task<PagedList<InspectionRecord>> GetThermalInspectionRecords(
+        int pageNumber,
+        int pageSize
+    )
+    {
+        var query = context
+            .InspectionRecords.Include(ir => ir.Analyses)
+                .ThenInclude(a => a.Runs)
+                    .ThenInclude(r => r.Workflows)
+            .Where(ir =>
+                ir.Analyses.Any(a =>
+                    a.Runs.Any(r => r.Workflows.Any(w => w.WorkflowType == "thermal-reading"))
+                )
+                && ir.Analyses.Any(a =>
+                    a.Runs.Any(r =>
+                        r.Workflows.Any(w =>
+                            w.WorkflowType == "anonymizer" && w.Status == WorkflowStatus.Succeeded
+                        )
+                    )
+                )
+            )
+            .OrderByDescending(ir => ir.CreatedAt)
+            .ThenByDescending(ir => ir.Id);
+
+        return await PagedList<InspectionRecord>.ToPagedListAsync(query, pageNumber, pageSize);
     }
 
     public async Task Delete(Guid id)

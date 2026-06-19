@@ -1,3 +1,4 @@
+using System.Text.Json;
 using api.Database.Context;
 using api.Database.Models;
 using api.Utilities;
@@ -49,11 +50,21 @@ public interface IThermalReferenceMetadataService
     );
 
     public Task RemoveThermalReferenceMetadata(Guid id);
+
+    public Task<ThermalReferenceMetadata> CreateFromInspectionRecord(
+        InspectionRecord record,
+        string tagId,
+        string installationCode,
+        string inspectionDescription,
+        double[][] polygon
+    );
 }
 
 public class ThermalReferenceMetadataService(
     SaraDbContext context,
-    ILogger<ThermalReferenceMetadataService> logger
+    ILogger<ThermalReferenceMetadataService> logger,
+    IBlobStorageService blobStorageService,
+    IConfiguration configuration
 ) : IThermalReferenceMetadataService
 {
     private readonly ILogger<ThermalReferenceMetadataService> _logger = logger;
@@ -144,6 +155,104 @@ public class ThermalReferenceMetadataService(
 
         context.ThermalReferenceMetadata.Remove(thermalReferenceMetadata);
         await context.SaveChangesAsync();
+    }
+
+    public async Task<ThermalReferenceMetadata> CreateFromInspectionRecord(
+        InspectionRecord record,
+        string tagId,
+        string installationCode,
+        string inspectionDescription,
+        double[][] polygon
+    )
+    {
+        var preprocessedLocation = GetPreprocessedBlobLocation(record);
+        var (imageDestination, polygonDestination) = BuildReferenceLocations(
+            tagId,
+            inspectionDescription,
+            preprocessedLocation.BlobContainer
+        );
+
+        var input = new ThermalReferenceMetadataInput
+        {
+            TagId = tagId,
+            InstallationCode = installationCode,
+            InspectionDescription = inspectionDescription,
+            ReferenceBlobStorageDirectory = new BlobDirectoryInput
+            {
+                BlobContainer = imageDestination.BlobContainer,
+                BlobName = $"{tagId}_{inspectionDescription}",
+            },
+        };
+
+        await ThrowIfDuplicateExists(input, null);
+
+        await blobStorageService.CopyBlobAsync(preprocessedLocation, imageDestination);
+        await UploadPolygonAsync(polygon, polygonDestination);
+
+        return await CreateThermalReferenceMetadata(input, imageDestination, polygonDestination);
+    }
+
+    private static BlobStorageLocation GetPreprocessedBlobLocation(InspectionRecord record)
+    {
+        var thermalReadingWorkflow =
+            record
+                .Analyses.SelectMany(a => a.Runs)
+                .SelectMany(r => r.Workflows)
+                .Where(w =>
+                    w.WorkflowType.Equals("thermal-reading", StringComparison.OrdinalIgnoreCase)
+                )
+                .OrderByDescending(w => w.CompletedAt ?? w.StartedAt ?? DateTime.MinValue)
+                .FirstOrDefault()
+            ?? throw new KeyNotFoundException(
+                $"No thermal-reading workflow found for inspection record {record.Id}"
+            );
+
+        if (
+            thermalReadingWorkflow.InputBlobStorageLocations is null
+            || thermalReadingWorkflow.InputBlobStorageLocations.Count == 0
+        )
+        {
+            throw new KeyNotFoundException("Thermal-reading workflow has no input blob location");
+        }
+
+        return thermalReadingWorkflow.InputBlobStorageLocations[0];
+    }
+
+    private (
+        BlobStorageLocation imageLocation,
+        BlobStorageLocation polygonLocation
+    ) BuildReferenceLocations(string tagId, string inspectionDescription, string blobContainer)
+    {
+        var storageAccount =
+            configuration["Storage:ThermalReferenceStorageAccount"]
+            ?? throw new InvalidOperationException(
+                "Storage:ThermalReferenceStorageAccount is not configured"
+            );
+
+        var directory = $"{tagId}_{inspectionDescription}";
+
+        var imageLocation = new BlobStorageLocation
+        {
+            StorageAccount = storageAccount,
+            BlobContainer = blobContainer,
+            BlobName = $"{directory}/reference_image.tiff",
+        };
+
+        var polygonLocation = new BlobStorageLocation
+        {
+            StorageAccount = storageAccount,
+            BlobContainer = blobContainer,
+            BlobName = $"{directory}/reference_polygon.json",
+        };
+
+        return (imageLocation, polygonLocation);
+    }
+
+    private async Task UploadPolygonAsync(double[][] polygon, BlobStorageLocation destination)
+    {
+        var polygonJson = JsonSerializer.Serialize(polygon);
+        using var polygonStream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(polygonJson));
+        await blobStorageService.UploadBlobAsync(destination, polygonStream, "application/json");
     }
 
     private async Task ThrowIfDuplicateExists(ThermalReferenceMetadataInput input, Guid? existingId)
