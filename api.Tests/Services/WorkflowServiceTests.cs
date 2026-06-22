@@ -116,6 +116,25 @@ public class WorkflowServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task TriggerWorkflow_PayloadIncludesWorkflowType()
+    {
+        const string workflowType = "test-workflow-1";
+        var analysis = await _db.NewAnalysis();
+        var run = await _db.NewAnalysisRun(analysis);
+        var workflow = await _db.NewWorkflow(
+            run,
+            workflowType: workflowType,
+            outputBlobStorageLocation: _db.NewBlobStorageLocation()
+        );
+
+        await TriggerWorkflowInScope(workflow.Id);
+
+        var request = Assert.Single(_factory.ArgoHttpHandler.Requests);
+        using var doc = JsonDocument.Parse(request.Body);
+        Assert.Equal(workflowType, doc.RootElement.GetProperty("workflowType").GetString());
+    }
+
+    [Fact]
     public async Task TriggerWorkflow_HappyPathWithEnricher_PayloadIncludesEnrichedFields()
     {
         const string installationCode = "HUA";
