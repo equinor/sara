@@ -90,10 +90,12 @@ public class AnalysisTriggerService(
     /// <summary>
     /// Returns the configured analyses to run for an InspectionRecord.
     /// Analyses come from the event's explicit <c>RequiredAnalysis</c> when
-    /// set; otherwise from <c>DefaultAnalysisByFileExtension</c>. Names that
-    /// are not present in configuration are dropped with an error log so
-    /// known analyses can still proceed independently. Returns an empty list
-    /// when no analyses apply.
+    /// set; otherwise from <c>DefaultAnalysisByInspectionTypeAndExtension</c>
+    /// (matched on InspectionType + file extension), falling back to
+    /// <c>DefaultAnalysisByFileExtension</c>. Names that are not present in
+    /// configuration are dropped with an error log so known analyses can
+    /// still proceed independently. Returns an empty list when no analyses
+    /// apply.
     /// </summary>
     private List<string> GetAnalysesToRun(
         InspectionRecordCreatedEvent createdEvent,
@@ -109,11 +111,31 @@ public class AnalysisTriggerService(
         {
             var blobName = inspectionRecord.BlobStorageLocation.BlobName;
             var extension = Path.GetExtension(blobName)?.ToLowerInvariant();
-            requestedNames =
+            var inspectionType = inspectionRecord.InspectionType;
+
+            if (
                 extension is not null
-                && _options.DefaultAnalysisByFileExtension.TryGetValue(extension, out var defaults)
-                    ? defaults
-                    : [];
+                && inspectionType is not null
+                && _options.DefaultAnalysisByInspectionTypeAndExtension.TryGetValue(
+                    inspectionType,
+                    out var byExtension
+                )
+                && byExtension.TryGetValue(extension, out var typedDefaults)
+            )
+            {
+                requestedNames = typedDefaults;
+            }
+            else
+            {
+                requestedNames =
+                    extension is not null
+                    && _options.DefaultAnalysisByFileExtension.TryGetValue(
+                        extension,
+                        out var defaults
+                    )
+                        ? defaults
+                        : [];
+            }
         }
 
         if (requestedNames.Count == 0)
