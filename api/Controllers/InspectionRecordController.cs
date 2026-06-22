@@ -14,6 +14,16 @@ public class InspectionRecordController(
     IInspectionRecordService inspectionRecordService
 ) : ControllerBase
 {
+    // Workflow types whose output forms the visualization base layer for an
+    // inspection (anonymized image or raw passthrough). Newest succeeded one wins.
+    private static readonly HashSet<string> VisualizationWorkflowTypes = new(
+        StringComparer.OrdinalIgnoreCase
+    )
+    {
+        "anonymizer",
+        "copy-raw-to-visualized",
+    };
+
     [HttpGet]
     [Authorize(Roles = Role.Any)]
     [ProducesResponseType(typeof(PagedResponse<InspectionRecord>), StatusCodes.Status200OK)]
@@ -105,7 +115,7 @@ public class InspectionRecordController(
 
     [HttpGet]
     [Authorize(Roles = Role.Any)]
-    [Route("inspection-id/{inspectionId}/anonymized-location")]
+    [Route("inspection-id/{inspectionId}/visualization-location")]
     [ProducesResponseType(typeof(BlobStorageLocation), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status202Accepted)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -113,7 +123,7 @@ public class InspectionRecordController(
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<BlobStorageLocation>> GetAnonymizedLocation(
+    public async Task<ActionResult<BlobStorageLocation>> GetVisualizationLocation(
         [FromRoute] string inspectionId
     )
     {
@@ -128,47 +138,51 @@ public class InspectionRecordController(
                 );
             }
 
-            var anonymizer = record
+            var visualizationWorkflow = record
                 .Analyses.SelectMany(a => a.Runs)
                 .SelectMany(r => r.Workflows)
-                .Where(w => w.WorkflowType.Equals("anonymizer", StringComparison.OrdinalIgnoreCase))
+                .Where(w => VisualizationWorkflowTypes.Contains(w.WorkflowType))
                 .OrderByDescending(w => w.CompletedAt ?? w.StartedAt ?? DateTime.MinValue)
                 .FirstOrDefault();
 
-            if (anonymizer is null)
+            if (visualizationWorkflow is null)
             {
-                return NotFound($"No anonymizer workflow found for inspection id {inspectionId}");
+                return NotFound(
+                    $"No visualization workflow found for inspection id {inspectionId}"
+                );
             }
 
-            return anonymizer.Status switch
+            return visualizationWorkflow.Status switch
             {
-                WorkflowStatus.Succeeded when anonymizer.OutputBlobStorageLocation is not null =>
-                    Ok(anonymizer.OutputBlobStorageLocation),
+                WorkflowStatus.Succeeded
+                    when visualizationWorkflow.OutputBlobStorageLocation is not null => Ok(
+                    visualizationWorkflow.OutputBlobStorageLocation
+                ),
                 WorkflowStatus.Succeeded => StatusCode(
                     StatusCodes.Status500InternalServerError,
-                    "Anonymizer workflow succeeded but produced no output blob location."
+                    "Visualization workflow succeeded but produced no output blob location."
                 ),
                 WorkflowStatus.Pending => StatusCode(
                     StatusCodes.Status202Accepted,
-                    "Anonymizer workflow has not started."
+                    "Visualization workflow has not started."
                 ),
                 WorkflowStatus.InProgress => StatusCode(
                     StatusCodes.Status202Accepted,
-                    "Anonymizer workflow is in progress."
+                    "Visualization workflow is in progress."
                 ),
                 WorkflowStatus.Failed => StatusCode(
                     StatusCodes.Status422UnprocessableEntity,
-                    "Anonymizer workflow failed."
+                    "Visualization workflow failed."
                 ),
                 _ => StatusCode(
                     StatusCodes.Status500InternalServerError,
-                    "Unknown anonymizer workflow status."
+                    "Unknown visualization workflow status."
                 ),
             };
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Error fetching anonymized location for inspection id");
+            logger.LogError(e, "Error fetching visualization location for inspection id");
             return StatusCode(StatusCodes.Status500InternalServerError, "Internal server error");
         }
     }
