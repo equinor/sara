@@ -84,6 +84,20 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task OnInspectionRecordCreated_InspectionTypeAndExtension_TakesPrecedenceOverFileExtension()
+    {
+        var record = await _db.NewInspectionRecord(
+            inspectionType: "TestVideo",
+            blobName: "clip.mp4"
+        );
+
+        await OnInspectionRecordCreatedInScope(_db.NewInspectionRecordCreatedEvent(record));
+
+        var analysis = await LoadOnlyAnalysisAsync();
+        Assert.Equal("multi-step-test", analysis.Name);
+    }
+
+    [Fact]
     public async Task OnInspectionRecordCreated_MixedKnownAndUnknownAnalyses_RunsKnownSkipsUnknown()
     {
         const string knownAnalysis = "per-record-test";
