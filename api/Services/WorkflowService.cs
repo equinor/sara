@@ -118,6 +118,7 @@ public class WorkflowService(
             var payload = new Dictionary<string, object>
             {
                 ["workflowId"] = workflow.Id,
+                ["workflowType"] = workflow.WorkflowType,
                 ["inputBlobStorageLocations"] = workflow.InputBlobStorageLocations,
                 ["outputBlobStorageLocation"] = workflow.OutputBlobStorageLocation,
                 ["extras"] = extras,
