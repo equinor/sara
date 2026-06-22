@@ -92,6 +92,7 @@ builder.Services.AddScoped<ITriggerPayloadEnricher, ThermalReadingPayloadEnriche
 // Per-workflow result handlers — fire on each successful Workflow step.
 builder.Services.AddScoped<IWorkflowResultHandler, AnonymizerResultHandler>();
 builder.Services.AddScoped<IWorkflowResultHandler, CLOEResultHandler>();
+builder.Services.AddScoped<IWorkflowResultHandler, CopyRawToVisualizedResultHandler>();
 builder.Services.AddScoped<IWorkflowResultHandler, FencillaResultHandler>();
 builder.Services.AddScoped<IWorkflowResultHandler, ThermalReadingResultHandler>();
 
