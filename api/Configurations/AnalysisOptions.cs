@@ -10,6 +10,11 @@ public class AnalysisOptions
 
     public Dictionary<string, List<string>> DefaultAnalysisByFileExtension { get; set; } = [];
 
+    public Dictionary<
+        string,
+        Dictionary<string, List<string>>
+    > DefaultAnalysisByInspectionTypeAndExtension { get; set; } = [];
+
     public int AnalysisGroupTimeoutMinutes { get; set; } = 30;
 
     public int AnalysisGroupTimeoutCheckIntervalSeconds { get; set; } = 60;
