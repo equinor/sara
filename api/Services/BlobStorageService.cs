@@ -2,16 +2,16 @@ using api.Database.Models;
 using Azure.Core;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
+using Azure.Storage.Sas;
 
 namespace api.Services;
 
 public interface IBlobStorageService
 {
     Task<MemoryStream> DownloadBlobAsync(BlobStorageLocation location);
-
     Task UploadBlobAsync(BlobStorageLocation destination, Stream content, string contentType);
-
     Task CopyBlobAsync(BlobStorageLocation source, BlobStorageLocation destination);
+    Task<Uri> CreateUserDelegationSASUri(BlobStorageLocation location);
 }
 
 public class BlobStorageService(TokenCredential credential, IConfiguration configuration)
@@ -95,6 +95,36 @@ public class BlobStorageService(TokenCredential credential, IConfiguration confi
         return new BlobServiceClient(
             new Uri($"https://{accountName}.blob.core.windows.net"),
             credential
+        );
+    }
+
+    public async Task<Uri> CreateUserDelegationSASUri(BlobStorageLocation location)
+    {
+        var serviceClient = CreateBlobServiceClient(location.StorageAccount);
+
+        var expiryTime = DateTimeOffset.UtcNow.AddHours(1); // Valid for 1 hour
+
+        var userDelegationKey = await serviceClient.GetUserDelegationKeyAsync(
+            DateTimeOffset.UtcNow,
+            expiryTime
+        );
+
+        BlobSasBuilder sasBuilder = new()
+        {
+            BlobContainerName = location.BlobContainer,
+            BlobName = location.BlobName,
+            Resource = "b",
+            StartsOn = DateTimeOffset.UtcNow,
+            ExpiresOn = expiryTime,
+        };
+
+        sasBuilder.SetPermissions(BlobSasPermissions.Read);
+
+        var sas = sasBuilder
+            .ToSasQueryParameters(userDelegationKey, location.StorageAccount)
+            .ToString();
+        return new Uri(
+            $"https://{location.StorageAccount}.blob.core.windows.net/{location.BlobContainer}/{location.BlobName}?{sas}"
         );
     }
 }
