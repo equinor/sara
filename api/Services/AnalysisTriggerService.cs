@@ -113,29 +113,7 @@ public class AnalysisTriggerService(
             var extension = Path.GetExtension(blobName)?.ToLowerInvariant();
             var inspectionType = inspectionRecord.InspectionType;
 
-            if (
-                extension is not null
-                && inspectionType is not null
-                && _options.DefaultAnalysisByInspectionTypeAndExtension.TryGetValue(
-                    inspectionType,
-                    out var byExtension
-                )
-                && byExtension.TryGetValue(extension, out var typedDefaults)
-            )
-            {
-                requestedNames = typedDefaults;
-            }
-            else
-            {
-                requestedNames =
-                    extension is not null
-                    && _options.DefaultAnalysisByFileExtension.TryGetValue(
-                        extension,
-                        out var defaults
-                    )
-                        ? defaults
-                        : [];
-            }
+            requestedNames = ResolveDefaultAnalyses(inspectionType, extension);
         }
 
         if (requestedNames.Count == 0)
@@ -416,6 +394,47 @@ public class AnalysisTriggerService(
 
             await TriggerAnalysis(analysis, groupRecords);
         }
+    }
+
+    private List<string> ResolveDefaultAnalyses(string? inspectionType, string? extension)
+    {
+        return TryGetDefaultAnalysesByInspectionTypeAndExtension(inspectionType, extension)
+            ?? TryGetDefaultAnalysesByExtension(extension)
+            ?? [];
+    }
+
+    private List<string>? TryGetDefaultAnalysesByInspectionTypeAndExtension(
+        string? inspectionType,
+        string? extension
+    )
+    {
+        if (
+            inspectionType is not null
+            && extension is not null
+            && _options.DefaultAnalysisByInspectionTypeAndExtension.TryGetValue(
+                inspectionType,
+                out var byExtension
+            )
+            && byExtension.TryGetValue(extension, out var analyses)
+        )
+        {
+            return analyses;
+        }
+
+        return null;
+    }
+
+    private List<string>? TryGetDefaultAnalysesByExtension(string? extension)
+    {
+        if (
+            extension is not null
+            && _options.DefaultAnalysisByFileExtension.TryGetValue(extension, out var analyses)
+        )
+        {
+            return analyses;
+        }
+
+        return null;
     }
 
     public async Task RerunAnalysis(Guid analysisId)
