@@ -99,7 +99,7 @@ export interface InspectionRecord {
   id: string;
   inspectionId: string;
   installationCode: string;
-  blobStorageLocation: BlobStorageLocation;
+  sasToken: string;
   createdAt: string;
   inspectionType?: string | null;
   tag?: string | null;

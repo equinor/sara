@@ -13,7 +13,8 @@ namespace api.Controllers;
 public class InspectionRecordController(
     ILogger<InspectionRecordController> logger,
     IInspectionRecordService inspectionRecordService,
-    IThermalImageService thermalImageService
+    IThermalImageService thermalImageService,
+    IBlobStorageService blobStorageService
 ) : ControllerBase
 {
     // Workflow types whose output forms the visualization base layer for an
@@ -33,17 +34,23 @@ public class InspectionRecordController(
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<PagedResponse<InspectionRecord>>> GetAll(
+    public async Task<ActionResult<PagedResponse<InspectionRecordDto>>> GetAll(
         [FromQuery] InspectionRecordParameters parameters
     )
     {
         try
         {
             var page = await inspectionRecordService.GetInspectionRecords(parameters);
+
+            var pageDtos = page.Select(
+                    (record) => new InspectionRecordDto(record, blobStorageService)
+                )
+                .ToList();
+
             return Ok(
-                new PagedResponse<InspectionRecord>
+                new PagedResponse<InspectionRecordDto>
                 {
-                    Items = page,
+                    Items = pageDtos,
                     PageNumber = page.CurrentPage,
                     PageSize = page.PageSize,
                     TotalCount = page.TotalCount,
@@ -66,7 +73,7 @@ public class InspectionRecordController(
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<InspectionRecord>> GetById([FromRoute] Guid id)
+    public async Task<ActionResult<InspectionRecordDto>> GetById([FromRoute] Guid id)
     {
         try
         {
@@ -75,7 +82,8 @@ public class InspectionRecordController(
             {
                 return NotFound($"Could not find inspection record with id {id}");
             }
-            return Ok(record);
+            var recordDto = new InspectionRecordDto(record, blobStorageService);
+            return Ok(recordDto);
         }
         catch (Exception e)
         {
@@ -92,7 +100,7 @@ public class InspectionRecordController(
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<InspectionRecord>> GetByInspectionId(
+    public async Task<ActionResult<InspectionRecordDto>> GetByInspectionId(
         [FromRoute] string inspectionId
     )
     {
@@ -106,7 +114,8 @@ public class InspectionRecordController(
                     $"Could not find inspection record with inspection id {inspectionId}"
                 );
             }
-            return Ok(record);
+            var recordDto = new InspectionRecordDto(record, blobStorageService);
+            return Ok(recordDto);
         }
         catch (Exception e)
         {
