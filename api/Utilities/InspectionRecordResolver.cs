@@ -46,4 +46,39 @@ public static class InspectionRecordResolver
         }
         return records.FirstOrDefault();
     }
+
+    public static async Task<InspectionRecord?> GetSingleInspectionRecordOrNull(
+        SaraDbContext context,
+        Workflow workflow,
+        string handlerTypeName,
+        ILogger logger
+    )
+    {
+        var records = await GetInspectionRecords(context, workflow);
+
+        if (records.Count == 0)
+        {
+            logger.LogWarning(
+                "Workflow {WorkflowType} (Id: {WorkflowId}) has no resolvable InspectionRecord — skipping result handling",
+                workflow.WorkflowType,
+                workflow.Id
+            );
+            return null;
+        }
+
+        if (records.Count > 1)
+        {
+            logger.LogWarning(
+                "Per-record handler '{HandlerType}' invoked on group analysis ({Count} records) — "
+                    + "skipping publish. A group-aware IWorkflowResultHandler must be registered for "
+                    + "'{WorkflowType}' if it runs on group analyses.",
+                handlerTypeName,
+                records.Count,
+                workflow.WorkflowType
+            );
+            return null;
+        }
+
+        return records[0];
+    }
 }

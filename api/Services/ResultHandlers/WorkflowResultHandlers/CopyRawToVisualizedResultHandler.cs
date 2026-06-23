@@ -20,32 +20,15 @@ public class CopyRawToVisualizedResultHandler(
 
     public async Task OnWorkflowCompleted(Workflow workflow)
     {
-        var records = await InspectionRecordResolver.GetInspectionRecords(context, workflow);
+        var inspectionRecord = await InspectionRecordResolver.GetSingleInspectionRecordOrNull(
+            context,
+            workflow,
+            nameof(CopyRawToVisualizedResultHandler),
+            logger
+        );
 
-        if (records.Count == 0)
-        {
-            logger.LogWarning(
-                "Workflow {WorkflowType} (Id: {WorkflowId}) has no resolvable InspectionRecord — skipping result handling",
-                workflow.WorkflowType,
-                workflow.Id
-            );
+        if (inspectionRecord is null)
             return;
-        }
-
-        if (records.Count > 1)
-        {
-            logger.LogWarning(
-                "Per-record handler '{HandlerType}' invoked on group analysis ({Count} records) — "
-                    + "skipping publish. A group-aware IWorkflowResultHandler must be registered for "
-                    + "'{WorkflowType}' if it runs on group analyses.",
-                nameof(CopyRawToVisualizedResultHandler),
-                records.Count,
-                workflow.WorkflowType
-            );
-            return;
-        }
-
-        var inspectionRecord = records[0];
 
         if (workflow.OutputBlobStorageLocation is not { } output)
         {
