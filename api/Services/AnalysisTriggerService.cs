@@ -102,10 +102,10 @@ public class AnalysisTriggerService(
         InspectionRecord inspectionRecord
     )
     {
-        List<string> requestedNames;
+        List<string> analysesToRun;
         if (createdEvent.RequiredAnalysis is { Count: > 0 })
         {
-            requestedNames = createdEvent.RequiredAnalysis;
+            analysesToRun = createdEvent.RequiredAnalysis;
         }
         else
         {
@@ -113,10 +113,10 @@ public class AnalysisTriggerService(
             var extension = Path.GetExtension(blobName)?.ToLowerInvariant();
             var inspectionType = inspectionRecord.InspectionType;
 
-            requestedNames = ResolveDefaultAnalyses(inspectionType, extension);
+            analysesToRun = ResolveDefaultAnalyses(inspectionType, extension);
         }
 
-        if (requestedNames.Count == 0)
+        if (analysesToRun.Count == 0)
         {
             logger.LogInformation(
                 "No analyses to run for InspectionId: {InspectionId}",
@@ -125,7 +125,7 @@ public class AnalysisTriggerService(
             return [];
         }
 
-        var unknownNames = requestedNames
+        var unknownNames = analysesToRun
             .Where(name => !_options.Analyses.ContainsKey(name))
             .ToList();
         if (unknownNames.Count > 0)
@@ -138,7 +138,7 @@ public class AnalysisTriggerService(
             );
         }
 
-        var knownNames = requestedNames.Where(name => _options.Analyses.ContainsKey(name)).ToList();
+        var knownNames = analysesToRun.Where(name => _options.Analyses.ContainsKey(name)).ToList();
 
         if (knownNames.Count == 0)
         {
