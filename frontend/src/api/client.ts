@@ -502,16 +502,25 @@ export async function getInspectionRecordThermalImage(
     throw new Error(`${response.status}: ${text}`);
   }
   const buffer = await response.arrayBuffer();
+  const width = parseInt(response.headers.get("X-Image-Width") ?? "", 10);
+  const height = parseInt(response.headers.get("X-Image-Height") ?? "", 10);
+  if (
+    !Number.isFinite(width) ||
+    width <= 0 ||
+    !Number.isFinite(height) ||
+    height <= 0
+  ) {
+    throw new Error(
+      "Thermal image response is missing valid dimension headers"
+    );
+  }
+
   return {
     temperatures: new Float32Array(buffer),
-    width: parseInt(response.headers.get("X-Image-Width") ?? "0", 10),
-    height: parseInt(response.headers.get("X-Image-Height") ?? "0", 10),
-    minTemperature: parseFloat(
-      response.headers.get("X-Temperature-Min") ?? "0"
-    ),
-    maxTemperature: parseFloat(
-      response.headers.get("X-Temperature-Max") ?? "0"
-    ),
+    width,
+    height,
+    minTemperature: parseFloat(response.headers.get("X-Temperature-Min") ?? "0"),
+    maxTemperature: parseFloat(response.headers.get("X-Temperature-Max") ?? "0"),
   };
 }
 
