@@ -18,11 +18,16 @@ public interface IAnalysisTriggerService
 public class AnalysisTriggerService(
     SaraDbContext context,
     IOptions<AnalysisOptions> analysisOptions,
-    IWorkflowService workflowService,
+    IEnumerable<ITriggerPayloadEnricher> payloadEnrichers,
+    IWorkflowGraphBuilder workflowGraphBuilder,
+    IArgoWorkflowSubmitter argoWorkflowSubmitter,
     ILogger<AnalysisTriggerService> logger
 ) : IAnalysisTriggerService
 {
     private readonly AnalysisOptions _options = analysisOptions.Value;
+
+    private readonly Dictionary<string, ITriggerPayloadEnricher> _enrichersByType =
+        payloadEnrichers.ToDictionary(e => e.WorkflowType, StringComparer.OrdinalIgnoreCase);
 
     public async Task OnInspectionRecordCreated(InspectionRecordCreatedEvent createdEvent)
     {
@@ -87,16 +92,6 @@ public class AnalysisTriggerService(
         }
     }
 
-    /// <summary>
-    /// Returns the configured analyses to run for an InspectionRecord.
-    /// Analyses come from the event's explicit <c>RequiredAnalysis</c> when
-    /// set; otherwise from <c>DefaultAnalysisByInspectionTypeAndExtension</c>
-    /// (matched on InspectionType + file extension), falling back to
-    /// <c>DefaultAnalysisByFileExtension</c>. Names that are not present in
-    /// configuration are dropped with an error log so known analyses can
-    /// still proceed independently. Returns an empty list when no analyses
-    /// apply.
-    /// </summary>
     private List<string> GetAnalysesToRun(
         InspectionRecordCreatedEvent createdEvent,
         InspectionRecord inspectionRecord
@@ -225,6 +220,13 @@ public class AnalysisTriggerService(
         return analysis;
     }
 
+    /// <summary>
+    /// Persist the full <see cref="AnalysisRun"/> with one
+    /// <see cref="Workflow"/> per chain step, compute the per-step
+    /// blob-storage I/O graph via <see cref="IWorkflowGraphBuilder"/>, and
+    /// submit a single Argo <c>Workflow</c> CR that orchestrates the entire
+    /// chain. On failure the run and all its workflows are marked Failed.
+    /// </summary>
     private async Task TriggerAnalysis(
         Analysis analysis,
         IReadOnlyList<InspectionRecord> inspectionRecords
@@ -269,75 +271,96 @@ public class AnalysisTriggerService(
         await context.AnalysisRuns.AddAsync(run);
         await context.SaveChangesAsync();
 
-        // First step takes all input records' blobs; subsequent steps chain on previous output.
-        // Clone every BlobStorageLocation assigned to a workflow's inputs so each Workflow owns its
-        // own copies — sharing instances across owners (InspectionRecord, sibling Workflows, the
-        // current workflow's own output) confuses EF's owned-entity tracking.
-        var currentInputs = inspectionRecords.Select(r => r.BlobStorageLocation).ToList();
-
+        // Create one Workflow row per chain step; the graph builder fills in
+        // the input/output BlobStorageLocations below.
         for (var i = 0; i < workflowChain.Count; i++)
         {
-            var workflowType = workflowChain[i];
-            var stepNumber = i + 1;
-
             var workflow = new Workflow
             {
                 AnalysisRun = run,
-                StepNumber = stepNumber,
-                WorkflowType = workflowType,
-                InputBlobStorageLocations = currentInputs.Select(b => b.Clone()).ToList(),
+                StepNumber = i + 1,
+                WorkflowType = workflowChain[i],
+                InputBlobStorageLocations = [],
             };
             run.Workflows.Add(workflow);
-
-            var outputLocation = ComputeOutputBlobStorageLocation(
-                workflowType,
-                stepNumber,
-                run.Id,
-                currentInputs[0]
-            );
-            workflow.OutputBlobStorageLocation = outputLocation;
-
-            // Gating steps don't transform the pipeline payload; the next step
-            // keeps consuming the previous non-gating step's output.
-            if (!_options.Workflows[workflowType].IsGate)
-            {
-                currentInputs = [outputLocation];
-            }
         }
+
+        var orderedWorkflows = run.Workflows.OrderBy(w => w.StepNumber).ToList();
+        var initialInputs = inspectionRecords.Select(r => r.BlobStorageLocation).ToList();
+        workflowGraphBuilder.ComputeBlobLocations(run, orderedWorkflows, initialInputs);
 
         await context.SaveChangesAsync();
 
-        var firstWorkflow = run.Workflows.OrderBy(w => w.StepNumber).First();
-        await workflowService.TriggerWorkflow(firstWorkflow.Id);
+        await SubmitAnalysisRunToArgo(run, analysis.Name, orderedWorkflows, inspectionRecords);
     }
 
-    private BlobStorageLocation ComputeOutputBlobStorageLocation(
-        string workflowType,
-        int stepNumber,
-        Guid analysisRunId,
-        BlobStorageLocation fallbackInputLocation
+    private async Task SubmitAnalysisRunToArgo(
+        AnalysisRun run,
+        string analysisName,
+        IReadOnlyList<Workflow> orderedWorkflows,
+        IReadOnlyList<InspectionRecord> inspectionRecords
     )
     {
-        if (!_options.Workflows.TryGetValue(workflowType, out var workflowConfig))
+        try
         {
-            throw new InvalidOperationException(
-                $"Unknown workflow type '{workflowType}' — not found in configuration"
+            var extrasByWorkflowId = new Dictionary<Guid, Dictionary<string, object>>();
+            foreach (var step in orderedWorkflows)
+            {
+                if (_enrichersByType.TryGetValue(step.WorkflowType, out var enricher))
+                {
+                    extrasByWorkflowId[step.Id] = await enricher.EnrichAsync(
+                        step,
+                        inspectionRecords
+                    );
+                }
+            }
+
+            var manifest = workflowGraphBuilder.Build(
+                run,
+                analysisName,
+                orderedWorkflows,
+                extrasByWorkflowId
+            );
+
+            var now = DateTime.UtcNow;
+            foreach (var step in orderedWorkflows)
+            {
+                step.Status = WorkflowStatus.InProgress;
+                step.StartedAt ??= now;
+            }
+            await context.SaveChangesAsync();
+
+            var crName = await argoWorkflowSubmitter.SubmitAsync(manifest);
+
+            logger.LogInformation(
+                "Submitted AnalysisRun {AnalysisRunId} ('{AnalysisName}') as Argo Workflow '{CrName}' with {StepCount} step(s)",
+                run.Id,
+                Sanitize.SanitizeUserInput(analysisName),
+                Sanitize.SanitizeUserInput(crName),
+                orderedWorkflows.Count
             );
         }
-
-        var extension =
-            workflowConfig.OutputFileExtension ?? Path.GetExtension(fallbackInputLocation.BlobName);
-
-        var blobName = $"analysis-runs/{analysisRunId}/{stepNumber}-{workflowType}{extension}";
-
-        var blobContainer = fallbackInputLocation.BlobContainer;
-
-        return new BlobStorageLocation
+        catch (Exception ex)
         {
-            StorageAccount = workflowConfig.OutputStorageAccount,
-            BlobContainer = blobContainer,
-            BlobName = blobName,
-        };
+            logger.LogError(
+                ex,
+                "Failed to submit AnalysisRun {AnalysisRunId} ('{AnalysisName}') to Argo: {ErrorMessage}",
+                run.Id,
+                Sanitize.SanitizeUserInput(analysisName),
+                ex.Message
+            );
+
+            var now = DateTime.UtcNow;
+            foreach (var step in orderedWorkflows)
+            {
+                step.Status = WorkflowStatus.Failed;
+                step.CompletedAt ??= now;
+                step.ErrorMessage ??= ex.Message;
+            }
+            run.Status = AnalysisRunStatus.Failed;
+            run.CompletedAt = now;
+            await context.SaveChangesAsync();
+        }
     }
 
     private async Task CheckAndCompleteGroup(AnalysisGroup group, List<string> groupedAnalyses)
@@ -366,8 +389,6 @@ public class AnalysisTriggerService(
             Sanitize.SanitizeUserInput(string.Join(", ", groupedAnalyses))
         );
 
-        // Resolve all records in the group up-front so we can pass them to TriggerAnalysis
-        // and backfill the M:N link on each deferred analysis.
         var groupRecords = await context
             .InspectionRecords.Where(ir => ir.AnalysisGroupId == group.Id)
             .ToListAsync();
@@ -380,8 +401,6 @@ public class AnalysisTriggerService(
 
         foreach (var analysis in deferredAnalyses)
         {
-            // Backfill the M:N association so future lookups (e.g. result handlers) see
-            // every record in the group, not just the one that triggered analysis creation.
             foreach (var rec in groupRecords)
             {
                 if (!analysis.InspectionRecords.Any(r => r.Id == rec.Id))

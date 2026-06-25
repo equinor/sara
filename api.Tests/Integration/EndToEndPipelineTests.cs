@@ -21,8 +21,8 @@ namespace Api.Test.Integration;
 
 /// <summary>
 /// End-to-end tests that drive the full SARA pipeline:
-/// MQTT ingestion -> analysis trigger -> Argo trigger HTTP call ->
-/// notification controller PUT -> workflow result handlers ->
+/// MQTT ingestion -> analysis trigger -> single Argo Workflow CR submission ->
+/// per-step notification controller PUTs -> workflow result handlers ->
 /// analysis-run completion. External I/O is recorded via fakes.
 /// </summary>
 public class EndToEndPipelineTests : IAsyncLifetime
@@ -115,7 +115,7 @@ public class EndToEndPipelineTests : IAsyncLifetime
             .Entry(workflow.AnalysisRun)
             .ReloadAsync(TestContext.Current.CancellationToken);
 
-        Assert.Single(_factory.ArgoHttpHandler.Requests, r => r.Method == HttpMethod.Post);
+        Assert.Single(_factory.ArgoSubmitter.SubmittedManifests);
         Assert.NotNull(workflow.StartedAt);
         Assert.Equal(ResultJson, workflow.ResultJson);
         Assert.Equal(WorkflowStatus.Succeeded, workflow.Status);
@@ -123,7 +123,7 @@ public class EndToEndPipelineTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task MultiStepChain_SecondWorkflowTriggeredAfterFirstSucceeds()
+    public async Task MultiStepChain_SingleCrSubmittedRunFinalisesAfterLastStep()
     {
         const string AnalysisName = "multi-step-test";
         const string Step1Result = "{\"step\":1}";
@@ -132,11 +132,16 @@ public class EndToEndPipelineTests : IAsyncLifetime
 
         await ProcessInspectionResultInScope(message);
 
+        // Whole chain is one CR submission; both step rows start as InProgress.
+        Assert.Single(_factory.ArgoSubmitter.SubmittedManifests);
+
         var step1 = await _context
             .Workflows.Include(w => w.AnalysisRun)
             .SingleAsync(w => w.StepNumber == 1, TestContext.Current.CancellationToken);
-
-        Assert.Single(_factory.ArgoHttpHandler.Requests, r => r.Method == HttpMethod.Post);
+        var step2 = await _context.Workflows.SingleAsync(
+            w => w.StepNumber == 2,
+            TestContext.Current.CancellationToken
+        );
 
         (await NotifyWorkflowStarted(step1.Id)).EnsureSuccessStatusCode();
         (await NotifyWorkflowResult(step1.Id, Step1Result)).EnsureSuccessStatusCode();
@@ -144,10 +149,11 @@ public class EndToEndPipelineTests : IAsyncLifetime
             await NotifyWorkflowExited(step1.Id, WorkflowExitStatus.Succeeded)
         ).EnsureSuccessStatusCode();
 
-        var step2 = await _context.Workflows.SingleAsync(
-            w => w.StepNumber == 2,
-            TestContext.Current.CancellationToken
-        );
+        await _context.Entry(step1.AnalysisRun).ReloadAsync(TestContext.Current.CancellationToken);
+
+        // Run must still be in progress after the intermediate step — Argo
+        // (not SARA) drives the chain to step 2.
+        Assert.Equal(AnalysisRunStatus.InProgress, step1.AnalysisRun.Status);
 
         (await NotifyWorkflowStarted(step2.Id)).EnsureSuccessStatusCode();
         (await NotifyWorkflowResult(step2.Id, Step2Result)).EnsureSuccessStatusCode();
@@ -159,19 +165,15 @@ public class EndToEndPipelineTests : IAsyncLifetime
         await _context.Entry(step2).ReloadAsync(TestContext.Current.CancellationToken);
         await _context.Entry(step1.AnalysisRun).ReloadAsync(TestContext.Current.CancellationToken);
 
-        var posts = _factory
-            .ArgoHttpHandler.Requests.Where(r => r.Method == HttpMethod.Post)
-            .ToList();
-        Assert.Equal(2, posts.Count);
-        Assert.Contains(posts, p => p.RequestUri!.AbsoluteUri.EndsWith("/test-1"));
-        Assert.Contains(posts, p => p.RequestUri!.AbsoluteUri.EndsWith("/test-2"));
+        // Still only one CR — SARA did not resubmit for step 2.
+        Assert.Single(_factory.ArgoSubmitter.SubmittedManifests);
         Assert.Equal(WorkflowStatus.Succeeded, step1.Status);
         Assert.Equal(WorkflowStatus.Succeeded, step2.Status);
         Assert.Equal(AnalysisRunStatus.Succeeded, step1.AnalysisRun.Status);
     }
 
     [Fact]
-    public async Task GroupedAnalysis_TriggersOnceBothRecordsArrive()
+    public async Task GroupedAnalysis_SubmitsCrOnceBothRecordsArrive()
     {
         const string GroupId = "group-abc";
         const string Blob1 = "record-1.jpg";
@@ -196,26 +198,24 @@ public class EndToEndPipelineTests : IAsyncLifetime
 
         await ProcessInspectionResultInScope(message1);
 
-        Assert.DoesNotContain(_factory.ArgoHttpHandler.Requests, r => r.Method == HttpMethod.Post);
+        Assert.Empty(_factory.ArgoSubmitter.SubmittedManifests);
 
         await ProcessInspectionResultInScope(message2);
 
-        var post = Assert.Single(
-            _factory.ArgoHttpHandler.Requests,
-            r => r.Method == HttpMethod.Post
-        );
+        var manifest = Assert.Single(_factory.ArgoSubmitter.SubmittedManifests);
         var group = await _context.AnalysisGroups.SingleAsync(
             g => g.GroupId == GroupId,
             TestContext.Current.CancellationToken
         );
 
         Assert.Equal(AnalysisGroupStatus.Complete, group.Status);
-        Assert.Contains(Blob1, post.Body);
-        Assert.Contains(Blob2, post.Body);
+        var manifestJson = manifest.ToJsonString();
+        Assert.Contains(Blob1, manifestJson);
+        Assert.Contains(Blob2, manifestJson);
     }
 
     [Fact]
-    public async Task GroupedAnalysis_TimeoutMarksGroupTimedOutAndDoesNotTrigger()
+    public async Task GroupedAnalysis_TimeoutMarksGroupTimedOutAndDoesNotSubmit()
     {
         const string GroupId = "group-timeout";
         using var timeoutFactory = _factory.WithWebHostBuilder(builder =>
@@ -270,6 +270,6 @@ public class EndToEndPipelineTests : IAsyncLifetime
 
         Assert.Equal(AnalysisGroupStatus.TimedOut, group.Status);
         Assert.Empty(analysis.Runs);
-        Assert.DoesNotContain(_factory.ArgoHttpHandler.Requests, r => r.Method == HttpMethod.Post);
+        Assert.Empty(_factory.ArgoSubmitter.SubmittedManifests);
     }
 }

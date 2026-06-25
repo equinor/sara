@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using api.Configurations;
 using api.Database.Context;
 using api.MQTT;
 using api.Services;
@@ -14,16 +13,16 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
 
 namespace Api.Test;
 
 /// <summary>
 /// Test-time <see cref="WebApplicationFactory{TEntryPoint}"/> for the SARA API.
 /// Wires the SaraDbContext to a caller-supplied PostgreSQL connection string,
-/// replaces <see cref="IMqttPublisherService"/> with a recording fake, swaps
-/// the named "Argo" HttpClient onto a recording handler, and removes background
-/// hosted services so the test host does not connect to a real broker.
+/// replaces <see cref="IMqttPublisherService"/>, <see cref="IEmailService"/>,
+/// <see cref="ITimeseriesService"/> and <see cref="IArgoWorkflowSubmitter"/>
+/// with recording fakes, and removes background hosted services so the test
+/// host does not connect to a real broker, cluster, or SMTP/Omnia endpoint.
 /// </summary>
 public class TestWebApplicationFactory<TProgram>(string postgresConnectionString)
     : WebApplicationFactory<Program>
@@ -32,19 +31,9 @@ public class TestWebApplicationFactory<TProgram>(string postgresConnectionString
     private readonly string _postgresConnectionString = postgresConnectionString;
 
     public RecordingMqttPublisher MqttPublisher { get; } = new();
-    public RecordingHttpMessageHandler ArgoHttpHandler { get; } = new();
+    public RecordingArgoWorkflowSubmitter ArgoSubmitter { get; } = new();
     public RecordingEmailService EmailService { get; } = new();
     public RecordingTimeseriesService TimeseriesService { get; } = new();
-
-    /// <summary>
-    /// Returns the configured Argo trigger URL for the given workflow type.
-    /// </summary>
-    public string TriggerUrlFor(string workflowType)
-    {
-        using var scope = Services.CreateScope();
-        var options = scope.ServiceProvider.GetRequiredService<IOptions<AnalysisOptions>>().Value;
-        return options.Workflows[workflowType].TriggerUrl;
-    }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -70,7 +59,7 @@ public class TestWebApplicationFactory<TProgram>(string postgresConnectionString
         {
             ReplaceDbContext(services);
             ReplaceMqttPublisher(services);
-            ReplaceArgoHttpClient(services);
+            ReplaceArgoSubmitter(services);
             ReplaceEmailService(services);
             ReplaceTimeseriesService(services);
             ReplaceAuthentication(services);
@@ -112,11 +101,16 @@ public class TestWebApplicationFactory<TProgram>(string postgresConnectionString
         services.AddSingleton<IMqttPublisherService>(MqttPublisher);
     }
 
-    private void ReplaceArgoHttpClient(IServiceCollection services)
+    private void ReplaceArgoSubmitter(IServiceCollection services)
     {
-        services
-            .AddHttpClient(WorkflowService.ArgoHttpClientName)
-            .ConfigurePrimaryHttpMessageHandler(() => ArgoHttpHandler);
+        var existing = services
+            .Where(d => d.ServiceType == typeof(IArgoWorkflowSubmitter))
+            .ToList();
+        foreach (var descriptor in existing)
+        {
+            services.Remove(descriptor);
+        }
+        services.AddSingleton<IArgoWorkflowSubmitter>(ArgoSubmitter);
     }
 
     private void ReplaceEmailService(IServiceCollection services)

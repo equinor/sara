@@ -66,7 +66,7 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
         await OnInspectionRecordCreatedInScope(_db.NewInspectionRecordCreatedEvent(record));
 
         Assert.Empty(await _context.Analyses.ToListAsync(TestContext.Current.CancellationToken));
-        Assert.Empty(_factory.ArgoHttpHandler.Requests);
+        Assert.Empty(_factory.ArgoSubmitter.SubmittedManifests);
     }
 
     [Fact]
@@ -112,7 +112,7 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
 
         var analysis = await LoadAnalysisByNameAsync(knownAnalysis);
         Assert.Equal(knownAnalysis, analysis.Name);
-        Assert.Single(_factory.ArgoHttpHandler.Requests);
+        Assert.Single(_factory.ArgoSubmitter.SubmittedManifests);
     }
 
     [Fact]
@@ -128,11 +128,11 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
         );
 
         Assert.Empty(await _context.Analyses.ToListAsync(TestContext.Current.CancellationToken));
-        Assert.Empty(_factory.ArgoHttpHandler.Requests);
+        Assert.Empty(_factory.ArgoSubmitter.SubmittedManifests);
     }
 
     [Fact]
-    public async Task OnInspectionRecordCreated_NonGroupedHappyPath_CreatesAnalysisAndTriggersFirstWorkflow()
+    public async Task OnInspectionRecordCreated_NonGroupedHappyPath_CreatesAnalysisAndSubmitsArgoCr()
     {
         const string analysisName = "per-record-test";
         const string workflowType = "test-workflow-1";
@@ -146,12 +146,11 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
         var workflow = analysis.Runs.Single().Workflows.Single();
         Assert.Equal(workflowType, workflow.WorkflowType);
 
-        var request = Assert.Single(_factory.ArgoHttpHandler.Requests);
-        Assert.Equal(_factory.TriggerUrlFor(workflowType), request.RequestUri?.ToString());
+        Assert.Single(_factory.ArgoSubmitter.SubmittedManifests);
     }
 
     [Fact]
-    public async Task OnInspectionRecordCreated_MultiStepChain_CreatesAllWorkflowsButTriggersOnlyFirst()
+    public async Task OnInspectionRecordCreated_MultiStepChain_PersistsAllStepsAndSubmitsSingleCr()
     {
         const string analysisName = "multi-step-test";
         const string firstWorkflowType = "test-workflow-1";
@@ -173,12 +172,12 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
             workflows[1].InputBlobStorageLocations[0].ToString()
         );
 
-        var request = Assert.Single(_factory.ArgoHttpHandler.Requests);
-        Assert.Equal(_factory.TriggerUrlFor(firstWorkflowType), request.RequestUri?.ToString());
+        // Whole chain submitted as a single Argo Workflow CR.
+        Assert.Single(_factory.ArgoSubmitter.SubmittedManifests);
     }
 
     [Fact]
-    public async Task OnInspectionRecordCreated_GroupedAnalysisIncomplete_DefersAndDoesNotTrigger()
+    public async Task OnInspectionRecordCreated_GroupedAnalysisIncomplete_DefersAndDoesNotSubmit()
     {
         const string analysisName = "group-test";
         var record = await _db.NewInspectionRecord();
@@ -193,11 +192,11 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
 
         var analysis = await LoadOnlyAnalysisAsync();
         Assert.Empty(analysis.Runs);
-        Assert.Empty(_factory.ArgoHttpHandler.Requests);
+        Assert.Empty(_factory.ArgoSubmitter.SubmittedManifests);
     }
 
     [Fact]
-    public async Task OnInspectionRecordCreated_GroupedAnalysisCompletes_TriggersDeferredAnalysisWithAllRecords()
+    public async Task OnInspectionRecordCreated_GroupedAnalysisCompletes_SubmitsDeferredAnalysisWithAllRecords()
     {
         const string analysisName = "group-test";
         var groupMessage = _db.NewAnalysisGroupMessage(analyses: [analysisName]);
@@ -222,15 +221,14 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
         var analysis = await LoadOnlyAnalysisAsync();
         Assert.Equal(2, analysis.InspectionRecords.Count);
         Assert.Equal(2, analysis.Runs.Single().Workflows.Single().InputBlobStorageLocations.Count);
-        Assert.Single(_factory.ArgoHttpHandler.Requests);
+        Assert.Single(_factory.ArgoSubmitter.SubmittedManifests);
     }
 
     [Fact]
-    public async Task OnInspectionRecordCreated_MixedGroupedAndNonGrouped_TriggersNonGroupedImmediately()
+    public async Task OnInspectionRecordCreated_MixedGroupedAndNonGrouped_SubmitsNonGroupedImmediately()
     {
         const string nonGroupedAnalysis = "per-record-test";
         const string groupedAnalysis = "group-test";
-        const string firstWorkflowType = "test-workflow-1";
         var record = await _db.NewInspectionRecord();
 
         await OnInspectionRecordCreatedInScope(
@@ -243,9 +241,7 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
 
         Assert.Empty((await LoadAnalysisByNameAsync(groupedAnalysis)).Runs);
         Assert.Single((await LoadAnalysisByNameAsync(nonGroupedAnalysis)).Runs);
-
-        var request = Assert.Single(_factory.ArgoHttpHandler.Requests);
-        Assert.Equal(_factory.TriggerUrlFor(firstWorkflowType), request.RequestUri?.ToString());
+        Assert.Single(_factory.ArgoSubmitter.SubmittedManifests);
     }
 
     [Fact]
