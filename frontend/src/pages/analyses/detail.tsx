@@ -73,6 +73,24 @@ export default function AnalysisDetailPage() {
             <Table.Cell>{analysis.id}</Table.Cell>
           </Table.Row>
           <Table.Row>
+            <Table.Cell>Anonymized data</Table.Cell>
+            <Table.Cell>
+              <Typography link href={analysis.anonymizedSAS}>
+                Link
+              </Typography></Table.Cell>
+          </Table.Row>
+          <Table.Row>
+            <Table.Cell>Visualized data</Table.Cell>
+            <Table.Cell>
+              {
+                analysis.visualizedSAS ? (
+                <Typography link href={analysis.visualizedSAS}>
+                  Link
+                </Typography>) : "-"
+              }
+            </Table.Cell>
+          </Table.Row>
+          <Table.Row>
             <Table.Cell>Created</Table.Cell>
             <Table.Cell>{new Date(analysis.createdAt).toLocaleString()}</Table.Cell>
           </Table.Row>

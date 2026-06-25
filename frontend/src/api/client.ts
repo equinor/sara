@@ -112,7 +112,7 @@ export interface InspectionRecord {
   analyses?: Analysis[];
 }
 
-export interface Workflow {
+export interface WorkflowWithoutSAS {
   id: string;
   analysisRunId: string;
   stepNumber: number;
@@ -127,6 +127,21 @@ export interface Workflow {
   analysisRun?: AnalysisRun;
 }
 
+export interface Workflow {
+  id: string;
+  analysisRunId: string;
+  stepNumber: number;
+  workflowType: string;
+  inputBlobSAS: string[];
+  status: WorkflowStatus;
+  outputBlobSAS?: string | null;
+  resultJson?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  errorMessage?: string | null;
+  analysisRun?: AnalysisRun;
+}
+
 export interface AnalysisRun {
   id: string;
   analysisId: string;
@@ -134,7 +149,7 @@ export interface AnalysisRun {
   status: AnalysisRunStatus;
   startedAt?: string | null;
   completedAt?: string | null;
-  workflows?: Workflow[];
+  workflows?: WorkflowWithoutSAS[];
   analysis?: Analysis;
 }
 
@@ -142,6 +157,8 @@ export interface Analysis {
   id: string;
   name: string;
   createdAt: string;
+  anonymizedSAS: string;
+  visualizedSAS: string;
   analysisGroupId?: string | null;
   analysisGroup?: AnalysisGroup | null;
   inspectionRecords?: InspectionRecord[];
