@@ -11,27 +11,29 @@ namespace api.Controllers;
 public class AnalysisController(
     ILogger<AnalysisController> logger,
     IAnalysisService analysisService,
-    IAnalysisTriggerService analysisTriggerService
+    IAnalysisTriggerService analysisTriggerService,
+    IBlobStorageService blobStorageService
 ) : ControllerBase
 {
     [HttpGet]
     [Authorize(Roles = Role.Any)]
-    [ProducesResponseType(typeof(PagedResponse<Analysis>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PagedResponse<AnalysisDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<PagedResponse<Analysis>>> GetAll(
+    public async Task<ActionResult<PagedResponse<AnalysisDto>>> GetAll(
         [FromQuery] AnalysisParameters parameters
     )
     {
         try
         {
             var page = await analysisService.GetAnalyses(parameters);
+            var pageDtos = page.Select((p) => new AnalysisDto(p, blobStorageService)).ToList();
             return Ok(
-                new PagedResponse<Analysis>
+                new PagedResponse<AnalysisDto>
                 {
-                    Items = page,
+                    Items = pageDtos,
                     PageNumber = page.CurrentPage,
                     PageSize = page.PageSize,
                     TotalCount = page.TotalCount,
@@ -54,7 +56,7 @@ public class AnalysisController(
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<Analysis>> GetById([FromRoute] Guid id)
+    public async Task<ActionResult<AnalysisDto>> GetById([FromRoute] Guid id)
     {
         try
         {
@@ -63,7 +65,8 @@ public class AnalysisController(
             {
                 return NotFound($"Could not find analysis with id {id}");
             }
-            return Ok(analysis);
+            var analysisDto = new AnalysisDto(analysis, blobStorageService);
+            return Ok(analysisDto);
         }
         catch (Exception e)
         {

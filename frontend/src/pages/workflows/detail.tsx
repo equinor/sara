@@ -3,7 +3,6 @@ import { useNavigate, useParams } from "react-router";
 import { Button, Icon, Table, Typography } from "@equinor/eds-core-react";
 import { arrow_back } from "@equinor/eds-icons";
 import { getWorkflow, retryWorkflow, type Workflow } from "../../api/client";
-import BlobLocation from "../../components/BlobLocation";
 import StatusChip from "../../components/StatusChip";
 
 Icon.add({ arrow_back });
@@ -110,15 +109,17 @@ export default function WorkflowDetailPage() {
       <Typography variant="h5" style={{ marginBottom: "0.5rem" }}>
         Inputs
       </Typography>
-      {workflow.inputBlobStorageLocations.length === 0 ? (
+      {workflow.inputBlobSAS.length === 0 ? (
         <Typography variant="body_short" style={{ marginBottom: "1.5rem" }}>
           None.
         </Typography>
       ) : (
         <ul style={{ marginBottom: "1.5rem" }}>
-          {workflow.inputBlobStorageLocations.map((loc, i) => (
+          {workflow.inputBlobSAS.map((loc, i) => (
             <li key={i}>
-              <BlobLocation loc={loc} />
+              <Typography link href={loc}>
+                Link
+              </Typography>
             </li>
           ))}
         </ul>
@@ -128,8 +129,10 @@ export default function WorkflowDetailPage() {
         Output
       </Typography>
       <div style={{ marginBottom: "1.5rem" }}>
-        {workflow.outputBlobStorageLocation ? (
-          <BlobLocation loc={workflow.outputBlobStorageLocation} />
+        {workflow.outputBlobSAS ? (
+          <Typography link href={workflow.outputBlobSAS}>
+            Link
+          </Typography>
         ) : (
           <Typography variant="body_short">None.</Typography>
         )}

@@ -8,23 +8,27 @@ namespace api.Controllers;
 
 [ApiController]
 [Route("workflow")]
-public class WorkflowController(ILogger<WorkflowController> logger, IWorkflowService service)
-    : ControllerBase
+public class WorkflowController(
+    ILogger<WorkflowController> logger,
+    IWorkflowService service,
+    IBlobStorageService blobService
+) : ControllerBase
 {
     [HttpGet]
     [Authorize(Roles = Role.Any)]
     [ProducesResponseType(typeof(PagedResponse<Workflow>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<PagedResponse<Workflow>>> GetAll(
+    public async Task<ActionResult<PagedResponse<WorkflowDto>>> GetAll(
         [FromQuery] WorkflowParameters parameters
     )
     {
         try
         {
             var page = await service.GetWorkflows(parameters);
+            var pageDtos = page.Select((p) => new WorkflowDto(p, blobService)).ToList();
             return Ok(
-                new PagedResponse<Workflow>
+                new PagedResponse<WorkflowDto>
                 {
-                    Items = page,
+                    Items = pageDtos,
                     PageNumber = page.CurrentPage,
                     PageSize = page.PageSize,
                     TotalCount = page.TotalCount,
@@ -44,14 +48,15 @@ public class WorkflowController(ILogger<WorkflowController> logger, IWorkflowSer
     [Route("id/{id:guid}")]
     [ProducesResponseType(typeof(Workflow), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<Workflow>> GetById([FromRoute] Guid id)
+    public async Task<ActionResult<WorkflowDto>> GetById([FromRoute] Guid id)
     {
         var workflow = await service.ReadById(id);
         if (workflow is null)
         {
             return NotFound($"Could not find workflow with id {id}");
         }
-        return Ok(workflow);
+        var workflowDto = new WorkflowDto(workflow, blobService);
+        return Ok(workflowDto);
     }
 
     [HttpPost]
