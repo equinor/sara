@@ -138,4 +138,22 @@ public class AnalysisController(
             return NotFound(ex.Message);
         }
     }
+
+    [HttpGet]
+    [Authorize(Roles = Role.Any)]
+    [Route("available")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAvailableAnalyses()
+    {
+        try
+        {
+            var availableAnalyses = await analysisService.GetAvailableAnalyses();
+            return Ok(availableAnalyses);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Error during GET of available analyses");
+            throw;
+        }
+    }
 }

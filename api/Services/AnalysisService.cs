@@ -1,7 +1,9 @@
+using api.Configurations;
 using api.Database.Context;
 using api.Database.Models;
 using api.Utilities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace api.Services;
 
@@ -14,6 +16,8 @@ public interface IAnalysisService
     public Task<PagedList<Analysis>> GetAnalyses(AnalysisParameters parameters);
 
     public Task Delete(Guid id);
+
+    public Task<List<string>> GetAvailableAnalyses();
 }
 
 public class AnalysisParameters
@@ -25,8 +29,11 @@ public class AnalysisParameters
     public Guid? InspectionRecordId { get; set; }
 }
 
-public class AnalysisService(SaraDbContext context) : IAnalysisService
+public class AnalysisService(SaraDbContext context, IOptions<AnalysisOptions> analysisOptions)
+    : IAnalysisService
 {
+    private readonly AnalysisOptions _analysisOptions = analysisOptions.Value;
+
     public async Task<Analysis?> ReadById(Guid id)
     {
         return await context
@@ -89,5 +96,10 @@ public class AnalysisService(SaraDbContext context) : IAnalysisService
         context.AnalysisRuns.RemoveRange(analysis.Runs);
         context.Analyses.Remove(analysis);
         await context.SaveChangesAsync();
+    }
+
+    public Task<List<string>> GetAvailableAnalyses()
+    {
+        return Task.FromResult(_analysisOptions.Analyses.Keys.ToList());
     }
 }
