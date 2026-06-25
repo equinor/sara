@@ -1,5 +1,3 @@
-using System.Text;
-using System.Text.Json;
 using api.Configurations;
 using api.Database.Context;
 using api.Database.Models;
@@ -13,8 +11,6 @@ namespace api.Services;
 
 public interface IWorkflowService
 {
-    public Task TriggerWorkflow(Guid workflowId);
-
     public Task OnWorkflowCompleted(Guid workflowId);
 
     public Task<Workflow?> ReadById(Guid id);
@@ -24,6 +20,14 @@ public interface IWorkflowService
     public Task RetryWorkflow(Guid id);
 
     public Task Delete(Guid id);
+
+    /// <summary>
+    /// Dispatch the registered <see cref="IAnalysisResultHandler"/> for a
+    /// run's analysis. Exposed for use by
+    /// <see cref="HostedServices.ArgoWorkflowReconciler"/> when a run is
+    /// healed/finalised outside the normal notify-exited callback chain.
+    /// </summary>
+    public Task DispatchAnalysisResultHandler(AnalysisRun run);
 }
 
 public class WorkflowParameters
@@ -41,16 +45,12 @@ public class WorkflowService(
     IEnumerable<ITriggerPayloadEnricher> payloadEnrichers,
     IEnumerable<IWorkflowResultHandler> workflowResultHandlers,
     IEnumerable<IAnalysisResultHandler> analysisResultHandlers,
-    IHttpClientFactory httpClientFactory,
+    IWorkflowGraphBuilder workflowGraphBuilder,
+    IArgoWorkflowSubmitter argoWorkflowSubmitter,
     ILogger<WorkflowService> logger
 ) : IWorkflowService
 {
-    public const string ArgoHttpClientName = "Argo";
-
-    private static readonly JsonSerializerOptions useCamelCaseOption = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-    };
+    private const string AnalysisRunIdLabel = "sara.equinor.com/analysis-run-id";
 
     private readonly AnalysisOptions _options = analysisOptions.Value;
 
@@ -62,114 +62,6 @@ public class WorkflowService(
 
     private readonly Dictionary<string, IAnalysisResultHandler> _analysisResultHandlersByName =
         analysisResultHandlers.ToDictionary(h => h.AnalysisName, StringComparer.OrdinalIgnoreCase);
-
-    public async Task TriggerWorkflow(Guid workflowId)
-    {
-        var workflow = await context.Workflows.FirstOrDefaultAsync(w => w.Id == workflowId);
-        if (workflow is null)
-        {
-            logger.LogError(
-                "Workflow {WorkflowId} not found when attempting to trigger",
-                workflowId
-            );
-            return;
-        }
-
-        // Owned collection (InputBlobStorageLocations) is not loaded by the
-        // FirstOrDefaultAsync above, and the in-memory state can drift from
-        // DB when the entity was modified earlier in the same scope (e.g.
-        // by AnonymizerResultHandler.RewireNextWorkflowIfThermalReading,
-        // which mutates the collection then SaveChangesAsync's; the rewire
-        // is persisted correctly to DB but EF leaves stale child entries on
-        // the in-memory navigation property). Detach the cached entity and
-        // re-fetch with explicit Include so we ship exactly what's
-        // persisted.
-        context.Entry(workflow).State = EntityState.Detached;
-        workflow = await context
-            .Workflows.Include(w => w.InputBlobStorageLocations)
-            .FirstAsync(w => w.Id == workflowId);
-
-        if (!_options.Workflows.TryGetValue(workflow.WorkflowType, out var workflowConfig))
-        {
-            throw new InvalidOperationException(
-                $"Unknown workflow type '{workflow.WorkflowType}' — not found in configuration"
-            );
-        }
-
-        if (workflow.OutputBlobStorageLocation is null)
-        {
-            throw new InvalidOperationException(
-                $"Workflow {workflow.Id} ({workflow.WorkflowType}) has no OutputBlobStorageLocation"
-            );
-        }
-
-        try
-        {
-            var extras = new Dictionary<string, object>();
-            if (_enrichersByType.TryGetValue(workflow.WorkflowType, out var enricher))
-            {
-                var inspectionRecords = await InspectionRecordResolver.GetInspectionRecords(
-                    context,
-                    workflow
-                );
-                extras = await enricher.EnrichAsync(workflow, inspectionRecords);
-            }
-
-            var payload = new Dictionary<string, object>
-            {
-                ["workflowId"] = workflow.Id,
-                ["workflowType"] = workflow.WorkflowType,
-                ["inputBlobStorageLocations"] = workflow.InputBlobStorageLocations,
-                ["outputBlobStorageLocation"] = workflow.OutputBlobStorageLocation,
-                ["extras"] = extras,
-            };
-
-            var json = JsonSerializer.Serialize(payload, useCamelCaseOption);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-            logger.LogInformation(
-                "Triggering workflow {WorkflowType} (Id: {WorkflowId}) with {InputCount} input(s) and output {OutputLocation}",
-                workflow.WorkflowType,
-                workflow.Id,
-                workflow.InputBlobStorageLocations.Count,
-                workflow.OutputBlobStorageLocation
-            );
-
-            var response = await httpClientFactory
-                .CreateClient(ArgoHttpClientName)
-                .PostAsync(workflowConfig.TriggerUrl, content);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                var responseBody = await response.Content.ReadAsStringAsync();
-                throw new HttpRequestException(
-                    $"Argo trigger returned {(int)response.StatusCode} {response.StatusCode}: {responseBody}"
-                );
-            }
-
-            workflow.Status = WorkflowStatus.InProgress;
-            workflow.StartedAt = DateTime.UtcNow;
-            await context.SaveChangesAsync();
-
-            logger.LogInformation(
-                "Workflow {WorkflowType} (Id: {WorkflowId}) triggered successfully",
-                workflow.WorkflowType,
-                workflow.Id
-            );
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(
-                ex,
-                "Failed to trigger workflow {WorkflowType} (Id: {WorkflowId}): {ErrorMessage}",
-                workflow.WorkflowType,
-                workflow.Id,
-                ex.Message
-            );
-
-            await MarkWorkflowFailed(workflow, ex.Message);
-        }
-    }
 
     public async Task OnWorkflowCompleted(Guid workflowId)
     {
@@ -203,165 +95,28 @@ public class WorkflowService(
 
         await DispatchWorkflowResultHandler(workflow);
 
-        if (await TrySkipChainIfGateDictates(workflow, run))
+        // Under direct Argo submission Argo drives step-to-step transitions.
+        // SARA only needs to detect "is this the last successful step?" and
+        // finalise the run. Gate-induced skips of trailing steps surface as
+        // Argo Omitted nodes and are finalised by ArgoWorkflowReconciler.
+        var hasMoreSteps = run.Workflows.Any(w => w.StepNumber > workflow.StepNumber);
+        if (hasMoreSteps)
         {
             return;
         }
 
-        var nextWorkflow = run
-            .Workflows.OrderBy(w => w.StepNumber)
-            .FirstOrDefault(w => w.StepNumber > workflow.StepNumber);
-
-        if (nextWorkflow is null)
-        {
-            run.Status = AnalysisRunStatus.Succeeded;
-            run.CompletedAt = DateTime.UtcNow;
-            await context.SaveChangesAsync();
-
-            logger.LogInformation(
-                "AnalysisRun {AnalysisRunId} completed successfully after workflow {WorkflowType} (step {StepNumber})",
-                run.Id,
-                workflow.WorkflowType,
-                workflow.StepNumber
-            );
-
-            await DispatchAnalysisResultHandler(run);
-            return;
-        }
-
-        logger.LogInformation(
-            "Advancing AnalysisRun {AnalysisRunId} to next workflow {NextWorkflowType} (step {NextStepNumber})",
-            run.Id,
-            nextWorkflow.WorkflowType,
-            nextWorkflow.StepNumber
-        );
-
-        await TriggerWorkflow(nextWorkflow.Id);
-    }
-
-    private async Task MarkWorkflowFailed(Workflow workflow, string errorMessage)
-    {
-        workflow.Status = WorkflowStatus.Failed;
-        workflow.ErrorMessage = errorMessage;
-        workflow.CompletedAt = DateTime.UtcNow;
-        await context.SaveChangesAsync();
-
-        await OnWorkflowCompleted(workflow.Id);
-    }
-
-    private async Task<bool> TrySkipChainIfGateDictates(Workflow workflow, AnalysisRun run)
-    {
-        if (
-            workflow.Status != WorkflowStatus.Succeeded
-            || !_options.Workflows.TryGetValue(workflow.WorkflowType, out var workflowConfig)
-            || !workflowConfig.IsGate
-            || workflowConfig.SkipChainIf is null
-        )
-        {
-            return false;
-        }
-
-        var skipReason = EvaluateSkipRule(workflow, workflowConfig.SkipChainIf);
-        if (skipReason is null)
-        {
-            return false;
-        }
-
-        var skippedWorkflows = run
-            .Workflows.Where(w =>
-                w.StepNumber > workflow.StepNumber && w.Status == WorkflowStatus.Pending
-            )
-            .ToList();
-
-        foreach (var pending in skippedWorkflows)
-        {
-            pending.Status = WorkflowStatus.Skipped;
-            pending.CompletedAt = DateTime.UtcNow;
-        }
-
-        run.Status = AnalysisRunStatus.Skipped;
-        run.SkipReason = skipReason;
+        run.Status = AnalysisRunStatus.Succeeded;
         run.CompletedAt = DateTime.UtcNow;
         await context.SaveChangesAsync();
 
         logger.LogInformation(
-            "AnalysisRun {AnalysisRunId} skipped by gate {GatingWorkflow} "
-                + "(step {StepNumber}). Marked {SkippedCount} downstream workflow(s) "
-                + "[{SkippedTypes}] as Skipped. Reason: {SkipReason}",
+            "AnalysisRun {AnalysisRunId} completed successfully after workflow {WorkflowType} (step {StepNumber})",
             run.Id,
             workflow.WorkflowType,
-            workflow.StepNumber,
-            skippedWorkflows.Count,
-            string.Join(", ", skippedWorkflows.Select(w => w.WorkflowType)),
-            skipReason
+            workflow.StepNumber
         );
 
-        return true;
-    }
-
-    private string? EvaluateSkipRule(Workflow workflow, SkipRule rule)
-    {
-        logger.LogDebug(
-            "Evaluating skip rule for gate workflow {WorkflowType} with Id: {WorkflowId}",
-            workflow.WorkflowType,
-            workflow.Id
-        );
-
-        string? actualValue = null;
-        string? failReason = null;
-
-        if (string.IsNullOrWhiteSpace(workflow.ResultJson))
-        {
-            failReason = "Gate result missing";
-        }
-        else
-        {
-            try
-            {
-                using var result = JsonDocument.Parse(workflow.ResultJson);
-                if (
-                    result.RootElement.TryGetProperty(
-                        rule.ResultJsonKeyToCheckForSkipBoolean,
-                        out var node
-                    )
-                )
-                    actualValue = node.ToString();
-                else
-                    failReason =
-                        $"Gate result missing field '{rule.ResultJsonKeyToCheckForSkipBoolean}'";
-            }
-            catch (JsonException)
-            {
-                failReason = "Gate result unparseable";
-            }
-        }
-
-        if (failReason is not null)
-        {
-            logger.LogWarning(
-                "Gate workflow {WorkflowType} with Id: {WorkflowId} cannot be evaluated, skipping chain as a precaution: {Error}",
-                workflow.WorkflowType,
-                workflow.Id,
-                failReason
-            );
-            return $"{workflow.WorkflowType} gate could not be evaluated: {failReason}, skipping chain as a precaution";
-        }
-
-        var matches = string.Equals(actualValue, rule.Value, StringComparison.OrdinalIgnoreCase);
-
-        logger.LogDebug(
-            "Gate workflow {WorkflowType} with Id: {WorkflowId}: expected {Key}={Expected} and received {Key}={Actual}",
-            workflow.WorkflowType,
-            workflow.Id,
-            rule.ResultJsonKeyToCheckForSkipBoolean,
-            rule.Value,
-            rule.ResultJsonKeyToCheckForSkipBoolean,
-            actualValue
-        );
-
-        return matches
-            ? $"{workflow.WorkflowType} gate matched: {rule.ResultJsonKeyToCheckForSkipBoolean}={rule.Value}"
-            : null;
+        await DispatchAnalysisResultHandler(run);
     }
 
     private async Task DispatchWorkflowResultHandler(Workflow workflow)
@@ -396,7 +151,7 @@ public class WorkflowService(
         }
     }
 
-    private async Task DispatchAnalysisResultHandler(AnalysisRun run)
+    public async Task DispatchAnalysisResultHandler(AnalysisRun run)
     {
         var analysis = await context
             .Analyses.Include(a => a.InspectionRecords)
@@ -472,51 +227,120 @@ public class WorkflowService(
         );
     }
 
+    /// <summary>
+    /// Retry a workflow by resubmitting a partial Argo Workflow CR that
+    /// contains only this step and all downstream steps in the chain. The DB
+    /// rows for this workflow plus any Skipped/Failed siblings are reset to
+    /// Pending; the run is moved back to InProgress. Any prior Argo CR(s)
+    /// labelled with the run's id are deleted first so the reconciler does
+    /// not observe two CRs per run.
+    /// </summary>
     public async Task RetryWorkflow(Guid id)
     {
-        var workflow = await context.Workflows.FirstOrDefaultAsync(w => w.Id == id);
+        var workflow = await context
+            .Workflows.Include(w => w.InputBlobStorageLocations)
+            .FirstOrDefaultAsync(w => w.Id == id);
         if (workflow is null)
         {
             throw new KeyNotFoundException($"Workflow with id {id} not found");
         }
 
-        workflow.Status = WorkflowStatus.Pending;
-        workflow.StartedAt = null;
-        workflow.CompletedAt = null;
-        workflow.ErrorMessage = null;
-        workflow.ResultJson = null;
+        var run = await context
+            .AnalysisRuns.Include(r => r.Workflows)
+                .ThenInclude(w => w.InputBlobStorageLocations)
+            .Include(r => r.Analysis)
+            .FirstAsync(r => r.Id == workflow.AnalysisRunId);
 
-        var run = await context.AnalysisRuns.FirstOrDefaultAsync(r =>
-            r.Id == workflow.AnalysisRunId
-        );
-        if (
-            run is not null
-            && (run.Status == AnalysisRunStatus.Failed || run.Status == AnalysisRunStatus.Skipped)
-        )
-        {
-            run.Status = AnalysisRunStatus.InProgress;
-            run.CompletedAt = null;
-            run.SkipReason = null;
-        }
+        var now = DateTime.UtcNow;
 
-        var skippedSiblings = await context
+        // Reset this workflow and every downstream sibling whose row is not
+        // in Pending. We do not touch upstream successful siblings — the
+        // partial CR starts execution at workflow.StepNumber.
+        var rowsToReset = run
             .Workflows.Where(w =>
-                w.AnalysisRunId == workflow.AnalysisRunId
-                && w.Id != workflow.Id
-                && w.Status == WorkflowStatus.Skipped
+                w.StepNumber >= workflow.StepNumber && w.Status != WorkflowStatus.Pending
             )
-            .ToListAsync();
-        foreach (var sibling in skippedSiblings)
+            .ToList();
+
+        foreach (var w in rowsToReset)
         {
-            sibling.Status = WorkflowStatus.Pending;
-            sibling.StartedAt = null;
-            sibling.CompletedAt = null;
-            sibling.ErrorMessage = null;
-            sibling.ResultJson = null;
+            w.Status = WorkflowStatus.Pending;
+            w.StartedAt = null;
+            w.CompletedAt = null;
+            w.ErrorMessage = null;
+            w.ResultJson = null;
         }
+
+        run.Status = AnalysisRunStatus.InProgress;
+        run.CompletedAt = null;
+        run.SkipReason = null;
 
         await context.SaveChangesAsync();
-        await TriggerWorkflow(id);
+
+        // Delete the previous CR(s) for this run so the reconciler doesn't
+        // see two CRs for the same analysis-run-id.
+        var labelSelector = $"{AnalysisRunIdLabel}={run.Id}";
+        try
+        {
+            var deleted = await argoWorkflowSubmitter.DeleteByLabelAsync(labelSelector);
+            if (deleted > 0)
+            {
+                logger.LogInformation(
+                    "Deleted {Count} prior Argo Workflow CR(s) for AnalysisRun {AnalysisRunId} before retry",
+                    deleted,
+                    run.Id
+                );
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(
+                ex,
+                "Failed to delete prior Argo Workflow CR(s) for AnalysisRun {AnalysisRunId}; proceeding with retry anyway",
+                run.Id
+            );
+        }
+
+        var orderedAllWorkflows = run.Workflows.OrderBy(w => w.StepNumber).ToList();
+        var inspectionRecords = await context
+            .Analyses.Where(a => a.Id == run.AnalysisId)
+            .SelectMany(a => a.InspectionRecords)
+            .ToListAsync();
+
+        var extrasByWorkflowId = new Dictionary<Guid, Dictionary<string, object>>();
+        foreach (var step in orderedAllWorkflows.Where(w => w.StepNumber >= workflow.StepNumber))
+        {
+            if (_enrichersByType.TryGetValue(step.WorkflowType, out var enricher))
+            {
+                extrasByWorkflowId[step.Id] = await enricher.EnrichAsync(step, inspectionRecords);
+            }
+        }
+
+        var manifest = workflowGraphBuilder.BuildFromStep(
+            run,
+            run.Analysis.Name,
+            orderedAllWorkflows,
+            extrasByWorkflowId,
+            fromStepNumber: workflow.StepNumber
+        );
+
+        // Mark every reset step InProgress before submitting so the
+        // reconciler treats them as active until per-step notifiers
+        // overwrite them.
+        foreach (var w in rowsToReset)
+        {
+            w.Status = WorkflowStatus.InProgress;
+            w.StartedAt = now;
+        }
+        await context.SaveChangesAsync();
+
+        var crName = await argoWorkflowSubmitter.SubmitAsync(manifest);
+        logger.LogInformation(
+            "Resubmitted AnalysisRun {AnalysisRunId} as Argo Workflow '{CrName}' starting from step {StepNumber}",
+            run.Id,
+            crName,
+            workflow.StepNumber
+        );
     }
 
     public async Task Delete(Guid id)

@@ -73,6 +73,78 @@ builder
         options => options.Workflows.Values.All(w => w.IsGate == (w.SkipChainIf is not null)),
         "Invalid Analysis.Workflows configuration: IsGate and SkipChainIf must both be set or both be unset on every workflow."
     )
+    .Validate(
+        options =>
+            options.Workflows.Values.All(w =>
+                !string.IsNullOrWhiteSpace(w.ArgoWorkflowTemplateName)
+                && !string.IsNullOrWhiteSpace(w.ArgoRunTemplateName)
+            ),
+        "Invalid Analysis.Workflows configuration: every workflow must declare "
+            + "ArgoWorkflowTemplateName and ArgoRunTemplateName."
+    )
+    .Validate(
+        options =>
+            options
+                .Workflows.Values.Where(w => w.Outputs is not null)
+                .All(w =>
+                    w.Outputs!.Values.All(o =>
+                        !string.IsNullOrWhiteSpace(o.FileExtension)
+                        && o.FileExtension.StartsWith('.')
+                    )
+                ),
+        "Invalid Analysis.Workflows configuration: every Outputs entry must declare a FileExtension starting with '.'."
+    )
+    .Validate(
+        options =>
+        {
+            foreach (var (_, w) in options.Workflows)
+            {
+                if (w.Outputs is null)
+                    continue;
+                var keys = w
+                    .Outputs.Values.Where(o => !string.IsNullOrEmpty(o.ExtrasKey))
+                    .Select(o => o.ExtrasKey!)
+                    .ToList();
+                if (keys.Distinct(StringComparer.Ordinal).Count() != keys.Count)
+                {
+                    return false;
+                }
+            }
+            return true;
+        },
+        "Invalid Analysis.Workflows configuration: ExtrasKey values must be unique within a single workflow's Outputs."
+    )
+    .Validate(
+        options =>
+            options
+                .Workflows.Values.Where(w => w.InputSource is not null)
+                .All(w => options.Workflows.ContainsKey(w.InputSource!.FromPriorWorkflowType)),
+        "Invalid Analysis.Workflows configuration: every InputSource.FromPriorWorkflowType must reference a known workflow type."
+    )
+    .Validate(
+        options =>
+        {
+            foreach (var (_, w) in options.Workflows)
+            {
+                if (w.InputSource is null || string.IsNullOrEmpty(w.InputSource.OutputName))
+                    continue;
+                if (
+                    !options.Workflows.TryGetValue(
+                        w.InputSource.FromPriorWorkflowType,
+                        out var producer
+                    )
+                )
+                    return false;
+                if (
+                    producer.Outputs is null
+                    || !producer.Outputs.ContainsKey(w.InputSource.OutputName)
+                )
+                    return false;
+            }
+            return true;
+        },
+        "Invalid Analysis.Workflows configuration: every InputSource.OutputName must match a named output on the producer workflow."
+    )
     .ValidateOnStart();
 
 builder.Services.AddScoped<IThermalReferenceMetadataService, ThermalReferenceMetadataService>();
@@ -85,9 +157,13 @@ builder.Services.AddScoped<IAnalysisRunService, AnalysisRunService>();
 builder.Services.AddScoped<IMqttPublisherService, MqttPublisherService>();
 
 builder.Services.AddScoped<IWorkflowService, WorkflowService>();
-builder.Services.AddHttpClient(WorkflowService.ArgoHttpClientName);
-builder.Services.AddScoped<ITriggerPayloadEnricher, AnonymizerPayloadEnricher>();
 builder.Services.AddScoped<ITriggerPayloadEnricher, ThermalReadingPayloadEnricher>();
+
+// Direct Argo Workflow CR submission: SARA submits one Workflow CR per
+// AnalysisRun. Singleton submitter holds one KubernetesClient instance reused
+// across requests.
+builder.Services.AddScoped<IWorkflowGraphBuilder, WorkflowGraphBuilder>();
+builder.Services.AddSingleton<IArgoWorkflowSubmitter, ArgoWorkflowSubmitter>();
 
 // Per-workflow result handlers — fire on each successful Workflow step.
 builder.Services.AddScoped<IWorkflowResultHandler, AnonymizerResultHandler>();
@@ -108,6 +184,7 @@ builder.Services.AddScoped<IAnalysisGroupTimeoutProcessor, AnalysisGroupTimeoutP
 builder.Services.AddHostedService<MqttEventHandler>();
 builder.Services.AddHostedService<MqttService>();
 builder.Services.AddHostedService<AnalysisGroupTimeoutService>();
+builder.Services.AddHostedService<ArgoWorkflowReconciler>();
 
 builder
     .Services.AddControllers(options =>

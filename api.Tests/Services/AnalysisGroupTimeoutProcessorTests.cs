@@ -75,7 +75,7 @@ public class AnalysisGroupTimeoutProcessorTests : IAsyncLifetime
 
         Assert.Equal(AnalysisGroupStatus.TimedOut, group.Status);
         Assert.Empty(analysis.Runs);
-        Assert.Empty(_factory.ArgoHttpHandler.Requests);
+        Assert.Empty(_factory.ArgoSubmitter.SubmittedManifests);
     }
 
     [Fact]
@@ -91,6 +91,6 @@ public class AnalysisGroupTimeoutProcessorTests : IAsyncLifetime
         await _context.Entry(group).ReloadAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(AnalysisGroupStatus.Complete, group.Status);
-        Assert.Empty(_factory.ArgoHttpHandler.Requests);
+        Assert.Empty(_factory.ArgoSubmitter.SubmittedManifests);
     }
 }
