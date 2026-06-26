@@ -11,6 +11,9 @@ using Microsoft.Extensions.Options;
 
 namespace api.Services;
 
+public class WorkflowTriggerFailedException(string message, Exception? innerException = null)
+    : Exception(message, innerException);
+
 public interface IWorkflowService
 {
     public Task TriggerWorkflow(Guid workflowId);
@@ -168,6 +171,11 @@ public class WorkflowService(
             );
 
             await MarkWorkflowFailed(workflow, ex.Message);
+
+            throw new WorkflowTriggerFailedException(
+                $"Failed to trigger workflow '{workflow.WorkflowType}'",
+                ex
+            );
         }
     }
 
@@ -236,7 +244,14 @@ public class WorkflowService(
             nextWorkflow.StepNumber
         );
 
-        await TriggerWorkflow(nextWorkflow.Id);
+        try
+        {
+            await TriggerWorkflow(nextWorkflow.Id);
+        }
+        catch (WorkflowTriggerFailedException)
+        {
+            // Already logged and persisted inside TriggerWorkflow.
+        }
     }
 
     private async Task MarkWorkflowFailed(Workflow workflow, string errorMessage)
