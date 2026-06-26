@@ -143,7 +143,7 @@ public class AnalysisController(
     [Authorize(Roles = Role.Any)]
     [Route("available")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetAvailableAnalyses()
+    public async Task<ActionResult<List<string>>> GetAvailableAnalyses()
     {
         try
         {

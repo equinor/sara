@@ -228,4 +228,48 @@ public class InspectionRecordController(
             return NotFound(ex.Message);
         }
     }
+
+    [HttpPost]
+    [Authorize(Roles = Role.Any)]
+    [Route("id/{id:guid}/analyses")]
+    [ProducesResponseType(StatusCodes.Status202Accepted)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status502BadGateway)]
+    public async Task<IActionResult> AddAnalysis(
+        [FromRoute] Guid id,
+        [FromBody] AddAnalysisRequest request
+    )
+    {
+        request.AnalysisName = Sanitize.SanitizeUserInput(request.AnalysisName);
+        try
+        {
+            await inspectionRecordService.AddAnalysis(id, request.AnalysisName);
+            return AcceptedAtAction(nameof(GetById), new { id }, null);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (WorkflowTriggerFailedException ex)
+        {
+            logger.LogError(ex, "Upstream workflow trigger failed for inspection record {Id}", id);
+            return StatusCode(StatusCodes.Status502BadGateway, ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(ex.Message);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Error adding analysis to inspection record");
+            throw;
+        }
+    }
+}
+
+public class AddAnalysisRequest
+{
+    public required string AnalysisName { get; set; }
 }

@@ -1,8 +1,10 @@
+using api.Configurations;
 using api.Database.Context;
 using api.Database.Models;
 using api.MQTT;
 using api.Utilities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace api.Services;
 
@@ -25,6 +27,8 @@ public interface IInspectionRecordService
     );
 
     public Task Delete(Guid id);
+
+    public Task<InspectionRecord> AddAnalysis(Guid inspectionRecordId, string analysisName);
 }
 
 public class InspectionRecordParameters
@@ -60,9 +64,12 @@ public class CreateInspectionRecordAnalysisGroup
 public class InspectionRecordService(
     SaraDbContext context,
     IAnalysisTriggerService analysisTriggerService,
+    IOptions<AnalysisOptions> analysisOptions,
     ILogger<InspectionRecordService> logger
 ) : IInspectionRecordService
 {
+    private readonly AnalysisOptions _analysisOptions = analysisOptions.Value;
+
     public async Task<InspectionRecord> CreateFromMqttMessage(IsarInspectionResultMessage message)
     {
         var inspectionId = Sanitize.SanitizeUserInput(message.InspectionId);
@@ -252,5 +259,32 @@ public class InspectionRecordService(
             parameters.PageNumber,
             parameters.PageSize
         );
+    }
+
+    public async Task<InspectionRecord> AddAnalysis(Guid inspectionRecordId, string analysisName)
+    {
+        if (!_analysisOptions.Analyses.ContainsKey(analysisName))
+        {
+            throw new InvalidOperationException(
+                $"Unknown analysis '{analysisName}'. Valid analyses are: "
+                    + string.Join(", ", _analysisOptions.Analyses.Keys)
+            );
+        }
+
+        var record =
+            await ReadById(inspectionRecordId)
+            ?? throw new KeyNotFoundException(
+                $"Inspection record with id {inspectionRecordId} not found"
+            );
+
+        await analysisTriggerService.OnInspectionRecordCreated(
+            new InspectionRecordCreatedEvent
+            {
+                InspectionRecordId = record.Id,
+                RequiredAnalysis = [analysisName],
+            }
+        );
+
+        return record;
     }
 }
