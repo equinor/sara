@@ -76,7 +76,6 @@ public class FencillaResultHandlerTests : IAsyncLifetime
         await handler.OnWorkflowCompleted(workflow);
 
         var published = Assert.Single(_factory.MqttPublisher.AnalysisResultMessages);
-        Assert.Equal(blobName, published.BlobName);
         Assert.Single(_factory.EmailService.FencillaEmails);
     }
 
@@ -113,7 +112,6 @@ public class FencillaResultHandlerTests : IAsyncLifetime
         await handler.OnWorkflowCompleted(workflow);
 
         var published = Assert.Single(_factory.MqttPublisher.AnalysisResultMessages);
-        Assert.Null(published.BlobName);
         Assert.Empty(_factory.EmailService.FencillaEmails);
     }
 

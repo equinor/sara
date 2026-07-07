@@ -32,9 +32,11 @@ public class AnalysisDto
             .OrderByDescending(w => w.CompletedAt ?? w.StartedAt ?? DateTime.MinValue)
             .FirstOrDefault();
         if (visualizedWorkflow != null && visualizedWorkflow.OutputBlobStorageLocation != null)
-            this.VisualizedSAS = blobService
-                .CreateReadSasUri(visualizedWorkflow.OutputBlobStorageLocation)
-                .Result;
+        {
+            var workflowDto = new WorkflowDto(visualizedWorkflow, blobService);
+            this.VisualizedSAS = workflowDto.OutputBlobSAS;
+            this.Result = workflowDto.Result;
+        }
     }
 
     public Guid Id { get; set; }
@@ -54,4 +56,6 @@ public class AnalysisDto
     public List<InspectionRecord> InspectionRecords { get; set; }
 
     public List<AnalysisRun> Runs { get; set; } = [];
+
+    public AnalysisResultDto? Result { get; set; }
 }

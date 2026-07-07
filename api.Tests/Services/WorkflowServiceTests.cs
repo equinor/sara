@@ -181,8 +181,8 @@ public class WorkflowServiceTests : IAsyncLifetime
             outputBlobStorageLocation: _db.NewBlobStorageLocation()
         );
 
-        await Assert.ThrowsAsync<WorkflowTriggerFailedException>(
-            () => TriggerWorkflowInScope(workflow.Id)
+        await Assert.ThrowsAsync<WorkflowTriggerFailedException>(() =>
+            TriggerWorkflowInScope(workflow.Id)
         );
 
         await _context.Entry(workflow).ReloadAsync(TestContext.Current.CancellationToken);

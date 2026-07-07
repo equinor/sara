@@ -45,9 +45,6 @@ public class CopyRawToVisualizedResultHandler(
             WorkflowId = workflow.Id,
             AnalysisRunId = workflow.AnalysisRunId,
             AnalysisId = workflow.AnalysisRun.AnalysisId,
-            StorageAccount = output.StorageAccount,
-            BlobContainer = output.BlobContainer,
-            BlobName = output.BlobName,
         };
 
         await mqttPublisherService.PublishSaraVisualizationAvailable(message);

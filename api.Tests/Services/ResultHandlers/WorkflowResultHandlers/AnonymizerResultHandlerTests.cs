@@ -72,7 +72,6 @@ public class AnonymizerResultHandlerTests : IAsyncLifetime
 
         var published = Assert.Single(_factory.MqttPublisher.VisualizationMessages);
         Assert.Equal(inspectionId, published.InspectionId);
-        Assert.Equal(blobName, published.BlobName);
         Assert.Equal(workflow.Id, published.WorkflowId);
         Assert.Equal(run.Id, published.AnalysisRunId);
         Assert.Equal(analysis.Id, published.AnalysisId);

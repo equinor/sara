@@ -38,8 +38,6 @@ public class FencillaResultHandler(
             logger
         );
 
-        var warning = result?.IsBreak == true ? "Breach detected" : result?.Warning;
-
         var message = new SaraAnalysisResultMessage
         {
             InspectionIds = [inspectionRecord.InspectionId],
@@ -48,18 +46,10 @@ public class FencillaResultHandler(
             AnalysisRunId = workflow.AnalysisRunId,
             AnalysisId = workflow.AnalysisRun.AnalysisId,
             AnalysisType = workflow.WorkflowType,
-            Value = result?.IsBreak.ToString(),
-            Unit = "bool [isBreach]",
-            Warning = warning,
-            Confidence = result is null ? null : result.Confidence * 100,
         };
 
         if (result?.IsBreak == true && workflow.OutputBlobStorageLocation is { } output)
         {
-            message.StorageAccount = output.StorageAccount;
-            message.BlobContainer = output.BlobContainer;
-            message.BlobName = output.BlobName;
-
             try
             {
                 await emailService.SendFencillaResultEmail(

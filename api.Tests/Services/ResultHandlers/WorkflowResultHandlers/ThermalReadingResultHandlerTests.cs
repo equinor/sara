@@ -81,8 +81,6 @@ public class ThermalReadingResultHandlerTests : IAsyncLifetime
         await handler.OnWorkflowCompleted(workflow);
 
         var published = Assert.Single(_factory.MqttPublisher.AnalysisResultMessages);
-        Assert.Equal(temperature.ToString("F2"), published.Value);
-        Assert.Equal(confidence * 100, published.Confidence);
     }
 
     [Fact]
@@ -135,8 +133,6 @@ public class ThermalReadingResultHandlerTests : IAsyncLifetime
         await handler.OnWorkflowCompleted(workflow);
 
         var published = Assert.Single(_factory.MqttPublisher.AnalysisResultMessages);
-        Assert.Null(published.Value);
-        Assert.Null(published.Confidence);
     }
 
     [Fact]

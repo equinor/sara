@@ -103,21 +103,15 @@ public class SaraVisualizationAvailableMessage : MqttMessage
 
     [JsonPropertyName("analysis_id")]
     public required Guid AnalysisId { get; set; }
-
-    [JsonPropertyName("storageAccount")]
-    public required string StorageAccount { get; set; }
-
-    [JsonPropertyName("blobContainer")]
-    public required string BlobContainer { get; set; }
-
-    [JsonPropertyName("blobName")]
-    public required string BlobName { get; set; }
 }
 
 public class SaraAnalysisResultMessage : MqttMessage
 {
     [JsonPropertyName("inspection_ids")]
     public required List<string> InspectionIds { get; set; }
+
+    [JsonPropertyName("analysis_id")]
+    public required Guid AnalysisId { get; set; }
 
     [JsonPropertyName("analysis_group_id")]
     public string? AnalysisGroupId { get; set; }
@@ -128,30 +122,6 @@ public class SaraAnalysisResultMessage : MqttMessage
     [JsonPropertyName("analysis_run_id")]
     public required Guid AnalysisRunId { get; set; }
 
-    [JsonPropertyName("analysis_id")]
-    public required Guid AnalysisId { get; set; }
-
     [JsonPropertyName("analysisType")]
     public required string AnalysisType { get; set; }
-
-    [JsonPropertyName("value")]
-    public string? Value { get; set; }
-
-    [JsonPropertyName("unit")]
-    public string? Unit { get; set; }
-
-    [JsonPropertyName("confidence")]
-    public float? Confidence { get; set; } // As percentage (0-100)
-
-    [JsonPropertyName("warning")]
-    public string? Warning { get; set; }
-
-    [JsonPropertyName("storageAccount")]
-    public string? StorageAccount { get; set; }
-
-    [JsonPropertyName("blobContainer")]
-    public string? BlobContainer { get; set; }
-
-    [JsonPropertyName("blobName")]
-    public string? BlobName { get; set; }
 }
