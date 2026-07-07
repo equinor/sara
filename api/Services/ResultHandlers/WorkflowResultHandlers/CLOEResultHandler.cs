@@ -44,18 +44,7 @@ public class CLOEResultHandler(
             AnalysisRunId = workflow.AnalysisRunId,
             AnalysisId = workflow.AnalysisRun.AnalysisId,
             AnalysisType = workflow.WorkflowType,
-            Value = result?.OilLevel is { } oil ? (oil * 100).ToString("F2") : null,
-            Unit = "percentage",
-            Confidence = result?.Confidence is { } c ? c * 100 : null,
-            Warning = result?.Warning,
         };
-
-        if (workflow.OutputBlobStorageLocation is { } output)
-        {
-            message.StorageAccount = output.StorageAccount;
-            message.BlobContainer = output.BlobContainer;
-            message.BlobName = output.BlobName;
-        }
 
         await mqttPublisherService.PublishSaraAnalysisResultAvailable(message);
 

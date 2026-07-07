@@ -46,18 +46,7 @@ public class ThermalReadingResultHandler(
             AnalysisRunId = workflow.AnalysisRunId,
             AnalysisId = workflow.AnalysisRun.AnalysisId,
             AnalysisType = workflow.WorkflowType,
-            Value = result?.Temperature.ToString("F2"),
-            Unit = "celsius [temperature]",
-            Confidence = result?.Confidence is null ? null : result.Confidence * 100,
-            Warning = result?.Warning,
         };
-
-        if (workflow.OutputBlobStorageLocation is { } output)
-        {
-            message.StorageAccount = output.StorageAccount;
-            message.BlobContainer = output.BlobContainer;
-            message.BlobName = output.BlobName;
-        }
 
         await mqttPublisherService.PublishSaraAnalysisResultAvailable(message);
 

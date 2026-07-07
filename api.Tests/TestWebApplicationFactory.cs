@@ -8,6 +8,7 @@ using api.Services;
 using Api.Test.Mocks;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
@@ -76,6 +77,7 @@ public class TestWebApplicationFactory<TProgram>(string postgresConnectionString
             ReplaceAuthentication(services);
             RegisterMqttEventHandler(services);
             RemoveHostedServices(services);
+            ReplaceBlobStorageService(services);
         });
     }
 
@@ -139,6 +141,16 @@ public class TestWebApplicationFactory<TProgram>(string postgresConnectionString
         services.AddSingleton<ITimeseriesService>(TimeseriesService);
     }
 
+    private void ReplaceBlobStorageService(IServiceCollection services)
+    {
+        var existing = services.Where(d => d.ServiceType == typeof(IBlobStorageService)).ToList();
+        foreach (var descriptor in existing)
+        {
+            services.Remove(descriptor);
+        }
+        services.AddScoped<IBlobStorageService, BlobStorageServiceMock>();
+    }
+
     private static void RemoveHostedServices(IServiceCollection services)
     {
         var hostedDescriptors = services
@@ -152,19 +164,23 @@ public class TestWebApplicationFactory<TProgram>(string postgresConnectionString
 
     private static void ReplaceAuthentication(IServiceCollection services)
     {
+        services.AddSingleton<IHttpContextAccessor, MockHttpContextAccessor>();
         services
-            .AddAuthentication(defaultScheme: TestAuthHandler.SchemeName)
+            .AddAuthorizationBuilder()
+            .AddFallbackPolicy(
+                TestAuthHandler.SchemeName,
+                policy => policy.RequireAuthenticatedUser()
+            );
+        services
+            .AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = TestAuthHandler.SchemeName;
+                options.DefaultChallengeScheme = TestAuthHandler.SchemeName;
+            })
             .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
                 TestAuthHandler.SchemeName,
-                _ => { }
+                options => { }
             );
-
-        services.PostConfigure<AuthenticationOptions>(options =>
-        {
-            options.DefaultAuthenticateScheme = TestAuthHandler.SchemeName;
-            options.DefaultChallengeScheme = TestAuthHandler.SchemeName;
-            options.DefaultScheme = TestAuthHandler.SchemeName;
-        });
     }
 
     /// <summary>

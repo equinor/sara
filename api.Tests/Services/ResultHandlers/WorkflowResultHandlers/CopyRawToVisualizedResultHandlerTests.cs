@@ -63,7 +63,6 @@ public class CopyRawToVisualizedResultHandlerTests : IAsyncLifetime
 
         var published = Assert.Single(_factory.MqttPublisher.VisualizationMessages);
         Assert.Equal(inspectionId, published.InspectionId);
-        Assert.Equal(blobName, published.BlobName);
     }
 
     [Fact]

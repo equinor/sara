@@ -69,7 +69,9 @@ public static class TestSetupHelpers
                 BaseAddress = new Uri("http://localhost:8000"),
             }
         );
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Test");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            TestAuthHandler.SchemeName
+        );
         return client;
     }
 
