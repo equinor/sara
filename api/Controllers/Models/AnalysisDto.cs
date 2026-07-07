@@ -24,7 +24,7 @@ public class AnalysisDto
             .FirstOrDefault();
         if (anonymizedWorkflow != null && anonymizedWorkflow.OutputBlobStorageLocation != null)
             this.AnonymizedSAS = blobService
-                .CreateUserDelegationSASUri(anonymizedWorkflow.OutputBlobStorageLocation)
+                .CreateReadSasUri(anonymizedWorkflow.OutputBlobStorageLocation)
                 .Result;
 
         var visualizedWorkflow = workflows
@@ -33,7 +33,7 @@ public class AnalysisDto
             .FirstOrDefault();
         if (visualizedWorkflow != null && visualizedWorkflow.OutputBlobStorageLocation != null)
             this.VisualizedSAS = blobService
-                .CreateUserDelegationSASUri(visualizedWorkflow.OutputBlobStorageLocation)
+                .CreateReadSasUri(visualizedWorkflow.OutputBlobStorageLocation)
                 .Result;
     }
 

@@ -13,16 +13,14 @@ public class WorkflowDto(Workflow workflow, IBlobStorageService blobService)
 
     public List<Uri> InputBlobSAS { get; set; } =
         workflow
-            .InputBlobStorageLocations.Select(
-                (i) => blobService.CreateUserDelegationSASUri(i).Result
-            )
+            .InputBlobStorageLocations.Select((i) => blobService.CreateReadSasUri(i).Result)
             .ToList();
 
     public WorkflowStatus Status { get; set; } = workflow.Status;
 
     public Uri? OutputBlobSAS { get; set; } =
         workflow.OutputBlobStorageLocation != null
-            ? blobService.CreateUserDelegationSASUri(workflow.OutputBlobStorageLocation).Result
+            ? blobService.CreateReadSasUri(workflow.OutputBlobStorageLocation).Result
             : null;
 
     public string? ResultJson { get; set; } = workflow.ResultJson;

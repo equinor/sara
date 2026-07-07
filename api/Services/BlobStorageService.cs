@@ -11,7 +11,7 @@ public interface IBlobStorageService
     Task<MemoryStream> DownloadBlobAsync(BlobStorageLocation location);
     Task UploadBlobAsync(BlobStorageLocation destination, Stream content, string contentType);
     Task CopyBlobAsync(BlobStorageLocation source, BlobStorageLocation destination);
-    Task<Uri> CreateUserDelegationSASUri(BlobStorageLocation location);
+    Task<Uri> CreateReadSasUri(BlobStorageLocation location);
 }
 
 public class BlobStorageService(TokenCredential credential, IConfiguration configuration)
@@ -98,11 +98,23 @@ public class BlobStorageService(TokenCredential credential, IConfiguration confi
         );
     }
 
-    public async Task<Uri> CreateUserDelegationSASUri(BlobStorageLocation location)
+    public async Task<Uri> CreateReadSasUri(BlobStorageLocation location)
     {
         var serviceClient = CreateBlobServiceClient(location.StorageAccount);
 
         var expiryTime = DateTimeOffset.UtcNow.AddHours(1); // Valid for 1 hour
+
+        var blobClient = serviceClient
+            .GetBlobContainerClient(location.BlobContainer)
+            .GetBlobClient(location.BlobName);
+
+        // Shared-key clients (e.g. Azurite in local orchestration) cannot request
+        // a user-delegation key — that is an Azure AD-only operation. Sign a
+        // service SAS instead; this also builds the correct emulator endpoint URL.
+        // CanGenerateSasUri is only true for shared-key clients, so deployed
+        // (TokenCredential) environments keep the user-delegation path below.
+        if (blobClient.CanGenerateSasUri)
+            return blobClient.GenerateSasUri(BlobSasPermissions.Read, expiryTime);
 
         var userDelegationKey = await serviceClient.GetUserDelegationKeyAsync(
             DateTimeOffset.UtcNow,
