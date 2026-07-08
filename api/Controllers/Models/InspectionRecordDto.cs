@@ -8,8 +8,7 @@ public class InspectionRecordDto(InspectionRecord record, IBlobStorageService bl
     public Guid Id { get; set; } = record.Id;
     public string InspectionId { get; set; } = record.InspectionId;
     public string InstallationCode { get; set; } = record.InstallationCode;
-    public Uri SASToken { get; set; } =
-        blobService.CreateReadSasUri(record.BlobStorageLocation).Result;
+    public BlobStorageLocation BlobStorageLocation { get; set; } = record.BlobStorageLocation;
     public DateTime CreatedAt { get; set; } = record.CreatedAt;
     public string? InspectionType { get; set; } = record.InspectionType;
     public string? Tag { get; set; } = record.Tag;

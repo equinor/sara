@@ -9,6 +9,7 @@ import {
 import { arrow_back } from "@equinor/eds-icons";
 import { getInspectionRecord, type InspectionRecord, type Orientation, type Position } from "../../api/client";
 import StatusChip from "../../components/StatusChip";
+import BlobLocation from "../../components/BlobLocation";
 
 Icon.add({ arrow_back });
 
@@ -93,12 +94,7 @@ export default function InspectionRecordDetailPage() {
           <Table.Row>
             <Table.Cell>Blob</Table.Cell>
             <Table.Cell>
-              {
-                record.sasToken ? (
-                  <Typography link href={record.sasToken}>
-                    Link
-                  </Typography>) : "-"
-              }
+              <BlobLocation loc={record.blobStorageLocation} />
             </Table.Cell>
           </Table.Row>
           <Table.Row>
