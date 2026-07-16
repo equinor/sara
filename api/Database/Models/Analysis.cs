@@ -1,11 +1,30 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-#pragma warning disable CS8618
 namespace api.Database.Models;
+
+public enum AnalysisType
+{
+    Fencilla,
+    CLOE,
+    ThermalReading,
+    CO2,
+}
 
 public class Analysis
 {
+    public static string GetWorkflowTypeFromAnalysisType(AnalysisType type)
+    {
+        var analysisToWorkflowTypeMapping = new Dictionary<AnalysisType, string>
+        {
+            { AnalysisType.CLOE, "cloe" },
+            { AnalysisType.Fencilla, "fencilla" },
+            { AnalysisType.ThermalReading, "thermal-reading" },
+            { AnalysisType.CO2, "CO2" },
+        };
+        return analysisToWorkflowTypeMapping[type];
+    }
+
     [Key]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public Guid Id { get; set; }

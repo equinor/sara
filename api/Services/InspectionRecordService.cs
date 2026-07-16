@@ -33,7 +33,7 @@ public interface IInspectionRecordService
 
     public Task Delete(Guid id);
 
-    public Task<InspectionRecord> AddAnalysis(Guid inspectionRecordId, string analysisName);
+    public Task<InspectionRecord> AddAnalysis(Guid inspectionRecordId, AnalysisType analysisName);
 }
 
 public class InspectionRecordParameters
@@ -43,6 +43,9 @@ public class InspectionRecordParameters
     public string? InspectionId { get; set; }
     public string? Tag { get; set; }
     public string? InstallationCode { get; set; }
+    public DateTime? MinCreationTime { get; set; }
+    public DateTime? MaxCreationTime { get; set; }
+    public List<AnalysisType>? AnalysisTypes { get; set; } = [];
 }
 
 public class CreateInspectionRecordRequest
@@ -55,7 +58,7 @@ public class CreateInspectionRecordRequest
     public string? InspectionDescription { get; set; }
     public string? RobotName { get; set; }
     public DateTime? Timestamp { get; set; }
-    public List<string>? RequiredAnalysis { get; set; }
+    public List<AnalysisType>? RequiredAnalysis { get; set; }
     public CreateInspectionRecordAnalysisGroup? AnalysisGroup { get; set; }
 }
 
@@ -175,7 +178,9 @@ public class InspectionRecordService(
             new InspectionRecordCreatedEvent
             {
                 InspectionRecordId = created.Id,
-                RequiredAnalysis = request.RequiredAnalysis,
+                RequiredAnalysis = request
+                    .RequiredAnalysis?.Select((a) => Analysis.GetWorkflowTypeFromAnalysisType(a))
+                    .ToList(),
                 AnalysisGroup = request.AnalysisGroup is null
                     ? null
                     : new IsarAnalysisGroupMessage
@@ -284,6 +289,34 @@ public class InspectionRecordService(
                 ir.InstallationCode.ToLower().Contains(parameters.InstallationCode.ToLower())
             );
 
+        if (parameters.MinCreationTime != null)
+            query = query.Where(ir => ir.CreatedAt > parameters.MinCreationTime);
+
+        if (parameters.MaxCreationTime != null)
+            query = query.Where(ir => ir.CreatedAt < parameters.MaxCreationTime);
+
+        if (parameters.AnalysisTypes != null)
+        {
+            List<string> analysisTypeStrings =
+            [
+                .. parameters.AnalysisTypes.Select(
+                    (a) => Analysis.GetWorkflowTypeFromAnalysisType(a)
+                ),
+            ];
+            query = query.Where(ir =>
+                ir.Analyses.SelectMany(
+                        (a) =>
+                            a.Runs.SelectMany(
+                                (r) =>
+                                    r.Workflows.Where(
+                                        (w) => analysisTypeStrings.Contains(w.WorkflowType)
+                                    )
+                            )
+                    )
+                    .Any()
+            );
+        }
+
         query = query.OrderByDescending(ir => ir.CreatedAt).ThenByDescending(ir => ir.Id);
 
         return await PagedList<InspectionRecord>.ToPagedListAsync(
@@ -293,12 +326,16 @@ public class InspectionRecordService(
         );
     }
 
-    public async Task<InspectionRecord> AddAnalysis(Guid inspectionRecordId, string analysisName)
+    public async Task<InspectionRecord> AddAnalysis(
+        Guid inspectionRecordId,
+        AnalysisType analysisName
+    )
     {
-        if (!_analysisOptions.Analyses.ContainsKey(analysisName))
+        var workflowType = Analysis.GetWorkflowTypeFromAnalysisType(analysisName);
+        if (!_analysisOptions.Analyses.ContainsKey(workflowType))
         {
             throw new InvalidOperationException(
-                $"Unknown analysis '{analysisName}'. Valid analyses are: "
+                $"Unknown analysis '{workflowType}'. Valid analyses are: "
                     + string.Join(", ", _analysisOptions.Analyses.Keys)
             );
         }
@@ -313,7 +350,7 @@ public class InspectionRecordService(
             new InspectionRecordCreatedEvent
             {
                 InspectionRecordId = record.Id,
-                RequiredAnalysis = [analysisName],
+                RequiredAnalysis = [workflowType],
             }
         );
 
