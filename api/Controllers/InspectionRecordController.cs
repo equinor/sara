@@ -323,9 +323,6 @@ public class InspectionRecordController(
         [FromBody] CreateInspectionRecordRequest request
     )
     {
-        request.RequiredAnalysis = request.RequiredAnalysis is not null
-            ? Sanitize.SanitizeUserInput(request.RequiredAnalysis)
-            : null;
         if (request.AnalysisGroup is not null)
         {
             request.AnalysisGroup.AnalysisGroupId = Sanitize.SanitizeUserInput(
@@ -383,7 +380,6 @@ public class InspectionRecordController(
         [FromBody] AddAnalysisRequest request
     )
     {
-        request.AnalysisName = Sanitize.SanitizeUserInput(request.AnalysisName);
         try
         {
             await inspectionRecordService.AddAnalysis(id, request.AnalysisName);
@@ -412,5 +408,5 @@ public class InspectionRecordController(
 
 public class AddAnalysisRequest
 {
-    public required string AnalysisName { get; set; }
+    public required AnalysisType AnalysisName { get; set; }
 }
