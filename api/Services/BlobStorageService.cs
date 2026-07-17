@@ -12,6 +12,7 @@ public interface IBlobStorageService
     Task UploadBlobAsync(BlobStorageLocation destination, Stream content, string contentType);
     Task CopyBlobAsync(BlobStorageLocation source, BlobStorageLocation destination);
     Task<Uri> CreateReadSasUri(BlobStorageLocation location);
+    Task<bool> ExistsAsync(BlobStorageLocation location);
 }
 
 public class BlobStorageService(TokenCredential credential, IConfiguration configuration)
@@ -80,6 +81,25 @@ public class BlobStorageService(TokenCredential credential, IConfiguration confi
     {
         using var sourceStream = await DownloadBlobAsync(source);
         await UploadBlobAsync(destination, sourceStream, "application/octet-stream");
+    }
+
+    public async Task<bool> ExistsAsync(BlobStorageLocation location)
+    {
+        if (
+            string.IsNullOrWhiteSpace(location.StorageAccount)
+            || string.IsNullOrWhiteSpace(location.BlobContainer)
+            || string.IsNullOrWhiteSpace(location.BlobName)
+        )
+        {
+            return false;
+        }
+
+        var serviceClient = CreateBlobServiceClient(location.StorageAccount);
+        var containerClient = serviceClient.GetBlobContainerClient(location.BlobContainer);
+
+        var blobClient = containerClient.GetBlobClient(location.BlobName);
+        var response = await blobClient.ExistsAsync();
+        return response.Value;
     }
 
     private BlobServiceClient CreateBlobServiceClient(string accountName)

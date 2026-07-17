@@ -33,6 +33,8 @@ namespace api.MQTT
                 .ServiceProvider.GetRequiredService<IAnalysisTriggerService>();
         private ITimeseriesService TimeseriesService =>
             _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<ITimeseriesService>();
+        private IBlobStorageService BlobStorageService =>
+            _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IBlobStorageService>();
 
         public override void Subscribe()
         {
@@ -167,6 +169,48 @@ namespace api.MQTT
                 isarInspectionResultMessage.TagID,
                 isarInspectionResultMessage.InspectionDescription
             );
+
+            var inspectionDataPath = isarInspectionResultMessage.InspectionDataPath;
+            var blobStorageLocation = new BlobStorageLocation
+            {
+                StorageAccount = inspectionDataPath.StorageAccount,
+                BlobContainer = inspectionDataPath.BlobContainer,
+                BlobName = inspectionDataPath.BlobName,
+            };
+
+            bool blobExists;
+            try
+            {
+                blobExists = await BlobStorageService.ExistsAsync(blobStorageLocation);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Failed to verify blob existence for ISAR inspection result. InspectionId: {InspectionId}, "
+                        + "BlobPath: {StorageAccount}/{BlobContainer}/{BlobName}, ErrorMessage: {ErrorMessage}.",
+                    isarInspectionResultMessage.InspectionId,
+                    inspectionDataPath.StorageAccount,
+                    inspectionDataPath.BlobContainer,
+                    inspectionDataPath.BlobName,
+                    ex.Message
+                );
+                return;
+            }
+
+            if (!blobExists)
+            {
+                _logger.LogError(
+                    "Blob location referenced by ISAR inspection result does not exist. No inspection record "
+                        + "or analysis will be created. InspectionId: {InspectionId}, "
+                        + "BlobPath: {StorageAccount}/{BlobContainer}/{BlobName}.",
+                    isarInspectionResultMessage.InspectionId,
+                    inspectionDataPath.StorageAccount,
+                    inspectionDataPath.BlobContainer,
+                    inspectionDataPath.BlobName
+                );
+                return;
+            }
 
             InspectionRecord? inspectionRecord;
             try
