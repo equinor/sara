@@ -36,6 +36,7 @@ public class TestWebApplicationFactory<TProgram>(string postgresConnectionString
     public RecordingHttpMessageHandler ArgoHttpHandler { get; } = new();
     public RecordingEmailService EmailService { get; } = new();
     public RecordingTimeseriesService TimeseriesService { get; } = new();
+    public BlobStorageServiceMock BlobStorageService { get; } = new();
 
     /// <summary>
     /// Returns the configured Argo trigger URL for the given workflow type.
@@ -148,7 +149,7 @@ public class TestWebApplicationFactory<TProgram>(string postgresConnectionString
         {
             services.Remove(descriptor);
         }
-        services.AddScoped<IBlobStorageService, BlobStorageServiceMock>();
+        services.AddSingleton<IBlobStorageService>(BlobStorageService);
     }
 
     private static void RemoveHostedServices(IServiceCollection services)
