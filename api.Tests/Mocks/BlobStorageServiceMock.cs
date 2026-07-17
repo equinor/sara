@@ -8,6 +8,8 @@ namespace Api.Test.Mocks;
 
 public class BlobStorageServiceMock : IBlobStorageService
 {
+    public bool BlobExists { get; set; } = true;
+
     public async Task<MemoryStream> DownloadBlobAsync(BlobStorageLocation location)
     {
         var stream = new MemoryStream();
@@ -35,5 +37,11 @@ public class BlobStorageServiceMock : IBlobStorageService
         return new Uri(
             $"https://{location.StorageAccount}.blob.core.windows.net/{location.BlobContainer}/{location.BlobName}?{mockSAS}"
         );
+    }
+
+    public async Task<bool> ExistsAsync(BlobStorageLocation location)
+    {
+        await Task.CompletedTask;
+        return BlobExists;
     }
 }

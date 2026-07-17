@@ -123,6 +123,25 @@ public class EndToEndPipelineTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task BlobDoesNotExist_NoInspectionRecordOrWorkflowCreated_AndNoAnalysisTriggered()
+    {
+        _factory.BlobStorageService.BlobExists = false;
+        var message = _db.NewIsarInspectionResultMessage(requiredAnalysis: ["per-record-test"]);
+
+        await ProcessInspectionResultInScope(message);
+
+        Assert.False(
+            await _context.InspectionRecords.AnyAsync(TestContext.Current.CancellationToken),
+            "No inspection record should be created when the ISAR blob does not exist."
+        );
+        Assert.False(
+            await _context.Workflows.AnyAsync(TestContext.Current.CancellationToken),
+            "No workflow should be created when the ISAR blob does not exist."
+        );
+        Assert.DoesNotContain(_factory.ArgoHttpHandler.Requests, r => r.Method == HttpMethod.Post);
+    }
+
+    [Fact]
     public async Task MultiStepChain_SecondWorkflowTriggeredAfterFirstSucceeds()
     {
         const string AnalysisName = "multi-step-test";
