@@ -5,8 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <!--disable missing comment warning-->
-    <!-- disable NU1510 temporary to handle vulnerabilities -->
-    <NoWarn>$(NoWarn);1591;NU1510</NoWarn>
+    <NoWarn>$(NoWarn);1591</NoWarn>
     <UserSecretsId>2febe2ef-3c95-4e60-925e-85e1fdba53cf</UserSecretsId>
   </PropertyGroup>
 
@@ -54,8 +53,6 @@
       (CVE-2026-49451 / GHSA-v5pm-xwqc-g5wc).
     -->
     <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
-    <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.7" />
-    <!-- Pin Kiota.Abstractions to the patched version until Graph updates transitively. -->
     <!--
       Pin SQLitePCLRaw.bundle_e_sqlite3 to the 3.x line so the native SQLite library is
       sourced from SourceGear.sqlite3 (SQLite >= 3.50.4) instead of the deprecated and
