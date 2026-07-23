@@ -58,10 +58,6 @@ if (openTelemetryEnabled)
 {
     builder.AddCustomOpenTelemetry(otelActivitySource, otelMeter);
 }
-else
-{
-    builder.Services.AddApplicationInsightsTelemetry();
-}
 
 builder.Services.Configure<AzureAdOptions>(builder.Configuration.GetSection("AzureAd"));
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email"));
