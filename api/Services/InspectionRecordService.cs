@@ -40,7 +40,7 @@ public class InspectionRecordParameters
 {
     public int PageNumber { get; set; } = 1;
     public int PageSize { get; set; } = 25;
-    public string? InspectionId { get; set; }
+    public List<string>? InspectionIds { get; set; }
     public string? Tag { get; set; }
     public string? InstallationCode { get; set; }
     public DateTime? MinCreationTime { get; set; }
@@ -274,9 +274,11 @@ public class InspectionRecordService(
                     .ThenInclude(r => r.Workflows)
             .AsQueryable();
 
-        if (!string.IsNullOrWhiteSpace(parameters.InspectionId))
+        if (parameters.InspectionIds != null && parameters.InspectionIds.Count > 0)
             query = query.Where(ir =>
-                ir.InspectionId.ToLower().Contains(parameters.InspectionId.ToLower())
+                parameters
+                    .InspectionIds.Select((i) => i.ToLower())
+                    .Contains(ir.InspectionId.ToLower())
             );
 
         if (!string.IsNullOrWhiteSpace(parameters.Tag))
@@ -295,7 +297,7 @@ public class InspectionRecordService(
         if (parameters.MaxCreationTime != null)
             query = query.Where(ir => ir.CreatedAt < parameters.MaxCreationTime);
 
-        if (parameters.AnalysisTypes != null)
+        if (parameters.AnalysisTypes != null && parameters.AnalysisTypes.Count > 0)
         {
             List<string> analysisTypeStrings =
             [
