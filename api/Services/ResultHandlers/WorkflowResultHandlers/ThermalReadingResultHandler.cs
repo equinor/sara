@@ -50,10 +50,7 @@ public class ThermalReadingResultHandler(
 
         await mqttPublisherService.PublishSaraAnalysisResultAvailable(message);
 
-        if (result?.Confidence is not null && result.Confidence > 0.99)
-        {
-            await TryUploadTimeseries(workflow, inspectionRecord, result);
-        }
+        await TryUploadTimeseries(workflow, inspectionRecord, result);
     }
 
     private async Task TryUploadTimeseries(
@@ -67,6 +64,17 @@ public class ThermalReadingResultHandler(
             logger.LogWarning(
                 "Skipping thermal-reading timeseries upload for workflow {WorkflowId}: result is null",
                 workflow.Id
+            );
+            return;
+        }
+
+        if (result.Confidence is not { } confidence || confidence <= 0.99)
+        {
+            logger.LogWarning(
+                "Skipping thermal-reading timeseries upload for workflow {WorkflowId}: temperature {Temperature}°C, confidence {Confidence} did not meet threshold (> 0.99)",
+                workflow.Id,
+                result.Temperature,
+                result.Confidence
             );
             return;
         }
