@@ -20,6 +20,13 @@ public record TriggerTimeseriesUploadRequest
     public Dictionary<string, string> Metadata { get; init; } = [];
 }
 
+public record TriggerTimeseriesUploadResponse
+{
+    public string? TimeseriesId { get; init; }
+    public int StatusCode { get; init; }
+    public string? Message { get; init; }
+}
+
 public record FetchCO2MeasurementRequest
 {
     [JsonPropertyName("facility")]
@@ -69,18 +76,26 @@ public class TimeseriesService(IConfiguration configuration, ILogger<TimeseriesS
 
         if (response.IsSuccessStatusCode)
         {
+            var uploadResponse =
+                await response.Content.ReadFromJsonAsync<TriggerTimeseriesUploadResponse>(
+                    useCamelCaseOption
+                );
             logger.LogInformation(
-                "Successfully uploaded datapoint with name: {Name} and description: {Description} to Timeseries.",
+                "Successfully uploaded datapoint with name: {Name} and description: {Description} to Timeseries. TimeseriesId: {TimeseriesId}",
                 uploadRequest.Name,
-                uploadRequest.Description
+                uploadRequest.Description,
+                uploadResponse?.TimeseriesId
             );
         }
         else
         {
+            var errorMessage = await response.Content.ReadAsStringAsync();
             logger.LogError(
-                "Failed to upload datapoint with name: {Name} and description: {Description} to Timeseries.",
+                "Failed to upload datapoint with name: {Name} and description: {Description} to Timeseries with statusCode: '{StatusCode}' and message: '{Message}'.",
                 uploadRequest.Name,
-                uploadRequest.Description
+                uploadRequest.Description,
+                response.StatusCode,
+                errorMessage
             );
         }
     }
