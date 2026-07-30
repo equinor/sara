@@ -4,12 +4,13 @@ import {
   useMsal,
 } from "@azure/msal-react";
 import { useEffect } from "react";
-import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router";
+import { Routes, Route, useNavigate, useLocation } from "react-router";
 import { Tabs, Typography, Button, TopBar, Icon } from "@equinor/eds-core-react";
 import { code } from "@equinor/eds-icons";
 import { getAppConfig, createLoginRequest } from "./authConfig";
 import { setMsalInstance } from "./api/client";
 import { apiUrl } from "./utils/routing";
+import OverviewPage from "./pages/overview";
 import InspectionRecordsPage from "./pages/inspection-records";
 import CreateInspectionRecordPage from "./pages/inspection-records/create";
 import InspectionRecordDetailPage from "./pages/inspection-records/detail";
@@ -36,6 +37,7 @@ const StyledSignInContainer = styled.div`
 Icon.add({ code });
 
 const TABS = [
+  { path: "/overview", label: "Overview" },
   { path: "/inspection-records", label: "Inspection Records" },
   { path: "/analyses", label: "Analyses" },
   { path: "/analysis-groups", label: "Analysis Groups" },
@@ -77,9 +79,9 @@ function App() {
           <span
             role="link"
             tabIndex={0}
-            onClick={() => navigate("/inspection-records")}
+            onClick={() => navigate("/overview")}
             onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") navigate("/inspection-records");
+              if (e.key === "Enter" || e.key === " ") navigate("/overview");
             }}
             style={{ cursor: "pointer" }}
           >
@@ -114,7 +116,9 @@ function App() {
       <AuthenticatedTemplate>
         <div style={{ padding: "1rem" }}>
           <Routes>
-            <Route index element={<Navigate to="/inspection-records" replace />} />
+            <Route index element={tabbed(<OverviewPage />)} />
+
+            <Route path="/overview" element={tabbed(<OverviewPage />)} />
 
             <Route path="/inspection-records" element={tabbed(<InspectionRecordsPage />)} />
             <Route path="/inspection-records/new" element={<CreateInspectionRecordPage />} />

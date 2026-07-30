@@ -66,8 +66,14 @@ export type AnalysisRunStatus =
   | "Pending"
   | "InProgress"
   | "Succeeded"
-  | "Failed";
-export type WorkflowStatus = "Pending" | "InProgress" | "Succeeded" | "Failed";
+  | "Failed"
+  | "Skipped";
+export type WorkflowStatus =
+  | "Pending"
+  | "InProgress"
+  | "Succeeded"
+  | "Failed"
+  | "Skipped";
 
 // --- Domain types ---
 
@@ -556,4 +562,78 @@ export async function createThermalReferenceFromInspectionRecord(
     method: "POST",
     body: JSON.stringify(input),
   });
+}
+
+// --- Dashboard ---
+
+export interface StatusCounts {
+  pending: number;
+  inProgress: number;
+  succeeded: number;
+  failed: number;
+  skipped: number;
+  total: number;
+}
+
+export interface RunningCounts {
+  workflows: number;
+  runs: number;
+}
+
+export interface WorkflowTypeStat {
+  workflowType: string;
+  total: number;
+  succeeded: number;
+  failed: number;
+  skipped: number;
+  failureRate: number;
+  averageDurationSeconds: number | null;
+}
+
+export interface StuckWorkflow {
+  id: string;
+  workflowType: string;
+  analysisRunId: string;
+  startedAt: string | null;
+  minutesRunning: number;
+}
+
+export interface AnalysisGroupCounts {
+  pending: number;
+  complete: number;
+  timedOut: number;
+}
+
+export interface TrendBucket {
+  bucketStart: string;
+  succeeded: number;
+  failed: number;
+}
+
+export interface DashboardSummary {
+  windowHours: number;
+  since: string;
+  generatedAt: string;
+  workflowStatusCounts: StatusCounts;
+  runStatusCounts: StatusCounts;
+  successRate: number;
+  currentlyRunning: RunningCounts;
+  perWorkflowType: WorkflowTypeStat[];
+  stuck: StuckWorkflow[];
+  analysisGroupCounts: AnalysisGroupCounts;
+  inspectionRecordsIngested: number;
+  trend: TrendBucket[];
+}
+
+/** Window sizes (hours) accepted by the dashboard summary endpoint. */
+export const DASHBOARD_WINDOWS = [
+  { hours: 24, label: "24h" },
+  { hours: 168, label: "7d" },
+  { hours: 720, label: "30d" },
+] as const;
+
+export async function getDashboardSummary(
+  sinceHours = 24
+): Promise<DashboardSummary> {
+  return apiFetch(apiUrl(`/api/dashboard/summary?sinceHours=${sinceHours}`));
 }

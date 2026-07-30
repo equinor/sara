@@ -62,6 +62,9 @@ if (openTelemetryEnabled)
 builder.Services.Configure<AzureAdOptions>(builder.Configuration.GetSection("AzureAd"));
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email"));
 builder.Services.Configure<EndpointConfig>(builder.Configuration.GetSection("EndpointConfig"));
+builder.Services.Configure<DashboardOptions>(
+    builder.Configuration.GetSection(DashboardOptions.SectionName)
+);
 builder
     .Services.AddOptions<AnalysisOptions>()
     .Bind(builder.Configuration.GetSection(AnalysisOptions.SectionName))
@@ -79,6 +82,7 @@ builder.Services.AddScoped<IAnalysisService, AnalysisService>();
 builder.Services.AddScoped<IAnalysisGroupService, AnalysisGroupService>();
 builder.Services.AddScoped<IAnalysisRunService, AnalysisRunService>();
 builder.Services.AddScoped<IMqttPublisherService, MqttPublisherService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
 
 builder.Services.AddScoped<IWorkflowService, WorkflowService>();
 builder.Services.AddHttpClient(WorkflowService.ArgoHttpClientName);
