@@ -4,23 +4,37 @@ export interface AppConfig {
   clientId: string;
   tenantId: string;
   basePath: string;
+  flotillaBaseUrl: string;
 }
 
-let appConfig: AppConfig = { clientId: "", tenantId: "", basePath: "" };
+let appConfig: AppConfig = {
+  clientId: "",
+  tenantId: "",
+  basePath: "",
+  flotillaBaseUrl: "",
+};
 
 export function getAppConfig(): AppConfig {
   return appConfig;
 }
 
+// Resolve the config endpoint against the app's base (where the bundle lives),
+// not the current route. With Vite's relative base the bundle is served from
+// `{basePath}/assets/*.js`, so "../api/config" always resolves to
+// `{basePath}/api/config` in dev and any deployed sub-path. Using a route-relative
+// URL instead breaks on deep links/refreshes (e.g. /inspection-records/:id).
+const configUrl = new URL(/* @vite-ignore */ "../api/config", import.meta.url);
+
 export async function loadAppConfig(): Promise<AppConfig> {
   try {
-    const res = await fetch("api/config");
+    const res = await fetch(configUrl);
     if (res.ok) {
       const data = await res.json();
       appConfig = {
         clientId: data.azureAd?.clientId ?? "",
         tenantId: data.azureAd?.tenantId ?? "",
         basePath: data.basePath ?? "",
+        flotillaBaseUrl: data.flotillaBaseUrl ?? "",
       };
     }
   } catch {
@@ -29,6 +43,7 @@ export async function loadAppConfig(): Promise<AppConfig> {
       clientId: import.meta.env.VITE_AZURE_AD_CLIENT_ID ?? "",
       tenantId: import.meta.env.VITE_AZURE_AD_TENANT_ID ?? "",
       basePath: "",
+      flotillaBaseUrl: "",
     };
   }
   return appConfig;

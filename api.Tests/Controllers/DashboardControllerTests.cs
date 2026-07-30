@@ -84,11 +84,35 @@ public class DashboardControllerTests : IAsyncLifetime
         var run = await _db.NewAnalysisRun(analysis);
 
         // In window (last 24h)
-        await SeedWorkflow(run, "fencilla", WorkflowStatus.Succeeded, now.AddHours(-2), now.AddHours(-1));
-        await SeedWorkflow(run, "fencilla", WorkflowStatus.Failed, now.AddHours(-3), now.AddHours(-2));
-        await SeedWorkflow(run, "cloe", WorkflowStatus.Succeeded, now.AddHours(-5), now.AddHours(-4));
+        await SeedWorkflow(
+            run,
+            "fencilla",
+            WorkflowStatus.Succeeded,
+            now.AddHours(-2),
+            now.AddHours(-1)
+        );
+        await SeedWorkflow(
+            run,
+            "fencilla",
+            WorkflowStatus.Failed,
+            now.AddHours(-3),
+            now.AddHours(-2)
+        );
+        await SeedWorkflow(
+            run,
+            "cloe",
+            WorkflowStatus.Succeeded,
+            now.AddHours(-5),
+            now.AddHours(-4)
+        );
         // Out of window
-        await SeedWorkflow(run, "fencilla", WorkflowStatus.Succeeded, now.AddHours(-40), now.AddHours(-39));
+        await SeedWorkflow(
+            run,
+            "fencilla",
+            WorkflowStatus.Succeeded,
+            now.AddHours(-40),
+            now.AddHours(-39)
+        );
 
         var summary = await GetSummary(24);
 

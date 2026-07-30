@@ -7,6 +7,7 @@ public class InspectionRecordDto(InspectionRecord record, IBlobStorageService bl
 {
     public Guid Id { get; set; } = record.Id;
     public string InspectionId { get; set; } = record.InspectionId;
+    public string? FlotillaMissionId { get; set; } = record.FlotillaMissionId;
     public string InstallationCode { get; set; } = record.InstallationCode;
     public BlobStorageLocation BlobStorageLocation { get; set; } = record.BlobStorageLocation;
     public DateTime CreatedAt { get; set; } = record.CreatedAt;

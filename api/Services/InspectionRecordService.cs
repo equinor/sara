@@ -92,6 +92,9 @@ public class InspectionRecordService(
         var inspectionRecord = new InspectionRecord
         {
             InspectionId = inspectionId,
+            FlotillaMissionId = message.MissionId is null
+                ? null
+                : Sanitize.SanitizeUserInput(message.MissionId),
             InstallationCode = Sanitize.SanitizeUserInput(message.InstallationCode),
             BlobStorageLocation = new BlobStorageLocation
             {
