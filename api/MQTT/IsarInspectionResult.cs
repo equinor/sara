@@ -34,6 +34,9 @@ public class IsarInspectionResultMessage : MqttMessage
     [Required]
     public required string InspectionId { get; set; }
 
+    [JsonPropertyName("mission_id")]
+    public string? MissionId { get; set; }
+
     [JsonPropertyName("blob_storage_data_path")]
     [Required]
     public required InspectionPathMessage InspectionDataPath { get; set; }

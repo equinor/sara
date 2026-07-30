@@ -13,6 +13,8 @@ public class InspectionRecord
     [Required]
     public required string InspectionId { get; set; }
 
+    public string? FlotillaMissionId { get; set; }
+
     [Required]
     public required string InstallationCode { get; set; }
 

@@ -213,6 +213,7 @@ app.MapGet(
                     TenantId = configuration["AzureAd:TenantId"] ?? "",
                 },
                 BasePath = (configuration["ApiBaseRoute"] ?? "").TrimEnd('/'),
+                FlotillaBaseUrl = (configuration["FlotillaBaseUrl"] ?? "").TrimEnd('/'),
             }
     )
     .AllowAnonymous();

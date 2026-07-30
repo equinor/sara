@@ -104,6 +104,7 @@ export interface AnalysisGroupRef {
 export interface InspectionRecord {
   id: string;
   inspectionId: string;
+  flotillaMissionId?: string | null;
   installationCode: string;
   blobStorageLocation: BlobStorageLocation;
   createdAt: string;
