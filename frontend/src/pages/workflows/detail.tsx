@@ -107,25 +107,6 @@ export default function WorkflowDetailPage() {
       </Table>
 
       <Typography variant="h5" style={{ marginBottom: "0.5rem" }}>
-        Inputs
-      </Typography>
-      {workflow.inputBlobSAS.length === 0 ? (
-        <Typography variant="body_short" style={{ marginBottom: "1.5rem" }}>
-          None.
-        </Typography>
-      ) : (
-        <ul style={{ marginBottom: "1.5rem" }}>
-          {workflow.inputBlobSAS.map((loc, i) => (
-            <li key={i}>
-              <Typography link href={loc}>
-                Link
-              </Typography>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <Typography variant="h5" style={{ marginBottom: "0.5rem" }}>
         Output
       </Typography>
       <div style={{ marginBottom: "1.5rem" }}>

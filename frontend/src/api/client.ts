@@ -138,7 +138,6 @@ export interface Workflow {
   analysisRunId: string;
   stepNumber: number;
   workflowType: string;
-  inputBlobSAS: string[];
   status: WorkflowStatus;
   outputBlobSAS?: string | null;
   resultJson?: string | null;
