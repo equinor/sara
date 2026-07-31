@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router";
 import { Button, Icon, Table, Typography } from "@equinor/eds-core-react";
 import { arrow_back } from "@equinor/eds-icons";
 import { getWorkflow, retryWorkflow, type Workflow } from "../../api/client";
+import { argoWorkflowUrl } from "../../authConfig";
 import StatusChip from "../../components/StatusChip";
 
 Icon.add({ arrow_back });
@@ -52,6 +53,8 @@ export default function WorkflowDetailPage() {
     );
   if (!workflow) return <Typography variant="body_short">Loading…</Typography>;
 
+  const argoUrl = argoWorkflowUrl(workflow.argoWorkflowName);
+
   return (
     <div style={{ paddingTop: "1rem" }}>
       <Button variant="ghost" onClick={() => navigate(-1)}>
@@ -83,12 +86,16 @@ export default function WorkflowDetailPage() {
           <Table.Row>
             <Table.Cell>Analysis Run</Table.Cell>
             <Table.Cell>
-              <Button
-                variant="ghost"
-                onClick={() => navigate(`/analysis-runs/${workflow.analysisRunId}`)}
-              >
-                {workflow.analysisRunId}
-              </Button>
+              {workflow.analysisRunId ? (
+                <Button
+                  variant="ghost"
+                  onClick={() => navigate(`/analysis-runs/${workflow.analysisRunId}`)}
+                >
+                  {workflow.analysisRunId}
+                </Button>
+              ) : (
+                "–"
+              )}
             </Table.Cell>
           </Table.Row>
           <Table.Row>
@@ -103,6 +110,16 @@ export default function WorkflowDetailPage() {
               {workflow.completedAt ? new Date(workflow.completedAt).toLocaleString() : "–"}
             </Table.Cell>
           </Table.Row>
+          {argoUrl && (
+            <Table.Row>
+              <Table.Cell>Argo Workflow</Table.Cell>
+              <Table.Cell>
+                <Typography link href={argoUrl} target="_blank" rel="noopener noreferrer">
+                  {workflow.argoWorkflowName}
+                </Typography>
+              </Table.Cell>
+            </Table.Row>
+          )}
         </Table.Body>
       </Table>
 

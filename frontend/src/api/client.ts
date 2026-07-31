@@ -126,6 +126,7 @@ export interface WorkflowWithoutSAS {
   workflowType: string;
   inputBlobStorageLocations: BlobStorageLocation[];
   status: WorkflowStatus;
+  argoWorkflowName?: string | null;
   outputBlobStorageLocation?: BlobStorageLocation | null;
   resultJson?: string | null;
   startedAt?: string | null;
@@ -140,6 +141,7 @@ export interface Workflow {
   stepNumber: number;
   workflowType: string;
   status: WorkflowStatus;
+  argoWorkflowName?: string | null;
   outputBlobSAS?: string | null;
   resultJson?: string | null;
   startedAt?: string | null;

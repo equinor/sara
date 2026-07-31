@@ -29,7 +29,10 @@ public class WorkflowNotificationController(
     [Route("{workflowId:guid}/started")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> WorkflowStarted([FromRoute] Guid workflowId)
+    public async Task<IActionResult> WorkflowStarted(
+        [FromRoute] Guid workflowId,
+        [FromBody] WorkflowStartedNotification? notification = null
+    )
     {
         var workflow = await context.Workflows.FirstOrDefaultAsync(w => w.Id == workflowId);
         if (workflow is null)
@@ -38,13 +41,18 @@ public class WorkflowNotificationController(
         }
 
         logger.LogInformation(
-            "Workflow {WorkflowType} (Id: {WorkflowId}) reported started",
+            "Workflow {WorkflowType} (Id: {WorkflowId}) reported started (ArgoWorkflowName: {ArgoWorkflowName})",
             workflow.WorkflowType,
-            workflow.Id
+            workflow.Id,
+            notification?.ArgoWorkflowName
         );
 
         workflow.Status = WorkflowStatus.InProgress;
         workflow.StartedAt = DateTime.UtcNow;
+        if (!string.IsNullOrWhiteSpace(notification?.ArgoWorkflowName))
+        {
+            workflow.ArgoWorkflowName = notification.ArgoWorkflowName;
+        }
         await context.SaveChangesAsync();
 
         return NoContent();
@@ -132,6 +140,11 @@ public class WorkflowNotificationController(
 
         return NoContent();
     }
+}
+
+public class WorkflowStartedNotification
+{
+    public string? ArgoWorkflowName { get; set; }
 }
 
 public class WorkflowResultNotification
