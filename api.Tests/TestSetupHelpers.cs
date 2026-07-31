@@ -60,6 +60,36 @@ public static class TestSetupHelpers
         return new TestWebApplicationFactory<Program>(postgresConnectionString);
     }
 
+    /// <summary>
+    /// A factory that keeps the real authentication stack in place, so that
+    /// requests without a token are rejected as they would be in a deployment.
+    /// </summary>
+    public static TestWebApplicationFactory<Program> ConfigureUnauthenticatedWebApplicationFactory(
+        string postgresConnectionString
+    )
+    {
+        return new TestWebApplicationFactory<Program>(
+            postgresConnectionString,
+            replaceAuthentication: false
+        );
+    }
+
+    /// <summary>
+    /// An HTTP client that sends no credentials at all.
+    /// </summary>
+    public static HttpClient ConfigureUnauthenticatedHttpClient(
+        TestWebApplicationFactory<Program> factory
+    )
+    {
+        return factory.CreateClient(
+            new WebApplicationFactoryClientOptions
+            {
+                AllowAutoRedirect = false,
+                BaseAddress = new Uri("http://localhost:8000"),
+            }
+        );
+    }
+
     public static HttpClient ConfigureHttpClient(TestWebApplicationFactory<Program> factory)
     {
         var client = factory.CreateClient(
