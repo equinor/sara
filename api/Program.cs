@@ -214,6 +214,8 @@ app.MapGet(
                 },
                 BasePath = (configuration["ApiBaseRoute"] ?? "").TrimEnd('/'),
                 FlotillaBaseUrl = (configuration["FlotillaBaseUrl"] ?? "").TrimEnd('/'),
+                ArgoWorkflowsBaseUrl = (configuration["ArgoWorkflowsBaseUrl"] ?? "").TrimEnd('/'),
+                ArgoWorkflowsNamespace = configuration["ArgoWorkflowsNamespace"] ?? "",
             }
     )
     .AllowAnonymous();

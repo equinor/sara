@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router";
+import type { MouseEvent } from "react";
 import { Button, Search, Table, Typography } from "@equinor/eds-core-react";
 import {
   deleteWorkflow,
@@ -14,6 +15,7 @@ import PaginationFooter from "../../components/PaginationFooter";
 import StatusChip from "../../components/StatusChip";
 import TableSkeleton from "../../components/TableSkeleton";
 import { PAGE_SIZE_OPTIONS, usePagedList } from "../../utils/usePagedList";
+import { argoWorkflowUrl } from "../../authConfig";
 
 const FILTER_KEYS: (keyof WorkflowParams & string)[] = [
   "workflowType",
@@ -141,15 +143,17 @@ export default function WorkflowsPage() {
                   {w.completedAt ? new Date(w.completedAt).toLocaleString() : "–"}
                 </Table.Cell>
                 <Table.Cell>
-                  <Button
-                    variant="ghost"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(`/analysis-runs/${w.analysisRunId}`);
-                    }}
-                  >
-                    View
-                  </Button>
+                  {w.analysisRunId && (
+                    <Button
+                      variant="ghost"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/analysis-runs/${w.analysisRunId}`);
+                      }}
+                    >
+                      View
+                    </Button>
+                  )}
                 </Table.Cell>
                 <Table.Cell>
                   {w.status === "Failed" && (
@@ -162,6 +166,18 @@ export default function WorkflowsPage() {
                     >
                       Retry
                     </Button>
+                  )}
+                  {argoWorkflowUrl(w.argoWorkflowName) && (
+                    <Typography
+                      link
+                      href={argoWorkflowUrl(w.argoWorkflowName)!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e: MouseEvent) => e.stopPropagation()}
+                      style={{ marginRight: "0.75rem" }}
+                    >
+                      Argo
+                    </Typography>
                   )}
                   <Button
                     variant="ghost"

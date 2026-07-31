@@ -5,6 +5,8 @@ export interface AppConfig {
   tenantId: string;
   basePath: string;
   flotillaBaseUrl: string;
+  argoWorkflowsBaseUrl: string;
+  argoWorkflowsNamespace: string;
 }
 
 let appConfig: AppConfig = {
@@ -12,10 +14,27 @@ let appConfig: AppConfig = {
   tenantId: "",
   basePath: "",
   flotillaBaseUrl: "",
+  argoWorkflowsBaseUrl: "",
+  argoWorkflowsNamespace: "",
 };
 
 export function getAppConfig(): AppConfig {
   return appConfig;
+}
+
+/**
+ * Build a deep link to the Argo Workflows UI for a given Argo workflow name.
+ * Returns null when the base URL is not configured (e.g. local dev) or the
+ * workflow has no stored Argo name (older records / not yet started).
+ */
+export function argoWorkflowUrl(
+  argoWorkflowName: string | null | undefined,
+): string | null {
+  const { argoWorkflowsBaseUrl, argoWorkflowsNamespace } = appConfig;
+  if (!argoWorkflowsBaseUrl || !argoWorkflowsNamespace || !argoWorkflowName) {
+    return null;
+  }
+  return `${argoWorkflowsBaseUrl}/workflows/${argoWorkflowsNamespace}/${argoWorkflowName}`;
 }
 
 // Resolve the config endpoint against the app's base (where the bundle lives),
@@ -35,6 +54,8 @@ export async function loadAppConfig(): Promise<AppConfig> {
         tenantId: data.azureAd?.tenantId ?? "",
         basePath: data.basePath ?? "",
         flotillaBaseUrl: data.flotillaBaseUrl ?? "",
+        argoWorkflowsBaseUrl: data.argoWorkflowsBaseUrl ?? "",
+        argoWorkflowsNamespace: data.argoWorkflowsNamespace ?? "",
       };
     }
   } catch {
@@ -44,6 +65,8 @@ export async function loadAppConfig(): Promise<AppConfig> {
       tenantId: import.meta.env.VITE_AZURE_AD_TENANT_ID ?? "",
       basePath: "",
       flotillaBaseUrl: "",
+      argoWorkflowsBaseUrl: "",
+      argoWorkflowsNamespace: "",
     };
   }
   return appConfig;

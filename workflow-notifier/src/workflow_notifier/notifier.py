@@ -160,12 +160,22 @@ def _validate_result_json(value: str) -> str:
 @app.command()
 def started(
     workflow_id: UUID = typer.Argument(...),
+    argo_workflow_name: Optional[str] = typer.Argument(
+        None,
+        help="Name of the Argo Workflow resource (e.g. {{workflow.name}}), "
+        "used by SARA to build a deep link to the Argo Workflows UI.",
+    ),
 ) -> None:
     """Notify SARA that the workflow has started executing."""
     url = _workflow_url(workflow_id, "started")
     logger.info(f"Workflow {workflow_id} reporting started")
+    payload = (
+        {"argoWorkflowName": argo_workflow_name}
+        if argo_workflow_name is not None
+        else None
+    )
     try:
-        _send_authenticated_put(url, payload=None)
+        _send_authenticated_put(url, payload=payload)
     except requests.exceptions.RequestException as exc:
         logger.error(f"Error notifying workflow {workflow_id} start: {exc}")
         raise typer.Exit(1)

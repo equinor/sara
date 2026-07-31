@@ -41,6 +41,19 @@ def test_started_sends_put_with_no_body(mock_http: requests_mock.Mocker):
     assert mock_http.last_request.headers["Authorization"] == "Bearer fake-token"
 
 
+def test_started_forwards_argo_workflow_name(mock_http: requests_mock.Mocker):
+    url = f"{settings.workflow_base_url}/{WORKFLOW_ID}/started"
+    mock_http.put(url, status_code=204)
+
+    result = runner.invoke(
+        app, ["started", str(WORKFLOW_ID), "triggered-anonymizer-workflow-abc12"]
+    )
+
+    assert result.exit_code == 0
+    body = mock_http.last_request.json()
+    assert body == {"argoWorkflowName": "triggered-anonymizer-workflow-abc12"}
+
+
 def test_result_sends_payload_verbatim(mock_http: requests_mock.Mocker):
     url = f"{settings.workflow_base_url}/{WORKFLOW_ID}/result"
     mock_http.put(url, status_code=204)

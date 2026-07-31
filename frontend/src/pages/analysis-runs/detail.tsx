@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router";
 import { Button, Icon, Table, Typography } from "@equinor/eds-core-react";
 import { arrow_back } from "@equinor/eds-icons";
 import { getAnalysisRun, type AnalysisRun } from "../../api/client";
+import { argoWorkflowUrl } from "../../authConfig";
 import StatusChip from "../../components/StatusChip";
 
 Icon.add({ arrow_back });
@@ -113,6 +114,17 @@ export default function AnalysisRunDetailPage() {
                   <Button variant="ghost" onClick={() => navigate(`/workflows/${w.id}`)}>
                     View
                   </Button>
+                  {argoWorkflowUrl(w.argoWorkflowName) && (
+                    <Typography
+                      link
+                      href={argoWorkflowUrl(w.argoWorkflowName)!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ marginLeft: "0.75rem" }}
+                    >
+                      Argo
+                    </Typography>
+                  )}
                 </Table.Cell>
               </Table.Row>
             ))

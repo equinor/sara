@@ -32,9 +32,11 @@ public class WorkflowDto
     public WorkflowDto(Workflow workflow, IBlobStorageService blobService)
     {
         this.Id = workflow.Id;
+        this.AnalysisRunId = workflow.AnalysisRunId;
         this.StepNumber = workflow.StepNumber;
         this.WorkflowType = workflow.WorkflowType;
         this.Status = workflow.Status;
+        this.ArgoWorkflowName = workflow.ArgoWorkflowName;
         this.OutputBlobSAS =
             workflow.OutputBlobStorageLocation != null
                 ? blobService.CreateReadSasUri(workflow.OutputBlobStorageLocation).Result
@@ -144,9 +146,11 @@ public class WorkflowDto
     }
 
     public Guid Id { get; set; }
+    public Guid AnalysisRunId { get; set; }
     public int StepNumber { get; set; }
     public string WorkflowType { get; set; }
     public WorkflowStatus Status { get; set; }
+    public string? ArgoWorkflowName { get; set; }
     public Uri? OutputBlobSAS { get; set; }
     public AnalysisResultDto? Result { get; set; }
     public string? ResultJson { get; set; }
