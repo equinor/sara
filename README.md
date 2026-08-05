@@ -69,6 +69,60 @@ Use `Local` for normal day-to-day development. Use `Development` when
 you need behaviour identical to the deployed dev pod (real Postgres,
 real OpenTelemetry export, etc.).
 
+- **Keycloak (no Azure sign-in)** — both options above require Azure
+  credentials to *authenticate*: `Local` needs `az login` to reach
+  `saradev-kv`, and `Development` needs a client secret from it. Setting
+  `Authentication:Provider` to `Oidc` points token validation at any
+  conformant OpenID Connect issuer instead.
+
+  ```bash
+  docker compose --profile keycloak up keycloak
+  ```
+
+  This starts Keycloak on `http://localhost:8080` and imports the same
+  realm the armada integration tests use, so a local run and a CI run
+  exercise the same clients, scopes and roles. The realm is read from
+  `../armada/robotics_integration_tests/custom_realms`; set
+  `KEYCLOAK_REALM_DIR` if armada is not checked out beside this
+  repository.
+
+  Then add to `api/.env`:
+
+  ```
+  Authentication__Provider=Oidc
+  AzureAd__Authority=http://localhost:8080/realms/robotics
+  AzureAd__ClientId=sara-test
+  AzureAd__AllowedAuthMethods__0=WorkloadIdentity
+  KeyVault__UseKeyVault=false
+  Database__UseInMemoryDatabase=true
+  ```
+
+  A token for calling the API directly, or from Swagger:
+
+  ```bash
+  curl -s -X POST http://localhost:8080/realms/robotics/protocol/openid-connect/token \
+    -d grant_type=client_credentials \
+    -d client_id=integration-tests \
+    -d client_secret=integration-tests-secret \
+    -d scope=sara-api | jq -r .access_token
+  ```
+
+  `Authentication:Provider` is not a way to switch authentication off:
+  issuer, audience, signature, lifetime and roles are validated under
+  either value. It also cannot weaken transport security — an `http://`
+  authority is accepted only in the `Local` and `IntegrationTest`
+  environments and fails at startup anywhere else.
+
+  Note what this does *not* remove. `AzureAd:AllowedAuthMethods` governs
+  a separate concern: the `TokenCredential` the API uses for blob
+  storage and Microsoft Graph. `AzureCliBootstrap` and `ClientSecret`
+  both need Azure credentials at startup, so the setting above selects
+  `WorkloadIdentity`, which is constructed lazily and therefore does not
+  throw outside AKS — but any code path that actually reaches blob
+  storage or e-mail will still fail. Only sign-in is covered here, not
+  the API's other Azure dependencies. The frontend also still signs in
+  against Entra ID.
+
 
 ## Test & format
 
