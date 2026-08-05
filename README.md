@@ -69,6 +69,51 @@ Use `Local` for normal day-to-day development. Use `Development` when
 you need behaviour identical to the deployed dev pod (real Postgres,
 real OpenTelemetry export, etc.).
 
+- **Keycloak (no Azure sign-in)** — both options above need Azure credentials to
+  authenticate: `Local` needs `az login` to reach `saradev-kv`, `Development` needs a
+  client secret from it. Setting `Authentication:Provider` to `Oidc` points token
+  validation at any conformant OpenID Connect issuer instead.
+
+  ```bash
+  docker compose --profile keycloak up keycloak
+  ```
+
+  Keycloak comes up on `http://localhost:8080` with the same realm the armada
+  integration tests use. The realm is read from
+  `../armada/robotics_integration_tests/custom_realms`; set `KEYCLOAK_REALM_DIR` if
+  armada is not checked out beside this repository.
+
+  Then add to `api/.env`:
+
+  ```
+  Authentication__Provider=Oidc
+  AzureAd__Authority=http://localhost:8080/realms/robotics
+  AzureAd__ClientId=sara-test
+  AzureAd__AllowedAuthMethods__0=WorkloadIdentity
+  KeyVault__UseKeyVault=false
+  Database__UseInMemoryDatabase=true
+  ```
+
+  A token for calling the API directly, or from Swagger:
+
+  ```bash
+  curl -s -X POST http://localhost:8080/realms/robotics/protocol/openid-connect/token \
+    -d grant_type=client_credentials \
+    -d client_id=integration-tests \
+    -d client_secret=integration-tests-secret \
+    -d scope=sara-api | jq -r .access_token
+  ```
+
+  This covers sign-in only. `AzureAd:AllowedAuthMethods` is a separate concern — the
+  `TokenCredential` used for blob storage and Microsoft Graph — so any code path
+  reaching those still needs Azure. The frontend also still signs in against Entra ID.
+
+  The armada integration tests run SARA against the same realm, under
+  `ASPNETCORE_ENVIRONMENT=IntegrationTest`. That environment has no appsettings file
+  here on purpose: its configuration is passed in as environment variables from
+  [`armada/robotics_integration_tests/custom_containers/sara.py`](https://github.com/equinor/armada/blob/main/robotics_integration_tests/custom_containers/sara.py),
+  alongside the realm that defines the clients and scopes. Change it there, not here.
+
 
 ## Test & format
 
