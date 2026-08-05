@@ -10,10 +10,8 @@ using api.Services.ResultHandlers.AnalysisResultHandlers;
 using api.Services.ResultHandlers.WorkflowResultHandlers;
 using api.Utilities;
 using Azure.Core;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Rewrite;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Identity.Web;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -124,11 +122,7 @@ builder
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.ConfigureSwagger(builder.Configuration);
 
-builder
-    .Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"))
-    .EnableTokenAcquisitionToCallDownstreamApi()
-    .AddInMemoryTokenCaches();
+builder.Services.ConfigureAuthentication(builder.Configuration, builder.Environment);
 
 builder.Services.ConfigureJwtBearerLogging();
 
@@ -211,6 +205,16 @@ app.MapGet(
                 {
                     ClientId = configuration["AzureAd:ClientId"] ?? "",
                     TenantId = configuration["AzureAd:TenantId"] ?? "",
+                    // The SPA builds its own authority from TenantId when the provider
+                    // is Entra ID. Serving both here lets it point at any other
+                    // OpenID issuer without a rebuild.
+                    Authority = configuration["AzureAd:Authority"] ?? "",
+                },
+                Authentication = new
+                {
+                    Provider =
+                        configuration[api.Configurations.AuthenticationConfigurations.ProviderKey]
+                        ?? api.Configurations.AuthenticationConfigurations.EntraIdProvider,
                 },
                 BasePath = (configuration["ApiBaseRoute"] ?? "").TrimEnd('/'),
                 FlotillaBaseUrl = (configuration["FlotillaBaseUrl"] ?? "").TrimEnd('/'),
