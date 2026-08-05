@@ -26,11 +26,21 @@ namespace Api.Test;
 /// the named "Argo" HttpClient onto a recording handler, and removes background
 /// hosted services so the test host does not connect to a real broker.
 /// </summary>
-public class TestWebApplicationFactory<TProgram>(string postgresConnectionString)
-    : WebApplicationFactory<Program>
+public class TestWebApplicationFactory<TProgram>(
+    string postgresConnectionString,
+    bool replaceAuthentication = true
+) : WebApplicationFactory<Program>
     where TProgram : class
 {
     private readonly string _postgresConnectionString = postgresConnectionString;
+
+    /// <summary>
+    /// When false, the real JWT bearer authentication stays in place instead of
+    /// being swapped for <see cref="TestAuthHandler"/>. Used to assert that
+    /// endpoints actually reject unauthenticated callers; every other test wants
+    /// the stub handler.
+    /// </summary>
+    private readonly bool _replaceAuthentication = replaceAuthentication;
 
     public RecordingMqttPublisher MqttPublisher { get; } = new();
     public RecordingHttpMessageHandler ArgoHttpHandler { get; } = new();
@@ -75,7 +85,10 @@ public class TestWebApplicationFactory<TProgram>(string postgresConnectionString
             ReplaceArgoHttpClient(services);
             ReplaceEmailService(services);
             ReplaceTimeseriesService(services);
-            ReplaceAuthentication(services);
+            if (_replaceAuthentication)
+            {
+                ReplaceAuthentication(services);
+            }
             RegisterMqttEventHandler(services);
             RemoveHostedServices(services);
             ReplaceBlobStorageService(services);
