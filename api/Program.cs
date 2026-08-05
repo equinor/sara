@@ -2,18 +2,13 @@ using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using System.Text.Json.Serialization;
 using api.Configurations;
-using api.Database.Context;
 using api.MQTT;
 using api.Services;
 using api.Services.HostedServices;
-using api.Services.ResultHandlers.AnalysisResultHandlers;
 using api.Services.ResultHandlers.WorkflowResultHandlers;
 using api.Utilities;
 using Azure.Core;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Rewrite;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Identity.Web;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -124,11 +119,7 @@ builder
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.ConfigureSwagger(builder.Configuration);
 
-builder
-    .Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"))
-    .EnableTokenAcquisitionToCallDownstreamApi()
-    .AddInMemoryTokenCaches();
+builder.Services.ConfigureAuthentication(builder.Configuration, builder.Environment);
 
 builder.Services.ConfigureJwtBearerLogging();
 
