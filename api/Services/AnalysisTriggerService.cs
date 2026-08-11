@@ -289,10 +289,12 @@ public class AnalysisTriggerService(
             };
             run.Workflows.Add(workflow);
 
+            var tag = inspectionRecords[0].Tag ?? "no-tag"; // Assumes all records are for the same tag.
             var outputLocation = ComputeOutputBlobStorageLocation(
                 workflowType,
-                stepNumber,
                 run.Id,
+                tag,
+                run.StartedAt!.Value,
                 currentInputs[0]
             );
             workflow.OutputBlobStorageLocation = outputLocation;
@@ -313,8 +315,9 @@ public class AnalysisTriggerService(
 
     private BlobStorageLocation ComputeOutputBlobStorageLocation(
         string workflowType,
-        int stepNumber,
         Guid analysisRunId,
+        string tag,
+        DateTime analysisRunStartedAt,
         BlobStorageLocation fallbackInputLocation
     )
     {
@@ -328,7 +331,10 @@ public class AnalysisTriggerService(
         var extension =
             workflowConfig.OutputFileExtension ?? Path.GetExtension(fallbackInputLocation.BlobName);
 
-        var blobName = $"analysis-runs/{analysisRunId}/{stepNumber}-{workflowType}{extension}";
+        var date = analysisRunStartedAt.ToString("yyyy-MM-dd");
+        var time = analysisRunStartedAt.ToString("HH-mm-ss");
+        var blobName =
+            $"{date}/{time}/tag__{tag}__workflowtype__{workflowType}__analysisrunid__{analysisRunId}{extension}";
 
         var blobContainer = fallbackInputLocation.BlobContainer;
 
