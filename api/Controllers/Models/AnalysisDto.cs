@@ -31,7 +31,7 @@ public class AnalysisDto
             .Where(w => !w.WorkflowType.Equals("anonymizer", StringComparison.OrdinalIgnoreCase))
             .OrderByDescending(w => w.CompletedAt ?? w.StartedAt ?? DateTime.MinValue)
             .FirstOrDefault();
-        if (visualizedWorkflow != null && visualizedWorkflow.OutputBlobStorageLocation != null)
+        if (visualizedWorkflow != null)
         {
             var workflowDto = new WorkflowDto(visualizedWorkflow, blobService);
             this.VisualizedSAS = workflowDto.OutputBlobSAS;
