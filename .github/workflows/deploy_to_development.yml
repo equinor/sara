@@ -48,24 +48,24 @@ jobs:
     strategy:
       matrix:
         include:
-          - image_name: ${{ github.repository }}
+          - image_name: robotics/sara
             path_to_dockerfile: Dockerfile
             path_to_context: .
             short_sha_output: ${{ needs.get-short-sha.outputs.tag }}
-          - image_name: ${{ github.repository }}-workflow-notifier
+          - image_name: robotics/workflow-notifier
             path_to_dockerfile: workflow-notifier/Dockerfile
             path_to_context: workflow-notifier
             short_sha_output: ${{ needs.get-short-sha-for-workflow-notifier-folder.outputs.tag }}
     with:
-      registry: ghcr.io
+      registry: roboticsstagingacr.azurecr.io
       image_name: ${{ matrix.image_name }}
       tag: "dev.${{ matrix.short_sha_output }}"
       secondary_tag: dev
       path_to_dockerfile: ${{ matrix.path_to_dockerfile }}
       path_to_context: ${{ matrix.path_to_context }}
     secrets:
-      registry_password: ${{ secrets.GITHUB_TOKEN }}
-      registry_username: ${{ github.actor }}
+      registry_password: ${{ secrets.ROBOTICS_ROBOTICSSTAGINGACR_PASSWORD }}
+      registry_username: ${{ secrets.ROBOTICS_ROBOTICSSTAGINGACR_USERNAME }}
 
   deploy:
     name: Update deployment in Development
@@ -77,13 +77,13 @@ jobs:
       max-parallel: 1
       matrix:
         include:
-          - image_name: ${{ github.repository }}
+          - image_name: robotics/sara
             short_sha_output: ${{ needs.get-short-sha.outputs.tag }}
-          - image_name: ${{ github.repository }}-workflow-notifier
+          - image_name: robotics/workflow-notifier
             short_sha_output: ${{ needs.get-short-sha-for-workflow-notifier-folder.outputs.tag }}
     with:
       environment: development
-      registry: ghcr.io
+      registry: roboticsstagingacr.azurecr.io
       image_name: ${{ matrix.image_name }}
       tag: "dev.${{ matrix.short_sha_output }}"
       author_email: ${{ github.event.head_commit.author.email }}
