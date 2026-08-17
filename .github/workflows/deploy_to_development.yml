@@ -57,15 +57,15 @@ jobs:
             path_to_context: workflow-notifier
             short_sha_output: ${{ needs.get-short-sha-for-workflow-notifier-folder.outputs.tag }}
     with:
-      registry: roboticsstagingacr.azurecr.io
+      registry: roboticsdevacr.azurecr.io
       image_name: ${{ matrix.image_name }}
       tag: "dev.${{ matrix.short_sha_output }}"
       secondary_tag: dev
       path_to_dockerfile: ${{ matrix.path_to_dockerfile }}
       path_to_context: ${{ matrix.path_to_context }}
     secrets:
-      registry_password: ${{ secrets.ROBOTICS_ROBOTICSSTAGINGACR_PASSWORD }}
-      registry_username: ${{ secrets.ROBOTICS_ROBOTICSSTAGINGACR_USERNAME }}
+      registry_password: ${{ secrets.ROBOTICS_ROBOTICSDEVACR_PASSWORD }}
+      registry_username: ${{ secrets.ROBOTICS_ROBOTICSDEVACR_USERNAME }}
 
   deploy:
     name: Update deployment in Development
@@ -83,7 +83,7 @@ jobs:
             short_sha_output: ${{ needs.get-short-sha-for-workflow-notifier-folder.outputs.tag }}
     with:
       environment: development
-      registry: roboticsstagingacr.azurecr.io
+      registry: roboticsdevacr.azurecr.io
       image_name: ${{ matrix.image_name }}
       tag: "dev.${{ matrix.short_sha_output }}"
       author_email: ${{ github.event.head_commit.author.email }}
