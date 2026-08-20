@@ -135,7 +135,7 @@ public class WorkflowDto
                     AnalysisId = analysisId,
                     AnalysisType = workflowType,
                     Value = result?.Temperature.ToString("F2"),
-                    Unit = "celsius [temperature]",
+                    Unit = "°C",
                     Confidence = result?.Confidence is null ? null : result.Confidence * 100f,
                     Warning = result?.Warning,
                 };
