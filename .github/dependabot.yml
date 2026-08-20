@@ -1,0 +1,22 @@
+version: 2
+updates:
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    ignore:
+      - dependency-name: dotnet/sdk
+        update-types:
+          - version-update:semver-major
+      - dependency-name: dotnet/aspnet
+        update-types:
+          - version-update:semver-major
+
+  - package-ecosystem: docker
+    directory: /workflow-notifier
+    schedule:
+      interval: weekly
+    ignore:
+      - dependency-name: python
+        update-types:
+          - version-update:semver-major
