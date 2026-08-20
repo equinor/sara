@@ -24,7 +24,7 @@ public class AnalysisParameters
 {
     public int PageNumber { get; set; } = 1;
     public int PageSize { get; set; } = 25;
-    public string? Name { get; set; }
+    public string? AnalysisType { get; set; }
     public Guid? AnalysisGroupId { get; set; }
     public Guid? InspectionRecordId { get; set; }
 }
@@ -59,8 +59,10 @@ public class AnalysisService(SaraDbContext context, IOptions<AnalysisOptions> an
                 .ThenInclude(r => r.Workflows)
             .AsQueryable();
 
-        if (!string.IsNullOrWhiteSpace(parameters.Name))
-            query = query.Where(a => a.Name.ToLower().Contains(parameters.Name.ToLower()));
+        if (!string.IsNullOrWhiteSpace(parameters.AnalysisType))
+            query = query.Where(a =>
+                a.AnalysisType.ToLower().Contains(parameters.AnalysisType.ToLower())
+            );
 
         if (parameters.AnalysisGroupId is { } groupId)
             query = query.Where(a => a.AnalysisGroupId == groupId);

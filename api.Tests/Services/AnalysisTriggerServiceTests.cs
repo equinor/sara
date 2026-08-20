@@ -56,7 +56,7 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
             .Analyses.Include(a => a.InspectionRecords)
             .Include(a => a.Runs)
                 .ThenInclude(r => r.Workflows)
-            .SingleAsync(a => a.Name == name, TestContext.Current.CancellationToken);
+            .SingleAsync(a => a.AnalysisType == name, TestContext.Current.CancellationToken);
 
     [Fact]
     public async Task OnInspectionRecordCreated_NoMatchingAnalysis_DoesNothing()
@@ -80,7 +80,7 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
         );
 
         var analysis = await LoadAnalysisByNameAsync(requiredAnalysis);
-        Assert.Equal(requiredAnalysis, analysis.Name);
+        Assert.Equal(requiredAnalysis, analysis.AnalysisType);
     }
 
     [Fact]
@@ -94,7 +94,7 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
         await OnInspectionRecordCreatedInScope(_db.NewInspectionRecordCreatedEvent(record));
 
         var analysis = await LoadOnlyAnalysisAsync();
-        Assert.Equal("multi-step-test", analysis.Name);
+        Assert.Equal("multi-step-test", analysis.AnalysisType);
     }
 
     [Fact]
@@ -111,7 +111,7 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
         );
 
         var analysis = await LoadAnalysisByNameAsync(knownAnalysis);
-        Assert.Equal(knownAnalysis, analysis.Name);
+        Assert.Equal(knownAnalysis, analysis.AnalysisType);
         Assert.Single(_factory.ArgoHttpHandler.Requests);
     }
 
@@ -262,7 +262,10 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
             .Analyses.Include(a => a.Runs)
                 .ThenInclude(r => r.Workflows)
                     .ThenInclude(w => w.InputBlobStorageLocations)
-            .SingleAsync(a => a.Name == analysisName, TestContext.Current.CancellationToken);
+            .SingleAsync(
+                a => a.AnalysisType == analysisName,
+                TestContext.Current.CancellationToken
+            );
 
         var run = Assert.Single(analysis.Runs);
         var workflows = run.Workflows.OrderBy(w => w.StepNumber).ToList();

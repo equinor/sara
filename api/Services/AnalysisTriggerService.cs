@@ -38,8 +38,8 @@ public class AnalysisTriggerService(
             return;
         }
 
-        var analysisNames = GetAnalysesToRun(createdEvent, inspectionRecord);
-        if (analysisNames.Count == 0)
+        var analysisTypes = GetAnalysesToRun(createdEvent, inspectionRecord);
+        if (analysisTypes.Count == 0)
         {
             return;
         }
@@ -56,11 +56,11 @@ public class AnalysisTriggerService(
             await context.SaveChangesAsync();
         }
 
-        foreach (var analysisName in analysisNames)
+        foreach (var analysisType in analysisTypes)
         {
-            var shouldDefer = group is not null && groupedAnalyses.Contains(analysisName);
+            var shouldDefer = group is not null && groupedAnalyses.Contains(analysisType);
             var analysis = await GetOrCreateAnalysis(
-                analysisName,
+                analysisType,
                 inspectionRecord,
                 group,
                 shouldDefer
@@ -70,7 +70,7 @@ public class AnalysisTriggerService(
             {
                 logger.LogInformation(
                     "Deferring analysis '{AnalysisName}' for InspectionId: {InspectionId} — waiting for group {GroupId}",
-                    Sanitize.SanitizeUserInput(analysisName),
+                    Sanitize.SanitizeUserInput(analysisType),
                     Sanitize.SanitizeUserInput(inspectionRecord.InspectionId),
                     Sanitize.SanitizeUserInput(group!.GroupId)
                 );
@@ -193,7 +193,7 @@ public class AnalysisTriggerService(
     }
 
     private async Task<Analysis> GetOrCreateAnalysis(
-        string analysisName,
+        string analysisType,
         InspectionRecord inspectionRecord,
         AnalysisGroup? group,
         bool shouldDefer
@@ -203,7 +203,9 @@ public class AnalysisTriggerService(
         {
             var existing = await context
                 .Analyses.Include(a => a.InspectionRecords)
-                .FirstOrDefaultAsync(a => a.AnalysisGroupId == group.Id && a.Name == analysisName);
+                .FirstOrDefaultAsync(a =>
+                    a.AnalysisGroupId == group.Id && a.AnalysisType == analysisType
+                );
 
             if (existing is not null)
             {
@@ -216,7 +218,7 @@ public class AnalysisTriggerService(
             }
         }
 
-        var analysis = new Analysis { Name = analysisName, AnalysisGroupId = group?.Id };
+        var analysis = new Analysis { AnalysisType = analysisType, AnalysisGroupId = group?.Id };
 
         analysis.InspectionRecords.Add(inspectionRecord);
         await context.Analyses.AddAsync(analysis);
@@ -230,14 +232,14 @@ public class AnalysisTriggerService(
         IReadOnlyList<InspectionRecord> inspectionRecords
     )
     {
-        var analysisConfig = _options.Analyses[analysis.Name];
+        var analysisConfig = _options.Analyses[analysis.AnalysisType];
         var workflowChain = analysisConfig.Workflows;
 
         if (workflowChain.Count == 0)
         {
             logger.LogWarning(
                 "Analysis '{AnalysisName}' has an empty workflow chain",
-                Sanitize.SanitizeUserInput(analysis.Name)
+                Sanitize.SanitizeUserInput(analysis.AnalysisType)
             );
             return;
         }
@@ -246,7 +248,7 @@ public class AnalysisTriggerService(
         {
             logger.LogWarning(
                 "TriggerAnalysis called for analysis '{AnalysisName}' with no InspectionRecords — skipping",
-                Sanitize.SanitizeUserInput(analysis.Name)
+                Sanitize.SanitizeUserInput(analysis.AnalysisType)
             );
             return;
         }
@@ -380,7 +382,7 @@ public class AnalysisTriggerService(
 
         var deferredAnalyses = await context
             .Analyses.Include(a => a.InspectionRecords)
-            .Where(a => a.AnalysisGroupId == group.Id && groupedAnalyses.Contains(a.Name))
+            .Where(a => a.AnalysisGroupId == group.Id && groupedAnalyses.Contains(a.AnalysisType))
             .Where(a => a.Runs.Count == 0)
             .ToListAsync();
 
@@ -454,10 +456,10 @@ public class AnalysisTriggerService(
             throw new KeyNotFoundException($"Analysis with id {analysisId} not found");
         }
 
-        if (!_options.Analyses.ContainsKey(analysis.Name))
+        if (!_options.Analyses.ContainsKey(analysis.AnalysisType))
         {
             throw new InvalidOperationException(
-                $"Analysis '{analysis.Name}' is not present in current configuration"
+                $"Analysis '{analysis.AnalysisType}' is not present in current configuration"
             );
         }
 

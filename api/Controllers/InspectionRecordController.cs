@@ -408,5 +408,5 @@ public class InspectionRecordController(
 
 public class AddAnalysisRequest
 {
-    public required AnalysisType AnalysisName { get; set; }
+    public required AnalysisTypeEnum AnalysisName { get; set; }
 }

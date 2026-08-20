@@ -85,7 +85,7 @@ namespace Api.Database.Context
 
             var analysis = new Analysis
             {
-                Name = "cloe",
+                AnalysisType = "cloe",
                 CreatedAt = createdAt,
                 Runs = new List<AnalysisRun>(),
             };
