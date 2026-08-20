@@ -30,6 +30,7 @@ public class AnalysisRunService(SaraDbContext context) : IAnalysisRunService
             .AnalysisRuns.Include(r => r.Analysis)
             .Include(r => r.Workflows)
                 .ThenInclude(w => w.InputBlobStorageLocations)
+            .Include(r => r.Feedback)
             .FirstOrDefaultAsync(r => r.Id == id);
     }
 
@@ -38,6 +39,7 @@ public class AnalysisRunService(SaraDbContext context) : IAnalysisRunService
         var query = context
             .AnalysisRuns.Include(r => r.Analysis)
             .Include(r => r.Workflows)
+            .Include(r => r.Feedback)
             .AsQueryable();
 
         if (parameters.AnalysisId is { } analysisId)

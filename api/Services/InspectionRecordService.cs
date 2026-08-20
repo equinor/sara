@@ -142,6 +142,9 @@ public class InspectionRecordService(
             .InspectionRecords.Include(ir => ir.Analyses)
                 .ThenInclude(a => a.Runs)
                     .ThenInclude(r => r.Workflows)
+            .Include(ir => ir.Analyses)
+                .ThenInclude(a => a.Runs)
+                    .ThenInclude(r => r.Feedback)
             .FirstOrDefaultAsync(ir => ir.InspectionId == inspectionId);
     }
 
@@ -275,6 +278,9 @@ public class InspectionRecordService(
             .InspectionRecords.Include(ir => ir.Analyses)
                 .ThenInclude(a => a.Runs)
                     .ThenInclude(r => r.Workflows)
+            .Include(ir => ir.Analyses)
+                .ThenInclude(a => a.Runs)
+                    .ThenInclude(r => r.Feedback)
             .AsQueryable();
 
         if (parameters.InspectionIds != null && parameters.InspectionIds.Count > 0)

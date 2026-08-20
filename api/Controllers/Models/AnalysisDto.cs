@@ -11,7 +11,7 @@ public class AnalysisDto
         this.Id = analysis.Id;
         this.Name = analysis.Name;
         this.CreatedAt = analysis.CreatedAt;
-        this.Runs = analysis.Runs;
+        this.Runs = [.. analysis.Runs.Select(r => new AnalysisRunDto(r, blobService))];
         this.AnalysisGroup = analysis.AnalysisGroup;
         this.AnalysisGroupId = analysis.AnalysisGroupId;
         this.InspectionRecords = analysis.InspectionRecords;
@@ -55,7 +55,7 @@ public class AnalysisDto
 
     public List<InspectionRecord> InspectionRecords { get; set; }
 
-    public List<AnalysisRun> Runs { get; set; } = [];
+    public List<AnalysisRunDto> Runs { get; set; } = [];
 
     public AnalysisResultDto? Result { get; set; }
 }
