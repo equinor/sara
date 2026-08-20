@@ -44,12 +44,12 @@ public class AnalysisRunController(
     [HttpGet]
     [Authorize(Roles = Role.Any)]
     [Route("id/{id:guid}")]
-    [ProducesResponseType(typeof(AnalysisRun), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(AnalysisRunDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<AnalysisRun>> GetById([FromRoute] Guid id)
+    public async Task<ActionResult<AnalysisRunDto>> GetById([FromRoute] Guid id)
     {
         try
         {

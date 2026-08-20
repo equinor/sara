@@ -17,6 +17,8 @@ namespace api.Database.Context
 
         public DbSet<ThermalReferenceMetadata> ThermalReferenceMetadata { get; set; } = null!;
 
+        public DbSet<AnalysisRunFeedback> AnalysisRunFeedbacks { get; set; } = null!;
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<InspectionRecord>().HasIndex(ir => ir.InspectionId).IsUnique();
@@ -73,6 +75,8 @@ namespace api.Database.Context
                     tri.InspectionDescription,
                 })
                 .IsUnique();
+
+            modelBuilder.Entity<AnalysisRunFeedback>().HasIndex(f => f.AnalysisRunId).IsUnique();
         }
     }
 }
