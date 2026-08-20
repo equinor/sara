@@ -11,8 +11,6 @@ public interface IAnalysisService
 {
     public Task<Analysis?> ReadById(Guid id);
 
-    public Task<AnalysisRun?> ReadRunById(Guid runId);
-
     public Task<PagedList<Analysis>> GetAnalyses(AnalysisParameters parameters);
 
     public Task Delete(Guid id);
@@ -41,14 +39,6 @@ public class AnalysisService(SaraDbContext context, IOptions<AnalysisOptions> an
             .Include(a => a.Runs)
                 .ThenInclude(r => r.Workflows)
             .FirstOrDefaultAsync(a => a.Id == id);
-    }
-
-    public async Task<AnalysisRun?> ReadRunById(Guid runId)
-    {
-        return await context
-            .AnalysisRuns.Include(r => r.Analysis)
-            .Include(r => r.Workflows)
-            .FirstOrDefaultAsync(r => r.Id == runId);
     }
 
     public async Task<PagedList<Analysis>> GetAnalyses(AnalysisParameters parameters)

@@ -46,14 +46,25 @@ public class AnalysisRunController(
     [Route("id/{id:guid}")]
     [ProducesResponseType(typeof(AnalysisRun), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<AnalysisRun>> GetById([FromRoute] Guid id)
     {
-        var run = await service.ReadById(id);
-        if (run is null)
+        try
         {
-            return NotFound($"Could not find analysis run with id {id}");
+            var run = await service.ReadById(id);
+            if (run is null)
+            {
+                return NotFound($"Could not find analysis run with id {id}");
+            }
+            return Ok(run);
         }
-        return Ok(run);
+        catch (Exception e)
+        {
+            logger.LogError(e, "Error during GET of analysis run by id");
+            throw;
+        }
     }
 
     [HttpDelete]
