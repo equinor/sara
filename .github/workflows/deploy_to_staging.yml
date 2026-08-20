@@ -71,6 +71,7 @@ jobs:
       image_name: ${{ matrix.image_name }}
       tag: ${{ github.event.release.tag_name }}
       author_name: ${{ github.event.release.author.login }}
-      infrastructure_repository: equinor/analytics-infrastructure
+      infrastructure_repository: equinor/robotics-infrastructure
+      kustomization_base_path: k8s_kustomize/analytics/overlays
     secrets:
       deploy_key: ${{ secrets.ANALYTICS_INFRASTRUCTURE_DEPLOY_KEY }}
