@@ -82,6 +82,8 @@ builder.Services.AddScoped<IAnalysisRunService, AnalysisRunService>();
 builder.Services.AddScoped<IMqttPublisherService, MqttPublisherService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 
+builder.Services.AddScoped<IFeedbackService, FeedbackService>();
+
 builder.Services.AddScoped<IWorkflowService, WorkflowService>();
 builder.Services.AddHttpClient(WorkflowService.ArgoHttpClientName);
 builder.Services.AddScoped<ITriggerPayloadEnricher, AnonymizerPayloadEnricher>();

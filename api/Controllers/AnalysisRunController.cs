@@ -10,7 +10,8 @@ namespace api.Controllers;
 [Route("analysis-run")]
 public class AnalysisRunController(
     ILogger<AnalysisRunController> logger,
-    IAnalysisRunService service
+    IAnalysisRunService service,
+    IBlobStorageService blobService
 ) : ControllerBase
 {
     [HttpGet]
@@ -44,12 +45,12 @@ public class AnalysisRunController(
     [HttpGet]
     [Authorize(Roles = Role.Any)]
     [Route("id/{id:guid}")]
-    [ProducesResponseType(typeof(AnalysisRun), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(AnalysisRunDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<AnalysisRun>> GetById([FromRoute] Guid id)
+    public async Task<ActionResult<AnalysisRunDto>> GetById([FromRoute] Guid id)
     {
         try
         {
@@ -58,7 +59,7 @@ public class AnalysisRunController(
             {
                 return NotFound($"Could not find analysis run with id {id}");
             }
-            return Ok(run);
+            return Ok(new AnalysisRunDto(run, blobService));
         }
         catch (Exception e)
         {
