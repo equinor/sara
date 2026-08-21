@@ -37,4 +37,6 @@ public class AnalysisRun
     public string? SkipReason { get; set; }
 
     public List<Workflow> Workflows { get; set; } = [];
+
+    public AnalysisRunFeedback? Feedback { get; set; }
 }
