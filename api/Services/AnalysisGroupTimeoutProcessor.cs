@@ -38,7 +38,7 @@ public class AnalysisGroupTimeoutProcessor(
 
             logger.LogWarning(
                 "AnalysisGroup {GroupId} timed out at {TimeoutAt}: received {ReceivedCount}/{ExpectedSize} records",
-                group.GroupId,
+                group.Id,
                 group.TimeoutAt,
                 receivedCount,
                 group.ExpectedSize
@@ -59,9 +59,9 @@ public class AnalysisGroupTimeoutProcessor(
 
             logger.LogWarning(
                 "AnalysisGroup {GroupId} timed out with {AbandonedCount} deferred analyses that will NOT run: {AnalysisNames}",
-                group.GroupId,
+                group.Id,
                 abandonedAnalyses.Count,
-                string.Join(", ", abandonedAnalyses.Select(a => $"{a.Name} ({a.Id})"))
+                string.Join(", ", abandonedAnalyses.Select(a => $"{a.AnalysisType} ({a.Id})"))
             );
         }
     }

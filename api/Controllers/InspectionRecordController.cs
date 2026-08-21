@@ -325,9 +325,6 @@ public class InspectionRecordController(
     {
         if (request.AnalysisGroup is not null)
         {
-            request.AnalysisGroup.AnalysisGroupId = Sanitize.SanitizeUserInput(
-                request.AnalysisGroup.AnalysisGroupId
-            );
             request.AnalysisGroup.AnalysisGroupAnalyses = Sanitize.SanitizeUserInput(
                 request.AnalysisGroup.AnalysisGroupAnalyses
             );
@@ -408,5 +405,5 @@ public class InspectionRecordController(
 
 public class AddAnalysisRequest
 {
-    public required AnalysisType AnalysisName { get; set; }
+    public required AnalysisTypeEnum AnalysisName { get; set; }
 }

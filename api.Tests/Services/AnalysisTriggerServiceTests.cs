@@ -37,11 +37,11 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
         GC.SuppressFinalize(this);
     }
 
-    private async Task OnInspectionRecordCreatedInScope(InspectionRecordCreatedEvent createdEvent)
+    private async Task OnInspectionRecordCreatedInScope(InspectionRecord record)
     {
         using var scope = _factory.Services.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<IAnalysisTriggerService>();
-        await service.OnInspectionRecordCreated(createdEvent);
+        await service.OnInspectionRecordCreated(record);
     }
 
     private Task<Analysis> LoadOnlyAnalysisAsync() =>
@@ -56,62 +56,29 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
             .Analyses.Include(a => a.InspectionRecords)
             .Include(a => a.Runs)
                 .ThenInclude(r => r.Workflows)
-            .SingleAsync(a => a.Name == name, TestContext.Current.CancellationToken);
+            .SingleAsync(a => a.AnalysisType == name, TestContext.Current.CancellationToken);
 
     [Fact]
     public async Task OnInspectionRecordCreated_NoMatchingAnalysis_DoesNothing()
     {
         var record = await _db.NewInspectionRecord(blobName: "image.dat");
 
-        await OnInspectionRecordCreatedInScope(_db.NewInspectionRecordCreatedEvent(record));
+        await OnInspectionRecordCreatedInScope(record);
 
         Assert.Empty(await _context.Analyses.ToListAsync(TestContext.Current.CancellationToken));
         Assert.Empty(_factory.ArgoHttpHandler.Requests);
     }
 
     [Fact]
-    public async Task OnInspectionRecordCreated_RequiredAnalysisTakesPrecedenceOverFileExtension()
-    {
-        const string requiredAnalysis = "multi-step-test";
-        var record = await _db.NewInspectionRecord(blobName: "image.jpg");
-
-        await OnInspectionRecordCreatedInScope(
-            _db.NewInspectionRecordCreatedEvent(record, requiredAnalysis: [requiredAnalysis])
-        );
-
-        var analysis = await LoadAnalysisByNameAsync(requiredAnalysis);
-        Assert.Equal(requiredAnalysis, analysis.Name);
-    }
-
-    [Fact]
-    public async Task OnInspectionRecordCreated_InspectionTypeAndExtension_TakesPrecedenceOverFileExtension()
-    {
-        var record = await _db.NewInspectionRecord(
-            inspectionType: "TestVideo",
-            blobName: "clip.mp4"
-        );
-
-        await OnInspectionRecordCreatedInScope(_db.NewInspectionRecordCreatedEvent(record));
-
-        var analysis = await LoadOnlyAnalysisAsync();
-        Assert.Equal("multi-step-test", analysis.Name);
-    }
-
-    [Fact]
     public async Task OnInspectionRecordCreated_MixedKnownAndUnknownAnalyses_RunsKnownSkipsUnknown()
     {
         const string knownAnalysis = "per-record-test";
-        var record = await _db.NewInspectionRecord();
+        var record = await _db.NewInspectionRecord(analysisTypes: [knownAnalysis]);
 
-        await OnInspectionRecordCreatedInScope(
-            _db.NewInspectionRecordCreatedEvent(
-                record,
-                requiredAnalysis: [knownAnalysis, "nonexistent-analysis"]
-            )
-        );
+        await OnInspectionRecordCreatedInScope(record);
 
         var analysis = await LoadAnalysisByNameAsync(knownAnalysis);
-        Assert.Equal(knownAnalysis, analysis.Name);
+        Assert.Equal(knownAnalysis, analysis.AnalysisType);
         Assert.Single(_factory.ArgoHttpHandler.Requests);
     }
 
@@ -120,12 +87,7 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
     {
         var record = await _db.NewInspectionRecord();
 
-        await OnInspectionRecordCreatedInScope(
-            _db.NewInspectionRecordCreatedEvent(
-                record,
-                requiredAnalysis: ["nonexistent-analysis", "also-not-real"]
-            )
-        );
+        await OnInspectionRecordCreatedInScope(record);
 
         Assert.Empty(await _context.Analyses.ToListAsync(TestContext.Current.CancellationToken));
         Assert.Empty(_factory.ArgoHttpHandler.Requests);
@@ -136,11 +98,9 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
     {
         const string analysisName = "per-record-test";
         const string workflowType = "test-workflow-1";
-        var record = await _db.NewInspectionRecord();
+        var record = await _db.NewInspectionRecord(analysisTypes: [analysisName]);
 
-        await OnInspectionRecordCreatedInScope(
-            _db.NewInspectionRecordCreatedEvent(record, requiredAnalysis: [analysisName])
-        );
+        await OnInspectionRecordCreatedInScope(record);
 
         var analysis = await LoadOnlyAnalysisAsync();
         var workflow = analysis.Runs.Single().Workflows.Single();
@@ -156,11 +116,9 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
         const string analysisName = "multi-step-test";
         const string firstWorkflowType = "test-workflow-1";
         const string secondWorkflowType = "test-workflow-2";
-        var record = await _db.NewInspectionRecord();
+        var record = await _db.NewInspectionRecord(analysisTypes: [analysisName]);
 
-        await OnInspectionRecordCreatedInScope(
-            _db.NewInspectionRecordCreatedEvent(record, requiredAnalysis: [analysisName])
-        );
+        await OnInspectionRecordCreatedInScope(record);
 
         var analysis = await LoadOnlyAnalysisAsync();
         var workflows = analysis.Runs.Single().Workflows.OrderBy(w => w.StepNumber).ToList();
@@ -181,15 +139,11 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
     public async Task OnInspectionRecordCreated_GroupedAnalysisIncomplete_DefersAndDoesNotTrigger()
     {
         const string analysisName = "group-test";
-        var record = await _db.NewInspectionRecord();
+        
+        var group = await _db.NewAnalysisGroup();
+        var record = await _db.NewInspectionRecord(analysisGroup: group, analysisTypes: [analysisName]);
 
-        await OnInspectionRecordCreatedInScope(
-            _db.NewInspectionRecordCreatedEvent(
-                record,
-                requiredAnalysis: [analysisName],
-                analysisGroup: _db.NewAnalysisGroupMessage(analyses: [analysisName])
-            )
-        );
+        await OnInspectionRecordCreatedInScope(record);
 
         var analysis = await LoadOnlyAnalysisAsync();
         Assert.Empty(analysis.Runs);
@@ -200,26 +154,14 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
     public async Task OnInspectionRecordCreated_GroupedAnalysisCompletes_TriggersDeferredAnalysisWithAllRecords()
     {
         const string analysisName = "group-test";
-        var groupMessage = _db.NewAnalysisGroupMessage(analyses: [analysisName]);
-        var firstRecord = await _db.NewInspectionRecord(inspectionId: "inspection-1");
-        var secondRecord = await _db.NewInspectionRecord(inspectionId: "inspection-2");
+        var group = await _db.NewAnalysisGroup();
+        var firstRecord = await _db.NewInspectionRecord(inspectionId: "inspection-1", analysisGroup: group, analysisTypes: [analysisName]);
+        var secondRecord = await _db.NewInspectionRecord(inspectionId: "inspection-2", analysisGroup: group, analysisTypes: [analysisName]);
 
-        await OnInspectionRecordCreatedInScope(
-            _db.NewInspectionRecordCreatedEvent(
-                firstRecord,
-                requiredAnalysis: [analysisName],
-                analysisGroup: groupMessage
-            )
-        );
-        await OnInspectionRecordCreatedInScope(
-            _db.NewInspectionRecordCreatedEvent(
-                secondRecord,
-                requiredAnalysis: [analysisName],
-                analysisGroup: groupMessage
-            )
-        );
+        await OnInspectionRecordCreatedInScope(firstRecord);
+        await OnInspectionRecordCreatedInScope(secondRecord);
 
-        var analysis = await LoadOnlyAnalysisAsync();
+        var analysis = await LoadOnlyAnalysisAsync(); // TODO: so it seems we only want one analysis per group, but this seems counter intuitive to me
         Assert.Equal(2, analysis.InspectionRecords.Count);
         Assert.Equal(2, analysis.Runs.Single().Workflows.Single().InputBlobStorageLocations.Count);
         Assert.Single(_factory.ArgoHttpHandler.Requests);
@@ -232,14 +174,9 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
         const string groupedAnalysis = "group-test";
         const string firstWorkflowType = "test-workflow-1";
         var record = await _db.NewInspectionRecord();
+        var group = await _db.NewAnalysisGroup();
 
-        await OnInspectionRecordCreatedInScope(
-            _db.NewInspectionRecordCreatedEvent(
-                record,
-                requiredAnalysis: [nonGroupedAnalysis, groupedAnalysis],
-                analysisGroup: _db.NewAnalysisGroupMessage(analyses: [groupedAnalysis])
-            )
-        );
+        await OnInspectionRecordCreatedInScope(record);
 
         Assert.Empty((await LoadAnalysisByNameAsync(groupedAnalysis)).Runs);
         Assert.Single((await LoadAnalysisByNameAsync(nonGroupedAnalysis)).Runs);
@@ -254,15 +191,16 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
         const string analysisName = "multi-step-gated-test";
         var record = await _db.NewInspectionRecord();
 
-        await OnInspectionRecordCreatedInScope(
-            _db.NewInspectionRecordCreatedEvent(record, requiredAnalysis: [analysisName])
-        );
+        await OnInspectionRecordCreatedInScope(record);
 
         var analysis = await _context
             .Analyses.Include(a => a.Runs)
                 .ThenInclude(r => r.Workflows)
                     .ThenInclude(w => w.InputBlobStorageLocations)
-            .SingleAsync(a => a.Name == analysisName, TestContext.Current.CancellationToken);
+            .SingleAsync(
+                a => a.AnalysisType == analysisName,
+                TestContext.Current.CancellationToken
+            );
 
         var run = Assert.Single(analysis.Runs);
         var workflows = run.Workflows.OrderBy(w => w.StepNumber).ToList();

@@ -33,7 +33,10 @@ public interface IInspectionRecordService
 
     public Task Delete(Guid id);
 
-    public Task<InspectionRecord> AddAnalysis(Guid inspectionRecordId, AnalysisType analysisName);
+    public Task<InspectionRecord> AddAnalysis(
+        Guid inspectionRecordId,
+        AnalysisTypeEnum analysisName
+    );
 }
 
 public class InspectionRecordParameters
@@ -45,7 +48,7 @@ public class InspectionRecordParameters
     public string? InstallationCode { get; set; }
     public DateTime? MinCreationTime { get; set; }
     public DateTime? MaxCreationTime { get; set; }
-    public List<AnalysisType>? AnalysisTypes { get; set; } = [];
+    public List<AnalysisTypeEnum>? AnalysisTypes { get; set; } = [];
 }
 
 public class CreateInspectionRecordRequest
@@ -58,7 +61,7 @@ public class CreateInspectionRecordRequest
     public string? InspectionDescription { get; set; }
     public string? RobotName { get; set; }
     public DateTime? Timestamp { get; set; }
-    public List<AnalysisType>? RequiredAnalysis { get; set; }
+    public List<AnalysisTypeEnum>? RequiredAnalysis { get; set; }
     public CreateInspectionRecordAnalysisGroup? AnalysisGroup { get; set; }
 }
 
@@ -89,6 +92,28 @@ public class InspectionRecordService(
             );
         }
 
+        var analysisGroup =
+            message.AnalysisGroup != null
+                ? await GetOrCreateAnalysisGroup(
+                    message.AnalysisGroup.AnalysisGroupId,
+                    message.AnalysisGroup.AnalysisGroupSize
+                )
+                : null;
+
+        var analyses =
+            message.RequiredAnalysis != null
+                ? message
+                    .RequiredAnalysis.Select(
+                        (r) => analysisGroup?.Analyses.Find((a) => a.AnalysisType == r) ??
+                            new Analysis
+                            {
+                                AnalysisType = r,
+                                AnalysisGroup = analysisGroup
+                            }
+                    )
+                    .ToList()
+                : [];
+
         var inspectionRecord = new InspectionRecord
         {
             InspectionId = inspectionId,
@@ -109,9 +134,47 @@ public class InspectionRecordService(
             Timestamp = message.Timestamp,
             RobotPose = message.RobotPose,
             TargetPosition = message.TargetPosition,
+            Analyses = analyses,
+            AnalysisGroup = analysisGroup,
+            AnalysisGroupId = analysisGroup?.Id,
         };
 
         return await Create(inspectionRecord);
+    }
+
+    private async Task<AnalysisGroup> GetOrCreateAnalysisGroup(
+        string analysisGroupId,
+        int analysisGroupSize
+    )
+    {
+        var existing = await context.AnalysisGroups.FirstOrDefaultAsync(g =>
+            g.GroupId == analysisGroupId
+        );
+
+        if (existing is not null)
+        {
+            return existing;
+        }
+
+        var timeoutMinutes = analysisOptions.Value.AnalysisGroupTimeoutMinutes;
+        var group = new AnalysisGroup
+        {
+            GroupId = analysisGroupId,
+            ExpectedSize = analysisGroupSize,
+            TimeoutAt = DateTime.UtcNow.AddMinutes(timeoutMinutes),
+        };
+
+        await context.AnalysisGroups.AddAsync(group);
+        await context.SaveChangesAsync();
+
+        logger.LogInformation(
+            "Created analysis group {GroupId} expecting {ExpectedSize} records, timeout at {TimeoutAt}",
+            Sanitize.SanitizeUserInput(group.Id.ToString()),
+            group.ExpectedSize,
+            group.TimeoutAt
+        );
+
+        return group;
     }
 
     public async Task<InspectionRecord> Create(InspectionRecord inspectionRecord)
@@ -123,6 +186,14 @@ public class InspectionRecordService(
             "Created inspection record with InspectionId: {InspectionId}",
             inspectionRecord.InspectionId
         );
+
+        foreach (var analysis in inspectionRecord.Analyses)
+        {
+            if (analysis.AnalysisGroup != null)
+                context.Entry(analysis.AnalysisGroup).State = EntityState.Detached;
+            context.Entry(analysis).State = EntityState.Detached;
+        }
+        context.Entry(inspectionRecord).State = EntityState.Detached;
 
         return inspectionRecord;
     }
@@ -161,6 +232,29 @@ public class InspectionRecordService(
             );
         }
 
+        var analysisGroup =
+            request.AnalysisGroup != null
+                ? await GetOrCreateAnalysisGroup(
+                    request.AnalysisGroup.AnalysisGroupId,
+                    request.AnalysisGroup.AnalysisGroupSize
+                )
+                : null;
+
+        var analysisTypes = request.RequiredAnalysis?.Select((a) => Analysis.GetAnalysisTypeFromAnalysisEnum(a)).ToList();
+
+        var analyses =
+            analysisTypes != null
+                ? analysisTypes.Select(
+                        (r) => analysisGroup?.Analyses.Find((a) => a.AnalysisType == r) ??
+                            new Analysis
+                            {
+                                AnalysisType = r,
+                                AnalysisGroup = analysisGroup
+                            }
+                    )
+                    .ToList()
+                : [];
+
         var inspectionRecord = new InspectionRecord
         {
             InspectionId = inspectionId,
@@ -173,27 +267,14 @@ public class InspectionRecordService(
                 : Sanitize.SanitizeUserInput(request.InspectionDescription),
             RobotName = request.RobotName,
             Timestamp = request.Timestamp,
+            Analyses = analyses,
+            AnalysisGroup = analysisGroup,
+            AnalysisGroupId = analysisGroup?.Id,
         };
 
         var created = await Create(inspectionRecord);
 
-        await analysisTriggerService.OnInspectionRecordCreated(
-            new InspectionRecordCreatedEvent
-            {
-                InspectionRecordId = created.Id,
-                RequiredAnalysis = request
-                    .RequiredAnalysis?.Select((a) => Analysis.GetWorkflowTypeFromAnalysisType(a))
-                    .ToList(),
-                AnalysisGroup = request.AnalysisGroup is null
-                    ? null
-                    : new IsarAnalysisGroupMessage
-                    {
-                        AnalysisGroupId = request.AnalysisGroup.AnalysisGroupId,
-                        AnalysisGroupSize = request.AnalysisGroup.AnalysisGroupSize,
-                        AnalysisGroupAnalyses = request.AnalysisGroup.AnalysisGroupAnalyses,
-                    },
-            }
-        );
+        await analysisTriggerService.OnInspectionRecordCreated(created);
 
         return created;
     }
@@ -305,7 +386,7 @@ public class InspectionRecordService(
             List<string> analysisTypeStrings =
             [
                 .. parameters.AnalysisTypes.Select(
-                    (a) => Analysis.GetWorkflowTypeFromAnalysisType(a)
+                    (a) => Analysis.GetAnalysisTypeFromAnalysisEnum(a)
                 ),
             ];
             query = query.Where(ir =>
@@ -333,10 +414,10 @@ public class InspectionRecordService(
 
     public async Task<InspectionRecord> AddAnalysis(
         Guid inspectionRecordId,
-        AnalysisType analysisName
+        AnalysisTypeEnum analysisName
     )
     {
-        var workflowType = Analysis.GetWorkflowTypeFromAnalysisType(analysisName);
+        var workflowType = Analysis.GetAnalysisTypeFromAnalysisEnum(analysisName);
         if (!_analysisOptions.Analyses.ContainsKey(workflowType))
         {
             throw new InvalidOperationException(
@@ -351,13 +432,7 @@ public class InspectionRecordService(
                 $"Inspection record with id {inspectionRecordId} not found"
             );
 
-        await analysisTriggerService.OnInspectionRecordCreated(
-            new InspectionRecordCreatedEvent
-            {
-                InspectionRecordId = record.Id,
-                RequiredAnalysis = [workflowType],
-            }
-        );
+        await analysisTriggerService.OnInspectionRecordCreated(record);
 
         return record;
     }

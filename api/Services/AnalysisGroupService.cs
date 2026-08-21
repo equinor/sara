@@ -30,7 +30,7 @@ public class AnalysisGroupService(SaraDbContext context) : IAnalysisGroupService
             .AnalysisGroups.Include(g => g.InspectionRecords)
             .Include(g => g.Analyses)
                 .ThenInclude(a => a.Runs)
-            .FirstOrDefaultAsync(g => g.Id == id);
+            .FirstOrDefaultAsync(g => g.Id.Equals(id));
     }
 
     public async Task<PagedList<AnalysisGroup>> GetGroups(AnalysisGroupParameters parameters)
@@ -41,7 +41,7 @@ public class AnalysisGroupService(SaraDbContext context) : IAnalysisGroupService
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(parameters.GroupId))
-            query = query.Where(g => g.GroupId.ToLower().Contains(parameters.GroupId.ToLower()));
+            query = query.Where(g => g.Id.Equals(parameters.GroupId));
 
         if (parameters.Status is { } status)
             query = query.Where(g => g.Status == status);
@@ -62,7 +62,7 @@ public class AnalysisGroupService(SaraDbContext context) : IAnalysisGroupService
                 .ThenInclude(a => a.Runs)
                     .ThenInclude(r => r.Workflows)
             .Include(g => g.InspectionRecords)
-            .FirstOrDefaultAsync(g => g.Id == id);
+            .FirstOrDefaultAsync(g => g.Id.Equals(id));
 
         if (group is null)
         {
