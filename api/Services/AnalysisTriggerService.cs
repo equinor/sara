@@ -10,7 +10,7 @@ namespace api.Services;
 
 public interface IAnalysisTriggerService
 {
-    public Task OnInspectionRecordCreated(InspectionRecordCreatedEvent createdEvent);
+    public Task OnInspectionRecordCreated(InspectionRecord inspectionRecord);
 
     public Task RerunAnalysis(Guid analysisId);
 }
@@ -24,55 +24,29 @@ public class AnalysisTriggerService(
 {
     private readonly AnalysisOptions _options = analysisOptions.Value;
 
-    public async Task OnInspectionRecordCreated(InspectionRecordCreatedEvent createdEvent)
+    public async Task OnInspectionRecordCreated(InspectionRecord inspectionRecord)
     {
-        var inspectionRecord = await context.InspectionRecords.FirstOrDefaultAsync(r =>
-            r.Id == createdEvent.InspectionRecordId
-        );
-        if (inspectionRecord is null)
-        {
-            logger.LogError(
-                "InspectionRecord {InspectionRecordId} not found when handling created event",
-                createdEvent.InspectionRecordId
-            );
-            return;
-        }
-
-        var analysisTypes = GetAnalysesToRun(createdEvent, inspectionRecord);
+        var analysisTypes = inspectionRecord.Analyses.Select((a) => a.AnalysisType).ToList();
         if (analysisTypes.Count == 0)
         {
             return;
         }
 
-        AnalysisGroup? group = null;
-        List<string> groupedAnalyses = [];
+        AnalysisGroup? group = inspectionRecord.AnalysisGroup;
+        List<string> groupedAnalyses =
+            inspectionRecord.AnalysisGroup?.Analyses.Select((g) => g.AnalysisType).ToList() ?? [];
 
-        if (createdEvent.AnalysisGroup is not null)
+        foreach (var analysis in inspectionRecord.Analyses)
         {
-            group = await GetOrCreateAnalysisGroup(createdEvent.AnalysisGroup);
-            groupedAnalyses = createdEvent.AnalysisGroup.AnalysisGroupAnalyses;
-
-            inspectionRecord.AnalysisGroupId = group.Id;
-            await context.SaveChangesAsync();
-        }
-
-        foreach (var analysisType in analysisTypes)
-        {
-            var shouldDefer = group is not null && groupedAnalyses.Contains(analysisType);
-            var analysis = await GetOrCreateAnalysis(
-                analysisType,
-                inspectionRecord,
-                group,
-                shouldDefer
-            );
+            var shouldDefer = group is not null && groupedAnalyses.Contains(analysis.AnalysisType);
 
             if (shouldDefer)
             {
                 logger.LogInformation(
                     "Deferring analysis '{AnalysisName}' for InspectionId: {InspectionId} — waiting for group {GroupId}",
-                    Sanitize.SanitizeUserInput(analysisType),
+                    Sanitize.SanitizeUserInput(analysis.AnalysisType),
                     Sanitize.SanitizeUserInput(inspectionRecord.InspectionId),
-                    Sanitize.SanitizeUserInput(group!.GroupId)
+                    Sanitize.SanitizeUserInput(group!.Id.ToString())
                 );
             }
             else
@@ -87,151 +61,17 @@ public class AnalysisTriggerService(
         }
     }
 
-    /// <summary>
-    /// Returns the configured analyses to run for an InspectionRecord.
-    /// Analyses come from the event's explicit <c>RequiredAnalysis</c> when
-    /// set; otherwise from <c>DefaultAnalysisByInspectionTypeAndExtension</c>
-    /// (matched on InspectionType + file extension), falling back to
-    /// <c>DefaultAnalysisByFileExtension</c>. Names that are not present in
-    /// configuration are dropped with an error log so known analyses can
-    /// still proceed independently. Returns an empty list when no analyses
-    /// apply.
-    /// </summary>
-    private List<string> GetAnalysesToRun(
-        InspectionRecordCreatedEvent createdEvent,
-        InspectionRecord inspectionRecord
-    )
-    {
-        List<string> analysesToRun;
-        if (createdEvent.RequiredAnalysis is { Count: > 0 })
-        {
-            analysesToRun = createdEvent.RequiredAnalysis;
-        }
-        else
-        {
-            var blobName = inspectionRecord.BlobStorageLocation.BlobName;
-            var extension = Path.GetExtension(blobName)?.ToLowerInvariant();
-            var inspectionType = inspectionRecord.InspectionType;
-
-            analysesToRun = ResolveDefaultAnalyses(inspectionType, extension);
-        }
-
-        if (analysesToRun.Count == 0)
-        {
-            logger.LogInformation(
-                "No analyses to run for InspectionId: {InspectionId}",
-                Sanitize.SanitizeUserInput(inspectionRecord.InspectionId)
-            );
-            return [];
-        }
-
-        var unknownNames = analysesToRun
-            .Where(name => !_options.Analyses.ContainsKey(name))
-            .ToList();
-        if (unknownNames.Count > 0)
-        {
-            logger.LogError(
-                "Unknown analyses [{UnknownAnalyses}] for InspectionId: {InspectionId} — "
-                    + "not found in configuration. These will be skipped.",
-                Sanitize.SanitizeUserInput(string.Join(", ", unknownNames)),
-                Sanitize.SanitizeUserInput(inspectionRecord.InspectionId)
-            );
-        }
-
-        var knownNames = analysesToRun.Where(name => _options.Analyses.ContainsKey(name)).ToList();
-
-        if (knownNames.Count == 0)
-        {
-            logger.LogInformation(
-                "No known analyses to run for InspectionId: {InspectionId}",
-                Sanitize.SanitizeUserInput(inspectionRecord.InspectionId)
-            );
-            return [];
-        }
-
-        logger.LogInformation(
-            "Resolved analyses for InspectionId: {InspectionId}: {Analyses}",
-            Sanitize.SanitizeUserInput(inspectionRecord.InspectionId),
-            Sanitize.SanitizeUserInput(string.Join(", ", knownNames))
-        );
-
-        return knownNames;
-    }
-
-    private async Task<AnalysisGroup> GetOrCreateAnalysisGroup(
-        IsarAnalysisGroupMessage groupMessage
-    )
-    {
-        var existing = await context.AnalysisGroups.FirstOrDefaultAsync(g =>
-            g.GroupId == groupMessage.AnalysisGroupId
-        );
-
-        if (existing is not null)
-        {
-            return existing;
-        }
-
-        var timeoutMinutes = _options.AnalysisGroupTimeoutMinutes;
-        var group = new AnalysisGroup
-        {
-            GroupId = groupMessage.AnalysisGroupId,
-            ExpectedSize = groupMessage.AnalysisGroupSize,
-            TimeoutAt = DateTime.UtcNow.AddMinutes(timeoutMinutes),
-        };
-
-        await context.AnalysisGroups.AddAsync(group);
-        await context.SaveChangesAsync();
-
-        logger.LogInformation(
-            "Created analysis group {GroupId} expecting {ExpectedSize} records, timeout at {TimeoutAt}",
-            Sanitize.SanitizeUserInput(group.GroupId),
-            group.ExpectedSize,
-            group.TimeoutAt
-        );
-
-        return group;
-    }
-
-    private async Task<Analysis> GetOrCreateAnalysis(
-        string analysisType,
-        InspectionRecord inspectionRecord,
-        AnalysisGroup? group,
-        bool shouldDefer
-    )
-    {
-        if (shouldDefer && group is not null)
-        {
-            var existing = await context
-                .Analyses.Include(a => a.InspectionRecords)
-                .FirstOrDefaultAsync(a =>
-                    a.AnalysisGroupId == group.Id && a.AnalysisType == analysisType
-                );
-
-            if (existing is not null)
-            {
-                if (!existing.InspectionRecords.Any(r => r.Id == inspectionRecord.Id))
-                {
-                    existing.InspectionRecords.Add(inspectionRecord);
-                    await context.SaveChangesAsync();
-                }
-                return existing;
-            }
-        }
-
-        var analysis = new Analysis { AnalysisType = analysisType, AnalysisGroupId = group?.Id };
-
-        analysis.InspectionRecords.Add(inspectionRecord);
-        await context.Analyses.AddAsync(analysis);
-        await context.SaveChangesAsync();
-
-        return analysis;
-    }
-
     private async Task TriggerAnalysis(
         Analysis analysis,
         IReadOnlyList<InspectionRecord> inspectionRecords
     )
     {
+        context.Entry(analysis).State = EntityState.Unchanged;
+        foreach (var inspectionRecord in analysis.InspectionRecords)
+            context.Entry(inspectionRecord).State = EntityState.Unchanged;
+        if (analysis.AnalysisGroup != null)
+            context.Entry(analysis.AnalysisGroup).State = EntityState.Unchanged;
+
         var analysisConfig = _options.Analyses[analysis.AnalysisType];
         var workflowChain = analysisConfig.Workflows;
 
@@ -268,8 +108,6 @@ public class AnalysisTriggerService(
             Status = AnalysisRunStatus.InProgress,
             StartedAt = DateTime.UtcNow,
         };
-        await context.AnalysisRuns.AddAsync(run);
-        await context.SaveChangesAsync();
 
         // First step takes all input records' blobs; subsequent steps chain on previous output.
         // Clone every BlobStorageLocation assigned to a workflow's inputs so each Workflow owns its
@@ -309,6 +147,9 @@ public class AnalysisTriggerService(
             }
         }
 
+        context.Entry(run.Analysis).State = EntityState.Modified;
+
+        await context.AnalysisRuns.AddAsync(run);
         await context.SaveChangesAsync();
 
         var firstWorkflow = run.Workflows.OrderBy(w => w.StepNumber).First();
@@ -358,7 +199,7 @@ public class AnalysisTriggerService(
         {
             logger.LogInformation(
                 "Group {GroupId}: {RecordCount}/{ExpectedSize} records received",
-                Sanitize.SanitizeUserInput(group.GroupId),
+                Sanitize.SanitizeUserInput(group.Id.ToString()),
                 recordCount,
                 group.ExpectedSize
             );
@@ -366,11 +207,12 @@ public class AnalysisTriggerService(
         }
 
         group.Status = AnalysisGroupStatus.Complete;
+        context.Entry(group).State = EntityState.Modified;
         await context.SaveChangesAsync();
 
         logger.LogInformation(
             "Group {GroupId} is complete. Triggering grouped analyses: {Analyses}",
-            Sanitize.SanitizeUserInput(group.GroupId),
+            Sanitize.SanitizeUserInput(group.Id.ToString()),
             Sanitize.SanitizeUserInput(string.Join(", ", groupedAnalyses))
         );
 
@@ -404,51 +246,11 @@ public class AnalysisTriggerService(
         }
     }
 
-    private List<string> ResolveDefaultAnalyses(string? inspectionType, string? extension)
-    {
-        return TryGetDefaultAnalysesByInspectionTypeAndExtension(inspectionType, extension)
-            ?? TryGetDefaultAnalysesByExtension(extension)
-            ?? [];
-    }
-
-    private List<string>? TryGetDefaultAnalysesByInspectionTypeAndExtension(
-        string? inspectionType,
-        string? extension
-    )
-    {
-        if (
-            inspectionType is not null
-            && extension is not null
-            && _options.DefaultAnalysisByInspectionTypeAndExtension.TryGetValue(
-                inspectionType,
-                out var byExtension
-            )
-            && byExtension.TryGetValue(extension, out var analyses)
-        )
-        {
-            return analyses;
-        }
-
-        return null;
-    }
-
-    private List<string>? TryGetDefaultAnalysesByExtension(string? extension)
-    {
-        if (
-            extension is not null
-            && _options.DefaultAnalysisByFileExtension.TryGetValue(extension, out var analyses)
-        )
-        {
-            return analyses;
-        }
-
-        return null;
-    }
-
     public async Task RerunAnalysis(Guid analysisId)
     {
         var analysis = await context
             .Analyses.Include(a => a.InspectionRecords)
+            .AsNoTracking()
             .FirstOrDefaultAsync(a => a.Id == analysisId);
 
         if (analysis is null)

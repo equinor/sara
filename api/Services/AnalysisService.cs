@@ -55,7 +55,7 @@ public class AnalysisService(SaraDbContext context, IOptions<AnalysisOptions> an
             );
 
         if (parameters.AnalysisGroupId is { } groupId)
-            query = query.Where(a => a.AnalysisGroupId == groupId);
+            query = query.Where(a => a.AnalysisGroupId.Equals(groupId));
 
         if (parameters.InspectionRecordId is { } recordId)
             query = query.Where(a => a.InspectionRecords.Any(r => r.Id == recordId));

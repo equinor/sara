@@ -325,9 +325,6 @@ public class InspectionRecordController(
     {
         if (request.AnalysisGroup is not null)
         {
-            request.AnalysisGroup.AnalysisGroupId = Sanitize.SanitizeUserInput(
-                request.AnalysisGroup.AnalysisGroupId
-            );
             request.AnalysisGroup.AnalysisGroupAnalyses = Sanitize.SanitizeUserInput(
                 request.AnalysisGroup.AnalysisGroupAnalyses
             );
