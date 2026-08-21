@@ -242,13 +242,7 @@ namespace api.MQTT
 
             try
             {
-                var createdEvent = new InspectionRecordCreatedEvent
-                {
-                    InspectionRecordId = inspectionRecord.Id,
-                    RequiredAnalysis = isarInspectionResultMessage.RequiredAnalysis,
-                    AnalysisGroup = isarInspectionResultMessage.AnalysisGroup,
-                };
-                await AnalysisTriggerService.OnInspectionRecordCreated(createdEvent);
+                await AnalysisTriggerService.OnInspectionRecordCreated(inspectionRecord);
             }
             catch (Exception ex)
             {

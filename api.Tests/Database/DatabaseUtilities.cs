@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using api.Database.Context;
 using api.Database.Models;
 using api.MQTT;
+using Microsoft.EntityFrameworkCore;
 
 namespace Api.Test.Database;
 
@@ -23,9 +25,18 @@ public class DatabaseUtilities(SaraDbContext context)
         string? blobName = null,
         string? inspectionType = null,
         string? tag = null,
-        string? inspectionDescription = null
+        string? inspectionDescription = null,
+        List<Analysis>? analyses = null,
+        AnalysisGroup? analysisGroup = null
     )
     {
+        foreach (var analysis in analyses ?? [])
+        {
+            _context.Entry(analysis).State = EntityState.Unchanged;
+            if (analysis.AnalysisGroup != null)
+                _context.Entry(analysis.AnalysisGroup).State = EntityState.Unchanged;
+        }
+
         var record = new InspectionRecord
         {
             InspectionId = inspectionId,
@@ -38,10 +49,20 @@ public class DatabaseUtilities(SaraDbContext context)
             InspectionType = inspectionType,
             Tag = tag,
             InspectionDescription = inspectionDescription,
+            Analyses = analyses ?? [],
+            AnalysisGroup = analysisGroup,
         };
 
         _context.InspectionRecords.Add(record);
         await _context.SaveChangesAsync();
+
+        foreach (var analysis in record.Analyses)
+        {
+            if (analysis.AnalysisGroup != null)
+                _context.Entry(analysis.AnalysisGroup).State = EntityState.Detached;
+            _context.Entry(analysis).State = EntityState.Detached;
+        }
+        _context.Entry(record).State = EntityState.Detached;
         return record;
     }
 
@@ -77,6 +98,9 @@ public class DatabaseUtilities(SaraDbContext context)
         AnalysisGroup? analysisGroup = null
     )
     {
+        foreach (var inspectionRecord in inspectionRecords ?? [])
+            _context.Entry(inspectionRecord).State = EntityState.Unchanged;
+
         var analysis = new Analysis { AnalysisType = type };
         if (inspectionRecords is not null)
         {
@@ -157,18 +181,6 @@ public class DatabaseUtilities(SaraDbContext context)
             StorageAccount = storageAccount,
             BlobContainer = blobContainer,
             BlobName = blobName ?? $"{Guid.NewGuid()}.jpg",
-        };
-
-    public InspectionRecordCreatedEvent NewInspectionRecordCreatedEvent(
-        InspectionRecord inspectionRecord,
-        List<string>? requiredAnalysis = null,
-        IsarAnalysisGroupMessage? analysisGroup = null
-    ) =>
-        new()
-        {
-            InspectionRecordId = inspectionRecord.Id,
-            RequiredAnalysis = requiredAnalysis,
-            AnalysisGroup = analysisGroup,
         };
 
     public IsarAnalysisGroupMessage NewAnalysisGroupMessage(
