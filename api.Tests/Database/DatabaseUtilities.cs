@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using api.Database.Context;
 using api.Database.Models;
 using api.MQTT;
+using Microsoft.EntityFrameworkCore;
 
 namespace Api.Test.Database;
 
@@ -23,9 +25,24 @@ public class DatabaseUtilities(SaraDbContext context)
         string? blobName = null,
         string? inspectionType = null,
         string? tag = null,
-        string? inspectionDescription = null
+        string? inspectionDescription = null,
+        List<string>? analysisTypes = null,
+        AnalysisGroup? analysisGroup = null
     )
     {
+        var analyses =
+            analysisTypes != null
+                ? analysisTypes.Select(
+                        (r) =>
+                            new Analysis
+                            {
+                                AnalysisType = r,
+                                AnalysisGroup = analysisGroup,
+                            }
+                    )
+                    .ToList()
+                : [];
+
         var record = new InspectionRecord
         {
             InspectionId = inspectionId,
@@ -38,10 +55,20 @@ public class DatabaseUtilities(SaraDbContext context)
             InspectionType = inspectionType,
             Tag = tag,
             InspectionDescription = inspectionDescription,
+            Analyses = analyses,
+            AnalysisGroup = analysisGroup
         };
 
         _context.InspectionRecords.Add(record);
         await _context.SaveChangesAsync();
+
+        foreach (var analysis in record.Analyses)
+        {
+            if (analysis.AnalysisGroup != null)
+                _context.Entry(analysis.AnalysisGroup).State = EntityState.Unchanged;
+            _context.Entry(analysis).State = EntityState.Unchanged;
+        }
+        _context.Entry(record).State = EntityState.Unchanged;
         return record;
     }
 
@@ -157,18 +184,6 @@ public class DatabaseUtilities(SaraDbContext context)
             StorageAccount = storageAccount,
             BlobContainer = blobContainer,
             BlobName = blobName ?? $"{Guid.NewGuid()}.jpg",
-        };
-
-    public InspectionRecordCreatedEvent NewInspectionRecordCreatedEvent(
-        InspectionRecord inspectionRecord,
-        List<string>? requiredAnalysis = null,
-        IsarAnalysisGroupMessage? analysisGroup = null
-    ) =>
-        new()
-        {
-            InspectionRecordId = inspectionRecord.Id,
-            RequiredAnalysis = requiredAnalysis,
-            AnalysisGroup = analysisGroup,
         };
 
     public IsarAnalysisGroupMessage NewAnalysisGroupMessage(
