@@ -32,8 +32,8 @@ jobs:
         # Search for the exact line referring to the sara image to avoid getting the other
         # lines containing sara (e.g. sara-anonymizer)
         run: |
-          TAG_LINE_NUMBER=$(($(grep -n -x "  newName: roboticsstagingacr.azurecr.io/robotics/sara" k8s_kustomize/overlays/staging/kustomization.yaml |  cut --delimiter=":" --fields=1)+1))
-          VERSION_TAG=$(sed -n "${TAG_LINE_NUMBER}p" k8s_kustomize/overlays/staging/kustomization.yaml | awk -F': ' '{print $2}' | tr -d ' ')
+          TAG_LINE_NUMBER=$(($(grep -n -x "  newName: roboticsstagingacr.azurecr.io/robotics/sara" k8s_kustomize/analytics/overlays/staging/kustomization.yaml |  cut --delimiter=":" --fields=1)+1))
+          VERSION_TAG=$(sed -n "${TAG_LINE_NUMBER}p" k8s_kustomize/analytics/overlays/staging/kustomization.yaml | awk -F': ' '{print $2}' | tr -d ' ')
           echo "tag=$VERSION_TAG" >> "$GITHUB_OUTPUT"
 
   run_migrations:
