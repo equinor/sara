@@ -100,23 +100,32 @@ public class InspectionRecordService(
                 )
                 : null;
 
-        var analyses =
-            message.RequiredAnalysis != null
-                ? message
-                    .RequiredAnalysis.Select(
-                        (r) =>
-                            analysisGroup?.Analyses.Find((a) => a.AnalysisType == r)
-                            ?? new Analysis { AnalysisType = r, AnalysisGroup = analysisGroup }
-                    )
-                    .ToList()
-                : [];
+        List<Analysis> analyses = [];
 
-        if (analysisGroup != null)
-            foreach (var analysis in analyses)
-                if (!analysisGroup.Analyses.Contains(analysis))
+        if (message.RequiredAnalysis != null)
+        {
+            var analysesInGroup =
+                analysisGroup?.Analyses.Where(
+                    (a) => message.RequiredAnalysis.Contains(a.AnalysisType)
+                )
+                ?? [];
+
+            var newAnalyses = message
+                .RequiredAnalysis.Where(
+                    (r) => !analysesInGroup.Select((a) => a.AnalysisType).Contains(r)
+                )
+                .Select((r) => new Analysis { AnalysisType = r, AnalysisGroup = analysisGroup })
+                .ToList();
+
+            if (analysisGroup != null)
+                foreach (var analysis in newAnalyses)
                     analysisGroup.Analyses.Add(analysis);
 
-        await context.SaveChangesAsync();
+            await context.SaveChangesAsync();
+
+            analyses.AddRange(analysesInGroup);
+            analyses.AddRange(newAnalyses);
+        }
 
         var inspectionRecord = new InspectionRecord
         {
