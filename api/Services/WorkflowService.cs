@@ -427,11 +427,11 @@ public class WorkflowService(
             return;
         }
 
-        if (!_analysisResultHandlersByName.TryGetValue(analysis.Name, out var handler))
+        if (!_analysisResultHandlersByName.TryGetValue(analysis.AnalysisType, out var handler))
         {
             logger.LogDebug(
                 "No IAnalysisResultHandler registered for analysis '{AnalysisName}' — skipping result dispatch for run {AnalysisRunId}",
-                analysis.Name,
+                analysis.AnalysisType,
                 run.Id
             );
             return;
@@ -446,7 +446,7 @@ public class WorkflowService(
             logger.LogError(
                 ex,
                 "Analysis result handler for '{AnalysisName}' threw while processing run {AnalysisRunId}",
-                analysis.Name,
+                analysis.AnalysisType,
                 run.Id
             );
         }
