@@ -68,7 +68,9 @@ public class WorkflowService(
 
     public async Task TriggerWorkflow(Guid workflowId)
     {
-        var workflow = await context.Workflows.FirstOrDefaultAsync(w => w.Id == workflowId);
+        var workflow = await context
+            .Workflows.Include(w => w.InputBlobStorageLocations)
+            .FirstOrDefaultAsync(w => w.Id == workflowId);
         if (workflow is null)
         {
             logger.LogError(
@@ -77,20 +79,6 @@ public class WorkflowService(
             );
             return;
         }
-
-        // Owned collection (InputBlobStorageLocations) is not loaded by the
-        // FirstOrDefaultAsync above, and the in-memory state can drift from
-        // DB when the entity was modified earlier in the same scope (e.g.
-        // by AnonymizerResultHandler.RewireNextWorkflowIfThermalReading,
-        // which mutates the collection then SaveChangesAsync's; the rewire
-        // is persisted correctly to DB but EF leaves stale child entries on
-        // the in-memory navigation property). Detach the cached entity and
-        // re-fetch with explicit Include so we ship exactly what's
-        // persisted.
-        context.Entry(workflow).State = EntityState.Detached;
-        workflow = await context
-            .Workflows.Include(w => w.InputBlobStorageLocations)
-            .FirstAsync(w => w.Id == workflowId);
 
         if (!_options.Workflows.TryGetValue(workflow.WorkflowType, out var workflowConfig))
         {
