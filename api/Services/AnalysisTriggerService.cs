@@ -66,12 +66,6 @@ public class AnalysisTriggerService(
         IReadOnlyList<InspectionRecord> inspectionRecords
     )
     {
-        context.Entry(analysis).State = EntityState.Unchanged;
-        foreach (var inspectionRecord in analysis.InspectionRecords)
-            context.Entry(inspectionRecord).State = EntityState.Unchanged;
-        if (analysis.AnalysisGroup != null)
-            context.Entry(analysis.AnalysisGroup).State = EntityState.Unchanged;
-
         var analysisConfig = _options.Analyses[analysis.AnalysisType];
         var workflowChain = analysisConfig.Workflows;
 
@@ -93,6 +87,26 @@ public class AnalysisTriggerService(
             return;
         }
 
+        var run = await CreateAnalysisRun(analysis, inspectionRecords);
+
+        var firstWorkflow = run.Workflows.OrderBy(w => w.StepNumber).First();
+        await workflowService.TriggerWorkflow(firstWorkflow.Id);
+    }
+
+    private async Task<AnalysisRun> CreateAnalysisRun(
+        Analysis analysis,
+        IReadOnlyList<InspectionRecord> inspectionRecords
+    )
+    {
+        context.Entry(analysis).State = EntityState.Unchanged;
+        foreach (var inspectionRecord in analysis.InspectionRecords)
+            context.Entry(inspectionRecord).State = EntityState.Unchanged;
+        if (analysis.AnalysisGroup != null)
+            context.Entry(analysis.AnalysisGroup).State = EntityState.Unchanged;
+
+        var analysisConfig = _options.Analyses[analysis.AnalysisType];
+        var workflowChain = analysisConfig.Workflows;
+
         var nextRunNumber =
             await context
                 .AnalysisRuns.Where(r => r.AnalysisId == analysis.Id)
@@ -109,10 +123,25 @@ public class AnalysisTriggerService(
             StartedAt = DateTime.UtcNow,
         };
 
-        // First step takes all input records' blobs; subsequent steps chain on previous output.
-        // Clone every BlobStorageLocation assigned to a workflow's inputs so each Workflow owns its
-        // own copies — sharing instances across owners (InspectionRecord, sibling Workflows, the
-        // current workflow's own output) confuses EF's owned-entity tracking.
+        var workflows = CreateWorkflows(run, workflowChain, inspectionRecords);
+
+        run.Workflows.AddRange(workflows);
+
+        context.Entry(run.Analysis).State = EntityState.Modified;
+
+        await context.AnalysisRuns.AddAsync(run);
+        await context.SaveChangesAsync();
+
+        return run;
+    }
+
+    private List<Workflow> CreateWorkflows(
+        AnalysisRun run,
+        List<string> workflowChain,
+        IReadOnlyList<InspectionRecord> inspectionRecords
+    )
+    {
+        List<Workflow> worklows = [];
         var currentInputs = inspectionRecords.Select(r => r.BlobStorageLocation).ToList();
 
         for (var i = 0; i < workflowChain.Count; i++)
@@ -125,9 +154,8 @@ public class AnalysisTriggerService(
                 AnalysisRun = run,
                 StepNumber = stepNumber,
                 WorkflowType = workflowType,
-                InputBlobStorageLocations = currentInputs.Select(b => b.Clone()).ToList(),
+                InputBlobStorageLocations = [.. currentInputs.Select(b => b.Clone())],
             };
-            run.Workflows.Add(workflow);
 
             var tag = inspectionRecords[0].Tag ?? "no-tag"; // Assumes all records are for the same tag.
             var outputLocation = ComputeOutputBlobStorageLocation(
@@ -139,21 +167,13 @@ public class AnalysisTriggerService(
             );
             workflow.OutputBlobStorageLocation = outputLocation;
 
-            // Gating steps don't transform the pipeline payload; the next step
-            // keeps consuming the previous non-gating step's output.
             if (!_options.Workflows[workflowType].IsGate)
             {
                 currentInputs = [outputLocation];
             }
+            worklows.Add(workflow);
         }
-
-        context.Entry(run.Analysis).State = EntityState.Modified;
-
-        await context.AnalysisRuns.AddAsync(run);
-        await context.SaveChangesAsync();
-
-        var firstWorkflow = run.Workflows.OrderBy(w => w.StepNumber).First();
-        await workflowService.TriggerWorkflow(firstWorkflow.Id);
+        return worklows;
     }
 
     private BlobStorageLocation ComputeOutputBlobStorageLocation(
