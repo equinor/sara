@@ -72,12 +72,12 @@ public class DatabaseUtilities(SaraDbContext context)
     }
 
     public async Task<Analysis> NewAnalysis(
-        string name = "test-analysis",
+        string type = "test-analysis",
         IEnumerable<InspectionRecord>? inspectionRecords = null,
         AnalysisGroup? analysisGroup = null
     )
     {
-        var analysis = new Analysis { Name = name };
+        var analysis = new Analysis { AnalysisType = type };
         if (inspectionRecords is not null)
         {
             analysis.InspectionRecords.AddRange(inspectionRecords);

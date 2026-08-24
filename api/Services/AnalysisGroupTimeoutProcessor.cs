@@ -61,7 +61,7 @@ public class AnalysisGroupTimeoutProcessor(
                 "AnalysisGroup {GroupId} timed out with {AbandonedCount} deferred analyses that will NOT run: {AnalysisNames}",
                 group.GroupId,
                 abandonedAnalyses.Count,
-                string.Join(", ", abandonedAnalyses.Select(a => $"{a.Name} ({a.Id})"))
+                string.Join(", ", abandonedAnalyses.Select(a => $"{a.AnalysisType} ({a.Id})"))
             );
         }
     }

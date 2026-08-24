@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace api.Database.Models;
 
-public enum AnalysisType
+public enum AnalysisTypeEnum
 {
     Fencilla,
     CLOE,
@@ -13,16 +13,16 @@ public enum AnalysisType
 
 public class Analysis
 {
-    public static string GetWorkflowTypeFromAnalysisType(AnalysisType type)
+    public static string GetAnalysisTypeFromAnalysisEnum(AnalysisTypeEnum type)
     {
-        var analysisToWorkflowTypeMapping = new Dictionary<AnalysisType, string>
+        var analysisEnumToAnalysisStringMapping = new Dictionary<AnalysisTypeEnum, string>
         {
-            { AnalysisType.CLOE, "cloe" },
-            { AnalysisType.Fencilla, "fencilla" },
-            { AnalysisType.ThermalReading, "thermal-reading" },
-            { AnalysisType.CO2, "CO2" },
+            { AnalysisTypeEnum.CLOE, "cloe" },
+            { AnalysisTypeEnum.Fencilla, "fencilla" },
+            { AnalysisTypeEnum.ThermalReading, "thermal-reading" },
+            { AnalysisTypeEnum.CO2, "CO2" },
         };
-        return analysisToWorkflowTypeMapping[type];
+        return analysisEnumToAnalysisStringMapping[type];
     }
 
     [Key]
@@ -30,7 +30,7 @@ public class Analysis
     public Guid Id { get; set; }
 
     [Required]
-    public required string Name { get; set; }
+    public required string AnalysisType { get; set; }
 
     private DateTime _createdAt = DateTime.UtcNow;
 

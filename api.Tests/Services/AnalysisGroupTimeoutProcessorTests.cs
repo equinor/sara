@@ -62,7 +62,7 @@ public class AnalysisGroupTimeoutProcessorTests : IAsyncLifetime
             expectedSize: 2,
             timeoutAt: DateTime.UtcNow.AddMinutes(-1)
         );
-        var analysis = await _db.NewAnalysis(name: "deferred-analysis", analysisGroup: group);
+        var analysis = await _db.NewAnalysis(type: "deferred-analysis", analysisGroup: group);
 
         await ProcessTimedOutGroupsInScope();
 

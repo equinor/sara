@@ -33,7 +33,10 @@ public interface IInspectionRecordService
 
     public Task Delete(Guid id);
 
-    public Task<InspectionRecord> AddAnalysis(Guid inspectionRecordId, AnalysisType analysisName);
+    public Task<InspectionRecord> AddAnalysis(
+        Guid inspectionRecordId,
+        AnalysisTypeEnum analysisName
+    );
 }
 
 public class InspectionRecordParameters
@@ -45,7 +48,7 @@ public class InspectionRecordParameters
     public string? InstallationCode { get; set; }
     public DateTime? MinCreationTime { get; set; }
     public DateTime? MaxCreationTime { get; set; }
-    public List<AnalysisType>? AnalysisTypes { get; set; } = [];
+    public List<AnalysisTypeEnum>? AnalysisTypes { get; set; } = [];
 }
 
 public class CreateInspectionRecordRequest
@@ -58,7 +61,7 @@ public class CreateInspectionRecordRequest
     public string? InspectionDescription { get; set; }
     public string? RobotName { get; set; }
     public DateTime? Timestamp { get; set; }
-    public List<AnalysisType>? RequiredAnalysis { get; set; }
+    public List<AnalysisTypeEnum>? RequiredAnalysis { get; set; }
     public CreateInspectionRecordAnalysisGroup? AnalysisGroup { get; set; }
 }
 
@@ -185,7 +188,7 @@ public class InspectionRecordService(
             {
                 InspectionRecordId = created.Id,
                 RequiredAnalysis = request
-                    .RequiredAnalysis?.Select((a) => Analysis.GetWorkflowTypeFromAnalysisType(a))
+                    .RequiredAnalysis?.Select((a) => Analysis.GetAnalysisTypeFromAnalysisEnum(a))
                     .ToList(),
                 AnalysisGroup = request.AnalysisGroup is null
                     ? null
@@ -311,7 +314,7 @@ public class InspectionRecordService(
             List<string> analysisTypeStrings =
             [
                 .. parameters.AnalysisTypes.Select(
-                    (a) => Analysis.GetWorkflowTypeFromAnalysisType(a)
+                    (a) => Analysis.GetAnalysisTypeFromAnalysisEnum(a)
                 ),
             ];
             query = query.Where(ir =>
@@ -339,10 +342,10 @@ public class InspectionRecordService(
 
     public async Task<InspectionRecord> AddAnalysis(
         Guid inspectionRecordId,
-        AnalysisType analysisName
+        AnalysisTypeEnum analysisName
     )
     {
-        var workflowType = Analysis.GetWorkflowTypeFromAnalysisType(analysisName);
+        var workflowType = Analysis.GetAnalysisTypeFromAnalysisEnum(analysisName);
         if (!_analysisOptions.Analyses.ContainsKey(workflowType))
         {
             throw new InvalidOperationException(

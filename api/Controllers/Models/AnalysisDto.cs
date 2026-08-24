@@ -9,7 +9,7 @@ public class AnalysisDto
     public AnalysisDto(Analysis analysis, IBlobStorageService blobService)
     {
         this.Id = analysis.Id;
-        this.Name = analysis.Name;
+        this.AnalysisType = analysis.AnalysisType;
         this.CreatedAt = analysis.CreatedAt;
         this.Runs = [.. analysis.Runs.Select(r => new AnalysisRunDto(r, blobService))];
         this.AnalysisGroup = analysis.AnalysisGroup;
@@ -41,7 +41,7 @@ public class AnalysisDto
 
     public Guid Id { get; set; }
 
-    public string Name { get; set; }
+    public string AnalysisType { get; set; }
 
     public DateTime CreatedAt { get; set; }
 
