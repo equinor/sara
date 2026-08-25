@@ -136,7 +136,7 @@ public class WorkflowNotificationController(
         }
         await context.SaveChangesAsync();
 
-        await workflowService.OnWorkflowCompleted(workflow.Id);
+        await workflowService.OnWorkflowCompleted(workflow);
 
         return NoContent();
     }

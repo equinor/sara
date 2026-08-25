@@ -90,7 +90,7 @@ public class AnalysisTriggerService(
         var run = await CreateAnalysisRun(analysis, inspectionRecords);
 
         var firstWorkflow = run.Workflows.OrderBy(w => w.StepNumber).First();
-        await workflowService.TriggerWorkflow(firstWorkflow.Id);
+        await workflowService.TriggerWorkflow(firstWorkflow);
     }
 
     private async Task<AnalysisRun> CreateAnalysisRun(

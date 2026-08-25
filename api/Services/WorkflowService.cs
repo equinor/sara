@@ -16,9 +16,9 @@ public class WorkflowTriggerFailedException(string message, Exception? innerExce
 
 public interface IWorkflowService
 {
-    public Task TriggerWorkflow(Guid workflowId);
+    public Task TriggerWorkflow(Workflow workflow);
 
-    public Task OnWorkflowCompleted(Guid workflowId);
+    public Task OnWorkflowCompleted(Workflow workflow);
 
     public Task<Workflow?> ReadById(Guid id);
 
@@ -66,20 +66,8 @@ public class WorkflowService(
     private readonly Dictionary<string, IAnalysisResultHandler> _analysisResultHandlersByName =
         analysisResultHandlers.ToDictionary(h => h.AnalysisName, StringComparer.OrdinalIgnoreCase);
 
-    public async Task TriggerWorkflow(Guid workflowId)
+    public async Task TriggerWorkflow(Workflow workflow)
     {
-        var workflow = await context
-            .Workflows.Include(w => w.InputBlobStorageLocations)
-            .FirstOrDefaultAsync(w => w.Id == workflowId);
-        if (workflow is null)
-        {
-            logger.LogError(
-                "Workflow {WorkflowId} not found when attempting to trigger",
-                workflowId
-            );
-            return;
-        }
-
         if (!_options.Workflows.TryGetValue(workflow.WorkflowType, out var workflowConfig))
         {
             throw new InvalidOperationException(
@@ -138,9 +126,11 @@ public class WorkflowService(
                 );
             }
 
+            context.Entry(workflow).State = EntityState.Modified;
             workflow.Status = WorkflowStatus.InProgress;
             workflow.StartedAt = DateTime.UtcNow;
             await context.SaveChangesAsync();
+            context.Entry(workflow).State = EntityState.Detached;
 
             logger.LogInformation(
                 "Workflow {WorkflowType} (Id: {WorkflowId}) triggered successfully",
@@ -167,17 +157,8 @@ public class WorkflowService(
         }
     }
 
-    public async Task OnWorkflowCompleted(Guid workflowId)
+    public async Task OnWorkflowCompleted(Workflow workflow)
     {
-        var workflow = await context
-            .Workflows.Include(w => w.AnalysisRun)
-            .FirstOrDefaultAsync(w => w.Id == workflowId);
-        if (workflow is null)
-        {
-            logger.LogError("Workflow {WorkflowId} not found when handling completion", workflowId);
-            return;
-        }
-
         var run = await context
             .AnalysisRuns.Include(r => r.Workflows)
             .FirstAsync(r => r.Id == workflow.AnalysisRunId);
@@ -234,7 +215,7 @@ public class WorkflowService(
 
         try
         {
-            await TriggerWorkflow(nextWorkflow.Id);
+            await TriggerWorkflow(nextWorkflow);
         }
         catch (WorkflowTriggerFailedException)
         {
@@ -244,12 +225,14 @@ public class WorkflowService(
 
     private async Task MarkWorkflowFailed(Workflow workflow, string errorMessage)
     {
+        context.Entry(workflow).State = EntityState.Modified;
         workflow.Status = WorkflowStatus.Failed;
         workflow.ErrorMessage = errorMessage;
         workflow.CompletedAt = DateTime.UtcNow;
         await context.SaveChangesAsync();
+        context.Entry(workflow).State = EntityState.Detached;
 
-        await OnWorkflowCompleted(workflow.Id);
+        await OnWorkflowCompleted(workflow);
     }
 
     private async Task<bool> TrySkipChainIfGateDictates(Workflow workflow, AnalysisRun run)
@@ -519,7 +502,7 @@ public class WorkflowService(
         }
 
         await context.SaveChangesAsync();
-        await TriggerWorkflow(id);
+        await TriggerWorkflow(workflow);
     }
 
     public async Task Delete(Guid id)
