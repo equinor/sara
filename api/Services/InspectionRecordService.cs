@@ -409,16 +409,7 @@ public class InspectionRecordService(
                 ),
             ];
             query = query.Where(ir =>
-                ir.Analyses.SelectMany(
-                        (a) =>
-                            a.Runs.SelectMany(
-                                (r) =>
-                                    r.Workflows.Where(
-                                        (w) => analysisTypeStrings.Contains(w.WorkflowType)
-                                    )
-                            )
-                    )
-                    .Any()
+                ir.Analyses.Any((a) => analysisTypeStrings.Contains(a.AnalysisType))
             );
         }
 
