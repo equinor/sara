@@ -136,7 +136,7 @@ make format         # CSharpier
 4. If the analyzer needs per-workflow parameters in the Argo trigger
    payload, add an `ITriggerPayloadEnricher` that populates `extras`.
 5. Add the matching Argo `WorkflowTemplate` + `Sensor` in
-   [analytics-infrastructure](https://github.com/equinor/analytics-infrastructure)
+   [robotics-infrastructure](https://github.com/equinor/robotics-infrastructure)
    and an analyzer image repo that implements the generic CLI contract
    (`--input-blob-storage-locations`, `--output-blob-storage-location`,
    `--extras`).

@@ -24,7 +24,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6
         with:
           ref: main
-          repository: equinor/analytics-infrastructure
+          repository: equinor/robotics-infrastructure
           ssh-key: ${{ secrets.ANALYTICS_INFRASTRUCTURE_DEPLOY_KEY }}
 
       - name: Get SARA version in staging
