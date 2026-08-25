@@ -62,7 +62,7 @@ back to the client secret when no federated token file is present — convenient
 when running the same image both in-cluster and on a workstation.
 
 When using the docker-desktop Kubernetes overlay in
-`analytics-infrastructure`, the per-workflow `workflow-notifier-config`
+`robotics-infrastructure`, the per-workflow `workflow-notifier-config`
 ConfigMap pins `ALLOWED_AUTH_METHODS=ClientSecret`, and
 `overlays/local/apply_to_local.py` materializes `NOTIFIER_CLIENT_SECRET` from
 `saradev-kv` into a Kubernetes `Secret` named `workflow-notifier-secrets` that
