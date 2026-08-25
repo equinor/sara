@@ -42,16 +42,16 @@ public class WorkflowServiceTests : IAsyncLifetime
     private IWorkflowService ResolveService(IServiceScope scope) =>
         scope.ServiceProvider.GetRequiredService<IWorkflowService>();
 
-    private async Task TriggerWorkflowInScope(Guid workflowId)
+    private async Task TriggerWorkflowInScope(Workflow workflow)
     {
         using var scope = _factory.Services.CreateScope();
-        await ResolveService(scope).TriggerWorkflow(workflowId);
+        await ResolveService(scope).TriggerWorkflow(workflow);
     }
 
-    private async Task OnWorkflowCompletedInScope(Guid workflowId)
+    private async Task OnWorkflowCompletedInScope(Workflow workflow)
     {
         using var scope = _factory.Services.CreateScope();
-        await ResolveService(scope).OnWorkflowCompleted(workflowId);
+        await ResolveService(scope).OnWorkflowCompleted(workflow);
     }
 
     [Fact]
@@ -65,9 +65,7 @@ public class WorkflowServiceTests : IAsyncLifetime
             outputBlobStorageLocation: _db.NewBlobStorageLocation()
         );
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            TriggerWorkflowInScope(workflow.Id)
-        );
+        await Assert.ThrowsAsync<InvalidOperationException>(() => TriggerWorkflowInScope(workflow));
         Assert.Empty(_factory.ArgoHttpHandler.Requests);
     }
 
@@ -82,9 +80,7 @@ public class WorkflowServiceTests : IAsyncLifetime
             outputBlobStorageLocation: null
         );
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            TriggerWorkflowInScope(workflow.Id)
-        );
+        await Assert.ThrowsAsync<InvalidOperationException>(() => TriggerWorkflowInScope(workflow));
         Assert.Empty(_factory.ArgoHttpHandler.Requests);
     }
 
@@ -100,7 +96,7 @@ public class WorkflowServiceTests : IAsyncLifetime
             outputBlobStorageLocation: _db.NewBlobStorageLocation()
         );
 
-        await TriggerWorkflowInScope(workflow.Id);
+        await TriggerWorkflowInScope(workflow);
 
         await _context.Entry(workflow).ReloadAsync(TestContext.Current.CancellationToken);
 
@@ -127,7 +123,7 @@ public class WorkflowServiceTests : IAsyncLifetime
             outputBlobStorageLocation: _db.NewBlobStorageLocation()
         );
 
-        await TriggerWorkflowInScope(workflow.Id);
+        await TriggerWorkflowInScope(workflow);
 
         var request = Assert.Single(_factory.ArgoHttpHandler.Requests);
         using var doc = JsonDocument.Parse(request.Body);
@@ -158,7 +154,7 @@ public class WorkflowServiceTests : IAsyncLifetime
             outputBlobStorageLocation: _db.NewBlobStorageLocation()
         );
 
-        await TriggerWorkflowInScope(workflow.Id);
+        await TriggerWorkflowInScope(workflow);
 
         var request = Assert.Single(_factory.ArgoHttpHandler.Requests);
 
@@ -182,7 +178,7 @@ public class WorkflowServiceTests : IAsyncLifetime
         );
 
         await Assert.ThrowsAsync<WorkflowTriggerFailedException>(() =>
-            TriggerWorkflowInScope(workflow.Id)
+            TriggerWorkflowInScope(workflow)
         );
 
         await _context.Entry(workflow).ReloadAsync(TestContext.Current.CancellationToken);
@@ -196,7 +192,14 @@ public class WorkflowServiceTests : IAsyncLifetime
     [Fact]
     public async Task OnWorkflowCompleted_WorkflowNotFound_DoesNothing()
     {
-        await OnWorkflowCompletedInScope(Guid.NewGuid());
+        var analysis = await _db.NewAnalysis();
+        var run = await _db.NewAnalysisRun(analysis);
+        var workflow = await _db.NewWorkflow(
+            run,
+            workflowType: "test-workflow-1",
+            outputBlobStorageLocation: _db.NewBlobStorageLocation()
+        );
+        await OnWorkflowCompletedInScope(workflow);
 
         Assert.Empty(_factory.ArgoHttpHandler.Requests);
         Assert.Empty(_factory.MqttPublisher.AnalysisResultMessages);
@@ -211,7 +214,7 @@ public class WorkflowServiceTests : IAsyncLifetime
         workflow.Status = WorkflowStatus.Failed;
         await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        await OnWorkflowCompletedInScope(workflow.Id);
+        await OnWorkflowCompletedInScope(workflow);
 
         await _context.Entry(run).ReloadAsync(TestContext.Current.CancellationToken);
 
@@ -239,7 +242,7 @@ public class WorkflowServiceTests : IAsyncLifetime
         );
         await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        await OnWorkflowCompletedInScope(firstWorkflow.Id);
+        await OnWorkflowCompletedInScope(firstWorkflow);
 
         var request = Assert.Single(_factory.ArgoHttpHandler.Requests);
         Assert.Equal(_factory.TriggerUrlFor(nextWorkflowType), request.RequestUri?.ToString());
@@ -254,7 +257,7 @@ public class WorkflowServiceTests : IAsyncLifetime
         workflow.Status = WorkflowStatus.Succeeded;
         await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        await OnWorkflowCompletedInScope(workflow.Id);
+        await OnWorkflowCompletedInScope(workflow);
 
         await _context.Entry(run).ReloadAsync(TestContext.Current.CancellationToken);
 
@@ -274,7 +277,7 @@ public class WorkflowServiceTests : IAsyncLifetime
         workflow.ResultJson = JsonSerializer.Serialize(new { isBreak = false, confidence = 0.5f });
         await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        await OnWorkflowCompletedInScope(workflow.Id);
+        await OnWorkflowCompletedInScope(workflow);
 
         Assert.Single(_factory.MqttPublisher.AnalysisResultMessages);
     }
@@ -296,7 +299,7 @@ public class WorkflowServiceTests : IAsyncLifetime
         using var scope = customFactory.Services.CreateScope();
         var service = ResolveService(scope);
 
-        await service.OnWorkflowCompleted(workflow.Id);
+        await service.OnWorkflowCompleted(workflow);
 
         await _context.Entry(run).ReloadAsync(TestContext.Current.CancellationToken);
 
@@ -328,7 +331,7 @@ public class WorkflowServiceTests : IAsyncLifetime
         );
         await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        await OnWorkflowCompletedInScope(gate.Id);
+        await OnWorkflowCompletedInScope(gate);
 
         await _context.Entry(run).ReloadAsync(TestContext.Current.CancellationToken);
         await _context.Entry(downstream).ReloadAsync(TestContext.Current.CancellationToken);
@@ -356,7 +359,7 @@ public class WorkflowServiceTests : IAsyncLifetime
         );
         await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        await OnWorkflowCompletedInScope(gate.Id);
+        await OnWorkflowCompletedInScope(gate);
 
         var request = Assert.Single(_factory.ArgoHttpHandler.Requests);
         Assert.Equal(_factory.TriggerUrlFor(nextWorkflowType), request.RequestUri?.ToString());
@@ -379,7 +382,7 @@ public class WorkflowServiceTests : IAsyncLifetime
         );
         await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        await OnWorkflowCompletedInScope(gate.Id);
+        await OnWorkflowCompletedInScope(gate);
 
         await _context.Entry(run).ReloadAsync(TestContext.Current.CancellationToken);
         await _context.Entry(downstream).ReloadAsync(TestContext.Current.CancellationToken);
