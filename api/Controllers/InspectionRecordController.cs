@@ -1,3 +1,4 @@
+using api.Configurations;
 using api.Controllers.Models;
 using api.Database.Models;
 using api.Services;
@@ -5,6 +6,7 @@ using api.Utilities;
 using Azure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace api.Controllers;
 
@@ -14,7 +16,8 @@ public class InspectionRecordController(
     ILogger<InspectionRecordController> logger,
     IInspectionRecordService inspectionRecordService,
     IThermalImageService thermalImageService,
-    IBlobStorageService blobStorageService
+    IBlobStorageService blobStorageService,
+    IOptions<AnalysisOptions> analysisOptions
 ) : ControllerBase
 {
     // Workflow types whose output forms the visualization base layer for an
@@ -43,7 +46,8 @@ public class InspectionRecordController(
             var page = await inspectionRecordService.GetInspectionRecords(parameters);
 
             var pageDtos = page.Select(
-                    (record) => new InspectionRecordDto(record, blobStorageService)
+                    (record) =>
+                        new InspectionRecordDto(record, blobStorageService, analysisOptions.Value)
                 )
                 .ToList();
 
@@ -82,7 +86,11 @@ public class InspectionRecordController(
             {
                 return NotFound($"Could not find inspection record with id {id}");
             }
-            var recordDto = new InspectionRecordDto(record, blobStorageService);
+            var recordDto = new InspectionRecordDto(
+                record,
+                blobStorageService,
+                analysisOptions.Value
+            );
             return Ok(recordDto);
         }
         catch (Exception e)
@@ -114,7 +122,11 @@ public class InspectionRecordController(
                     $"Could not find inspection record with inspection id {inspectionId}"
                 );
             }
-            var recordDto = new InspectionRecordDto(record, blobStorageService);
+            var recordDto = new InspectionRecordDto(
+                record,
+                blobStorageService,
+                analysisOptions.Value
+            );
             return Ok(recordDto);
         }
         catch (Exception e)

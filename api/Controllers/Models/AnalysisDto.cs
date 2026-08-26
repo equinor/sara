@@ -1,4 +1,5 @@
 #pragma warning disable CS8618
+using api.Configurations;
 using api.Database.Models;
 using api.Services;
 
@@ -6,7 +7,11 @@ namespace api.Controllers.Models;
 
 public class AnalysisDto
 {
-    public AnalysisDto(Analysis analysis, IBlobStorageService blobService)
+    public AnalysisDto(
+        Analysis analysis,
+        IBlobStorageService blobService,
+        AnalysisOptions analysisOptions
+    )
     {
         this.Id = analysis.Id;
         this.AnalysisType = analysis.AnalysisType;
@@ -27,8 +32,14 @@ public class AnalysisDto
                 .CreateReadSasUri(anonymizedWorkflow.OutputBlobStorageLocation)
                 .Result;
 
+        var analysisConfig = analysisOptions.Analyses[analysis.AnalysisType];
+        var workflowChain = analysisConfig.Workflows;
+
+        var lastWorkflowType = workflowChain.Last();
+
         var visualizedWorkflow = workflows
             .Where(w => !w.WorkflowType.Equals("anonymizer", StringComparison.OrdinalIgnoreCase))
+            .Where(w => w.WorkflowType.Equals(lastWorkflowType, StringComparison.OrdinalIgnoreCase))
             .OrderByDescending(w => w.CompletedAt ?? w.StartedAt ?? DateTime.MinValue)
             .FirstOrDefault();
         if (visualizedWorkflow != null)
