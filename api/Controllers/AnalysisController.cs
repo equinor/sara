@@ -1,8 +1,10 @@
+using api.Configurations;
 using api.Controllers.Models;
 using api.Database.Models;
 using api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace api.Controllers;
 
@@ -12,7 +14,8 @@ public class AnalysisController(
     ILogger<AnalysisController> logger,
     IAnalysisService analysisService,
     IAnalysisTriggerService analysisTriggerService,
-    IBlobStorageService blobStorageService
+    IBlobStorageService blobStorageService,
+    IOptions<AnalysisOptions> analysisOptions
 ) : ControllerBase
 {
     [HttpGet]
@@ -29,7 +32,10 @@ public class AnalysisController(
         try
         {
             var page = await analysisService.GetAnalyses(parameters);
-            var pageDtos = page.Select((p) => new AnalysisDto(p, blobStorageService)).ToList();
+            var pageDtos = page.Select(
+                    (p) => new AnalysisDto(p, blobStorageService, analysisOptions.Value)
+                )
+                .ToList();
             return Ok(
                 new PagedResponse<AnalysisDto>
                 {
@@ -65,7 +71,7 @@ public class AnalysisController(
             {
                 return NotFound($"Could not find analysis with id {id}");
             }
-            var analysisDto = new AnalysisDto(analysis, blobStorageService);
+            var analysisDto = new AnalysisDto(analysis, blobStorageService, analysisOptions.Value);
             return Ok(analysisDto);
         }
         catch (Exception e)
