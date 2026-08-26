@@ -123,13 +123,15 @@ public class AnalysisTriggerService(
             StartedAt = DateTime.UtcNow,
         };
 
+        // Save first so the DB assigns a real GUID to run.Id before it is
+        // embedded in workflow blob names via ComputeOutputBlobStorageLocation.
+        context.Entry(run.Analysis).State = EntityState.Modified;
+        await context.AnalysisRuns.AddAsync(run);
+        await context.SaveChangesAsync();
+
         var workflows = CreateWorkflows(run, workflowChain, inspectionRecords);
 
         run.Workflows.AddRange(workflows);
-
-        context.Entry(run.Analysis).State = EntityState.Modified;
-
-        await context.AnalysisRuns.AddAsync(run);
         await context.SaveChangesAsync();
 
         return run;
