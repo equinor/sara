@@ -161,6 +161,7 @@ public class WorkflowService(
     {
         var run = await context
             .AnalysisRuns.Include(r => r.Workflows)
+                .ThenInclude(w => w.InputBlobStorageLocations)
             .FirstAsync(r => r.Id == workflow.AnalysisRunId);
 
         if (workflow.Status == WorkflowStatus.Failed)
@@ -185,9 +186,23 @@ public class WorkflowService(
             return;
         }
 
-        var nextWorkflow = run
-            .Workflows.OrderBy(w => w.StepNumber)
-            .FirstOrDefault(w => w.StepNumber > workflow.StepNumber);
+        // Detach all tracked Workflow entities (and their owned InputBlobStorageLocations)
+        // so the re-fetch below reads fresh data from the DB, picking up any rewiring
+        // committed by result handlers (e.g. AnonymizerResultHandler replacing the
+        // thermal-reading input with the pre-processed TIFF).
+        foreach (var entry in context.ChangeTracker.Entries<Workflow>())
+            entry.State = EntityState.Detached;
+
+        // Re-fetch from DB so any rewiring done by result handlers (e.g.
+        // AnonymizerResultHandler swapping the thermal-reading input to the
+        // pre-processed TIFF) is reflected in the object passed to TriggerWorkflow.
+        var nextWorkflow = await context
+            .Workflows.Include(w => w.InputBlobStorageLocations)
+            .Where(w =>
+                w.AnalysisRunId == workflow.AnalysisRunId && w.StepNumber > workflow.StepNumber
+            )
+            .OrderBy(w => w.StepNumber)
+            .FirstOrDefaultAsync();
 
         if (nextWorkflow is null)
         {

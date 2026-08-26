@@ -49,12 +49,27 @@ public class AnonymizerResultHandler(
             return;
         }
 
+        // workflow.AnalysisRun is not eagerly loaded, so fetch explicitly to avoid NullReferenceException.
+        var analysisRun = await context.AnalysisRuns.FirstOrDefaultAsync(r =>
+            r.Id == workflow.AnalysisRunId
+        );
+
+        if (analysisRun is null)
+        {
+            logger.LogError(
+                "AnalysisRun {AnalysisRunId} not found for workflow {WorkflowId} — cannot publish visualization_available",
+                workflow.AnalysisRunId,
+                workflow.Id
+            );
+            return;
+        }
+
         var message = new SaraVisualizationAvailableMessage
         {
             InspectionId = inspectionRecord.InspectionId,
             WorkflowId = workflow.Id,
             AnalysisRunId = workflow.AnalysisRunId,
-            AnalysisId = workflow.AnalysisRun.AnalysisId,
+            AnalysisId = analysisRun.AnalysisId,
         };
 
         await mqttPublisherService.PublishSaraVisualizationAvailable(message);
@@ -66,7 +81,8 @@ public class AnonymizerResultHandler(
     )
     {
         var nextWorkflow = await context
-            .Workflows.Where(w =>
+            .Workflows.Include(w => w.InputBlobStorageLocations)
+            .Where(w =>
                 w.AnalysisRunId == workflow.AnalysisRunId && w.StepNumber > workflow.StepNumber
             )
             .OrderBy(w => w.StepNumber)
@@ -89,7 +105,8 @@ public class AnonymizerResultHandler(
             return;
         }
 
-        nextWorkflow.InputBlobStorageLocations = [preProcessed];
+        nextWorkflow.InputBlobStorageLocations.Clear();
+        nextWorkflow.InputBlobStorageLocations.Add(preProcessed);
         await context.SaveChangesAsync();
 
         logger.LogInformation(
