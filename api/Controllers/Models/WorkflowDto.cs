@@ -109,8 +109,8 @@ public class WorkflowDto
                 {
                     AnalysisId = analysisId,
                     AnalysisType = workflowType,
-                    Value = result?.OilLevel is { } oil ? (oil * 100).ToString("F2") : null,
-                    Unit = "percentage",
+                    Value = result?.OilLevel is { } oil ? oil.ToString("F5") : null,
+                    Unit = "",
                     Confidence = result?.Confidence is { } c ? c * 100f : null,
                     Warning = result?.Warning,
                 };
