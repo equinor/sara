@@ -25,6 +25,7 @@ public class AnalysisDto
 
         var anonymizedWorkflow = workflows
             .Where(w => w.WorkflowType.Equals("anonymizer", StringComparison.OrdinalIgnoreCase))
+            .Where(w => w.Status == WorkflowStatus.Succeeded)
             .OrderByDescending(w => w.CompletedAt ?? w.StartedAt ?? DateTime.MinValue)
             .FirstOrDefault();
         if (anonymizedWorkflow != null && anonymizedWorkflow.OutputBlobStorageLocation != null)
@@ -40,6 +41,7 @@ public class AnalysisDto
         var visualizedWorkflow = workflows
             .Where(w => !w.WorkflowType.Equals("anonymizer", StringComparison.OrdinalIgnoreCase))
             .Where(w => w.WorkflowType.Equals(lastWorkflowType, StringComparison.OrdinalIgnoreCase))
+            .Where(w => w.Status == WorkflowStatus.Succeeded)
             .OrderByDescending(w => w.CompletedAt ?? w.StartedAt ?? DateTime.MinValue)
             .FirstOrDefault();
         if (visualizedWorkflow != null)
