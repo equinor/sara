@@ -61,6 +61,7 @@ jobs:
       image_name: ${{ matrix.image_name }}
       tag: "dev.${{ matrix.short_sha_output }}"
       secondary_tag: dev
+      push_to_ghcr: true
       path_to_dockerfile: ${{ matrix.path_to_dockerfile }}
       path_to_context: ${{ matrix.path_to_context }}
     secrets:
