@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using api.Database.Context;
 using api.Database.Models;
@@ -76,5 +77,55 @@ public class InspectionRecordServiceTests : IAsyncLifetime
         Assert.Equal(1.0f, created.RobotPose!.Position.X);
         Assert.Equal(0.4f, created.RobotPose.Orientation.W);
         Assert.Equal(8.0f, created.TargetPosition!.Y);
+    }
+
+    [Fact]
+    public async Task CreateFromMqttMessage_NoRequiredAnalysis_AppliesConfiguredDefault()
+    {
+        // A mission that requests no specific analysis must still get the
+        // configured default for its file type, otherwise an ordinary image
+        // inspection is never anonymised.
+        var message = _db.NewIsarInspectionResultMessage(requiredAnalysis: null);
+
+        var created = await CreateInScope(message);
+
+        Assert.Equal(["per-record-test"], created.Analyses.Select(a => a.AnalysisType));
+    }
+
+    [Fact]
+    public async Task CreateFromMqttMessage_EmptyRequiredAnalysis_AppliesConfiguredDefault()
+    {
+        // ISAR sends an empty list rather than null when the mission definition
+        // carries no analysis types.
+        var message = _db.NewIsarInspectionResultMessage(requiredAnalysis: []);
+
+        var created = await CreateInScope(message);
+
+        Assert.Equal(["per-record-test"], created.Analyses.Select(a => a.AnalysisType));
+    }
+
+    [Fact]
+    public async Task CreateFromMqttMessage_ExplicitRequiredAnalysis_DoesNotApplyDefault()
+    {
+        var message = _db.NewIsarInspectionResultMessage(
+            requiredAnalysis: ["multi-step-test"]
+        );
+
+        var created = await CreateInScope(message);
+
+        Assert.Equal(["multi-step-test"], created.Analyses.Select(a => a.AnalysisType));
+    }
+
+    [Fact]
+    public async Task CreateFromMqttMessage_UnknownExtension_AppliesNoAnalysis()
+    {
+        var message = _db.NewIsarInspectionResultMessage(
+            blobName: "no-default-for-this.xyz",
+            requiredAnalysis: null
+        );
+
+        var created = await CreateInScope(message);
+
+        Assert.Empty(created.Analyses);
     }
 }

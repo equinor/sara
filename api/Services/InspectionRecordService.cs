@@ -102,18 +102,25 @@ public class InspectionRecordService(
 
         List<Analysis> analyses = [];
 
-        if (message.RequiredAnalysis != null)
+        // A mission that requests no specific analysis arrives with an empty
+        // required_analysis, so fall back to the configured defaults — otherwise
+        // an ordinary image inspection is never anonymised.
+        var requiredAnalysis =
+            message.RequiredAnalysis is { Count: > 0 }
+                ? message.RequiredAnalysis
+                : ResolveDefaultAnalyses(
+                    message.InspectionType,
+                    Path.GetExtension(message.InspectionDataPath.BlobName)?.ToLowerInvariant()
+                );
+
+        if (requiredAnalysis.Count > 0)
         {
             var analysesInGroup =
-                analysisGroup?.Analyses.Where(
-                    (a) => message.RequiredAnalysis.Contains(a.AnalysisType)
-                )
+                analysisGroup?.Analyses.Where((a) => requiredAnalysis.Contains(a.AnalysisType))
                 ?? [];
 
-            var newAnalyses = message
-                .RequiredAnalysis.Where(
-                    (r) => !analysesInGroup.Select((a) => a.AnalysisType).Contains(r)
-                )
+            var newAnalyses = requiredAnalysis
+                .Where((r) => !analysesInGroup.Select((a) => a.AnalysisType).Contains(r))
                 .Select((r) => new Analysis { AnalysisType = r, AnalysisGroup = analysisGroup })
                 .ToList();
 
@@ -445,5 +452,52 @@ public class InspectionRecordService(
         await analysisTriggerService.OnInspectionRecordCreated(record);
 
         return record;
+    }
+
+    // Restored from the pre-5d3255b AnalysisTriggerService. The configuration
+    // (`Analysis:DefaultAnalysisBy*`) and the AnalysisOptions properties were
+    // both left in place when the caller was removed.
+    private List<string> ResolveDefaultAnalyses(string? inspectionType, string? extension)
+    {
+        return TryGetDefaultAnalysesByInspectionTypeAndExtension(inspectionType, extension)
+            ?? TryGetDefaultAnalysesByExtension(extension)
+            ?? [];
+    }
+
+    private List<string>? TryGetDefaultAnalysesByInspectionTypeAndExtension(
+        string? inspectionType,
+        string? extension
+    )
+    {
+        if (
+            inspectionType is not null
+            && extension is not null
+            && _analysisOptions.DefaultAnalysisByInspectionTypeAndExtension.TryGetValue(
+                inspectionType,
+                out var byExtension
+            )
+            && byExtension.TryGetValue(extension, out var analyses)
+        )
+        {
+            return analyses;
+        }
+
+        return null;
+    }
+
+    private List<string>? TryGetDefaultAnalysesByExtension(string? extension)
+    {
+        if (
+            extension is not null
+            && _analysisOptions.DefaultAnalysisByFileExtension.TryGetValue(
+                extension,
+                out var analyses
+            )
+        )
+        {
+            return analyses;
+        }
+
+        return null;
     }
 }
