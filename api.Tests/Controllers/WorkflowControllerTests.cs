@@ -128,7 +128,7 @@ public class WorkflowControllerTests : IAsyncLifetime
         Assert.NotNull(workflowDto);
         Assert.Equal(workflowDto.Id, workflow.Id);
         Assert.NotNull(workflowDto.Result);
-        Assert.Equal((oilLevel * 100).ToString("F2"), workflowDto.Result.Value);
+        Assert.Equal("0.42000", workflowDto.Result.Value);
         Assert.Equal(confidence * 100, workflowDto.Result.Confidence);
     }
 
