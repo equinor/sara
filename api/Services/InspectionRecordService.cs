@@ -104,16 +104,17 @@ public class InspectionRecordService(
 
         if (message.RequiredAnalysis != null)
         {
+            var requiredAnalysis = FilterToConfiguredAnalysisTypes(
+                message.RequiredAnalysis,
+                inspectionId
+            );
+
             var analysesInGroup =
-                analysisGroup?.Analyses.Where(
-                    (a) => message.RequiredAnalysis.Contains(a.AnalysisType)
-                )
+                analysisGroup?.Analyses.Where((a) => requiredAnalysis.Contains(a.AnalysisType))
                 ?? [];
 
-            var newAnalyses = message
-                .RequiredAnalysis.Where(
-                    (r) => !analysesInGroup.Select((a) => a.AnalysisType).Contains(r)
-                )
+            var newAnalyses = requiredAnalysis
+                .Where((r) => !analysesInGroup.Select((a) => a.AnalysisType).Contains(r))
                 .Select((r) => new Analysis { AnalysisType = r, AnalysisGroup = analysisGroup })
                 .ToList();
 
@@ -190,6 +191,43 @@ public class InspectionRecordService(
         return group;
     }
 
+    /// <summary>
+    /// Drops requested analysis types that are not present in <c>Analysis:Analyses</c>
+    /// configuration, logging an error for each. An unknown type must never reach the
+    /// database: both <c>AnalysisTriggerService.TriggerAnalysis</c> and <c>AnalysisDto</c>
+    /// look the type up with a dictionary indexer and would throw
+    /// <c>KeyNotFoundException</c>. Dropping the unknown ones lets the known analyses on
+    /// the same inspection still run.
+    /// </summary>
+    private List<string> FilterToConfiguredAnalysisTypes(
+        IEnumerable<string> analysisTypes,
+        string inspectionId
+    )
+    {
+        List<string> known = [];
+        List<string> unknown = [];
+
+        foreach (var analysisType in analysisTypes)
+        {
+            if (analysisOptions.Value.Analyses.ContainsKey(analysisType))
+                known.Add(analysisType);
+            else
+                unknown.Add(analysisType);
+        }
+
+        if (unknown.Count > 0)
+        {
+            logger.LogError(
+                "Unknown analyses [{UnknownAnalyses}] for InspectionId: {InspectionId} — "
+                    + "not found in configuration. These will be skipped.",
+                Sanitize.SanitizeUserInput(string.Join(", ", unknown)),
+                Sanitize.SanitizeUserInput(inspectionId)
+            );
+        }
+
+        return known;
+    }
+
     public async Task<InspectionRecord> Create(InspectionRecord inspectionRecord)
     {
         await context.InspectionRecords.AddAsync(inspectionRecord);
@@ -256,20 +294,19 @@ public class InspectionRecordService(
                 )
                 : null;
 
-        var analysisTypes = request
-            .RequiredAnalysis?.Select((a) => Analysis.GetAnalysisTypeFromAnalysisEnum(a))
-            .ToList();
+        var analysisTypes = FilterToConfiguredAnalysisTypes(
+            request.RequiredAnalysis?.Select((a) => Analysis.GetAnalysisTypeFromAnalysisEnum(a))
+                ?? [],
+            inspectionId
+        );
 
-        var analyses =
-            analysisTypes != null
-                ? analysisTypes
-                    .Select(
-                        (r) =>
-                            analysisGroup?.Analyses.Find((a) => a.AnalysisType == r)
-                            ?? new Analysis { AnalysisType = r, AnalysisGroup = analysisGroup }
-                    )
-                    .ToList()
-                : [];
+        var analyses = analysisTypes
+            .Select(
+                (r) =>
+                    analysisGroup?.Analyses.Find((a) => a.AnalysisType == r)
+                    ?? new Analysis { AnalysisType = r, AnalysisGroup = analysisGroup }
+            )
+            .ToList();
 
         var inspectionRecord = new InspectionRecord
         {

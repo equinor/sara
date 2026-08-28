@@ -6,6 +6,7 @@ using api.MQTT;
 using api.Services;
 using Api.Test.Database;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
 using Xunit;
@@ -76,5 +77,29 @@ public class InspectionRecordServiceTests : IAsyncLifetime
         Assert.Equal(1.0f, created.RobotPose!.Position.X);
         Assert.Equal(0.4f, created.RobotPose.Orientation.W);
         Assert.Equal(8.0f, created.TargetPosition!.Y);
+    }
+
+    [Fact]
+    public async Task CreateFromMqttMessage_NoRequiredAnalysis_CreatesNoAnalyses()
+    {
+        var message = _db.NewIsarInspectionResultMessage(blobName: "image.jpg");
+
+        var created = await CreateInScope(message);
+
+        Assert.Empty(created.Analyses);
+        Assert.Empty(await _context.Analyses.ToListAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task CreateFromMqttMessage_UnknownRequiredAnalysis_SkipsUnknownKeepsKnown()
+    {
+        var message = _db.NewIsarInspectionResultMessage(
+            requiredAnalysis: ["per-record-test", "nonexistent-analysis"]
+        );
+
+        var created = await CreateInScope(message);
+
+        var analysis = Assert.Single(created.Analyses);
+        Assert.Equal("per-record-test", analysis.AnalysisType);
     }
 }
