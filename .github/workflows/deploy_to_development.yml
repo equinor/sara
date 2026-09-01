@@ -14,6 +14,18 @@ on:
       - "main"
 
 jobs:
+  run_migrations:
+    name: Update database in Development
+    permissions:
+      contents: read
+      pull-requests: read
+      id-token: write
+    uses: equinor/armada/.github/workflows/run_dotnet_migrations.yml@main
+    with:
+      environment: Development
+      working_directory: api
+      azure_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
   get-short-sha:
     outputs:
       tag: ${{ steps.get-tag.outputs.tag }}
@@ -24,23 +36,9 @@ jobs:
           SHA_SHORT=$(echo ${{ github.sha }} | cut -c1-8)
           echo "tag=$SHA_SHORT" >> "$GITHUB_OUTPUT"
 
-  get-short-sha-for-workflow-notifier-folder:
-    outputs:
-      tag: ${{ steps.get-tag.outputs.tag }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6
-
-      - id: get-tag
-        run: |
-          DIR_HASH=$(find workflow-notifier -type f -exec sha256sum {} + | sort | sha256sum | cut -c1-8)
-          echo "Computed DIR_HASH: $DIR_HASH"
-          echo "tag=$DIR_HASH" >> "$GITHUB_OUTPUT"
-
   build-and-push-dev-images-to-ghcr:
     name: Build and push dev images to github container registry
-    needs: [get-short-sha, get-short-sha-for-workflow-notifier-folder]
+    needs: [get-short-sha]
     uses: equinor/armada/.github/workflows/build_and_publish_docker_image_to_container_registry.yml@main
     permissions:
       contents: read
@@ -53,10 +51,6 @@ jobs:
             path_to_dockerfile: Dockerfile
             path_to_context: .
             short_sha_output: ${{ needs.get-short-sha.outputs.tag }}
-          - image_name: robotics/workflow-notifier
-            path_to_dockerfile: workflow-notifier/Dockerfile
-            path_to_context: workflow-notifier
-            short_sha_output: ${{ needs.get-short-sha-for-workflow-notifier-folder.outputs.tag }}
     with:
       registry: roboticsdevacr.azurecr.io
       image_name: ${{ matrix.image_name }}
@@ -74,7 +68,7 @@ jobs:
 
   deploy:
     name: Update deployment in Development
-    needs: [build-and-push-dev-images-to-ghcr, get-short-sha, get-short-sha-for-workflow-notifier-folder]
+    needs: [run_migrations, build-and-push-dev-images-to-ghcr, get-short-sha]
     uses: equinor/armada/.github/workflows/update_kubernetes_deployment.yml@main
     permissions:
       contents: read
@@ -84,8 +78,6 @@ jobs:
         include:
           - image_name: robotics/sara
             short_sha_output: ${{ needs.get-short-sha.outputs.tag }}
-          - image_name: robotics/workflow-notifier
-            short_sha_output: ${{ needs.get-short-sha-for-workflow-notifier-folder.outputs.tag }}
     with:
       environment: development
       registry: roboticsdevacr.azurecr.io

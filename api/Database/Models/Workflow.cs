@@ -61,11 +61,13 @@ public class Workflow
     public WorkflowStatus Status { get; set; } = WorkflowStatus.Pending;
 
     /// <summary>
-    /// Name of the underlying Argo Workflow resource, reported by the workflow
-    /// notifier when the workflow starts. Combined with the SARA-configured Argo
-    /// Workflows base URL and namespace to build a deep link to the Argo UI.
+    /// Name of the underlying Argo Workflow resource. Combined with the
+    /// SARA-configured Argo Workflows base URL and namespace to build a deep link
+    /// to the Argo UI.
     /// </summary>
     public string? ArgoWorkflowName { get; set; }
+
+    public string? ArgoWorkflowUid { get; set; }
 
     public BlobStorageLocation? OutputBlobStorageLocation { get; set; }
 

@@ -11,12 +11,3 @@ updates:
       - dependency-name: dotnet/aspnet
         update-types:
           - version-update:semver-major
-
-  - package-ecosystem: docker
-    directory: /workflow-notifier
-    schedule:
-      interval: weekly
-    ignore:
-      - dependency-name: python
-        update-types:
-          - version-update:semver-major

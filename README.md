@@ -126,28 +126,20 @@ make format         # CSharpier
 ## Creating a new workflow
 
 1. Register the workflow under `Analysis:Workflows` in `appsettings.json`
-   with its `TriggerUrl`, `OutputStorageAccount`, `OutputBlobContainer` and
+   with its `WorkflowTemplateName`, `OutputStorageAccount`, `OutputBlobContainer` and
    (optionally) `OutputFileExtension`.
 2. Reference it from one or more chains under `Analysis:Analyses`, e.g.
    `"my-analysis": { "Workflows": ["anonymizer", "my-workflow"] }`.
 3. Add an `IWorkflowResultHandler` in
    `api/Services/ResultHandlers/WorkflowResultHandlers/` that matches the
    new workflow type.
-4. If the analyzer needs per-workflow parameters in the Argo trigger
+4. If the analyzer needs per-workflow parameters in the Argo Workflow arguments
    payload, add an `ITriggerPayloadEnricher` that populates `extras`.
-5. Add the matching Argo `WorkflowTemplate` + `Sensor` in
+5. Add the matching Argo `WorkflowTemplate` in
    [robotics-infrastructure](https://github.com/equinor/robotics-infrastructure)
    and an analyzer image repo that implements the generic CLI contract
    (`--input-blob-storage-locations`, `--output-blob-storage-location`,
    `--extras`).
-
-## workflow-notifier
-
-`workflow-notifier/` is a standalone Python CLI, shipped as its own Docker
-image and invoked from inside Argo `WorkflowTemplate` steps. It exposes
-three subcommands -- `started`, `result` and `exited` -- each of which
-performs an authenticated `PUT` against `/api/workflow/{id}/...` so SARA can
-track workflow progress and persist results.
 
 ## Analyzer services
 

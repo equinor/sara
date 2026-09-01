@@ -1,5 +1,4 @@
 using System;
-using System.Net;
 using System.Text.Json;
 using System.Threading.Tasks;
 using api.Database.Context;
@@ -9,6 +8,7 @@ using api.Services.ResultHandlers.WorkflowResultHandlers;
 using Api.Test.Database;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
 using Xunit;
@@ -64,9 +64,8 @@ public class WorkflowServiceTests : IAsyncLifetime
             workflowType: "unknown-type",
             outputBlobStorageLocation: _db.NewBlobStorageLocation()
         );
-
         await Assert.ThrowsAsync<InvalidOperationException>(() => TriggerWorkflowInScope(workflow));
-        Assert.Empty(_factory.ArgoHttpHandler.Requests);
+        Assert.Empty(_factory.ArgoWorkflowClient.Requests);
     }
 
     [Fact]
@@ -81,7 +80,7 @@ public class WorkflowServiceTests : IAsyncLifetime
         );
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => TriggerWorkflowInScope(workflow));
-        Assert.Empty(_factory.ArgoHttpHandler.Requests);
+        Assert.Empty(_factory.ArgoWorkflowClient.Requests);
     }
 
     [Fact]
@@ -95,18 +94,45 @@ public class WorkflowServiceTests : IAsyncLifetime
             workflowType: workflowType,
             outputBlobStorageLocation: _db.NewBlobStorageLocation()
         );
+        _factory.ArgoWorkflowClient.BeforeCreate = async request =>
+        {
+            await using var persistedContext = TestSetupHelpers.ConfigurePostgreSqlContext(
+                _container.GetConnectionString()
+            );
+            var persisted = await persistedContext.Workflows.SingleAsync(
+                item => item.Id == workflow.Id,
+                TestContext.Current.CancellationToken
+            );
+            Assert.Equal(request.WorkflowName, persisted.ArgoWorkflowName);
+            Assert.Equal(WorkflowStatus.InProgress, persisted.Status);
+            Assert.NotNull(persisted.StartedAt);
+            Assert.Null(persisted.ArgoWorkflowUid);
+        };
 
         await TriggerWorkflowInScope(workflow);
 
         await _context.Entry(workflow).ReloadAsync(TestContext.Current.CancellationToken);
 
-        var request = Assert.Single(_factory.ArgoHttpHandler.Requests);
-        Assert.Equal(_factory.TriggerUrlFor(workflowType), request.RequestUri?.ToString());
+        var request = Assert.Single(_factory.ArgoWorkflowClient.Requests);
+        Assert.Equal($"sara-{workflow.Id:N}", request.WorkflowName);
+        Assert.Equal(_factory.WorkflowTemplateNameFor(workflowType), request.WorkflowTemplateName);
+        Assert.Equal(workflow.Id.ToString(), request.Arguments["workflowId"]);
+        Assert.Equal(workflowType, request.Arguments["workflowType"]);
+        Assert.Equal(
+            JsonValueKind.Array,
+            JsonDocument.Parse(request.Arguments["inputBlobStorageLocations"]).RootElement.ValueKind
+        );
+        Assert.Equal(
+            JsonValueKind.Object,
+            JsonDocument.Parse(request.Arguments["outputBlobStorageLocation"]).RootElement.ValueKind
+        );
         Assert.Equal(WorkflowStatus.InProgress, workflow.Status);
         Assert.NotNull(workflow.StartedAt);
+        Assert.NotNull(workflow.ArgoWorkflowName);
+        Assert.NotNull(workflow.ArgoWorkflowUid);
 
-        using var doc = JsonDocument.Parse(request.Body);
-        var extras = doc.RootElement.GetProperty("extras");
+        using var doc = JsonDocument.Parse(request.Arguments["extras"]);
+        var extras = doc.RootElement;
         Assert.Equal(JsonValueKind.Object, extras.ValueKind);
         Assert.Empty(extras.EnumerateObject());
     }
@@ -125,9 +151,27 @@ public class WorkflowServiceTests : IAsyncLifetime
 
         await TriggerWorkflowInScope(workflow);
 
-        var request = Assert.Single(_factory.ArgoHttpHandler.Requests);
-        using var doc = JsonDocument.Parse(request.Body);
-        Assert.Equal(workflowType, doc.RootElement.GetProperty("workflowType").GetString());
+        var request = Assert.Single(_factory.ArgoWorkflowClient.Requests);
+        Assert.Equal(workflowType, request.Arguments["workflowType"]);
+    }
+
+    [Fact]
+    public async Task TriggerUtilitiesWorkflow_PayloadIncludesOperationInExtras()
+    {
+        const string workflowType = "copy-raw-to-visualized";
+        var analysis = await _db.NewAnalysis();
+        var run = await _db.NewAnalysisRun(analysis);
+        var workflow = await _db.NewWorkflow(
+            run,
+            workflowType: workflowType,
+            outputBlobStorageLocation: _db.NewBlobStorageLocation()
+        );
+
+        await TriggerWorkflowInScope(workflow);
+
+        var request = Assert.Single(_factory.ArgoWorkflowClient.Requests);
+        using var extras = JsonDocument.Parse(request.Arguments["extras"]);
+        Assert.Equal(workflowType, extras.RootElement.GetProperty("operation").GetString());
     }
 
     [Fact]
@@ -156,10 +200,10 @@ public class WorkflowServiceTests : IAsyncLifetime
 
         await TriggerWorkflowInScope(workflow);
 
-        var request = Assert.Single(_factory.ArgoHttpHandler.Requests);
+        var request = Assert.Single(_factory.ArgoWorkflowClient.Requests);
 
-        using var doc = JsonDocument.Parse(request.Body);
-        var extras = doc.RootElement.GetProperty("extras");
+        using var doc = JsonDocument.Parse(request.Arguments["extras"]);
+        var extras = doc.RootElement;
         Assert.Equal(JsonValueKind.Object, extras.ValueKind);
         Assert.True(extras.TryGetProperty("referenceImageBlobStorageLocation", out _));
         Assert.True(extras.TryGetProperty("referencePolygonBlobStorageLocation", out _));
@@ -168,7 +212,7 @@ public class WorkflowServiceTests : IAsyncLifetime
     [Fact]
     public async Task TriggerWorkflow_ArgoReturnsError_MarksWorkflowAndRunFailed()
     {
-        _factory.ArgoHttpHandler.ResponseStatusCode = HttpStatusCode.InternalServerError;
+        _factory.ArgoWorkflowClient.CreateException = new InvalidOperationException("Argo error");
         var analysis = await _db.NewAnalysis();
         var run = await _db.NewAnalysisRun(analysis);
         var workflow = await _db.NewWorkflow(
@@ -201,7 +245,7 @@ public class WorkflowServiceTests : IAsyncLifetime
         );
         await OnWorkflowCompletedInScope(workflow);
 
-        Assert.Empty(_factory.ArgoHttpHandler.Requests);
+        Assert.Empty(_factory.ArgoWorkflowClient.Requests);
         Assert.Empty(_factory.MqttPublisher.AnalysisResultMessages);
     }
 
@@ -244,8 +288,11 @@ public class WorkflowServiceTests : IAsyncLifetime
 
         await OnWorkflowCompletedInScope(firstWorkflow);
 
-        var request = Assert.Single(_factory.ArgoHttpHandler.Requests);
-        Assert.Equal(_factory.TriggerUrlFor(nextWorkflowType), request.RequestUri?.ToString());
+        var request = Assert.Single(_factory.ArgoWorkflowClient.Requests);
+        Assert.Equal(
+            _factory.WorkflowTemplateNameFor(nextWorkflowType),
+            request.WorkflowTemplateName
+        );
     }
 
     [Fact]
@@ -263,7 +310,7 @@ public class WorkflowServiceTests : IAsyncLifetime
 
         Assert.Equal(AnalysisRunStatus.Succeeded, run.Status);
         Assert.NotNull(run.CompletedAt);
-        Assert.Empty(_factory.ArgoHttpHandler.Requests);
+        Assert.Empty(_factory.ArgoWorkflowClient.Requests);
     }
 
     [Fact]
@@ -339,7 +386,7 @@ public class WorkflowServiceTests : IAsyncLifetime
         Assert.Equal(AnalysisRunStatus.Skipped, run.Status);
         Assert.NotNull(run.SkipReason);
         Assert.Equal(WorkflowStatus.Skipped, downstream.Status);
-        Assert.Empty(_factory.ArgoHttpHandler.Requests);
+        Assert.Empty(_factory.ArgoWorkflowClient.Requests);
     }
 
     [Fact]
@@ -361,8 +408,11 @@ public class WorkflowServiceTests : IAsyncLifetime
 
         await OnWorkflowCompletedInScope(gate);
 
-        var request = Assert.Single(_factory.ArgoHttpHandler.Requests);
-        Assert.Equal(_factory.TriggerUrlFor(nextWorkflowType), request.RequestUri?.ToString());
+        var request = Assert.Single(_factory.ArgoWorkflowClient.Requests);
+        Assert.Equal(
+            _factory.WorkflowTemplateNameFor(nextWorkflowType),
+            request.WorkflowTemplateName
+        );
     }
 
     [Fact]
@@ -389,7 +439,7 @@ public class WorkflowServiceTests : IAsyncLifetime
 
         Assert.Equal(AnalysisRunStatus.Skipped, run.Status);
         Assert.Equal(WorkflowStatus.Skipped, downstream.Status);
-        Assert.Empty(_factory.ArgoHttpHandler.Requests);
+        Assert.Empty(_factory.ArgoWorkflowClient.Requests);
     }
 
     [Fact]
@@ -405,6 +455,8 @@ public class WorkflowServiceTests : IAsyncLifetime
             outputBlobStorageLocation: _db.NewBlobStorageLocation()
         );
         gate.Status = WorkflowStatus.Succeeded;
+        gate.ArgoWorkflowName = $"sara-{gate.Id:N}";
+        var previousArgoWorkflowName = gate.ArgoWorkflowName;
         gate.ResultJson = "{\"skip\":true}";
         gate.CompletedAt = DateTime.UtcNow;
         var downstream = await _db.NewWorkflow(
@@ -436,7 +488,11 @@ public class WorkflowServiceTests : IAsyncLifetime
         Assert.Null(gate.ResultJson);
         Assert.Equal(WorkflowStatus.Pending, downstream.Status);
         Assert.Null(downstream.CompletedAt);
-        var request = Assert.Single(_factory.ArgoHttpHandler.Requests);
-        Assert.Equal(_factory.TriggerUrlFor(gateType), request.RequestUri?.ToString());
+        var request = Assert.Single(_factory.ArgoWorkflowClient.Requests);
+        Assert.Equal(_factory.WorkflowTemplateNameFor(gateType), request.WorkflowTemplateName);
+        Assert.StartsWith($"sara-{gate.Id:N}-", gate.ArgoWorkflowName);
+        Assert.NotEqual(previousArgoWorkflowName, gate.ArgoWorkflowName);
+        Assert.Equal(gate.ArgoWorkflowName, request.WorkflowName);
+        Assert.NotNull(gate.ArgoWorkflowUid);
     }
 }

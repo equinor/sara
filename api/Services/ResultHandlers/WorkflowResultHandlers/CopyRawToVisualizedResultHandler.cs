@@ -2,6 +2,7 @@ using api.Database.Context;
 using api.Database.Models;
 using api.MQTT;
 using api.Utilities;
+using Microsoft.EntityFrameworkCore;
 
 namespace api.Services.ResultHandlers.WorkflowResultHandlers;
 
@@ -39,12 +40,25 @@ public class CopyRawToVisualizedResultHandler(
             return;
         }
 
+        var analysisRun = await context.AnalysisRuns.FirstOrDefaultAsync(r =>
+            r.Id == workflow.AnalysisRunId
+        );
+        if (analysisRun is null)
+        {
+            logger.LogError(
+                "AnalysisRun {AnalysisRunId} not found for workflow {WorkflowId} — cannot publish visualization_available",
+                workflow.AnalysisRunId,
+                workflow.Id
+            );
+            return;
+        }
+
         var message = new SaraVisualizationAvailableMessage
         {
             InspectionId = inspectionRecord.InspectionId,
             WorkflowId = workflow.Id,
             AnalysisRunId = workflow.AnalysisRunId,
-            AnalysisId = workflow.AnalysisRun.AnalysisId,
+            AnalysisId = analysisRun.AnalysisId,
         };
 
         await mqttPublisherService.PublishSaraVisualizationAvailable(message);
