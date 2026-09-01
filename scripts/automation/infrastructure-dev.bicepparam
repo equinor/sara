@@ -9,11 +9,10 @@ param objectIdEnterpriseApplication = '8814d87c-169b-49b1-9237-2347041157ca' // 
 
 param keyVaultName = '${environment}-kv'
 
-param storageAccountNameAnon = '${environment}storeanon'
 param storageAccountNameRaw = '${environment}storeraw'
 param storageAccountNameVis = '${environment}storevis'
 param storageAccountNameThermalRef = '${environment}thermalref'
 param storageAccountNameTimeseries = '${environment}storetime'
 
-// Grant Flotilla (FlotillaBackendAuthDev) role assignment as "Storage Blob Data Reader" to storageanon account
+// Grant Flotilla (FlotillaBackendAuthDev) role assignment as "Storage Blob Data Reader" to storage account
 param principalIdFlotillaApp = '8256d35d-5c07-440b-9f47-4abce94c8565' // ObjectID enterprise application FlotillaBackendAuthDev

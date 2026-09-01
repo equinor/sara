@@ -6,7 +6,6 @@ param location string
 param deploymentId string = newGuid()
 
 param storageAccountNameRaw string
-param storageAccountNameAnon string
 param storageAccountNameVis string
 param storageAccountNameThermalRef string
 param storageAccountNameTimeseries string
@@ -32,15 +31,6 @@ module storageAccountRaw 'modules/storage-account-raw.bicep' = {
   }
 }
 
-module storageAccountAnon 'modules/storage-account-anon.bicep' = {
-  scope: resourceGroup
-  name: 'infrastructure-sa-anon-${deploymentId}'
-  params: {
-    location: location
-    storageAccountNameAnon: storageAccountNameAnon
-    principalIdFlotillaApp: principalIdFlotillaApp
-  }
-}
 
 module storageAccountVis 'modules/storage-account-visualize.bicep' = {
   scope: resourceGroup

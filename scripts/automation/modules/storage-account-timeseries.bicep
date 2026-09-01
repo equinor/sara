@@ -2,7 +2,7 @@ param storageAccountNameTimeseries string
 param location string
 param objectIdEnterpriseApplication string
 
-resource storageAccountAnon 'Microsoft.Storage/storageAccounts@2023-05-01' = {
+resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   name: storageAccountNameTimeseries
   location: location
   sku: {
