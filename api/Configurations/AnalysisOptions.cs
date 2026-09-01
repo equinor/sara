@@ -27,7 +27,7 @@ public class AnalysisConfig
 
 public class WorkflowConfig
 {
-    public required string TriggerUrl { get; set; }
+    public required string WorkflowTemplateName { get; set; }
 
     public required string OutputStorageAccount { get; set; }
 

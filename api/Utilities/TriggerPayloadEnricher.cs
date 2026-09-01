@@ -19,6 +19,16 @@ public interface ITriggerPayloadEnricher
     );
 }
 
+public class UtilitiesPayloadEnricher : ITriggerPayloadEnricher
+{
+    public string WorkflowType => "copy-raw-to-visualized";
+
+    public Task<Dictionary<string, object>> EnrichAsync(
+        Workflow workflow,
+        IReadOnlyList<InspectionRecord> inspectionRecords
+    ) => Task.FromResult(new Dictionary<string, object> { ["operation"] = workflow.WorkflowType });
+}
+
 public class ThermalReadingPayloadEnricher(
     IThermalReferenceMetadataService thermalReferenceMetadataService,
     ILogger<ThermalReadingPayloadEnricher> logger

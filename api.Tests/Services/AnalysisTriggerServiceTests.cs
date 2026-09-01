@@ -66,7 +66,7 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
         await OnInspectionRecordCreatedInScope(record);
 
         Assert.Empty(await _context.Analyses.ToListAsync(TestContext.Current.CancellationToken));
-        Assert.Empty(_factory.ArgoHttpHandler.Requests);
+        Assert.Empty(_factory.ArgoWorkflowClient.Requests);
     }
 
     [Fact]
@@ -80,7 +80,7 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
 
         var analysis = await LoadAnalysisByNameAsync(knownAnalysis);
         Assert.Equal(knownAnalysis, analysis.AnalysisType);
-        Assert.Single(_factory.ArgoHttpHandler.Requests);
+        Assert.Single(_factory.ArgoWorkflowClient.Requests);
     }
 
     [Fact]
@@ -91,7 +91,7 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
         await OnInspectionRecordCreatedInScope(record);
 
         Assert.Empty(await _context.Analyses.ToListAsync(TestContext.Current.CancellationToken));
-        Assert.Empty(_factory.ArgoHttpHandler.Requests);
+        Assert.Empty(_factory.ArgoWorkflowClient.Requests);
     }
 
     [Fact]
@@ -108,8 +108,8 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
         var workflow = analysis.Runs.Single().Workflows.Single();
         Assert.Equal(workflowType, workflow.WorkflowType);
 
-        var request = Assert.Single(_factory.ArgoHttpHandler.Requests);
-        Assert.Equal(_factory.TriggerUrlFor(workflowType), request.RequestUri?.ToString());
+        var request = Assert.Single(_factory.ArgoWorkflowClient.Requests);
+        Assert.Equal(_factory.WorkflowTemplateNameFor(workflowType), request.WorkflowTemplateName);
     }
 
     [Fact]
@@ -134,8 +134,11 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
             workflows[1].InputBlobStorageLocations[0].ToString()
         );
 
-        var request = Assert.Single(_factory.ArgoHttpHandler.Requests);
-        Assert.Equal(_factory.TriggerUrlFor(firstWorkflowType), request.RequestUri?.ToString());
+        var request = Assert.Single(_factory.ArgoWorkflowClient.Requests);
+        Assert.Equal(
+            _factory.WorkflowTemplateNameFor(firstWorkflowType),
+            request.WorkflowTemplateName
+        );
     }
 
     [Fact]
@@ -151,7 +154,7 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
 
         var analysis = await LoadOnlyAnalysisAsync();
         Assert.Empty(analysis.Runs);
-        Assert.Empty(_factory.ArgoHttpHandler.Requests);
+        Assert.Empty(_factory.ArgoWorkflowClient.Requests);
     }
 
     [Fact]
@@ -177,7 +180,7 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
         var analysis = await LoadOnlyAnalysisAsync();
         Assert.Equal(2, analysis.InspectionRecords.Count);
         Assert.Equal(2, analysis.Runs.Single().Workflows.Single().InputBlobStorageLocations.Count);
-        Assert.Single(_factory.ArgoHttpHandler.Requests);
+        Assert.Single(_factory.ArgoWorkflowClient.Requests);
     }
 
     [Fact]
@@ -202,8 +205,11 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
         Assert.Empty((await LoadAnalysisByNameAsync(groupedAnalysisType)).Runs);
         Assert.Single((await LoadAnalysisByNameAsync(nonGroupedAnalysisType)).Runs);
 
-        var request = Assert.Single(_factory.ArgoHttpHandler.Requests);
-        Assert.Equal(_factory.TriggerUrlFor(firstWorkflowType), request.RequestUri?.ToString());
+        var request = Assert.Single(_factory.ArgoWorkflowClient.Requests);
+        Assert.Equal(
+            _factory.WorkflowTemplateNameFor(firstWorkflowType),
+            request.WorkflowTemplateName
+        );
     }
 
     [Fact]

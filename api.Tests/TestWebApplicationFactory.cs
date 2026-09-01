@@ -23,7 +23,7 @@ namespace Api.Test;
 /// Test-time <see cref="WebApplicationFactory{TEntryPoint}"/> for the SARA API.
 /// Wires the SaraDbContext to a caller-supplied PostgreSQL connection string,
 /// replaces <see cref="IMqttPublisherService"/> with a recording fake, swaps
-/// the named "Argo" HttpClient onto a recording handler, and removes background
+/// the Argo client with a recording fake, and removes background
 /// hosted services so the test host does not connect to a real broker.
 /// </summary>
 public class TestWebApplicationFactory<TProgram>(
@@ -41,19 +41,19 @@ public class TestWebApplicationFactory<TProgram>(
     private readonly bool _replaceAuthentication = replaceAuthentication;
 
     public RecordingMqttPublisher MqttPublisher { get; } = new();
-    public RecordingHttpMessageHandler ArgoHttpHandler { get; } = new();
+    public FakeArgoWorkflowClient ArgoWorkflowClient { get; } = new();
     public RecordingEmailService EmailService { get; } = new();
     public RecordingTimeseriesService TimeseriesService { get; } = new();
     public BlobStorageServiceMock BlobStorageService { get; } = new();
 
     /// <summary>
-    /// Returns the configured Argo trigger URL for the given workflow type.
+    /// Returns the configured Argo WorkflowTemplate for the given workflow type.
     /// </summary>
-    public string TriggerUrlFor(string workflowType)
+    public string WorkflowTemplateNameFor(string workflowType)
     {
         using var scope = Services.CreateScope();
         var options = scope.ServiceProvider.GetRequiredService<IOptions<AnalysisOptions>>().Value;
-        return options.Workflows[workflowType].TriggerUrl;
+        return options.Workflows[workflowType].WorkflowTemplateName;
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -80,7 +80,7 @@ public class TestWebApplicationFactory<TProgram>(
         {
             ReplaceDbContext(services);
             ReplaceMqttPublisher(services);
-            ReplaceArgoHttpClient(services);
+            ReplaceArgoWorkflowClient(services);
             ReplaceEmailService(services);
             ReplaceTimeseriesService(services);
             if (_replaceAuthentication)
@@ -126,11 +126,14 @@ public class TestWebApplicationFactory<TProgram>(
         services.AddSingleton<IMqttPublisherService>(MqttPublisher);
     }
 
-    private void ReplaceArgoHttpClient(IServiceCollection services)
+    private void ReplaceArgoWorkflowClient(IServiceCollection services)
     {
-        services
-            .AddHttpClient(WorkflowService.ArgoHttpClientName)
-            .ConfigurePrimaryHttpMessageHandler(() => ArgoHttpHandler);
+        var existing = services.Where(d => d.ServiceType == typeof(IArgoWorkflowClient)).ToList();
+        foreach (var descriptor in existing)
+        {
+            services.Remove(descriptor);
+        }
+        services.AddSingleton<IArgoWorkflowClient>(ArgoWorkflowClient);
     }
 
     private void ReplaceEmailService(IServiceCollection services)

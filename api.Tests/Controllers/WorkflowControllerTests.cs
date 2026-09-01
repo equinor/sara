@@ -1,4 +1,5 @@
 using System;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -9,6 +10,7 @@ using api.Database.Context;
 using api.Database.Models;
 using api.Services;
 using Api.Test.Database;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -219,5 +221,28 @@ public class WorkflowControllerTests : IAsyncLifetime
         Assert.NotNull(workflowDto);
         Assert.Equal(workflowDto.Id, workflow.Id);
         Assert.Null(workflowDto.Result);
+    }
+
+    [Fact]
+    public async Task DeleteInProgressWorkflow_ReturnsConflict()
+    {
+        var analysis = await _db.NewAnalysis();
+        var run = await _db.NewAnalysisRun(analysis);
+        var workflow = await _db.NewWorkflow(run);
+        workflow.Status = WorkflowStatus.InProgress;
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var response = await Client.DeleteAsync(
+            $"/api/workflow/id/{workflow.Id}",
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.True(
+            await _context.Workflows.AnyAsync(
+                w => w.Id == workflow.Id,
+                TestContext.Current.CancellationToken
+            )
+        );
     }
 }

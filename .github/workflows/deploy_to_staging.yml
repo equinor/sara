@@ -40,9 +40,6 @@ jobs:
           - image_name: robotics/sara
             path_to_dockerfile: Dockerfile
             path_to_context: .
-          - image_name: robotics/workflow-notifier
-            path_to_dockerfile: workflow-notifier/Dockerfile
-            path_to_context: workflow-notifier
     with:
       registry: roboticsstagingacr.azurecr.io
       image_name: ${{ matrix.image_name }}
@@ -60,7 +57,7 @@ jobs:
 
   deploy:
     name: Update deployment in Staging
-    needs: build-and-push-latest-release-images-to-robotics-staging-registry
+    needs: [run_migrations, build-and-push-latest-release-images-to-robotics-staging-registry]
     uses: equinor/armada/.github/workflows/update_kubernetes_deployment.yml@main
     permissions:
       contents: read
@@ -69,7 +66,6 @@ jobs:
       matrix:
         include:
           - image_name: robotics/sara
-          - image_name: robotics/workflow-notifier
     with:
       environment: staging
       registry: roboticsstagingacr.azurecr.io

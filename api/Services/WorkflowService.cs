@@ -1,4 +1,3 @@
-using System.Text;
 using System.Text.Json;
 using api.Configurations;
 using api.Database.Context;
@@ -44,12 +43,10 @@ public class WorkflowService(
     IEnumerable<ITriggerPayloadEnricher> payloadEnrichers,
     IEnumerable<IWorkflowResultHandler> workflowResultHandlers,
     IEnumerable<IAnalysisResultHandler> analysisResultHandlers,
-    IHttpClientFactory httpClientFactory,
+    IArgoWorkflowClient argoWorkflowClient,
     ILogger<WorkflowService> logger
 ) : IWorkflowService
 {
-    public const string ArgoHttpClientName = "Argo";
-
     private static readonly JsonSerializerOptions useCamelCaseOption = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -82,6 +79,7 @@ public class WorkflowService(
             );
         }
 
+        CreatedArgoWorkflow created;
         try
         {
             var extras = new Dictionary<string, object>();
@@ -94,17 +92,20 @@ public class WorkflowService(
                 extras = await enricher.EnrichAsync(workflow, inspectionRecords);
             }
 
-            var payload = new Dictionary<string, object>
+            var arguments = new Dictionary<string, string>
             {
-                ["workflowId"] = workflow.Id,
+                ["workflowId"] = workflow.Id.ToString(),
                 ["workflowType"] = workflow.WorkflowType,
-                ["inputBlobStorageLocations"] = workflow.InputBlobStorageLocations,
-                ["outputBlobStorageLocation"] = workflow.OutputBlobStorageLocation,
-                ["extras"] = extras,
+                ["inputBlobStorageLocations"] = JsonSerializer.Serialize(
+                    workflow.InputBlobStorageLocations,
+                    useCamelCaseOption
+                ),
+                ["outputBlobStorageLocation"] = JsonSerializer.Serialize(
+                    workflow.OutputBlobStorageLocation,
+                    useCamelCaseOption
+                ),
+                ["extras"] = JsonSerializer.Serialize(extras, useCamelCaseOption),
             };
-
-            var json = JsonSerializer.Serialize(payload, useCamelCaseOption);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
 
             logger.LogInformation(
                 "Triggering workflow {WorkflowType} (Id: {WorkflowId}) with {InputCount} input(s) and output {OutputLocation}",
@@ -114,28 +115,17 @@ public class WorkflowService(
                 workflow.OutputBlobStorageLocation
             );
 
-            var response = await httpClientFactory
-                .CreateClient(ArgoHttpClientName)
-                .PostAsync(workflowConfig.TriggerUrl, content);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                var responseBody = await response.Content.ReadAsStringAsync();
-                throw new HttpRequestException(
-                    $"Argo trigger returned {(int)response.StatusCode} {response.StatusCode}: {responseBody}"
-                );
-            }
-
             context.Entry(workflow).State = EntityState.Modified;
+            workflow.ArgoWorkflowName ??= $"sara-{workflow.Id:N}";
             workflow.Status = WorkflowStatus.InProgress;
             workflow.StartedAt = DateTime.UtcNow;
             await context.SaveChangesAsync();
-            context.Entry(workflow).State = EntityState.Detached;
 
-            logger.LogInformation(
-                "Workflow {WorkflowType} (Id: {WorkflowId}) triggered successfully",
-                workflow.WorkflowType,
-                workflow.Id
+            created = await argoWorkflowClient.CreateWorkflow(
+                workflow.ArgoWorkflowName,
+                workflowConfig.WorkflowTemplateName,
+                workflow.Id,
+                arguments
             );
         }
         catch (Exception ex)
@@ -155,6 +145,17 @@ public class WorkflowService(
                 ex
             );
         }
+
+        workflow.ArgoWorkflowUid = created.Uid;
+        await context.SaveChangesAsync();
+        context.Entry(workflow).State = EntityState.Detached;
+
+        logger.LogInformation(
+            "Workflow {WorkflowType} (Id: {WorkflowId}, ArgoWorkflowName: {ArgoWorkflowName}) triggered successfully",
+            workflow.WorkflowType,
+            workflow.Id,
+            workflow.ArgoWorkflowName
+        );
     }
 
     public async Task OnWorkflowCompleted(Workflow workflow)
@@ -486,6 +487,9 @@ public class WorkflowService(
         workflow.CompletedAt = null;
         workflow.ErrorMessage = null;
         workflow.ResultJson = null;
+        var retrySuffix = Guid.NewGuid().ToString("N")[..8];
+        workflow.ArgoWorkflowName = $"sara-{workflow.Id:N}-{retrySuffix}";
+        workflow.ArgoWorkflowUid = null;
 
         var run = await context.AnalysisRuns.FirstOrDefaultAsync(r =>
             r.Id == workflow.AnalysisRunId
@@ -528,6 +532,10 @@ public class WorkflowService(
         if (workflow is null)
         {
             throw new KeyNotFoundException($"Workflow with id {id} not found");
+        }
+        if (workflow.Status == WorkflowStatus.InProgress)
+        {
+            throw new InvalidOperationException("Cannot delete an in-progress workflow");
         }
         context.Workflows.Remove(workflow);
         await context.SaveChangesAsync();

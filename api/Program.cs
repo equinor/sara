@@ -10,6 +10,7 @@ using api.Services.ResultHandlers.AnalysisResultHandlers;
 using api.Services.ResultHandlers.WorkflowResultHandlers;
 using api.Utilities;
 using Azure.Core;
+using k8s;
 using Microsoft.AspNetCore.Rewrite;
 using Microsoft.EntityFrameworkCore;
 
@@ -85,9 +86,14 @@ builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IFeedbackService, FeedbackService>();
 
 builder.Services.AddScoped<IWorkflowService, WorkflowService>();
-builder.Services.AddHttpClient(WorkflowService.ArgoHttpClientName);
+builder.Services.AddSingleton<IKubernetes>(_ => new Kubernetes(
+    KubernetesClientConfiguration.BuildDefaultConfig()
+));
+builder.Services.AddSingleton<IArgoWorkflowClient, ArgoWorkflowClient>();
+builder.Services.AddScoped<IArgoWorkflowEventProcessor, ArgoWorkflowEventProcessor>();
 builder.Services.AddScoped<ITriggerPayloadEnricher, AnonymizerPayloadEnricher>();
 builder.Services.AddScoped<ITriggerPayloadEnricher, ThermalReadingPayloadEnricher>();
+builder.Services.AddScoped<ITriggerPayloadEnricher, UtilitiesPayloadEnricher>();
 
 // Per-workflow result handlers — fire on each successful Workflow step.
 builder.Services.AddScoped<IWorkflowResultHandler, AnonymizerResultHandler>();
@@ -108,6 +114,7 @@ builder.Services.AddScoped<IAnalysisGroupTimeoutProcessor, AnalysisGroupTimeoutP
 builder.Services.AddHostedService<MqttEventHandler>();
 builder.Services.AddHostedService<MqttService>();
 builder.Services.AddHostedService<AnalysisGroupTimeoutService>();
+builder.Services.AddHostedService<ArgoWorkflowWatcherService>();
 
 builder
     .Services.AddControllers(options =>

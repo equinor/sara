@@ -27,7 +27,6 @@ public class TestAuthHandler(
         {
             new Claim(ClaimTypes.Name, "Test.User"),
             new Claim(ClaimTypes.Role, "Role.Admin"),
-            new Claim(ClaimTypes.Role, Role.WorkflowStatusWrite),
         };
         var identity = new ClaimsIdentity(claims, SchemeName);
         var principal = new ClaimsPrincipal(identity);
