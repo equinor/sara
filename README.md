@@ -126,7 +126,7 @@ make format         # CSharpier
 ## Creating a new workflow
 
 1. Register the workflow under `Analysis:Workflows` in `appsettings.json`
-   with its `TriggerUrl`, `OutputStorageAccount`, `OutputBlobContainer` and
+   with its `TriggerUrl`, `OutputStorageAccount` and
    (optionally) `OutputFileExtension`.
 2. Reference it from one or more chains under `Analysis:Analyses`, e.g.
    `"my-analysis": { "Workflows": ["anonymizer", "my-workflow"] }`.

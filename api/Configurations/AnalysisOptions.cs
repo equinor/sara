@@ -31,8 +31,6 @@ public class WorkflowConfig
 
     public required string OutputStorageAccount { get; set; }
 
-    public required string OutputBlobContainer { get; set; }
-
     public string? OutputFileExtension { get; set; }
 
     public bool IsGate { get; set; }
