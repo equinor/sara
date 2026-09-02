@@ -175,6 +175,37 @@ public class WorkflowServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task TriggerWorkflow_PayloadIncludesSourceInspectionMetadata()
+    {
+        var inspectionRecord = await _db.NewInspectionRecord(
+            inspectionId: "inspection-1",
+            missionName: "Perimeterrunde - Nordsiden - utenom fase 2",
+            inspectionDescription: "Perimeter 1"
+        );
+        var analysis = await _db.NewAnalysis(inspectionRecords: [inspectionRecord]);
+        var run = await _db.NewAnalysisRun(analysis);
+        var workflow = await _db.NewWorkflow(
+            run,
+            workflowType: "test-workflow-1",
+            outputBlobStorageLocation: _db.NewBlobStorageLocation()
+        );
+
+        await TriggerWorkflowInScope(workflow);
+
+        var request = Assert.Single(_factory.ArgoWorkflowClient.Requests);
+        using var doc = JsonDocument.Parse(request.Arguments["inspectionMetadata"]);
+        var metadata = doc.RootElement;
+        Assert.Equal(1, metadata.GetArrayLength());
+        Assert.False(metadata[0].TryGetProperty("inspectionId", out _));
+        Assert.False(metadata[0].TryGetProperty("fileType", out _));
+        Assert.Equal(
+            "Perimeterrunde - Nordsiden - utenom fase 2",
+            metadata[0].GetProperty("missionName").GetString()
+        );
+        Assert.Equal("Perimeter 1", metadata[0].GetProperty("inspectionDescription").GetString());
+    }
+
+    [Fact]
     public async Task TriggerWorkflow_HappyPathWithEnricher_PayloadIncludesEnrichedFields()
     {
         const string installationCode = "HUA";

@@ -40,6 +40,8 @@ public class InspectionRecord
 
     public string? InspectionDescription { get; set; }
 
+    public string? MissionName { get; set; }
+
     public string? RobotName { get; set; }
 
     private DateTime? _timestamp;

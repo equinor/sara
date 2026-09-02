@@ -6,6 +6,7 @@ using api.MQTT;
 using api.Services;
 using Api.Test.Database;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
 using Xunit;
@@ -76,5 +77,23 @@ public class InspectionRecordServiceTests : IAsyncLifetime
         Assert.Equal(1.0f, created.RobotPose!.Position.X);
         Assert.Equal(0.4f, created.RobotPose.Orientation.W);
         Assert.Equal(8.0f, created.TargetPosition!.Y);
+    }
+
+    [Fact]
+    public async Task CreateFromMqttMessage_PersistsMissionName()
+    {
+        var message = _db.NewIsarInspectionResultMessage(
+            missionName: "Perimeterrunde - Nordsiden - utenom fase 2",
+            inspectionDescription: "Perimeter 2"
+        );
+
+        var created = await CreateInScope(message);
+
+        var persisted = await _context.InspectionRecords.SingleAsync(
+            r => r.Id == created.Id,
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(message.MissionName, persisted.MissionName);
     }
 }

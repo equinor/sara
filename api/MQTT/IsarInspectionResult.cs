@@ -24,7 +24,7 @@ public class IsarInspectionResultMessage : MqttMessage
 {
     [JsonPropertyName("isar_id")]
     [Required]
-    public required string ISARID { get; set; }
+    public required string IsarId { get; set; }
 
     [JsonPropertyName("robot_name")]
     [Required]
@@ -37,13 +37,13 @@ public class IsarInspectionResultMessage : MqttMessage
     [JsonPropertyName("mission_id")]
     public string? MissionId { get; set; }
 
+    [JsonPropertyName("mission_name")]
+    [Required]
+    public required string MissionName { get; set; }
+
     [JsonPropertyName("blob_storage_data_path")]
     [Required]
     public required InspectionPathMessage InspectionDataPath { get; set; }
-
-    [JsonPropertyName("blob_storage_metadata_path")]
-    [Required]
-    public required InspectionPathMessage InspectionMetadataPath { get; set; }
 
     [JsonPropertyName("installation_code")]
     [Required]
@@ -51,7 +51,7 @@ public class IsarInspectionResultMessage : MqttMessage
 
     [JsonPropertyName("tag_id")]
     [Required]
-    public required string TagID { get; set; }
+    public required string TagId { get; set; }
 
     [JsonPropertyName("inspection_type")]
     [Required]
@@ -74,8 +74,57 @@ public class IsarInspectionResultMessage : MqttMessage
     [JsonPropertyName("target_position")]
     public Database.Models.Position? TargetPosition { get; set; }
 
+    [JsonPropertyName("file_type")]
+    [Required]
+    public required string FileType { get; set; }
+
+    [JsonPropertyName("duration")]
+    public double? Duration { get; set; }
+
+    [JsonPropertyName("acoustic_metadata")]
+    public AcousticMetadataMessage? AcousticMetadata { get; set; }
+
     [JsonPropertyName("analysis_group")]
     public IsarAnalysisGroupMessage? AnalysisGroup { get; set; }
+}
+
+public class AcousticMetadataMessage
+{
+    [JsonPropertyName("snr_value")]
+    [Required]
+    public required double SnrValue { get; set; }
+
+    [JsonPropertyName("leak_rate")]
+    [Required]
+    public required double LeakRate { get; set; }
+
+    [JsonPropertyName("leak_rate_unit")]
+    [Required]
+    public required string LeakRateUnit { get; set; }
+
+    [JsonPropertyName("sound_pressure_level_at_sensor_db")]
+    [Required]
+    public required double SoundPressureLevelAtSensorDb { get; set; }
+
+    [JsonPropertyName("sound_pressure_level_at_source_db")]
+    [Required]
+    public required double SoundPressureLevelAtSourceDb { get; set; }
+
+    [JsonPropertyName("distance_to_source")]
+    [Required]
+    public required double DistanceToSource { get; set; }
+
+    [JsonPropertyName("result")]
+    [Required]
+    public required string Result { get; set; }
+
+    [JsonPropertyName("frequency_from")]
+    [Required]
+    public required double FrequencyFrom { get; set; }
+
+    [JsonPropertyName("frequency_to")]
+    [Required]
+    public required double FrequencyTo { get; set; }
 }
 
 public class IsarAnalysisGroupMessage
