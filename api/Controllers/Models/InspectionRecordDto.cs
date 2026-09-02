@@ -23,6 +23,7 @@ public class InspectionRecordDto(
     public List<AnalysisDto> Analyses { get; set; } =
     [.. record.Analyses.Select((a) => new AnalysisDto(a, blobService, analysisOptions))];
     public string? InspectionDescription { get; set; } = record.InspectionDescription;
+    public string? MissionName { get; set; } = record.MissionName;
     public string? RobotName { get; set; } = record.RobotName;
     public DateTime? Timestamp { get; set; } = record.Timestamp;
     public Guid? AnalysisGroupId { get; set; } = record.AnalysisGroupId;

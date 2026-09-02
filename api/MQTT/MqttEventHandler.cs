@@ -68,12 +68,15 @@ namespace api.MQTT
                 validationResults,
                 true
             );
-            isValid &= Validator.TryValidateObject(
-                message.InspectionMetadataPath,
-                new ValidationContext(message.InspectionMetadataPath),
-                validationResults,
-                true
-            );
+            if (message.AcousticMetadata is not null)
+            {
+                isValid &= Validator.TryValidateObject(
+                    message.AcousticMetadata,
+                    new ValidationContext(message.AcousticMetadata),
+                    validationResults,
+                    true
+                );
+            }
             if (message.AnalysisGroup is not null)
             {
                 isValid &= Validator.TryValidateObject(
@@ -166,7 +169,7 @@ namespace api.MQTT
             _logger.LogInformation(
                 "Received ISAR inspection result message with InspectionId: {InspectionId}, TagID: {TagID}, InspectionDescription: {InspectionDescription}",
                 isarInspectionResultMessage.InspectionId,
-                isarInspectionResultMessage.TagID,
+                isarInspectionResultMessage.TagId,
                 isarInspectionResultMessage.InspectionDescription
             );
 
@@ -228,7 +231,7 @@ namespace api.MQTT
                         + "RawBlobPath: {RawStorageAccount}/{RawBlobContainer}/{RawBlobName}, ErrorMessage: {ErrorMessage}, "
                         + "InnerErrorMessage: {InnerErrorMessage}.",
                     isarInspectionResultMessage.InspectionId,
-                    isarInspectionResultMessage.TagID,
+                    isarInspectionResultMessage.TagId,
                     isarInspectionResultMessage.InstallationCode,
                     isarInspectionResultMessage.RobotName,
                     isarInspectionResultMessage.InspectionDataPath.StorageAccount,

@@ -26,6 +26,7 @@ public class DatabaseUtilities(SaraDbContext context)
         string? inspectionType = null,
         string? tag = null,
         string? inspectionDescription = null,
+        string? missionName = null,
         List<Analysis>? analyses = null,
         AnalysisGroup? analysisGroup = null
     )
@@ -49,6 +50,7 @@ public class DatabaseUtilities(SaraDbContext context)
             InspectionType = inspectionType,
             Tag = tag,
             InspectionDescription = inspectionDescription,
+            MissionName = missionName,
             Analyses = analyses ?? [],
             AnalysisGroup = analysisGroup,
         };
@@ -203,6 +205,8 @@ public class DatabaseUtilities(SaraDbContext context)
         string inspectionDescription = "test-description",
         string robotName = "test-robot",
         string isarId = "test-isar",
+        string missionName = "test-mission",
+        string fileType = "jpg",
         string blobStorageAccount = "teststorage",
         string blobContainer = "test-container",
         string? blobName = null,
@@ -218,21 +222,15 @@ public class DatabaseUtilities(SaraDbContext context)
             BlobContainer = blobContainer,
             BlobName = blobName ?? $"{Guid.NewGuid()}.jpg",
         };
-        var metadataPath = new InspectionPathMessage
-        {
-            StorageAccount = blobStorageAccount,
-            BlobContainer = blobContainer,
-            BlobName = $"{Guid.NewGuid()}.json",
-        };
         return new IsarInspectionResultMessage
         {
-            ISARID = isarId,
+            IsarId = isarId,
             RobotName = robotName,
             InspectionId = inspectionId,
+            MissionName = missionName,
             InspectionDataPath = dataPath,
-            InspectionMetadataPath = metadataPath,
             InstallationCode = installationCode,
-            TagID = tagId,
+            TagId = tagId,
             InspectionType = inspectionType,
             InspectionDescription = inspectionDescription,
             Timestamp = DateTime.UtcNow,
@@ -240,6 +238,7 @@ public class DatabaseUtilities(SaraDbContext context)
             AnalysisGroup = analysisGroup,
             RobotPose = robotPose,
             TargetPosition = targetPosition,
+            FileType = fileType,
         };
     }
 }

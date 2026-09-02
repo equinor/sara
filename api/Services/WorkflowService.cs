@@ -82,13 +82,13 @@ public class WorkflowService(
         CreatedArgoWorkflow created;
         try
         {
+            var inspectionRecords = await InspectionRecordResolver.GetInspectionRecords(
+                context,
+                workflow
+            );
             var extras = new Dictionary<string, object>();
             if (_enrichersByType.TryGetValue(workflow.WorkflowType, out var enricher))
             {
-                var inspectionRecords = await InspectionRecordResolver.GetInspectionRecords(
-                    context,
-                    workflow
-                );
                 extras = await enricher.EnrichAsync(workflow, inspectionRecords);
             }
 
@@ -102,6 +102,12 @@ public class WorkflowService(
                 ),
                 ["outputBlobStorageLocation"] = JsonSerializer.Serialize(
                     workflow.OutputBlobStorageLocation,
+                    useCamelCaseOption
+                ),
+                ["inspectionMetadata"] = JsonSerializer.Serialize(
+                    inspectionRecords
+                        .Select(r => new { r.MissionName, r.InspectionDescription })
+                        .ToList(),
                     useCamelCaseOption
                 ),
                 ["extras"] = JsonSerializer.Serialize(extras, useCamelCaseOption),

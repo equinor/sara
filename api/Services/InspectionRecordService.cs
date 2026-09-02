@@ -59,6 +59,7 @@ public class CreateInspectionRecordRequest
     public string? InspectionType { get; set; }
     public string? Tag { get; set; }
     public string? InspectionDescription { get; set; }
+    public string? MissionName { get; set; }
     public string? RobotName { get; set; }
     public DateTime? Timestamp { get; set; }
     public List<AnalysisTypeEnum>? RequiredAnalysis { get; set; }
@@ -141,8 +142,9 @@ public class InspectionRecordService(
                 BlobName = message.InspectionDataPath.BlobName,
             },
             InspectionType = message.InspectionType,
-            Tag = Sanitize.SanitizeUserInput(message.TagID),
+            Tag = Sanitize.SanitizeUserInput(message.TagId),
             InspectionDescription = Sanitize.SanitizeUserInput(message.InspectionDescription),
+            MissionName = Sanitize.SanitizeUserInput(message.MissionName),
             RobotName = message.RobotName,
             Timestamp = message.Timestamp,
             RobotPose = message.RobotPose,
@@ -281,6 +283,9 @@ public class InspectionRecordService(
             InspectionDescription = request.InspectionDescription is null
                 ? null
                 : Sanitize.SanitizeUserInput(request.InspectionDescription),
+            MissionName = request.MissionName is null
+                ? null
+                : Sanitize.SanitizeUserInput(request.MissionName),
             RobotName = request.RobotName,
             Timestamp = request.Timestamp,
             Analyses = analyses,
