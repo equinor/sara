@@ -131,7 +131,11 @@ public class EndToEndPipelineTests : IAsyncLifetime
     public async Task MultiStepChain_SecondWorkflowTriggeredAfterFirstSucceeds()
     {
         const string AnalysisName = "multi-step-test";
-        const string Step1Result = "{\"step\":1}";
+        const string Step1Result =
+            "{\"step\":1,\"outputBlobStorageLocation\":{" +
+            "\"storageAccount\":\"outstorage\"," +
+            "\"blobContainer\":\"out-container\"," +
+            "\"blobName\":\"step-1.json\"}}";
         const string Step2Result = "{\"step\":2}";
         var message = _db.NewIsarInspectionResultMessage(requiredAnalysis: [AnalysisName]);
 

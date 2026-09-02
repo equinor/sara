@@ -65,6 +65,12 @@ public class WorkflowService(
 
     public async Task TriggerWorkflow(Workflow workflow)
     {
+        // Re-fetch from DB to guarantee a tracked instance in this context, regardless of
+        // which scope or method created the workflow object passed in by the caller.
+        workflow = await context
+            .Workflows.Include(w => w.InputBlobStorageLocations)
+            .FirstAsync(w => w.Id == workflow.Id);
+
         if (!_options.Workflows.TryGetValue(workflow.WorkflowType, out var workflowConfig))
         {
             throw new InvalidOperationException(
@@ -72,12 +78,32 @@ public class WorkflowService(
             );
         }
 
-        if (workflow.OutputBlobStorageLocation is null)
+        if (workflow.InputBlobStorageLocations.Count == 0)
         {
             throw new InvalidOperationException(
-                $"Workflow {workflow.Id} ({workflow.WorkflowType}) has no OutputBlobStorageLocation"
+                $"Workflow {workflow.Id} ({workflow.WorkflowType}) has no input blob storage locations"
             );
         }
+
+        // Compute the intended output location at trigger time. It is passed to Argo
+        // as an input parameter so the container knows where to write, but it is NOT
+        // persisted to the DB here. The location is only saved once the container
+        // reports it back via the result JSON, confirming a blob was actually written.
+        var tag =
+            await context
+                .InspectionRecords.Where(ir =>
+                    ir.Analyses.Any(a => a.Runs.Any(r => r.Id == workflow.AnalysisRunId))
+                )
+                .Select(ir => ir.Tag)
+                .FirstOrDefaultAsync()
+            ?? "no-tag";
+        var computedOutputLocation = ComputeOutputBlobStorageLocation(
+            workflow.WorkflowType,
+            workflow.AnalysisRunId,
+            tag,
+            workflow.StartedAt ?? DateTime.UtcNow,
+            workflow.InputBlobStorageLocations[0]
+        );
 
         CreatedArgoWorkflow created;
         try
@@ -89,7 +115,11 @@ public class WorkflowService(
                     context,
                     workflow
                 );
-                extras = await enricher.EnrichAsync(workflow, inspectionRecords);
+                extras = await enricher.EnrichAsync(
+                    workflow,
+                    inspectionRecords,
+                    computedOutputLocation
+                );
             }
 
             var arguments = new Dictionary<string, string>
@@ -101,18 +131,18 @@ public class WorkflowService(
                     useCamelCaseOption
                 ),
                 ["outputBlobStorageLocation"] = JsonSerializer.Serialize(
-                    workflow.OutputBlobStorageLocation,
+                    computedOutputLocation,
                     useCamelCaseOption
                 ),
                 ["extras"] = JsonSerializer.Serialize(extras, useCamelCaseOption),
             };
 
             logger.LogInformation(
-                "Triggering workflow {WorkflowType} (Id: {WorkflowId}) with {InputCount} input(s) and output {OutputLocation}",
+                "Triggering workflow {WorkflowType} (Id: {WorkflowId}) with {InputCount} input(s) and computed output {OutputLocation}",
                 workflow.WorkflowType,
                 workflow.Id,
                 workflow.InputBlobStorageLocations.Count,
-                workflow.OutputBlobStorageLocation
+                computedOutputLocation
             );
 
             context.Entry(workflow).State = EntityState.Modified;
@@ -158,12 +188,64 @@ public class WorkflowService(
         );
     }
 
+    /// <summary>
+    /// Computes the intended output blob storage location for a workflow trigger.
+    /// The result is passed to Argo as an input but is NOT persisted until the
+    /// container confirms a blob was actually written (via result JSON).
+    /// </summary>
+    private BlobStorageLocation ComputeOutputBlobStorageLocation(
+        string workflowType,
+        Guid analysisRunId,
+        string tag,
+        DateTime triggerTime,
+        BlobStorageLocation fallbackInputLocation
+    )
+    {
+        if (!_options.Workflows.TryGetValue(workflowType, out var workflowConfig))
+        {
+            throw new InvalidOperationException(
+                $"Unknown workflow type '{workflowType}' — not found in configuration"
+            );
+        }
+
+        var extension =
+            workflowConfig.OutputFileExtension ?? Path.GetExtension(fallbackInputLocation.BlobName);
+
+        var blobContainer = !string.IsNullOrEmpty(workflowConfig.OutputBlobContainer)
+            ? workflowConfig.OutputBlobContainer
+            : fallbackInputLocation.BlobContainer;
+
+        var date = triggerTime.ToString("yyyy-MM-dd");
+        var time = triggerTime.ToString("HH-mm-ss");
+        var blobName =
+            $"{date}/{time}/tag__{tag}__workflowtype__{workflowType}__analysisrunid__{analysisRunId}{extension}";
+
+        return new BlobStorageLocation
+        {
+            StorageAccount = workflowConfig.OutputStorageAccount,
+            BlobContainer = blobContainer,
+            BlobName = blobName,
+        };
+    }
+
     public async Task OnWorkflowCompleted(Workflow workflow)
     {
         var run = await context
             .AnalysisRuns.Include(r => r.Workflows)
                 .ThenInclude(w => w.InputBlobStorageLocations)
             .FirstAsync(r => r.Id == workflow.AnalysisRunId);
+
+        // Use the EF-tracked instance from the run to avoid duplicate-tracking conflicts.
+        // The caller's workflow object may be detached or already tracked under a separate
+        // entry; the run include gives us the single authoritative tracked copy. Status,
+        // ResultJson, ErrorMessage, and CompletedAt are copied over because the run was
+        // fetched before the controller saved those values.
+        var tracked = run.Workflows.Single(w => w.Id == workflow.Id);
+        tracked.Status = workflow.Status;
+        tracked.ResultJson = workflow.ResultJson;
+        tracked.ErrorMessage = workflow.ErrorMessage;
+        tracked.CompletedAt = workflow.CompletedAt;
+        workflow = tracked;
 
         if (workflow.Status == WorkflowStatus.Failed)
         {
@@ -180,6 +262,11 @@ public class WorkflowService(
             return;
         }
 
+        // Parse outputBlobStorageLocation from the result JSON and persist it. Done before
+        // dispatching result handlers so they see the populated location (e.g. AnonymizerResultHandler
+        // guards on OutputBlobStorageLocation before publishing visualization_available).
+        await PersistOutputBlobStorageLocationFromResultJson(workflow);
+
         await DispatchWorkflowResultHandler(workflow);
 
         if (await TrySkipChainIfGateDictates(workflow, run))
@@ -187,23 +274,72 @@ public class WorkflowService(
             return;
         }
 
-        // Detach all tracked Workflow entities (and their owned InputBlobStorageLocations)
-        // so the re-fetch below reads fresh data from the DB, picking up any rewiring
-        // committed by result handlers (e.g. AnonymizerResultHandler replacing the
-        // thermal-reading input with the pre-processed TIFF).
-        foreach (var entry in context.ChangeTracker.Entries<Workflow>())
-            entry.State = EntityState.Detached;
-
-        // Re-fetch from DB so any rewiring done by result handlers (e.g.
-        // AnonymizerResultHandler swapping the thermal-reading input to the
-        // pre-processed TIFF) is reflected in the object passed to TriggerWorkflow.
-        var nextWorkflow = await context
-            .Workflows.Include(w => w.InputBlobStorageLocations)
-            .Where(w =>
-                w.AnalysisRunId == workflow.AnalysisRunId && w.StepNumber > workflow.StepNumber
+        // Wire the next pending workflow's inputs from the completed workflow's output.
+        // - If the workflow wrote a blob, use its outputBlobStorageLocation (or
+        //   preProcessedBlobStorageLocation for thermal-reading chains).
+        // - If the workflow is a gate (no output blob), pass its own inputs through —
+        //   a gate transforms nothing, so downstream steps need the same blob the gate received.
+        var nextPending = run
+            .Workflows.Where(w =>
+                w.StepNumber > workflow.StepNumber && w.Status == WorkflowStatus.Pending
             )
             .OrderBy(w => w.StepNumber)
-            .FirstOrDefaultAsync();
+            .FirstOrDefault();
+
+        if (nextPending is not null)
+        {
+            List<BlobStorageLocation>? nextInputs = null;
+
+            if (workflow.OutputBlobStorageLocation is { } completedOutput)
+            {
+                var nextStepInput = nextPending.WorkflowType.Equals(
+                    "thermal-reading",
+                    StringComparison.OrdinalIgnoreCase
+                )
+                    ? TryParsePreProcessedLocation(workflow.ResultJson) ?? completedOutput
+                    : completedOutput;
+
+                nextInputs = [nextStepInput.Clone()];
+
+                logger.LogInformation(
+                    "Wired {InputType} of workflow {WorkflowType} ({WorkflowId}) as input of next workflow {NextWorkflowType} ({NextWorkflowId})",
+                    nextStepInput == completedOutput ? "output" : "preProcessed output",
+                    workflow.WorkflowType,
+                    workflow.Id,
+                    nextPending.WorkflowType,
+                    nextPending.Id
+                );
+            }
+            else if (
+                _options.Workflows.TryGetValue(workflow.WorkflowType, out var completedConfig)
+                && completedConfig.IsGate
+                && workflow.InputBlobStorageLocations.Count > 0
+            )
+            {
+                nextInputs = [.. workflow.InputBlobStorageLocations.Select(b => b.Clone())];
+
+                logger.LogInformation(
+                    "Gate workflow {WorkflowType} ({WorkflowId}) has no output blob — passing its inputs through to next workflow {NextWorkflowType} ({NextWorkflowId})",
+                    workflow.WorkflowType,
+                    workflow.Id,
+                    nextPending.WorkflowType,
+                    nextPending.Id
+                );
+            }
+
+            if (nextInputs is not null)
+            {
+                nextPending.InputBlobStorageLocations.Clear();
+                foreach (var loc in nextInputs)
+                    nextPending.InputBlobStorageLocations.Add(loc);
+                await context.SaveChangesAsync();
+            }
+        }
+
+        var nextWorkflow = run
+            .Workflows.Where(w => w.StepNumber > workflow.StepNumber)
+            .OrderBy(w => w.StepNumber)
+            .FirstOrDefault();
 
         if (nextWorkflow is null)
         {
@@ -239,14 +375,90 @@ public class WorkflowService(
         }
     }
 
+    /// <summary>
+    /// Parses <c>outputBlobStorageLocation</c> from the workflow's result JSON and persists it
+    /// on the workflow row. This is the authoritative moment at which the DB learns a blob was
+    /// actually written — the field is null until here.
+    /// </summary>
+    private async Task PersistOutputBlobStorageLocationFromResultJson(Workflow workflow)
+    {
+        var location = TryParseBlobStorageLocationProperty(
+            workflow.ResultJson,
+            "outputBlobStorageLocation"
+        );
+        if (location is null)
+            return;
+
+        workflow.OutputBlobStorageLocation = location;
+        await context.SaveChangesAsync();
+
+        logger.LogInformation(
+            "Workflow {WorkflowType} (Id: {WorkflowId}) output blob location set from result JSON: {Location}",
+            workflow.WorkflowType,
+            workflow.Id,
+            location
+        );
+    }
+
+    /// <summary>
+    /// Parses the <c>preProcessedBlobStorageLocation</c> field from a workflow result JSON
+    /// string, if present and valid. Returns null when the field is absent or unparseable.
+    /// </summary>
+    private static BlobStorageLocation? TryParsePreProcessedLocation(string? resultJson) =>
+        TryParseBlobStorageLocationProperty(resultJson, "preProcessedBlobStorageLocation");
+
+    /// <summary>
+    /// Parses a named <c>BlobStorageLocation</c> property from a result JSON string.
+    /// Returns null when the property is absent, incomplete, or the JSON is unparseable.
+    /// </summary>
+    private static BlobStorageLocation? TryParseBlobStorageLocationProperty(
+        string? resultJson,
+        string propertyName
+    )
+    {
+        if (string.IsNullOrWhiteSpace(resultJson))
+            return null;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(resultJson);
+            if (!doc.RootElement.TryGetProperty(propertyName, out var locEl))
+                return null;
+
+            var storageAccount = locEl.TryGetProperty("storageAccount", out var sa)
+                ? sa.GetString()
+                : null;
+            var blobContainer = locEl.TryGetProperty("blobContainer", out var bc)
+                ? bc.GetString()
+                : null;
+            var blobName = locEl.TryGetProperty("blobName", out var bn) ? bn.GetString() : null;
+
+            if (
+                string.IsNullOrWhiteSpace(storageAccount)
+                || string.IsNullOrWhiteSpace(blobContainer)
+                || string.IsNullOrWhiteSpace(blobName)
+            )
+                return null;
+
+            return new BlobStorageLocation
+            {
+                StorageAccount = storageAccount,
+                BlobContainer = blobContainer,
+                BlobName = blobName,
+            };
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
     private async Task MarkWorkflowFailed(Workflow workflow, string errorMessage)
     {
-        context.Entry(workflow).State = EntityState.Modified;
         workflow.Status = WorkflowStatus.Failed;
         workflow.ErrorMessage = errorMessage;
         workflow.CompletedAt = DateTime.UtcNow;
         await context.SaveChangesAsync();
-        context.Entry(workflow).State = EntityState.Detached;
 
         await OnWorkflowCompleted(workflow);
     }
@@ -490,6 +702,7 @@ public class WorkflowService(
         var retrySuffix = Guid.NewGuid().ToString("N")[..8];
         workflow.ArgoWorkflowName = $"sara-{workflow.Id:N}-{retrySuffix}";
         workflow.ArgoWorkflowUid = null;
+        workflow.OutputBlobStorageLocation = null;
 
         var run = await context.AnalysisRuns.FirstOrDefaultAsync(r =>
             r.Id == workflow.AnalysisRunId
@@ -518,6 +731,7 @@ public class WorkflowService(
             sibling.CompletedAt = null;
             sibling.ErrorMessage = null;
             sibling.ResultJson = null;
+            sibling.OutputBlobStorageLocation = null;
         }
 
         await context.SaveChangesAsync();

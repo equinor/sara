@@ -9,20 +9,14 @@ public class AnonymizerPayloadEnricher(ILogger<AnonymizerPayloadEnricher> logger
 
     public Task<Dictionary<string, object>> EnrichAsync(
         Workflow workflow,
-        IReadOnlyList<InspectionRecord> inspectionRecords
+        IReadOnlyList<InspectionRecord> inspectionRecords,
+        BlobStorageLocation computedOutputBlobStorageLocation
     )
     {
         if (workflow.InputBlobStorageLocations.Count == 0)
         {
             throw new InvalidOperationException(
                 $"AnonymizerPayloadEnricher invoked for workflow {workflow.Id} with no InputBlobStorageLocations"
-            );
-        }
-
-        if (workflow.OutputBlobStorageLocation is null)
-        {
-            throw new InvalidOperationException(
-                $"AnonymizerPayloadEnricher invoked for workflow {workflow.Id} with no OutputBlobStorageLocation"
             );
         }
 
@@ -40,7 +34,7 @@ public class AnonymizerPayloadEnricher(ILogger<AnonymizerPayloadEnricher> logger
 
         var preProcessedBlobStorageLocation = new BlobStorageLocation
         {
-            StorageAccount = workflow.OutputBlobStorageLocation.StorageAccount,
+            StorageAccount = computedOutputBlobStorageLocation.StorageAccount,
             BlobContainer = rawInput.BlobContainer,
             BlobName = ReplaceFileEnding(rawInput.BlobName, ".tiff"),
         };

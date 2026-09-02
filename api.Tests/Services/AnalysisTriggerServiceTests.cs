@@ -129,10 +129,13 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
             [firstWorkflowType, secondWorkflowType],
             workflows.Select(w => w.WorkflowType)
         );
-        Assert.Equal(
-            workflows[0].OutputBlobStorageLocation?.ToString(),
-            workflows[1].InputBlobStorageLocations[0].ToString()
-        );
+        // Step 1 has the inspection record's blob as input; step 2 starts with empty inputs
+        // because it will be wired at result time once step 1 reports its output location.
+        Assert.Single(workflows[0].InputBlobStorageLocations);
+        Assert.Empty(workflows[1].InputBlobStorageLocations);
+        // Neither step has an output location pre-persisted.
+        Assert.Null(workflows[0].OutputBlobStorageLocation);
+        Assert.Null(workflows[1].OutputBlobStorageLocation);
 
         var request = Assert.Single(_factory.ArgoWorkflowClient.Requests);
         Assert.Equal(
@@ -234,22 +237,12 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
         var workflows = run.Workflows.OrderBy(w => w.StepNumber).ToList();
         Assert.Equal(3, workflows.Count);
 
-        // Each Workflow's owned inputs/output must be distinct CLR instances so EF's
-        // OwnsMany / OwnsOne tracking assigns rows to a single owner.
-        var allOwnedBlobs = workflows
-            .SelectMany(w => w.InputBlobStorageLocations)
-            .Concat(workflows.Select(w => w.OutputBlobStorageLocation!))
-            .ToList();
-        Assert.Equal(allOwnedBlobs.Count, allOwnedBlobs.Distinct().Count());
-
-        // Step 2 is the gate; step 3 must inherit step 2's input (the pre-gate output of step 1),
-        // not step 2's own output — and the blobs must be equal-by-value but distinct instances.
-        var preGateOutput = workflows[0].OutputBlobStorageLocation!;
-        var gateInput = Assert.Single(workflows[1].InputBlobStorageLocations);
-        var postGateInput = Assert.Single(workflows[2].InputBlobStorageLocations);
-        Assert.Equal(preGateOutput.BlobName, gateInput.BlobName);
-        Assert.Equal(preGateOutput.BlobName, postGateInput.BlobName);
-        Assert.NotSame(preGateOutput, gateInput);
-        Assert.NotSame(gateInput, postGateInput);
+        // At creation time, no workflow has a pre-persisted output location.
+        // Step 1 carries the inspection record's blob as input; later steps start empty
+        // and are wired at result time once the previous step reports its output.
+        Assert.All(workflows, w => Assert.Null(w.OutputBlobStorageLocation));
+        Assert.Single(workflows[0].InputBlobStorageLocations);
+        Assert.Empty(workflows[1].InputBlobStorageLocations);
+        Assert.Empty(workflows[2].InputBlobStorageLocations);
     }
 }

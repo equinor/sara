@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using api.Database.Context;
+using api.Database.Models;
 using api.Services;
 using Api.Test.Database;
 using api.Utilities;
@@ -58,11 +59,12 @@ public class ThermalReadingPayloadEnricherTests : IAsyncLifetime
         var analysis = await _db.NewAnalysis(inspectionRecords: [record]);
         var run = await _db.NewAnalysisRun(analysis);
         var workflow = await _db.NewWorkflow(run, workflowType: "thermal-reading");
+        var computedOutput = _db.NewBlobStorageLocation();
 
         using var scope = _factory.Services.CreateScope();
         var enricher = ResolveEnricher(scope);
 
-        var result = await enricher.EnrichAsync(workflow, [record]);
+        var result = await enricher.EnrichAsync(workflow, [record], computedOutput);
 
         Assert.Equal(2, result.Count);
         Assert.Equal(
@@ -89,12 +91,13 @@ public class ThermalReadingPayloadEnricherTests : IAsyncLifetime
         var analysis = await _db.NewAnalysis(inspectionRecords: [record]);
         var run = await _db.NewAnalysisRun(analysis);
         var workflow = await _db.NewWorkflow(run, workflowType: "thermal-reading");
+        var computedOutput = _db.NewBlobStorageLocation();
 
         using var scope = _factory.Services.CreateScope();
         var enricher = ResolveEnricher(scope);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            enricher.EnrichAsync(workflow, [record])
+            enricher.EnrichAsync(workflow, [record], computedOutput)
         );
     }
 
@@ -104,12 +107,13 @@ public class ThermalReadingPayloadEnricherTests : IAsyncLifetime
         var analysis = await _db.NewAnalysis();
         var run = await _db.NewAnalysisRun(analysis);
         var workflow = await _db.NewWorkflow(run, workflowType: "thermal-reading");
+        var computedOutput = _db.NewBlobStorageLocation();
 
         using var scope = _factory.Services.CreateScope();
         var enricher = ResolveEnricher(scope);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            enricher.EnrichAsync(workflow, [])
+            enricher.EnrichAsync(workflow, [], computedOutput)
         );
     }
 
@@ -124,12 +128,13 @@ public class ThermalReadingPayloadEnricherTests : IAsyncLifetime
         var analysis = await _db.NewAnalysis(inspectionRecords: [record]);
         var run = await _db.NewAnalysisRun(analysis);
         var workflow = await _db.NewWorkflow(run, workflowType: "thermal-reading");
+        var computedOutput = _db.NewBlobStorageLocation();
 
         using var scope = _factory.Services.CreateScope();
         var enricher = ResolveEnricher(scope);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            enricher.EnrichAsync(workflow, [record])
+            enricher.EnrichAsync(workflow, [record], computedOutput)
         );
     }
 }

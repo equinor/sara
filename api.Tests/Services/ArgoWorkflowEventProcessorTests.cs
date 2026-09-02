@@ -191,6 +191,46 @@ public class ArgoWorkflowEventProcessorTests : IAsyncLifetime
         Assert.Single(_factory.TimeseriesService.Uploads);
     }
 
+    [Fact]
+    public async Task SucceededAnonymizer_PersistsOutputPublishesAndTriggersNextWorkflow()
+    {
+        var record = await _db.NewInspectionRecord(inspectionId: "insp-anonymizer-1");
+        var analysis = await _db.NewAnalysis(inspectionRecords: [record]);
+        var run = await _db.NewAnalysisRun(analysis);
+        var workflow = await _db.NewWorkflow(run, workflowType: "anonymizer", stepNumber: 1);
+        workflow.Status = WorkflowStatus.InProgress;
+        workflow.ArgoWorkflowName = "argo-name";
+        workflow.ArgoWorkflowUid = "current-uid";
+        await _db.NewWorkflow(run, workflowType: "test-workflow-2", stepNumber: 2);
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var output = _db.NewBlobStorageLocation(blobName: "anonymized.jpg");
+        await Process(
+            workflow,
+            "Succeeded",
+            JsonSerializer.Serialize(
+                new
+                {
+                    outputBlobStorageLocation = new
+                    {
+                        storageAccount = output.StorageAccount,
+                        blobContainer = output.BlobContainer,
+                        blobName = output.BlobName,
+                    },
+                }
+            )
+        );
+
+        var completed = await _context
+            .Workflows.AsNoTracking()
+            .SingleAsync(w => w.Id == workflow.Id, TestContext.Current.CancellationToken);
+        Assert.Equal(output.StorageAccount, completed.OutputBlobStorageLocation?.StorageAccount);
+        Assert.Equal(output.BlobContainer, completed.OutputBlobStorageLocation?.BlobContainer);
+        Assert.Equal(output.BlobName, completed.OutputBlobStorageLocation?.BlobName);
+        Assert.Single(_factory.MqttPublisher.VisualizationMessages);
+        Assert.Single(_factory.ArgoWorkflowClient.Requests);
+    }
+
     private async Task Process(
         Workflow workflow,
         string phase,

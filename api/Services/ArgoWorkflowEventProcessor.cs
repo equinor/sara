@@ -96,15 +96,6 @@ public class ArgoWorkflowEventProcessor(
                     return false;
                 }
 
-                // AnalysisRun is included because result handlers read
-                // workflow.AnalysisRun.AnalysisId. This query is AsNoTracking,
-                // so nothing fixes the navigation up afterwards; without the
-                // include it is null and the handler throws.
-                var workflow = await context
-                    .Workflows.AsNoTracking()
-                    .Include(workflow => workflow.AnalysisRun)
-                    .SingleAsync(workflow => workflow.Id == workflowId, cancellationToken);
-                await workflowService.OnWorkflowCompleted(workflow);
                 await transaction.CommitAsync(cancellationToken);
                 return true;
             });
@@ -116,6 +107,39 @@ public class ArgoWorkflowEventProcessor(
                 workflowId,
                 uid
             );
+            return;
+        }
+
+        // Complete the workflow after committing the claim. WorkflowService has its own
+        // DbContext and may update this row, which would otherwise wait on the claim's lock.
+        var workflow = await context
+            .Workflows.AsNoTracking()
+            .Include(workflow => workflow.AnalysisRun)
+            .SingleAsync(workflow => workflow.Id == workflowId, cancellationToken);
+
+        try
+        {
+            await workflowService.OnWorkflowCompleted(workflow);
+        }
+        catch
+        {
+            await context
+                .Workflows.Where(candidate =>
+                    candidate.Id == workflowId
+                    && candidate.ArgoWorkflowName == name
+                    && candidate.ArgoWorkflowUid == uid
+                    && candidate.Status == terminalStatus
+                )
+                .ExecuteUpdateAsync(
+                    setters =>
+                        setters
+                            .SetProperty(candidate => candidate.Status, WorkflowStatus.InProgress)
+                            .SetProperty(candidate => candidate.ResultJson, (string?)null)
+                            .SetProperty(candidate => candidate.ErrorMessage, (string?)null)
+                            .SetProperty(candidate => candidate.CompletedAt, (DateTime?)null),
+                    cancellationToken
+                );
+            throw;
         }
     }
 }
