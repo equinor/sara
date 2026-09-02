@@ -27,8 +27,17 @@ bld/
 *.vscode
 
 # Python
+# Kept in the root file, not only in workflow-notifier/.gitignore: that
+# directory does not exist on every branch, so when it is not checked out its
+# ignore rules do not apply and leftover build artifacts on disk show up as
+# untracked in unrelated work.
 *.venv
 *venv
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
 
 # Environment
 *.env
