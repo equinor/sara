@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -6,6 +7,8 @@ using api.Services;
 using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
@@ -56,7 +59,10 @@ public class UserDelegationKeyProviderTests
     public async Task SecondCallReusesTheCachedKeyInsteadOfCallingStorage()
     {
         var client = MockClient();
-        var provider = new UserDelegationKeyProvider(new FakeTimeProvider(DateTimeOffset.UtcNow));
+        var provider = new UserDelegationKeyProvider(
+            NullLogger<UserDelegationKeyProvider>.Instance,
+            new FakeTimeProvider(DateTimeOffset.UtcNow)
+        );
 
         await provider.GetAsync(
             client.Object,
@@ -92,7 +98,10 @@ public class UserDelegationKeyProviderTests
     public async Task DifferentStorageAccountsAreCachedSeparately()
     {
         var client = MockClient();
-        var provider = new UserDelegationKeyProvider(new FakeTimeProvider(DateTimeOffset.UtcNow));
+        var provider = new UserDelegationKeyProvider(
+            NullLogger<UserDelegationKeyProvider>.Instance,
+            new FakeTimeProvider(DateTimeOffset.UtcNow)
+        );
 
         await provider.GetAsync(
             client.Object,
@@ -123,7 +132,10 @@ public class UserDelegationKeyProviderTests
     {
         var client = MockClient();
         var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
-        var provider = new UserDelegationKeyProvider(clock);
+        var provider = new UserDelegationKeyProvider(
+            NullLogger<UserDelegationKeyProvider>.Instance,
+            clock
+        );
 
         await provider.GetAsync(
             client.Object,
@@ -186,7 +198,10 @@ public class UserDelegationKeyProviderTests
 
         var start = DateTimeOffset.UtcNow;
         var clock = new FakeTimeProvider(start);
-        var provider = new UserDelegationKeyProvider(clock);
+        var provider = new UserDelegationKeyProvider(
+            NullLogger<UserDelegationKeyProvider>.Instance,
+            clock
+        );
 
         await provider.GetAsync(
             client.Object,
@@ -253,7 +268,10 @@ public class UserDelegationKeyProviderTests
                 }
             );
 
-        var provider = new UserDelegationKeyProvider(new FakeTimeProvider(DateTimeOffset.UtcNow));
+        var provider = new UserDelegationKeyProvider(
+            NullLogger<UserDelegationKeyProvider>.Instance,
+            new FakeTimeProvider(DateTimeOffset.UtcNow)
+        );
 
         var inFlight = Enumerable
             .Range(0, 20)
@@ -271,5 +289,60 @@ public class UserDelegationKeyProviderTests
         await Task.WhenAll(inFlight);
 
         Assert.Equal(1, calls);
+    }
+
+    /// Captures log entries so the test can assert on refresh frequency.
+    private sealed class RecordingLogger : ILogger<UserDelegationKeyProvider>
+    {
+        public List<string> Messages { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter
+        ) => Messages.Add(formatter(state, exception));
+    }
+
+    [Fact]
+    public async Task RefreshesAreLogged_ButCacheHitsAreNot()
+    {
+        // The value of the log line is that it appears roughly once an hour per
+        // account. If cache hits were logged too it would fire once per blob,
+        // which is the noise the cache exists to remove.
+        var client = MockClient();
+        var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+        var logger = new RecordingLogger();
+        var provider = new UserDelegationKeyProvider(logger, clock);
+
+        for (var i = 0; i < 25; i++)
+            await provider.GetAsync(
+                client.Object,
+                "acct",
+                SasLifetime,
+                TestContext.Current.CancellationToken
+            );
+
+        Assert.Single(logger.Messages);
+        Assert.Contains("acct", logger.Messages[0]);
+        Assert.Contains("first fetch since startup", logger.Messages[0]);
+
+        // Past the reuse window the key is refetched, and that is logged.
+        clock.Advance(TimeSpan.FromMinutes(70));
+        await provider.GetAsync(
+            client.Object,
+            "acct",
+            SasLifetime,
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(2, logger.Messages.Count);
+        Assert.Contains("min ago", logger.Messages[1]);
     }
 }
