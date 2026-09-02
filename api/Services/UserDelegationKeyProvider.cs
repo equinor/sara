@@ -36,9 +36,16 @@ public class UserDelegationKeyProvider : IUserDelegationKeyProvider
     private readonly ConcurrentDictionary<string, CacheEntry> _cache = new();
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _locks = new();
     private readonly TimeProvider _timeProvider;
+    private readonly ILogger<UserDelegationKeyProvider> _logger;
 
-    public UserDelegationKeyProvider(TimeProvider? timeProvider = null) =>
+    public UserDelegationKeyProvider(
+        ILogger<UserDelegationKeyProvider> logger,
+        TimeProvider? timeProvider = null
+    )
+    {
+        _logger = logger;
         _timeProvider = timeProvider ?? TimeProvider.System;
+    }
 
     public async Task<UserDelegationKey> GetAsync(
         BlobServiceClient serviceClient,
@@ -75,7 +82,25 @@ public class UserDelegationKeyProvider : IUserDelegationKeyProvider
             // inside the key's window. Stop reusing the key early enough that
             // this always holds.
             var reusableUntil = expiresOn - sasLifetime - ClockSkewBuffer;
-            _cache[storageAccount] = new CacheEntry(key.Value, reusableUntil);
+
+            // Only refreshes are logged, never cache hits. The point of the cache
+            // is that this happens about once an hour per account rather than once
+            // per blob, so the frequency of this line is the signal -- logging hits
+            // would bury it and reintroduce the per-blob noise in the log instead.
+            _logger.LogInformation(
+                "Fetched user delegation key for storage account {StorageAccount}; "
+                    + "reusable for {ReusableForMinutes:F0} min (until {ReusableUntil:O}), "
+                    + "key expires {KeyExpiresOn:O}. Previous key was {PreviousKeyAge}.",
+                storageAccount,
+                (reusableUntil - now).TotalMinutes,
+                reusableUntil,
+                expiresOn,
+                cached is null
+                    ? "absent (first fetch since startup)"
+                    : $"issued {(now - cached.IssuedAt).TotalMinutes:F0} min ago"
+            );
+
+            _cache[storageAccount] = new CacheEntry(key.Value, reusableUntil, now);
             return key.Value;
         }
         finally
@@ -84,7 +109,11 @@ public class UserDelegationKeyProvider : IUserDelegationKeyProvider
         }
     }
 
-    private sealed record CacheEntry(UserDelegationKey Key, DateTimeOffset ReusableUntil)
+    private sealed record CacheEntry(
+        UserDelegationKey Key,
+        DateTimeOffset ReusableUntil,
+        DateTimeOffset IssuedAt
+    )
     {
         public bool IsUsableAt(DateTimeOffset now) => now < ReusableUntil;
     }
