@@ -15,9 +15,16 @@ public interface IBlobStorageService
     Task<bool> ExistsAsync(BlobStorageLocation location);
 }
 
-public class BlobStorageService(TokenCredential credential, IConfiguration configuration)
-    : IBlobStorageService
+public class BlobStorageService(
+    TokenCredential credential,
+    IConfiguration configuration,
+    IUserDelegationKeyProvider userDelegationKeyProvider
+) : IBlobStorageService
 {
+    /// How long a generated read SAS stays valid. The delegation key that signs
+    /// it must outlive this; see UserDelegationKeyProvider.
+    private static readonly TimeSpan SasLifetime = TimeSpan.FromHours(1);
+
     public async Task<MemoryStream> DownloadBlobAsync(BlobStorageLocation location)
     {
         if (string.IsNullOrWhiteSpace(location.StorageAccount))
@@ -122,7 +129,7 @@ public class BlobStorageService(TokenCredential credential, IConfiguration confi
     {
         var serviceClient = CreateBlobServiceClient(location.StorageAccount);
 
-        var expiryTime = DateTimeOffset.UtcNow.AddHours(1); // Valid for 1 hour
+        var expiryTime = DateTimeOffset.UtcNow.Add(SasLifetime);
 
         var blobClient = serviceClient
             .GetBlobContainerClient(location.BlobContainer)
@@ -136,9 +143,12 @@ public class BlobStorageService(TokenCredential credential, IConfiguration confi
         if (blobClient.CanGenerateSasUri)
             return blobClient.GenerateSasUri(BlobSasPermissions.Read, expiryTime);
 
-        var userDelegationKey = await serviceClient.GetUserDelegationKeyAsync(
-            DateTimeOffset.UtcNow,
-            expiryTime
+        // The delegation key is account-wide, so it is cached and shared across
+        // every blob rather than fetched per SAS.
+        var userDelegationKey = await userDelegationKeyProvider.GetAsync(
+            serviceClient,
+            location.StorageAccount,
+            SasLifetime
         );
 
         BlobSasBuilder sasBuilder = new()
