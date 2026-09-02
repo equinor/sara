@@ -74,6 +74,10 @@ builder
     .ValidateOnStart();
 
 builder.Services.AddScoped<IThermalReferenceMetadataService, ThermalReferenceMetadataService>();
+
+// Singleton so the delegation key is shared across requests, not refetched per
+// scope. BlobStorageService stays scoped.
+builder.Services.AddSingleton<IUserDelegationKeyProvider, UserDelegationKeyProvider>();
 builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
 builder.Services.AddScoped<IThermalImageService, ThermalImageService>();
 builder.Services.AddScoped<IInspectionRecordService, InspectionRecordService>();
