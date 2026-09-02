@@ -69,17 +69,21 @@ public class WorkflowServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task TriggerWorkflow_MissingOutputBlobStorageLocation_Throws()
+    public async Task TriggerWorkflow_WithoutInputs_ThrowsClearError()
     {
         var analysis = await _db.NewAnalysis();
         var run = await _db.NewAnalysisRun(analysis);
         var workflow = await _db.NewWorkflow(
             run,
             workflowType: "test-workflow-1",
-            outputBlobStorageLocation: null
+            inputBlobStorageLocations: []
         );
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => TriggerWorkflowInScope(workflow));
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            TriggerWorkflowInScope(workflow)
+        );
+
+        Assert.Contains("has no input blob storage locations", exception.Message);
         Assert.Empty(_factory.ArgoWorkflowClient.Requests);
     }
 

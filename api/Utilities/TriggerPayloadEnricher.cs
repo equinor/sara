@@ -13,9 +13,15 @@ public interface ITriggerPayloadEnricher
     /// keys are passed verbatim and become fields on that nested object.
     /// Return an empty dictionary when no extras are needed.
     /// </summary>
+    /// <param name="workflow">The workflow being triggered.</param>
+    /// <param name="inspectionRecords">Records associated with the workflow's analysis.</param>
+    /// <param name="computedOutputBlobStorageLocation">
+    /// The output blob location computed for this trigger (not yet persisted to the DB).
+    /// </param>
     public Task<Dictionary<string, object>> EnrichAsync(
         Workflow workflow,
-        IReadOnlyList<InspectionRecord> inspectionRecords
+        IReadOnlyList<InspectionRecord> inspectionRecords,
+        BlobStorageLocation computedOutputBlobStorageLocation
     );
 }
 
@@ -25,7 +31,8 @@ public class UtilitiesPayloadEnricher : ITriggerPayloadEnricher
 
     public Task<Dictionary<string, object>> EnrichAsync(
         Workflow workflow,
-        IReadOnlyList<InspectionRecord> inspectionRecords
+        IReadOnlyList<InspectionRecord> inspectionRecords,
+        BlobStorageLocation computedOutputBlobStorageLocation
     ) => Task.FromResult(new Dictionary<string, object> { ["operation"] = workflow.WorkflowType });
 }
 
@@ -38,7 +45,8 @@ public class ThermalReadingPayloadEnricher(
 
     public async Task<Dictionary<string, object>> EnrichAsync(
         Workflow workflow,
-        IReadOnlyList<InspectionRecord> inspectionRecords
+        IReadOnlyList<InspectionRecord> inspectionRecords,
+        BlobStorageLocation computedOutputBlobStorageLocation
     )
     {
         if (inspectionRecords.Count == 0)

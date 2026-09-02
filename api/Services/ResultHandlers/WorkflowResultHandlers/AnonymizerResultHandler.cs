@@ -23,13 +23,6 @@ public class AnonymizerResultHandler(
 
     public async Task OnWorkflowCompleted(Workflow workflow)
     {
-        var result = WorkflowResultHandlerHelpers.DeserializeResult<AnonymizerResult>(
-            workflow,
-            logger
-        );
-
-        await RewireNextWorkflowIfThermalReading(workflow, result);
-
         var inspectionRecord = await InspectionRecordResolver.GetSingleInspectionRecordOrNull(
             context,
             workflow,
@@ -73,45 +66,5 @@ public class AnonymizerResultHandler(
         };
 
         await mqttPublisherService.PublishSaraVisualizationAvailable(message);
-    }
-
-    private async Task RewireNextWorkflowIfThermalReading(
-        Workflow workflow,
-        AnonymizerResult? result
-    )
-    {
-        var nextWorkflow = await context
-            .Workflows.Include(w => w.InputBlobStorageLocations)
-            .Where(w =>
-                w.AnalysisRunId == workflow.AnalysisRunId && w.StepNumber > workflow.StepNumber
-            )
-            .OrderBy(w => w.StepNumber)
-            .FirstOrDefaultAsync();
-
-        if (nextWorkflow is null || nextWorkflow.WorkflowType != "thermal-reading")
-        {
-            return;
-        }
-
-        if (result?.PreProcessedBlobStorageLocation is not { } preProcessed)
-        {
-            logger.LogError(
-                "Anonymizer workflow {WorkflowId} is followed by thermal-reading workflow "
-                    + "{NextWorkflowId} but result is missing preProcessedBlobStorageLocation — "
-                    + "thermal-reading will run against the raw input.",
-                workflow.Id,
-                nextWorkflow.Id
-            );
-            return;
-        }
-
-        nextWorkflow.InputBlobStorageLocations.Clear();
-        nextWorkflow.InputBlobStorageLocations.Add(preProcessed);
-        await context.SaveChangesAsync();
-
-        logger.LogInformation(
-            "Rewired thermal-reading workflow {NextWorkflowId} inputs to anonymizer's preProcessed TIFF",
-            nextWorkflow.Id
-        );
     }
 }

@@ -54,7 +54,7 @@ public class AnonymizerPayloadEnricherTests : IAsyncLifetime
             blobContainer: "raw-container",
             blobName: "inspections/2026/img-001.fff"
         );
-        var output = _db.NewBlobStorageLocation(
+        var computedOutput = _db.NewBlobStorageLocation(
             storageAccount: "anonstorage",
             blobContainer: "anon-container",
             blobName: "analysis-runs/abc/1-anonymizer.jpg"
@@ -62,14 +62,13 @@ public class AnonymizerPayloadEnricherTests : IAsyncLifetime
         var workflow = await _db.NewWorkflow(
             run,
             workflowType: "anonymizer",
-            inputBlobStorageLocations: [input],
-            outputBlobStorageLocation: output
+            inputBlobStorageLocations: [input]
         );
 
         using var scope = _factory.Services.CreateScope();
         var enricher = ResolveEnricher(scope);
 
-        var result = await enricher.EnrichAsync(workflow, [record]);
+        var result = await enricher.EnrichAsync(workflow, [record], computedOutput);
 
         var preProcessed = Assert.IsType<BlobStorageLocation>(
             result["preProcessedBlobStorageLocation"]
@@ -92,18 +91,17 @@ public class AnonymizerPayloadEnricherTests : IAsyncLifetime
         var analysis = await _db.NewAnalysis(inspectionRecords: [record]);
         var run = await _db.NewAnalysisRun(analysis);
         var input = _db.NewBlobStorageLocation(blobName: rawBlobName);
-        var output = _db.NewBlobStorageLocation(storageAccount: "anonstorage");
+        var computedOutput = _db.NewBlobStorageLocation(storageAccount: "anonstorage");
         var workflow = await _db.NewWorkflow(
             run,
             workflowType: "anonymizer",
-            inputBlobStorageLocations: [input],
-            outputBlobStorageLocation: output
+            inputBlobStorageLocations: [input]
         );
 
         using var scope = _factory.Services.CreateScope();
         var enricher = ResolveEnricher(scope);
 
-        var result = await enricher.EnrichAsync(workflow, [record]);
+        var result = await enricher.EnrichAsync(workflow, [record], computedOutput);
 
         var preProcessed = Assert.IsType<BlobStorageLocation>(
             result["preProcessedBlobStorageLocation"]
@@ -117,35 +115,18 @@ public class AnonymizerPayloadEnricherTests : IAsyncLifetime
         var record = await _db.NewInspectionRecord();
         var analysis = await _db.NewAnalysis(inspectionRecords: [record]);
         var run = await _db.NewAnalysisRun(analysis);
-        var output = _db.NewBlobStorageLocation();
+        var computedOutput = _db.NewBlobStorageLocation();
         var workflow = await _db.NewWorkflow(
             run,
             workflowType: "anonymizer",
-            inputBlobStorageLocations: [],
-            outputBlobStorageLocation: output
+            inputBlobStorageLocations: []
         );
 
         using var scope = _factory.Services.CreateScope();
         var enricher = ResolveEnricher(scope);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            enricher.EnrichAsync(workflow, [record])
-        );
-    }
-
-    [Fact]
-    public async Task EnrichAsync_NoOutputBlobStorageLocation_Throws()
-    {
-        var record = await _db.NewInspectionRecord();
-        var analysis = await _db.NewAnalysis(inspectionRecords: [record]);
-        var run = await _db.NewAnalysisRun(analysis);
-        var workflow = await _db.NewWorkflow(run, workflowType: "anonymizer");
-
-        using var scope = _factory.Services.CreateScope();
-        var enricher = ResolveEnricher(scope);
-
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            enricher.EnrichAsync(workflow, [record])
+            enricher.EnrichAsync(workflow, [record], computedOutput)
         );
     }
 }
