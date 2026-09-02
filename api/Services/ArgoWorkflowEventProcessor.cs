@@ -96,8 +96,13 @@ public class ArgoWorkflowEventProcessor(
                     return false;
                 }
 
+                // AnalysisRun is included because result handlers read
+                // workflow.AnalysisRun.AnalysisId. This query is AsNoTracking,
+                // so nothing fixes the navigation up afterwards; without the
+                // include it is null and the handler throws.
                 var workflow = await context
                     .Workflows.AsNoTracking()
+                    .Include(workflow => workflow.AnalysisRun)
                     .SingleAsync(workflow => workflow.Id == workflowId, cancellationToken);
                 await workflowService.OnWorkflowCompleted(workflow);
                 await transaction.CommitAsync(cancellationToken);

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
 using System.Threading.Tasks;
 using api.Database.Context;
 using api.Database.Models;
@@ -149,6 +150,45 @@ public class ArgoWorkflowEventProcessorTests : IAsyncLifetime
         }
         await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
         return workflow;
+    }
+
+    [Fact]
+    public async Task SucceededWorkflow_PublishesAnalysisResult()
+    {
+        // The processor re-reads the workflow with AsNoTracking, so result
+        // handlers see whatever that query loaded -- not the change-tracked
+        // graph the test built. Handlers that read workflow.AnalysisRun break
+        // if the navigation is not included, and the failure is swallowed and
+        // logged, so the workflow still looks complete while the MQTT message
+        // and the timeseries upload are silently lost.
+        var record = await _db.NewInspectionRecord(inspectionId: "insp-cloe-1");
+        var analysis = await _db.NewAnalysis(inspectionRecords: [record]);
+        var run = await _db.NewAnalysisRun(analysis);
+        var workflow = await _db.NewWorkflow(
+            run,
+            workflowType: "cloe",
+            outputBlobStorageLocation: _db.NewBlobStorageLocation(blobName: "result.json")
+        );
+        workflow.Status = WorkflowStatus.InProgress;
+        workflow.ArgoWorkflowName = "argo-name";
+        workflow.ArgoWorkflowUid = "current-uid";
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        await Process(
+            workflow,
+            "Succeeded",
+            JsonSerializer.Serialize(
+                new
+                {
+                    oilLevel = 0.42f,
+                    confidence = 0.93f,
+                    warning = (string?)null,
+                }
+            )
+        );
+
+        Assert.Single(_factory.MqttPublisher.AnalysisResultMessages);
+        Assert.Single(_factory.TimeseriesService.Uploads);
     }
 
     private async Task Process(
