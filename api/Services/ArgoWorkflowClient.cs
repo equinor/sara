@@ -5,16 +5,22 @@ using k8s.Autorest;
 
 namespace api.Services;
 
+/// <summary>Identifies an Argo Workflow created in Kubernetes.</summary>
 public record CreatedArgoWorkflow(string Name, string Uid);
 
+/// <summary>
+/// Contains the current SARA-managed workflows and the Kubernetes resource version they represent.
+/// </summary>
 public record ArgoWorkflowSnapshot(
     IReadOnlyList<ArgoWorkflowResource> Items,
     string ResourceVersion
 );
 
+/// <summary>Creates, lists, and watches SARA-managed Argo Workflows in Kubernetes.</summary>
 public interface IArgoWorkflowClient
 {
-    Task<CreatedArgoWorkflow> CreateWorkflow(
+    /// <summary>Creates a workflow from an Argo WorkflowTemplate.</summary>
+    Task<CreatedArgoWorkflow> CreateWorkflowAsync(
         string workflowName,
         string workflowTemplateName,
         Guid workflowId,
@@ -22,14 +28,23 @@ public interface IArgoWorkflowClient
         CancellationToken cancellationToken = default
     );
 
-    Task<ArgoWorkflowSnapshot> ListWorkflows(CancellationToken cancellationToken);
+    /// <summary>Lists SARA-managed workflows and their current resource version.</summary>
+    Task<ArgoWorkflowSnapshot> ListWorkflowsAsync(CancellationToken cancellationToken);
 
-    IAsyncEnumerable<ArgoWorkflowResource> WatchWorkflows(
+    /// <summary>
+    /// Opens a streaming Kubernetes watch for SARA-managed workflows. The stream emits each
+    /// workflow resource when it changes after the supplied resource version and remains open
+    /// until Kubernetes closes the connection, an error occurs, or cancellation is requested.
+    /// </summary>
+    IAsyncEnumerable<ArgoWorkflowResource> WatchWorkflowsAsync(
         string resourceVersion,
         CancellationToken cancellationToken
     );
 }
 
+/// <summary>
+/// Uses the Kubernetes custom objects API to manage Argo Workflow resources for SARA.
+/// </summary>
 public class ArgoWorkflowClient(IKubernetes kubernetes, IConfiguration configuration)
     : IArgoWorkflowClient
 {
@@ -43,7 +58,8 @@ public class ArgoWorkflowClient(IKubernetes kubernetes, IConfiguration configura
         configuration["ArgoWorkflowsNamespace"]
         ?? throw new InvalidOperationException("ArgoWorkflowsNamespace is not configured");
 
-    public async Task<CreatedArgoWorkflow> CreateWorkflow(
+    /// <inheritdoc />
+    public async Task<CreatedArgoWorkflow> CreateWorkflowAsync(
         string workflowName,
         string workflowTemplateName,
         Guid workflowId,
@@ -51,35 +67,19 @@ public class ArgoWorkflowClient(IKubernetes kubernetes, IConfiguration configura
         CancellationToken cancellationToken = default
     )
     {
-        var body = new ArgoWorkflowResource
-        {
-            Metadata = new ArgoObjectMetadata
-            {
-                Name = workflowName,
-                Labels = new Dictionary<string, string>
-                {
-                    [ManagedByLabel] = "sara",
-                    [WorkflowIdLabel] = workflowId.ToString(),
-                },
-            },
-            Spec = new ArgoWorkflowSpec
-            {
-                WorkflowTemplateRef = new ArgoWorkflowTemplateRef { Name = workflowTemplateName },
-                Arguments = new ArgoArguments
-                {
-                    Parameters = arguments
-                        .Select(pair => new ArgoParameter { Name = pair.Key, Value = pair.Value })
-                        .ToList(),
-                },
-            },
-        };
+        var workflowResource = BuildWorkflowResource(
+            workflowName,
+            workflowTemplateName,
+            workflowId,
+            arguments
+        );
 
         ArgoWorkflowResource created;
         try
         {
             created =
                 await kubernetes.CustomObjects.CreateNamespacedCustomObjectAsync<ArgoWorkflowResource>(
-                    body,
+                    workflowResource,
                     Group,
                     Version,
                     _namespace,
@@ -108,7 +108,8 @@ public class ArgoWorkflowClient(IKubernetes kubernetes, IConfiguration configura
         );
     }
 
-    public async Task<ArgoWorkflowSnapshot> ListWorkflows(CancellationToken cancellationToken)
+    /// <inheritdoc />
+    public async Task<ArgoWorkflowSnapshot> ListWorkflowsAsync(CancellationToken cancellationToken)
     {
         var list = await kubernetes.CustomObjects.ListNamespacedCustomObjectAsync<ArgoWorkflowList>(
             Group,
@@ -121,7 +122,8 @@ public class ArgoWorkflowClient(IKubernetes kubernetes, IConfiguration configura
         return new ArgoWorkflowSnapshot(list.Items, list.Metadata.ResourceVersion ?? "0");
     }
 
-    public async IAsyncEnumerable<ArgoWorkflowResource> WatchWorkflows(
+    /// <inheritdoc />
+    public async IAsyncEnumerable<ArgoWorkflowResource> WatchWorkflowsAsync(
         string resourceVersion,
         [EnumeratorCancellation] CancellationToken cancellationToken
     )
@@ -155,6 +157,36 @@ public class ArgoWorkflowClient(IKubernetes kubernetes, IConfiguration configura
             yield return watchEvent.Item2;
         }
     }
+
+    /// <summary>Builds the Kubernetes resource used to create an Argo Workflow.</summary>
+    private static ArgoWorkflowResource BuildWorkflowResource(
+        string workflowName,
+        string workflowTemplateName,
+        Guid workflowId,
+        IReadOnlyDictionary<string, string> arguments
+    ) =>
+        new()
+        {
+            Metadata = new ArgoObjectMetadata
+            {
+                Name = workflowName,
+                Labels = new Dictionary<string, string>
+                {
+                    [ManagedByLabel] = "sara",
+                    [WorkflowIdLabel] = workflowId.ToString(),
+                },
+            },
+            Spec = new ArgoWorkflowSpec
+            {
+                WorkflowTemplateRef = new ArgoWorkflowTemplateRef { Name = workflowTemplateName },
+                Arguments = new ArgoArguments
+                {
+                    Parameters = arguments
+                        .Select(pair => new ArgoParameter { Name = pair.Key, Value = pair.Value })
+                        .ToList(),
+                },
+            },
+        };
 }
 
 public class ArgoWorkflowResource

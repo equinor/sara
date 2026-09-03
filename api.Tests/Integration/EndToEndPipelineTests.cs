@@ -55,7 +55,7 @@ public class EndToEndPipelineTests : IAsyncLifetime
     {
         using var scope = _factory.Services.CreateScope();
         var processor = scope.ServiceProvider.GetRequiredService<IArgoWorkflowEventProcessor>();
-        await processor.Process(
+        await processor.HandleWorkflowEventAsync(
             new ArgoWorkflowResource
             {
                 Metadata = new ArgoObjectMetadata

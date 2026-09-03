@@ -202,7 +202,7 @@ public class ArgoWorkflowEventProcessorTests : IAsyncLifetime
     {
         using var scope = (factory ?? _factory).Services.CreateScope();
         var processor = scope.ServiceProvider.GetRequiredService<IArgoWorkflowEventProcessor>();
-        await processor.Process(
+        await processor.HandleWorkflowEventAsync(
             new ArgoWorkflowResource
             {
                 Metadata = new ArgoObjectMetadata

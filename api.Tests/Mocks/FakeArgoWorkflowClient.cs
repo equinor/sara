@@ -20,7 +20,7 @@ public class FakeArgoWorkflowClient : IArgoWorkflowClient
     public Exception? CreateException { get; set; }
     public Func<ArgoCreateRequest, Task>? BeforeCreate { get; set; }
 
-    public async Task<CreatedArgoWorkflow> CreateWorkflow(
+    public async Task<CreatedArgoWorkflow> CreateWorkflowAsync(
         string workflowName,
         string workflowTemplateName,
         Guid workflowId,
@@ -46,10 +46,10 @@ public class FakeArgoWorkflowClient : IArgoWorkflowClient
         return new CreatedArgoWorkflow(workflowName, Guid.NewGuid().ToString());
     }
 
-    public Task<ArgoWorkflowSnapshot> ListWorkflows(CancellationToken cancellationToken) =>
+    public Task<ArgoWorkflowSnapshot> ListWorkflowsAsync(CancellationToken cancellationToken) =>
         Task.FromResult(new ArgoWorkflowSnapshot([], "1"));
 
-    public async IAsyncEnumerable<ArgoWorkflowResource> WatchWorkflows(
+    public async IAsyncEnumerable<ArgoWorkflowResource> WatchWorkflowsAsync(
         string resourceVersion,
         [EnumeratorCancellation] CancellationToken cancellationToken
     )
