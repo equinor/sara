@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using api.Database.Context;
@@ -84,9 +85,21 @@ public class ArgoWorkflowEventProcessorTests : IAsyncLifetime
     public async Task DuplicateTerminalEvent_DoesNotTriggerNextWorkflowTwice()
     {
         var workflow = await NewInProgressWorkflow(withNextWorkflow: true);
+        var output = _db.NewBlobStorageLocation();
+        var result = JsonSerializer.Serialize(
+            new
+            {
+                outputBlobStorageLocation = new
+                {
+                    storageAccount = output.StorageAccount,
+                    blobContainer = output.BlobContainer,
+                    blobName = output.BlobName,
+                },
+            }
+        );
 
-        await Process(workflow, "Succeeded", "{}");
-        await Process(workflow, "Succeeded", "{}");
+        await Process(workflow, "Succeeded", result);
+        await Process(workflow, "Succeeded", result);
 
         Assert.Single(_factory.ArgoWorkflowClient.Requests);
     }
@@ -111,7 +124,7 @@ public class ArgoWorkflowEventProcessorTests : IAsyncLifetime
         var workflow = await NewInProgressWorkflow();
         var workflowService = new Mock<IWorkflowService>();
         workflowService
-            .Setup(service => service.OnWorkflowCompleted(It.IsAny<Workflow>()))
+            .Setup(service => service.FinalizeWorkflowCompleted(It.IsAny<Workflow>()))
             .ThrowsAsync(new InvalidOperationException("completion failed"));
         using var factory = _factory.WithWebHostBuilder(builder =>
             builder.ConfigureTestServices(services =>
@@ -129,6 +142,83 @@ public class ArgoWorkflowEventProcessorTests : IAsyncLifetime
         await _context.Entry(workflow).ReloadAsync(TestContext.Current.CancellationToken);
         Assert.Equal(WorkflowStatus.InProgress, workflow.Status);
         Assert.Null(workflow.CompletedAt);
+        Assert.Null(workflow.ResultJson);
+    }
+
+    [Fact]
+    public async Task SucceededFencillaWithoutDetection_ClearsLegacyOutputLocation()
+    {
+        var record = await _db.NewInspectionRecord(inspectionId: "insp-fencilla-1");
+        var analysis = await _db.NewAnalysis(inspectionRecords: [record]);
+        var run = await _db.NewAnalysisRun(analysis);
+        var workflow = await _db.NewWorkflow(
+            run,
+            workflowType: "fencilla",
+            outputBlobStorageLocation: _db.NewBlobStorageLocation(blobName: "speculative.jpg")
+        );
+        workflow.Status = WorkflowStatus.InProgress;
+        workflow.ArgoWorkflowName = "argo-name";
+        workflow.ArgoWorkflowUid = "current-uid";
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        await Process(
+            workflow,
+            "Succeeded",
+            JsonSerializer.Serialize(new { isBreak = false, confidence = 0.95f })
+        );
+
+        workflow = await _context
+            .Workflows.AsNoTracking()
+            .SingleAsync(
+                candidate => candidate.Id == workflow.Id,
+                TestContext.Current.CancellationToken
+            );
+        await _context.Entry(run).ReloadAsync(TestContext.Current.CancellationToken);
+        Assert.Null(workflow.OutputBlobStorageLocation);
+        Assert.Equal(WorkflowStatus.Succeeded, workflow.Status);
+        Assert.Equal(AnalysisRunStatus.Succeeded, run.Status);
+        Assert.Single(_factory.MqttPublisher.AnalysisResultMessages);
+    }
+
+    [Theory]
+    [InlineData("[]")]
+    [InlineData("{\"outputBlobStorageLocation\":123}")]
+    [InlineData("{\"outputBlobStorageLocation\":{\"storageAccount\":123}}")]
+    public async Task SucceededWithUnexpectedResultShape_DoesNotRetryForever(string result)
+    {
+        var workflow = await NewInProgressWorkflow();
+
+        await Process(workflow, "Succeeded", result);
+
+        await _context.Entry(workflow).ReloadAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(WorkflowStatus.Succeeded, workflow.Status);
+        Assert.Null(workflow.OutputBlobStorageLocation);
+    }
+
+    [Fact]
+    public async Task IntermediateWorkflowWithoutOutput_FailsRunDeterministically()
+    {
+        var workflow = await NewInProgressWorkflow(withNextWorkflow: true);
+
+        await Process(workflow, "Succeeded", "{}");
+
+        var workflows = await _context
+            .Workflows.AsNoTracking()
+            .Where(candidate => candidate.AnalysisRunId == workflow.AnalysisRunId)
+            .OrderBy(candidate => candidate.StepNumber)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        var run = await _context
+            .AnalysisRuns.AsNoTracking()
+            .SingleAsync(
+                candidate => candidate.Id == workflow.AnalysisRunId,
+                TestContext.Current.CancellationToken
+            );
+
+        Assert.Equal(WorkflowStatus.Succeeded, workflows[0].Status);
+        Assert.Equal(WorkflowStatus.Failed, workflows[1].Status);
+        Assert.Contains("succeeded without an output", workflows[1].ErrorMessage);
+        Assert.Equal(AnalysisRunStatus.Failed, run.Status);
+        Assert.Empty(_factory.ArgoWorkflowClient.Requests);
     }
 
     private async Task<Workflow> NewInProgressWorkflow(bool withNextWorkflow = false)

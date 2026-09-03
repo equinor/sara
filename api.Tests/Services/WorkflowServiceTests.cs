@@ -271,6 +271,53 @@ public class WorkflowServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task FinalizeWorkflowCompleted_StaleExecutionDoesNotOverwriteRetry()
+    {
+        var analysis = await _db.NewAnalysis();
+        var run = await _db.NewAnalysisRun(analysis);
+        var workflow = await _db.NewWorkflow(run, workflowType: "test-workflow-1");
+        workflow.Status = WorkflowStatus.InProgress;
+        workflow.ArgoWorkflowName = "old-name";
+        workflow.ArgoWorkflowUid = "old-uid";
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var staleCompletion = new Workflow
+        {
+            Id = workflow.Id,
+            AnalysisRunId = run.Id,
+            AnalysisRun = run,
+            StepNumber = workflow.StepNumber,
+            WorkflowType = workflow.WorkflowType,
+            InputBlobStorageLocations = [],
+            Status = WorkflowStatus.Succeeded,
+            ArgoWorkflowName = "old-name",
+            ArgoWorkflowUid = "old-uid",
+            ResultJson = "{}",
+            CompletedAt = DateTime.UtcNow,
+        };
+
+        workflow.Status = WorkflowStatus.InProgress;
+        workflow.ArgoWorkflowName = "retry-name";
+        workflow.ArgoWorkflowUid = "retry-uid";
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        using var scope = _factory.Services.CreateScope();
+        var finalized = await ResolveService(scope).FinalizeWorkflowCompleted(staleCompletion);
+
+        workflow = await _context
+            .Workflows.AsNoTracking()
+            .SingleAsync(
+                candidate => candidate.Id == workflow.Id,
+                TestContext.Current.CancellationToken
+            );
+        Assert.False(finalized);
+        Assert.Equal(WorkflowStatus.InProgress, workflow.Status);
+        Assert.Equal("retry-name", workflow.ArgoWorkflowName);
+        Assert.Equal("retry-uid", workflow.ArgoWorkflowUid);
+        Assert.Null(workflow.ResultJson);
+    }
+
+    [Fact]
     public async Task OnWorkflowCompleted_SucceededWithNextWorkflow_TriggersNextWorkflow()
     {
         const string nextWorkflowType = "test-workflow-2";
@@ -282,6 +329,18 @@ public class WorkflowServiceTests : IAsyncLifetime
             stepNumber: 1
         );
         firstWorkflow.Status = WorkflowStatus.Succeeded;
+        var output = _db.NewBlobStorageLocation();
+        firstWorkflow.ResultJson = JsonSerializer.Serialize(
+            new
+            {
+                outputBlobStorageLocation = new
+                {
+                    storageAccount = output.StorageAccount,
+                    blobContainer = output.BlobContainer,
+                    blobName = output.BlobName,
+                },
+            }
+        );
         await _db.NewWorkflow(
             run,
             workflowType: nextWorkflowType,

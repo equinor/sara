@@ -66,80 +66,41 @@ public class ArgoWorkflowEventProcessor(
             }
         }
 
-        var claimed = await context
-            .Database.CreateExecutionStrategy()
-            .ExecuteAsync(async () =>
-            {
-                await using var transaction = await context.Database.BeginTransactionAsync(
-                    cancellationToken
-                );
-                var updated = await context
-                    .Workflows.Where(workflow =>
-                        workflow.Id == workflowId
-                        && workflow.ArgoWorkflowName == name
-                        && (workflow.ArgoWorkflowUid == uid || workflow.ArgoWorkflowUid == null)
-                        && workflow.Status == WorkflowStatus.InProgress
-                    )
-                    .ExecuteUpdateAsync(
-                        setters =>
-                            setters
-                                .SetProperty(workflow => workflow.Status, terminalStatus)
-                                .SetProperty(workflow => workflow.ResultJson, resultJson)
-                                .SetProperty(workflow => workflow.ErrorMessage, errorMessage)
-                                .SetProperty(workflow => workflow.ArgoWorkflowUid, uid)
-                                .SetProperty(workflow => workflow.CompletedAt, DateTime.UtcNow),
-                        cancellationToken
-                    );
-
-                if (updated == 0)
-                {
-                    return false;
-                }
-
-                await transaction.CommitAsync(cancellationToken);
-                return true;
-            });
-
-        if (!claimed)
+        var workflow = await context
+            .Workflows.AsNoTracking()
+            .Include(candidate => candidate.AnalysisRun)
+            .SingleOrDefaultAsync(
+                candidate =>
+                    candidate.Id == workflowId
+                    && candidate.ArgoWorkflowName == name
+                    && (candidate.ArgoWorkflowUid == uid || candidate.ArgoWorkflowUid == null),
+                cancellationToken
+            );
+        if (workflow is null)
         {
             logger.LogDebug(
-                "Ignoring stale or already processed Argo Workflow event for {WorkflowId} ({Uid})",
+                "Ignoring stale Argo Workflow event for {WorkflowId} ({Uid})",
                 workflowId,
                 uid
             );
             return;
         }
 
-        // Complete the workflow after committing the claim. WorkflowService has its own
-        // DbContext and may update this row, which would otherwise wait on the claim's lock.
-        var workflow = await context
-            .Workflows.AsNoTracking()
-            .Include(workflow => workflow.AnalysisRun)
-            .SingleAsync(workflow => workflow.Id == workflowId, cancellationToken);
+        workflow.Status = terminalStatus;
+        workflow.ResultJson = resultJson;
+        workflow.ErrorMessage = errorMessage;
+        workflow.ArgoWorkflowUid = uid;
+        workflow.CompletedAt = DateTime.UtcNow;
 
-        try
+        var finalized = await workflowService.FinalizeWorkflowCompleted(workflow);
+        if (!finalized)
         {
-            await workflowService.OnWorkflowCompleted(workflow);
+            logger.LogDebug(
+                "Ignoring stale or already processed Argo Workflow event for {WorkflowId} ({Uid})",
+                workflowId,
+                uid
+            );
         }
-        catch
-        {
-            await context
-                .Workflows.Where(candidate =>
-                    candidate.Id == workflowId
-                    && candidate.ArgoWorkflowName == name
-                    && candidate.ArgoWorkflowUid == uid
-                    && candidate.Status == terminalStatus
-                )
-                .ExecuteUpdateAsync(
-                    setters =>
-                        setters
-                            .SetProperty(candidate => candidate.Status, WorkflowStatus.InProgress)
-                            .SetProperty(candidate => candidate.ResultJson, (string?)null)
-                            .SetProperty(candidate => candidate.ErrorMessage, (string?)null)
-                            .SetProperty(candidate => candidate.CompletedAt, (DateTime?)null),
-                    cancellationToken
-                );
-            throw;
-        }
+        await workflowService.ContinueWorkflowCompleted(workflowId, name, uid, finalized);
     }
 }

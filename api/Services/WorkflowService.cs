@@ -19,6 +19,15 @@ public interface IWorkflowService
 
     public Task OnWorkflowCompleted(Workflow workflow);
 
+    public Task<bool> FinalizeWorkflowCompleted(Workflow workflow);
+
+    public Task ContinueWorkflowCompleted(
+        Guid workflowId,
+        string argoWorkflowName,
+        string argoWorkflowUid,
+        bool dispatchResultHandlers
+    );
+
     public Task<Workflow?> ReadById(Guid id);
 
     public Task<PagedList<Workflow>> GetWorkflows(WorkflowParameters parameters);
@@ -230,21 +239,78 @@ public class WorkflowService(
 
     public async Task OnWorkflowCompleted(Workflow workflow)
     {
+        await FinalizeWorkflowCompletedWithoutClaim(workflow);
+        await ContinueWorkflowCompleted(workflow.Id, dispatchResultHandlers: true);
+    }
+
+    public async Task<bool> FinalizeWorkflowCompleted(Workflow workflow)
+    {
+        var finalized = await context
+            .Database.CreateExecutionStrategy()
+            .ExecuteAsync(async () =>
+            {
+                await using var transaction = await context.Database.BeginTransactionAsync();
+                context.ChangeTracker.Clear();
+                var claimed = await context
+                    .Workflows.Where(candidate =>
+                        candidate.Id == workflow.Id
+                        && candidate.ArgoWorkflowName == workflow.ArgoWorkflowName
+                        && (
+                            candidate.ArgoWorkflowUid == workflow.ArgoWorkflowUid
+                            || candidate.ArgoWorkflowUid == null
+                        )
+                        && candidate.Status == WorkflowStatus.InProgress
+                    )
+                    .ExecuteUpdateAsync(setters =>
+                        setters
+                            .SetProperty(candidate => candidate.Status, workflow.Status)
+                            .SetProperty(candidate => candidate.ResultJson, workflow.ResultJson)
+                            .SetProperty(candidate => candidate.ErrorMessage, workflow.ErrorMessage)
+                            .SetProperty(
+                                candidate => candidate.ArgoWorkflowUid,
+                                workflow.ArgoWorkflowUid
+                            )
+                            .SetProperty(candidate => candidate.CompletedAt, workflow.CompletedAt)
+                    );
+                if (claimed == 0)
+                    return false;
+
+                await FinalizeWorkflowCompletedCore(workflow);
+                await transaction.CommitAsync();
+                return true;
+            });
+        context.ChangeTracker.Clear();
+        return finalized;
+    }
+
+    private async Task FinalizeWorkflowCompletedWithoutClaim(Workflow workflow)
+    {
+        await context
+            .Database.CreateExecutionStrategy()
+            .ExecuteAsync(async () =>
+            {
+                await using var transaction = await context.Database.BeginTransactionAsync();
+                await FinalizeWorkflowCompletedCore(workflow);
+                await transaction.CommitAsync();
+            });
+        context.ChangeTracker.Clear();
+    }
+
+    private async Task FinalizeWorkflowCompletedCore(Workflow workflow)
+    {
         var run = await context
             .AnalysisRuns.Include(r => r.Workflows)
                 .ThenInclude(w => w.InputBlobStorageLocations)
             .FirstAsync(r => r.Id == workflow.AnalysisRunId);
 
-        // Use the EF-tracked instance from the run to avoid duplicate-tracking conflicts.
-        // The caller's workflow object may be detached or already tracked under a separate
-        // entry; the run include gives us the single authoritative tracked copy. Status,
-        // ResultJson, ErrorMessage, and CompletedAt are copied over because the run was
-        // fetched before the controller saved those values.
         var tracked = run.Workflows.Single(w => w.Id == workflow.Id);
-        tracked.Status = workflow.Status;
-        tracked.ResultJson = workflow.ResultJson;
-        tracked.ErrorMessage = workflow.ErrorMessage;
-        tracked.CompletedAt = workflow.CompletedAt;
+        if (tracked.Status is not (WorkflowStatus.Succeeded or WorkflowStatus.Failed))
+        {
+            tracked.Status = workflow.Status;
+            tracked.ResultJson = workflow.ResultJson;
+            tracked.ErrorMessage = workflow.ErrorMessage;
+            tracked.CompletedAt = workflow.CompletedAt;
+        }
         workflow = tracked;
 
         if (workflow.Status == WorkflowStatus.Failed)
@@ -266,8 +332,6 @@ public class WorkflowService(
         // dispatching result handlers so they see the populated location (e.g. AnonymizerResultHandler
         // guards on OutputBlobStorageLocation before publishing visualization_available).
         await PersistOutputBlobStorageLocationFromResultJson(workflow);
-
-        await DispatchWorkflowResultHandler(workflow);
 
         if (await TrySkipChainIfGateDictates(workflow, run))
         {
@@ -334,6 +398,27 @@ public class WorkflowService(
                     nextPending.InputBlobStorageLocations.Add(loc);
                 await context.SaveChangesAsync();
             }
+            else
+            {
+                nextPending.Status = WorkflowStatus.Failed;
+                nextPending.ErrorMessage =
+                    $"Previous workflow {workflow.Id} ({workflow.WorkflowType}) succeeded without an output blob storage location";
+                nextPending.CompletedAt = DateTime.UtcNow;
+                run.Status = AnalysisRunStatus.Failed;
+                run.CompletedAt = DateTime.UtcNow;
+                await context.SaveChangesAsync();
+
+                logger.LogError(
+                    "Cannot advance AnalysisRun {AnalysisRunId}: workflow {WorkflowType} ({WorkflowId}) produced no output for downstream workflow {NextWorkflowType} ({NextWorkflowId})",
+                    run.Id,
+                    workflow.WorkflowType,
+                    workflow.Id,
+                    nextPending.WorkflowType,
+                    nextPending.Id
+                );
+
+                return;
+            }
         }
 
         var nextWorkflow = run
@@ -354,24 +439,95 @@ public class WorkflowService(
                 workflow.StepNumber
             );
 
-            await DispatchAnalysisResultHandler(run);
             return;
         }
 
         logger.LogInformation(
-            "Advancing AnalysisRun {AnalysisRunId} to next workflow {NextWorkflowType} (step {NextStepNumber})",
+            "Prepared AnalysisRun {AnalysisRunId} to advance to workflow {NextWorkflowType} (step {NextStepNumber})",
             run.Id,
             nextWorkflow.WorkflowType,
             nextWorkflow.StepNumber
         );
+    }
 
-        try
+    public async Task ContinueWorkflowCompleted(
+        Guid workflowId,
+        string argoWorkflowName,
+        string argoWorkflowUid,
+        bool dispatchResultHandlers
+    )
+    {
+        var workflow = await context
+            .Workflows.AsNoTracking()
+            .Include(candidate => candidate.AnalysisRun)
+            .SingleOrDefaultAsync(candidate =>
+                candidate.Id == workflowId
+                && candidate.ArgoWorkflowName == argoWorkflowName
+                && candidate.ArgoWorkflowUid == argoWorkflowUid
+            );
+        if (workflow is null)
+            return;
+
+        await ContinueWorkflowCompleted(workflow, dispatchResultHandlers);
+    }
+
+    private async Task ContinueWorkflowCompleted(Guid workflowId, bool dispatchResultHandlers)
+    {
+        var workflow = await context
+            .Workflows.AsNoTracking()
+            .Include(candidate => candidate.AnalysisRun)
+            .SingleAsync(candidate => candidate.Id == workflowId);
+
+        await ContinueWorkflowCompleted(workflow, dispatchResultHandlers);
+    }
+
+    private async Task ContinueWorkflowCompleted(Workflow workflow, bool dispatchResultHandlers)
+    {
+        if (workflow.Status == WorkflowStatus.Succeeded)
         {
-            await TriggerWorkflow(nextWorkflow);
+            var nextWorkflow = await context
+                .Workflows.AsNoTracking()
+                .Include(candidate => candidate.InputBlobStorageLocations)
+                .Where(candidate =>
+                    candidate.AnalysisRunId == workflow.AnalysisRunId
+                    && candidate.StepNumber > workflow.StepNumber
+                    && candidate.Status == WorkflowStatus.Pending
+                )
+                .OrderBy(candidate => candidate.StepNumber)
+                .FirstOrDefaultAsync();
+
+            if (nextWorkflow is not null)
+            {
+                logger.LogInformation(
+                    "Advancing AnalysisRun {AnalysisRunId} to next workflow {NextWorkflowType} (step {NextStepNumber})",
+                    workflow.AnalysisRunId,
+                    nextWorkflow.WorkflowType,
+                    nextWorkflow.StepNumber
+                );
+
+                try
+                {
+                    await TriggerWorkflow(nextWorkflow);
+                }
+                catch (WorkflowTriggerFailedException)
+                {
+                    // Already logged and persisted inside TriggerWorkflow.
+                }
+            }
         }
-        catch (WorkflowTriggerFailedException)
+
+        if (!dispatchResultHandlers)
+            return;
+
+        await DispatchWorkflowResultHandler(workflow);
+
+        var isLastWorkflow = !await context.Workflows.AnyAsync(candidate =>
+            candidate.AnalysisRunId == workflow.AnalysisRunId
+            && candidate.StepNumber > workflow.StepNumber
+        );
+        if (isLastWorkflow && workflow.AnalysisRun.Status == AnalysisRunStatus.Succeeded)
         {
-            // Already logged and persisted inside TriggerWorkflow.
+            await DispatchAnalysisResultHandler(workflow.AnalysisRun);
         }
     }
 
@@ -386,18 +542,18 @@ public class WorkflowService(
             workflow.ResultJson,
             "outputBlobStorageLocation"
         );
-        if (location is null)
-            return;
-
         workflow.OutputBlobStorageLocation = location;
         await context.SaveChangesAsync();
 
-        logger.LogInformation(
-            "Workflow {WorkflowType} (Id: {WorkflowId}) output blob location set from result JSON: {Location}",
-            workflow.WorkflowType,
-            workflow.Id,
-            location
-        );
+        if (location is not null)
+        {
+            logger.LogInformation(
+                "Workflow {WorkflowType} (Id: {WorkflowId}) output blob location set from result JSON: {Location}",
+                workflow.WorkflowType,
+                workflow.Id,
+                location
+            );
+        }
     }
 
     /// <summary>
@@ -422,16 +578,27 @@ public class WorkflowService(
         try
         {
             using var doc = JsonDocument.Parse(resultJson);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object)
+                return null;
             if (!doc.RootElement.TryGetProperty(propertyName, out var locEl))
                 return null;
+            if (locEl.ValueKind != JsonValueKind.Object)
+                return null;
 
-            var storageAccount = locEl.TryGetProperty("storageAccount", out var sa)
-                ? sa.GetString()
-                : null;
-            var blobContainer = locEl.TryGetProperty("blobContainer", out var bc)
-                ? bc.GetString()
-                : null;
-            var blobName = locEl.TryGetProperty("blobName", out var bn) ? bn.GetString() : null;
+            var storageAccount =
+                locEl.TryGetProperty("storageAccount", out var sa)
+                && sa.ValueKind == JsonValueKind.String
+                    ? sa.GetString()
+                    : null;
+            var blobContainer =
+                locEl.TryGetProperty("blobContainer", out var bc)
+                && bc.ValueKind == JsonValueKind.String
+                    ? bc.GetString()
+                    : null;
+            var blobName =
+                locEl.TryGetProperty("blobName", out var bn) && bn.ValueKind == JsonValueKind.String
+                    ? bn.GetString()
+                    : null;
 
             if (
                 string.IsNullOrWhiteSpace(storageAccount)
@@ -460,7 +627,7 @@ public class WorkflowService(
         workflow.CompletedAt = DateTime.UtcNow;
         await context.SaveChangesAsync();
 
-        await OnWorkflowCompleted(workflow);
+        await FinalizeWorkflowCompletedWithoutClaim(workflow);
     }
 
     private async Task<bool> TrySkipChainIfGateDictates(Workflow workflow, AnalysisRun run)
@@ -693,7 +860,6 @@ public class WorkflowService(
         {
             throw new KeyNotFoundException($"Workflow with id {id} not found");
         }
-
         workflow.Status = WorkflowStatus.Pending;
         workflow.StartedAt = null;
         workflow.CompletedAt = null;
