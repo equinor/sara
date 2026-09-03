@@ -127,7 +127,7 @@ public class WorkflowService(
             workflow.StartedAt = DateTime.UtcNow;
             await context.SaveChangesAsync();
 
-            created = await argoWorkflowClient.CreateWorkflow(
+            created = await argoWorkflowClient.CreateWorkflowAsync(
                 workflow.ArgoWorkflowName,
                 workflowConfig.WorkflowTemplateName,
                 workflow.Id,
