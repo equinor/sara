@@ -1,15 +1,16 @@
 using System.Text.Json;
+using api.Configurations;
 using api.Database.Context;
 using api.Database.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace api.Services;
 
 /// <summary>
-/// Processes Argo Workflow events so terminal workflow states (Succeeded|Failed|Error) are reflected in SARA.
-/// Implementations associate an event with its SARA workflow, safely ignore stale or
-/// duplicate events, persist the result, and trigger subsequent completion handling.
-/// Non-terminal workflow events (Running|Pending) are ignored.
+/// Reconciles Argo Workflow events with SARA by updating workflow-step and
+/// analysis-run statuses, persisting step results, and dispatching completion handlers.
+/// Stale, duplicate, and unrelated events are ignored.
 /// </summary>
 public interface IArgoWorkflowEventProcessor
 {
@@ -19,94 +20,283 @@ public interface IArgoWorkflowEventProcessor
     );
 }
 
-/// <summary>
-/// Applies terminal Argo Workflow events to their corresponding SARA workflows and triggers
-/// completion handling exactly once.
-/// </summary>
+/// <summary>Reconciles one generated Argo Workflow and its DAG nodes into SARA.</summary>
 public class ArgoWorkflowEventProcessor(
     SaraDbContext context,
     IWorkflowService workflowService,
+    IOptions<AnalysisOptions> analysisOptions,
     ILogger<ArgoWorkflowEventProcessor> logger
 ) : IArgoWorkflowEventProcessor
 {
+    private readonly AnalysisOptions _options = analysisOptions.Value;
+
     public async Task HandleWorkflowEventAsync(
         ArgoWorkflowResource resource,
         CancellationToken cancellationToken = default
     )
     {
-        var terminalPhase = ReadTerminalWorkflowPhase(resource.Status?.Phase);
-        if (terminalPhase is null)
-        {
-            return;
-        }
-
-        var identity = ReadWorkflowIdentity(resource);
+        var identity = ReadIdentity(resource);
         if (identity is null)
         {
             logger.LogWarning("Ignoring Argo Workflow with missing or invalid SARA identity");
             return;
         }
 
-        var completion = ReadWorkflowCompletion(resource, terminalPhase.Value);
-        var claimed = await ClaimWorkflowAndHandleCompletionAsync(
-            identity.Value,
-            completion,
-            cancellationToken
-        );
-
-        if (!claimed)
-        {
-            logger.LogDebug(
-                "Ignoring stale or already processed Argo Workflow event for {WorkflowId} ({Uid})",
-                identity.Value.WorkflowId,
-                identity.Value.Uid
-            );
-        }
-    }
-
-    private static TerminalArgoWorkflowPhase? ReadTerminalWorkflowPhase(string? phase) =>
-        phase switch
-        {
-            "Succeeded" => TerminalArgoWorkflowPhase.Succeeded,
-            "Failed" => TerminalArgoWorkflowPhase.Failed,
-            "Error" => TerminalArgoWorkflowPhase.Error,
-            _ => null,
-        };
-
-    private static WorkflowIdentity? ReadWorkflowIdentity(ArgoWorkflowResource resource)
-    {
+        var workflows = await context
+            .Workflows.AsNoTracking()
+            .Where(workflow => workflow.AnalysisRunId == identity.Value.AnalysisRunId)
+            .OrderBy(workflow => workflow.StepNumber)
+            .ToListAsync(cancellationToken);
         if (
-            resource.Metadata.Name is not { } name
-            || resource.Metadata.Uid is not { } uid
-            || !resource.Metadata.Labels.TryGetValue(
-                ArgoWorkflowClient.WorkflowIdLabel,
-                out var workflowIdText
+            workflows.Count == 0
+            || workflows.Any(workflow =>
+                workflow.ArgoWorkflowName != identity.Value.Name
+                || (
+                    workflow.ArgoWorkflowUid is not null
+                    && workflow.ArgoWorkflowUid != identity.Value.Uid
+                )
             )
-            || !Guid.TryParse(workflowIdText, out var workflowId)
         )
         {
-            return null;
+            logger.LogDebug(
+                "Ignoring stale Argo Workflow event for AnalysisRun {AnalysisRunId}",
+                identity.Value.AnalysisRunId
+            );
+            return;
         }
 
-        return new WorkflowIdentity(workflowId, name, uid);
+        await RecoverUidAsync(identity.Value, cancellationToken);
+        foreach (var workflow in workflows)
+        {
+            var node = resource.Status?.Nodes.Values.FirstOrDefault(candidate =>
+                candidate.DisplayName == AnalysisWorkflowGraphBuilder.GetTaskName(workflow)
+            );
+            if (node is null)
+            {
+                continue;
+            }
+
+            if (node.Phase is "Pending" or "Running")
+            {
+                await MarkInProgressAsync(workflow.Id, node, cancellationToken);
+            }
+            else if (node.Phase is "Succeeded" or "Failed" or "Error" or "Skipped" or "Omitted")
+            {
+                await CompleteWorkflowAsync(workflow, node, cancellationToken);
+            }
+        }
+
+        await CompleteAnalysisRunAsync(resource, identity.Value.AnalysisRunId, cancellationToken);
     }
 
-    /// <summary>
-    /// Converts the terminal Argo state into a SARA completion. A successful Argo workflow is
-    /// treated as failed when its required result parameter is missing or is not valid JSON.
-    /// </summary>
-    private static WorkflowCompletion ReadWorkflowCompletion(
-        ArgoWorkflowResource resource,
-        TerminalArgoWorkflowPhase phase
+    private async Task CompleteWorkflowAsync(
+        Workflow workflow,
+        ArgoNodeStatus node,
+        CancellationToken cancellationToken
     )
     {
-        if (phase != TerminalArgoWorkflowPhase.Succeeded)
+        var completion = ReadCompletion(node);
+        await context
+            .Database.CreateExecutionStrategy()
+            .ExecuteAsync(async () =>
+            {
+                await using var transaction = await context.Database.BeginTransactionAsync(
+                    cancellationToken
+                );
+                var updated = await context
+                    .Workflows.Where(candidate =>
+                        candidate.Id == workflow.Id
+                        && (
+                            candidate.Status == WorkflowStatus.Pending
+                            || candidate.Status == WorkflowStatus.InProgress
+                        )
+                    )
+                    .ExecuteUpdateAsync(
+                        setters =>
+                            setters
+                                .SetProperty(candidate => candidate.Status, completion.Status)
+                                .SetProperty(
+                                    candidate => candidate.ResultJson,
+                                    completion.ResultJson
+                                )
+                                .SetProperty(
+                                    candidate => candidate.ErrorMessage,
+                                    completion.ErrorMessage
+                                )
+                                .SetProperty(
+                                    candidate => candidate.StartedAt,
+                                    candidate =>
+                                        node.StartedAt ?? candidate.StartedAt ?? DateTime.UtcNow
+                                )
+                                .SetProperty(
+                                    candidate => candidate.CompletedAt,
+                                    node.FinishedAt ?? DateTime.UtcNow
+                                ),
+                        cancellationToken
+                    );
+                if (updated == 0)
+                {
+                    return;
+                }
+
+                if (completion.Status == WorkflowStatus.Succeeded)
+                {
+                    var completed = await context
+                        .Workflows.AsNoTracking()
+                        .Include(candidate => candidate.AnalysisRun)
+                        .SingleAsync(candidate => candidate.Id == workflow.Id, cancellationToken);
+                    await workflowService.OnWorkflowCompleted(completed);
+                }
+                await transaction.CommitAsync(cancellationToken);
+            });
+    }
+
+    private async Task MarkInProgressAsync(
+        Guid workflowId,
+        ArgoNodeStatus node,
+        CancellationToken cancellationToken
+    )
+    {
+        await context
+            .Workflows.Where(workflow =>
+                workflow.Id == workflowId && workflow.Status == WorkflowStatus.Pending
+            )
+            .ExecuteUpdateAsync(
+                setters =>
+                    setters
+                        .SetProperty(workflow => workflow.Status, WorkflowStatus.InProgress)
+                        .SetProperty(
+                            workflow => workflow.StartedAt,
+                            node.StartedAt ?? DateTime.UtcNow
+                        ),
+                cancellationToken
+            );
+    }
+
+    private async Task CompleteAnalysisRunAsync(
+        ArgoWorkflowResource resource,
+        Guid analysisRunId,
+        CancellationToken cancellationToken
+    )
+    {
+        if (resource.Status?.Phase is not ("Succeeded" or "Failed" or "Error"))
         {
-            return new WorkflowCompletion(WorkflowStatus.Failed, null, resource.Status?.Message);
+            return;
         }
 
-        var resultJson = resource
-            .Status?.Outputs?.Parameters.FirstOrDefault(parameter => parameter.Name == "result")
+        var workflows = await context
+            .Workflows.AsNoTracking()
+            .Where(workflow => workflow.AnalysisRunId == analysisRunId)
+            .ToListAsync(cancellationToken);
+        var failed =
+            workflows.Any(workflow => workflow.Status == WorkflowStatus.Failed)
+            || resource.Status.Phase is "Failed" or "Error";
+        if (
+            !failed
+            && workflows.Any(workflow =>
+                workflow.Status is WorkflowStatus.Pending or WorkflowStatus.InProgress
+            )
+        )
+        {
+            logger.LogWarning(
+                "Deferring completion of AnalysisRun {AnalysisRunId} because one or more Argo nodes have not been reconciled",
+                analysisRunId
+            );
+            return;
+        }
+        var skipped =
+            !failed && workflows.Any(workflow => workflow.Status == WorkflowStatus.Skipped);
+        var status =
+            failed ? AnalysisRunStatus.Failed
+            : skipped ? AnalysisRunStatus.Skipped
+            : AnalysisRunStatus.Succeeded;
+        var skipReason = skipped ? GetSkipReason(workflows) : null;
+
+        var updated = await context
+            .AnalysisRuns.Where(run =>
+                run.Id == analysisRunId && run.Status == AnalysisRunStatus.InProgress
+            )
+            .ExecuteUpdateAsync(
+                setters =>
+                    setters
+                        .SetProperty(run => run.Status, status)
+                        .SetProperty(run => run.SkipReason, skipReason)
+                        .SetProperty(run => run.CompletedAt, DateTime.UtcNow),
+                cancellationToken
+            );
+        if (updated == 0 || status != AnalysisRunStatus.Succeeded)
+        {
+            return;
+        }
+
+        var run = await context
+            .AnalysisRuns.AsNoTracking()
+            .Include(candidate => candidate.Workflows)
+            .SingleAsync(candidate => candidate.Id == analysisRunId, cancellationToken);
+        await workflowService.OnAnalysisCompleted(run);
+    }
+
+    private string? GetSkipReason(IReadOnlyList<Workflow> workflows)
+    {
+        foreach (var workflow in workflows.OrderBy(candidate => candidate.StepNumber))
+        {
+            if (
+                !_options.Workflows.TryGetValue(workflow.WorkflowType, out var config)
+                || config.SkipChainIf is null
+                || workflow.ResultJson is null
+            )
+            {
+                continue;
+            }
+
+            try
+            {
+                using var result = JsonDocument.Parse(workflow.ResultJson);
+                if (
+                    result.RootElement.TryGetProperty(
+                        config.SkipChainIf.ResultJsonKeyToCheckForSkipBoolean,
+                        out var value
+                    )
+                    && string.Equals(
+                        value.ToString(),
+                        config.SkipChainIf.Value,
+                        StringComparison.OrdinalIgnoreCase
+                    )
+                )
+                {
+                    return $"{workflow.WorkflowType} gate matched: {config.SkipChainIf.ResultJsonKeyToCheckForSkipBoolean}={config.SkipChainIf.Value}";
+                }
+            }
+            catch (JsonException) { }
+        }
+        return "Downstream workflows were skipped by an Argo gate";
+    }
+
+    private Task RecoverUidAsync(WorkflowIdentity identity, CancellationToken cancellationToken) =>
+        context
+            .Workflows.Where(workflow =>
+                workflow.AnalysisRunId == identity.AnalysisRunId
+                && workflow.ArgoWorkflowName == identity.Name
+                && workflow.ArgoWorkflowUid == null
+            )
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(workflow => workflow.ArgoWorkflowUid, identity.Uid),
+                cancellationToken
+            );
+
+    private static WorkflowCompletion ReadCompletion(ArgoNodeStatus node)
+    {
+        if (node.Phase is "Skipped" or "Omitted")
+        {
+            return new WorkflowCompletion(WorkflowStatus.Skipped, null, node.Message);
+        }
+        if (node.Phase is "Failed" or "Error")
+        {
+            return new WorkflowCompletion(WorkflowStatus.Failed, null, node.Message);
+        }
+
+        var resultJson = node
+            .Outputs?.Parameters.FirstOrDefault(parameter => parameter.Name == "result")
             ?.Value;
         try
         {
@@ -114,7 +304,6 @@ public class ArgoWorkflowEventProcessor(
             {
                 throw new JsonException("Result parameter is missing");
             }
-
             using var _ = JsonDocument.Parse(resultJson);
             return new WorkflowCompletion(WorkflowStatus.Succeeded, resultJson, null);
         }
@@ -128,93 +317,28 @@ public class ArgoWorkflowEventProcessor(
         }
     }
 
-    /// <summary>
-    /// Atomically claims an in-progress workflow and runs completion handling. Keeping both
-    /// operations in one transaction allows a later relist to retry if completion handling fails.
-    /// </summary>
-    private Task<bool> ClaimWorkflowAndHandleCompletionAsync(
-        WorkflowIdentity identity,
-        WorkflowCompletion completion,
-        CancellationToken cancellationToken
-    ) =>
-        context
-            .Database.CreateExecutionStrategy()
-            .ExecuteAsync(async () =>
-            {
-                await using var transaction = await context.Database.BeginTransactionAsync(
-                    cancellationToken
-                );
-                if (!await TryClaimWorkflowAsync(identity, completion, cancellationToken))
-                {
-                    return false;
-                }
-
-                var workflow = await LoadWorkflowForCompletionAsync(
-                    identity.WorkflowId,
-                    cancellationToken
-                );
-                await workflowService.OnWorkflowCompleted(workflow);
-                await transaction.CommitAsync(cancellationToken);
-                return true;
-            });
-
-    /// <summary>
-    /// Ensures that each workflow completion is handled only once, even though Kubernetes watches
-    /// may deliver the same event multiple times or events from an older Argo execution. The update
-    /// is conditional so competing processor instances cannot both complete the workflow. A missing
-    /// stored UID is accepted to recover workflows created before their Argo UID was persisted.
-    /// </summary>
-    private async Task<bool> TryClaimWorkflowAsync(
-        WorkflowIdentity identity,
-        WorkflowCompletion completion,
-        CancellationToken cancellationToken
-    )
+    private static WorkflowIdentity? ReadIdentity(ArgoWorkflowResource resource)
     {
-        var updated = await context
-            .Workflows.Where(workflow =>
-                workflow.Id == identity.WorkflowId
-                && workflow.ArgoWorkflowName == identity.Name
-                && (workflow.ArgoWorkflowUid == identity.Uid || workflow.ArgoWorkflowUid == null)
-                && workflow.Status == WorkflowStatus.InProgress
+        if (
+            resource.Metadata.Name is not { } name
+            || resource.Metadata.Uid is not { } uid
+            || !resource.Metadata.Labels.TryGetValue(
+                ArgoWorkflowClient.AnalysisRunIdLabel,
+                out var analysisRunIdText
             )
-            .ExecuteUpdateAsync(
-                setters =>
-                    setters
-                        .SetProperty(workflow => workflow.Status, completion.Status)
-                        .SetProperty(workflow => workflow.ResultJson, completion.ResultJson)
-                        .SetProperty(workflow => workflow.ErrorMessage, completion.ErrorMessage)
-                        .SetProperty(workflow => workflow.ArgoWorkflowUid, identity.Uid)
-                        .SetProperty(workflow => workflow.CompletedAt, DateTime.UtcNow),
-                cancellationToken
-            );
-
-        return updated > 0;
+            || !Guid.TryParse(analysisRunIdText, out var analysisRunId)
+        )
+        {
+            return null;
+        }
+        return new WorkflowIdentity(analysisRunId, name, uid);
     }
 
-    /// <summary>
-    /// Loads the claimed workflow with the analysis run required by workflow result handlers.
-    /// </summary>
-    private Task<Workflow> LoadWorkflowForCompletionAsync(
-        Guid workflowId,
-        CancellationToken cancellationToken
-    ) =>
-        context
-            .Workflows.AsNoTracking()
-            .Include(workflow => workflow.AnalysisRun)
-            .SingleAsync(workflow => workflow.Id == workflowId, cancellationToken);
-
-    private readonly record struct WorkflowIdentity(Guid WorkflowId, string Name, string Uid);
+    private readonly record struct WorkflowIdentity(Guid AnalysisRunId, string Name, string Uid);
 
     private readonly record struct WorkflowCompletion(
         WorkflowStatus Status,
         string? ResultJson,
         string? ErrorMessage
     );
-
-    private enum TerminalArgoWorkflowPhase
-    {
-        Succeeded,
-        Failed,
-        Error,
-    }
 }

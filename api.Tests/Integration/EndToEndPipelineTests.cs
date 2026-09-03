@@ -53,6 +53,15 @@ public class EndToEndPipelineTests : IAsyncLifetime
 
     private async Task ProcessWorkflowSucceeded(Workflow workflow, string resultJson)
     {
+        await _context.Entry(workflow).ReloadAsync(TestContext.Current.CancellationToken);
+        Assert.NotNull(workflow.ArgoWorkflowName);
+        Assert.NotNull(workflow.ArgoWorkflowUid);
+        var isLastStep = !await _context.Workflows.AnyAsync(
+            candidate =>
+                candidate.AnalysisRunId == workflow.AnalysisRunId
+                && candidate.StepNumber > workflow.StepNumber,
+            TestContext.Current.CancellationToken
+        );
         using var scope = _factory.Services.CreateScope();
         var processor = scope.ServiceProvider.GetRequiredService<IArgoWorkflowEventProcessor>();
         await processor.HandleWorkflowEventAsync(
@@ -64,15 +73,27 @@ public class EndToEndPipelineTests : IAsyncLifetime
                     Uid = workflow.ArgoWorkflowUid,
                     Labels = new Dictionary<string, string>
                     {
-                        [ArgoWorkflowClient.WorkflowIdLabel] = workflow.Id.ToString(),
+                        [ArgoWorkflowClient.AnalysisRunIdLabel] = workflow.AnalysisRunId.ToString(),
                     },
                 },
                 Status = new ArgoWorkflowStatus
                 {
-                    Phase = "Succeeded",
-                    Outputs = new ArgoOutputs
+                    Phase = isLastStep ? "Succeeded" : "Running",
+                    Nodes = new Dictionary<string, ArgoNodeStatus>
                     {
-                        Parameters = [new ArgoParameter { Name = "result", Value = resultJson }],
+                        [workflow.Id.ToString()] = new ArgoNodeStatus
+                        {
+                            DisplayName = AnalysisWorkflowGraphBuilder.GetTaskName(workflow),
+                            Type = "DAG",
+                            Phase = "Succeeded",
+                            Outputs = new ArgoOutputs
+                            {
+                                Parameters =
+                                [
+                                    new ArgoParameter { Name = "result", Value = resultJson },
+                                ],
+                            },
+                        },
                     },
                 },
             },
@@ -157,9 +178,8 @@ public class EndToEndPipelineTests : IAsyncLifetime
         await _context.Entry(step1.AnalysisRun).ReloadAsync(TestContext.Current.CancellationToken);
 
         var requests = _factory.ArgoWorkflowClient.Requests;
-        Assert.Equal(2, requests.Count);
-        Assert.Contains(requests, request => request.WorkflowTemplateName == "test-1");
-        Assert.Contains(requests, request => request.WorkflowTemplateName == "test-2");
+        var request = Assert.Single(requests);
+        Assert.Equal(["test-1", "test-2"], request.Tasks.Select(task => task.TemplateRef.Name));
         Assert.Equal(WorkflowStatus.Succeeded, step1.Status);
         Assert.Equal(WorkflowStatus.Succeeded, step2.Status);
         Assert.Equal(AnalysisRunStatus.Succeeded, step1.AnalysisRun.Status);

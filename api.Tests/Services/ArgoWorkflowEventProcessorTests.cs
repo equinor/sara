@@ -1,18 +1,13 @@
 using System;
 using System.Collections.Generic;
-using System.Text.Json;
+using System.Linq;
 using System.Threading.Tasks;
 using api.Database.Context;
 using api.Database.Models;
 using api.Services;
 using Api.Test.Database;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Moq;
 using Testcontainers.PostgreSql;
 using Xunit;
 
@@ -27,10 +22,11 @@ public class ArgoWorkflowEventProcessorTests : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        (_container, string cs) = await TestSetupHelpers.ConfigurePostgreSqlDatabase();
-        _factory = TestSetupHelpers.ConfigureWebApplicationFactory(cs);
+        (_container, string connectionString) =
+            await TestSetupHelpers.ConfigurePostgreSqlDatabase();
+        _factory = TestSetupHelpers.ConfigureWebApplicationFactory(connectionString);
         _ = _factory.Services;
-        _context = TestSetupHelpers.ConfigurePostgreSqlContext(cs);
+        _context = TestSetupHelpers.ConfigurePostgreSqlContext(connectionString);
         _db = new DatabaseUtilities(_context);
     }
 
@@ -41,189 +37,148 @@ public class ArgoWorkflowEventProcessorTests : IAsyncLifetime
         await _container.DisposeAsync();
     }
 
-    [Theory]
-    [InlineData(null)]
-    [InlineData("not-json")]
-    public async Task SucceededWithoutValidResult_FailsWorkflow(string? result)
+    [Fact]
+    public async Task NodeEvents_ReconcileEveryStepAndCompleteRun()
     {
-        var workflow = await NewInProgressWorkflow();
+        var analysis = await _db.NewAnalysis();
+        var run = await _db.NewAnalysisRun(analysis);
+        run.Status = AnalysisRunStatus.InProgress;
+        var first = await _db.NewWorkflow(run, workflowType: "test-workflow-1", stepNumber: 1);
+        var second = await _db.NewWorkflow(run, workflowType: "test-workflow-2", stepNumber: 2);
+        SetArgoIdentity(run, "argo-uid");
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        await Process(workflow, "Succeeded", result);
+        await Process(
+            run,
+            "Succeeded",
+            Node(first, "Succeeded", "{\"step\":1}"),
+            Node(second, "Succeeded", "{\"step\":2}")
+        );
 
-        await _context.Entry(workflow).ReloadAsync(TestContext.Current.CancellationToken);
-        Assert.Equal(WorkflowStatus.Failed, workflow.Status);
-        Assert.NotNull(workflow.ErrorMessage);
+        await _context.Entry(first).ReloadAsync(TestContext.Current.CancellationToken);
+        await _context.Entry(second).ReloadAsync(TestContext.Current.CancellationToken);
+        await _context.Entry(run).ReloadAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(WorkflowStatus.Succeeded, first.Status);
+        Assert.Equal(WorkflowStatus.Succeeded, second.Status);
+        Assert.Equal(AnalysisRunStatus.Succeeded, run.Status);
+    }
+
+    [Fact]
+    public async Task GateOmittedNodes_MarkRunSkipped()
+    {
+        var analysis = await _db.NewAnalysis();
+        var run = await _db.NewAnalysisRun(analysis);
+        run.Status = AnalysisRunStatus.InProgress;
+        var gate = await _db.NewWorkflow(run, workflowType: "test-gate", stepNumber: 1);
+        var downstream = await _db.NewWorkflow(run, workflowType: "test-workflow-2", stepNumber: 2);
+        SetArgoIdentity(run, "argo-uid");
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        await Process(
+            run,
+            "Succeeded",
+            Node(gate, "Succeeded", "{\"skip\":true}"),
+            Node(downstream, "Omitted")
+        );
+
+        await _context.Entry(downstream).ReloadAsync(TestContext.Current.CancellationToken);
+        await _context.Entry(run).ReloadAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(WorkflowStatus.Skipped, downstream.Status);
+        Assert.Equal(AnalysisRunStatus.Skipped, run.Status);
+        Assert.Contains("test-gate gate matched", run.SkipReason);
+    }
+
+    [Fact]
+    public async Task DuplicateTerminalEvent_IsProcessedOnce()
+    {
+        var record = await _db.NewInspectionRecord(inspectionId: "inspection-cloe");
+        var analysis = await _db.NewAnalysis(inspectionRecords: [record]);
+        var run = await _db.NewAnalysisRun(analysis);
+        run.Status = AnalysisRunStatus.InProgress;
+        var workflow = await _db.NewWorkflow(run, workflowType: "cloe");
+        SetArgoIdentity(run, "argo-uid");
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var node = Node(workflow, "Succeeded", "{\"oilLevel\":0.42,\"confidence\":0.9}");
+
+        await Process(run, "Succeeded", node);
+        await Process(run, "Succeeded", node);
+
+        Assert.Single(_factory.MqttPublisher.AnalysisResultMessages);
     }
 
     [Fact]
     public async Task StaleUid_IsIgnored()
     {
-        var workflow = await NewInProgressWorkflow();
-
-        await Process(workflow, "Succeeded", "{}", uid: "stale");
-
-        await _context.Entry(workflow).ReloadAsync(TestContext.Current.CancellationToken);
-        Assert.Equal(WorkflowStatus.InProgress, workflow.Status);
-    }
-
-    [Fact]
-    public async Task MissingPersistedUid_IsRecoveredForMatchingResourceName()
-    {
-        var workflow = await NewInProgressWorkflow();
-        workflow.ArgoWorkflowUid = null;
-        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
-
-        await Process(workflow, "Succeeded", "{}", uid: "recovered-uid");
-
-        await _context.Entry(workflow).ReloadAsync(TestContext.Current.CancellationToken);
-        Assert.Equal(WorkflowStatus.Succeeded, workflow.Status);
-        Assert.Equal("recovered-uid", workflow.ArgoWorkflowUid);
-    }
-
-    [Fact]
-    public async Task DuplicateTerminalEvent_DoesNotTriggerNextWorkflowTwice()
-    {
-        var workflow = await NewInProgressWorkflow(withNextWorkflow: true);
-
-        await Process(workflow, "Succeeded", "{}");
-        await Process(workflow, "Succeeded", "{}");
-
-        Assert.Single(_factory.ArgoWorkflowClient.Requests);
-    }
-
-    [Theory]
-    [InlineData("Failed")]
-    [InlineData("Error")]
-    public async Task FailedPhase_StoresStatusMessage(string phase)
-    {
-        var workflow = await NewInProgressWorkflow();
-
-        await Process(workflow, phase, null, message: "Argo failed");
-
-        await _context.Entry(workflow).ReloadAsync(TestContext.Current.CancellationToken);
-        Assert.Equal(WorkflowStatus.Failed, workflow.Status);
-        Assert.Equal("Argo failed", workflow.ErrorMessage);
-    }
-
-    [Fact]
-    public async Task CompletionFailure_RollsBackClaimSoRelistCanRetry()
-    {
-        var workflow = await NewInProgressWorkflow();
-        var workflowService = new Mock<IWorkflowService>();
-        workflowService
-            .Setup(service => service.OnWorkflowCompleted(It.IsAny<Workflow>()))
-            .ThrowsAsync(new InvalidOperationException("completion failed"));
-        using var factory = _factory.WithWebHostBuilder(builder =>
-            builder.ConfigureTestServices(services =>
-            {
-                services.RemoveAll<IWorkflowService>();
-                services.AddScoped(_ => workflowService.Object);
-            })
-        );
-        _ = factory.Services;
-
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            Process(workflow, "Succeeded", "{}", factory: factory)
-        );
-
-        await _context.Entry(workflow).ReloadAsync(TestContext.Current.CancellationToken);
-        Assert.Equal(WorkflowStatus.InProgress, workflow.Status);
-        Assert.Null(workflow.CompletedAt);
-    }
-
-    private async Task<Workflow> NewInProgressWorkflow(bool withNextWorkflow = false)
-    {
         var analysis = await _db.NewAnalysis();
         var run = await _db.NewAnalysisRun(analysis);
+        run.Status = AnalysisRunStatus.InProgress;
         var workflow = await _db.NewWorkflow(run, workflowType: "test-workflow-1");
-        workflow.Status = WorkflowStatus.InProgress;
-        workflow.ArgoWorkflowName = "argo-name";
-        workflow.ArgoWorkflowUid = "current-uid";
-        if (withNextWorkflow)
+        SetArgoIdentity(run, "current-uid");
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        await Process(run, "Succeeded", Node(workflow, "Succeeded", "{}"), "stale-uid");
+
+        await _context.Entry(workflow).ReloadAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(WorkflowStatus.Pending, workflow.Status);
+    }
+
+    private void SetArgoIdentity(AnalysisRun run, string uid)
+    {
+        foreach (var workflow in run.Workflows)
         {
-            await _db.NewWorkflow(
-                run,
-                workflowType: "test-workflow-2",
-                stepNumber: 2,
-                outputBlobStorageLocation: _db.NewBlobStorageLocation()
+            workflow.ArgoWorkflowName = AnalysisWorkflowGraphBuilder.GetArgoWorkflowName(
+                run.Analysis.AnalysisType,
+                run.Id
             );
+            workflow.ArgoWorkflowUid = uid;
         }
-        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
-        return workflow;
     }
 
-    [Fact]
-    public async Task SucceededWorkflow_PublishesAnalysisResult()
-    {
-        // The processor re-reads the workflow with AsNoTracking, so result
-        // handlers see whatever that query loaded -- not the change-tracked
-        // graph the test built. Handlers that read workflow.AnalysisRun break
-        // if the navigation is not included, and the failure is swallowed and
-        // logged, so the workflow still looks complete while the MQTT message
-        // and the timeseries upload are silently lost.
-        var record = await _db.NewInspectionRecord(inspectionId: "insp-cloe-1");
-        var analysis = await _db.NewAnalysis(inspectionRecords: [record]);
-        var run = await _db.NewAnalysisRun(analysis);
-        var workflow = await _db.NewWorkflow(
-            run,
-            workflowType: "cloe",
-            outputBlobStorageLocation: _db.NewBlobStorageLocation(blobName: "result.json")
-        );
-        workflow.Status = WorkflowStatus.InProgress;
-        workflow.ArgoWorkflowName = "argo-name";
-        workflow.ArgoWorkflowUid = "current-uid";
-        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
-
-        await Process(
-            workflow,
-            "Succeeded",
-            JsonSerializer.Serialize(
-                new
+    private static ArgoNodeStatus Node(Workflow workflow, string phase, string? result = null) =>
+        new()
+        {
+            DisplayName = AnalysisWorkflowGraphBuilder.GetTaskName(workflow),
+            Type = "DAG",
+            Phase = phase,
+            Outputs = result is null
+                ? null
+                : new ArgoOutputs
                 {
-                    oilLevel = 0.42f,
-                    confidence = 0.93f,
-                    warning = (string?)null,
-                }
-            )
-        );
+                    Parameters = [new ArgoParameter { Name = "result", Value = result }],
+                },
+        };
 
-        Assert.Single(_factory.MqttPublisher.AnalysisResultMessages);
-        Assert.Single(_factory.TimeseriesService.Uploads);
-    }
+    private async Task Process(AnalysisRun run, string phase, params ArgoNodeStatus[] nodes) =>
+        await Process(run, phase, nodes, "argo-uid");
 
-    private async Task Process(
-        Workflow workflow,
-        string phase,
-        string? result,
-        string? uid = null,
-        string? message = null,
-        WebApplicationFactory<Program>? factory = null
-    )
+    private async Task Process(AnalysisRun run, string phase, ArgoNodeStatus node, string uid) =>
+        await Process(run, phase, [node], uid);
+
+    private async Task Process(AnalysisRun run, string phase, ArgoNodeStatus[] nodes, string uid)
     {
-        using var scope = (factory ?? _factory).Services.CreateScope();
+        using var scope = _factory.Services.CreateScope();
         var processor = scope.ServiceProvider.GetRequiredService<IArgoWorkflowEventProcessor>();
         await processor.HandleWorkflowEventAsync(
             new ArgoWorkflowResource
             {
                 Metadata = new ArgoObjectMetadata
                 {
-                    Name = workflow.ArgoWorkflowName,
-                    Uid = uid ?? workflow.ArgoWorkflowUid,
+                    Name = AnalysisWorkflowGraphBuilder.GetArgoWorkflowName(
+                        run.Analysis.AnalysisType,
+                        run.Id
+                    ),
+                    Uid = uid,
                     Labels = new Dictionary<string, string>
                     {
-                        [ArgoWorkflowClient.WorkflowIdLabel] = workflow.Id.ToString(),
+                        [ArgoWorkflowClient.AnalysisRunIdLabel] = run.Id.ToString(),
                     },
                 },
                 Status = new ArgoWorkflowStatus
                 {
                     Phase = phase,
-                    Message = message,
-                    Outputs = result is null
-                        ? null
-                        : new ArgoOutputs
-                        {
-                            Parameters = [new ArgoParameter { Name = "result", Value = result }],
-                        },
+                    Nodes = nodes
+                        .Select((node, index) => (node, index))
+                        .ToDictionary(pair => $"node-{pair.index}", pair => pair.node),
                 },
             },
             TestContext.Current.CancellationToken

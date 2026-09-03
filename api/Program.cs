@@ -71,6 +71,20 @@ builder
         options => options.Workflows.Values.All(w => w.IsGate == (w.SkipChainIf is not null)),
         "Invalid Analysis.Workflows configuration: IsGate and SkipChainIf must both be set or both be unset on every workflow."
     )
+    .Validate(
+        options =>
+            options.Workflows.Values.All(workflow =>
+                !string.IsNullOrWhiteSpace(workflow.WorkflowTemplateName)
+            ),
+        "Invalid Analysis.Workflows configuration: WorkflowTemplateName is required."
+    )
+    .Validate(
+        options =>
+            options
+                .Analyses.Values.SelectMany(analysis => analysis.Workflows)
+                .All(options.Workflows.ContainsKey),
+        "Invalid Analysis configuration: every workflow in an analysis chain must exist in Analysis.Workflows."
+    )
     .ValidateOnStart();
 
 builder.Services.AddScoped<IThermalReferenceMetadataService, ThermalReferenceMetadataService>();
@@ -90,6 +104,8 @@ builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IFeedbackService, FeedbackService>();
 
 builder.Services.AddScoped<IWorkflowService, WorkflowService>();
+builder.Services.AddScoped<IAnalysisWorkflowGraphBuilder, AnalysisWorkflowGraphBuilder>();
+builder.Services.AddScoped<IAnalysisWorkflowService, AnalysisWorkflowService>();
 builder.Services.AddSingleton<IKubernetes>(_ => new Kubernetes(
     KubernetesClientConfiguration.BuildDefaultConfig()
 ));
