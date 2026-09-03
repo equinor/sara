@@ -18,7 +18,7 @@ public interface IAnalysisTriggerService
 public class AnalysisTriggerService(
     SaraDbContext context,
     IOptions<AnalysisOptions> analysisOptions,
-    IWorkflowService workflowService,
+    IAnalysisWorkflowService analysisWorkflowService,
     ILogger<AnalysisTriggerService> logger
 ) : IAnalysisTriggerService
 {
@@ -89,8 +89,7 @@ public class AnalysisTriggerService(
 
         var run = await CreateAnalysisRun(analysis, inspectionRecords);
 
-        var firstWorkflow = run.Workflows.OrderBy(w => w.StepNumber).First();
-        await workflowService.TriggerWorkflow(firstWorkflow);
+        await analysisWorkflowService.SubmitAsync(run);
     }
 
     private async Task<AnalysisRun> CreateAnalysisRun(

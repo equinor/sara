@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using api.Database.Models;
@@ -109,7 +110,9 @@ public class WorkflowDto
                 {
                     AnalysisId = analysisId,
                     AnalysisType = workflowType,
-                    Value = result?.OilLevel is { } oil ? oil.ToString("F5") : null,
+                    Value = result?.OilLevel is { } oil
+                        ? oil.ToString("F5", CultureInfo.InvariantCulture)
+                        : null,
                     Unit = "",
                     Confidence = result?.Confidence is { } c ? c * 100f : null,
                     Warning = result?.Warning,

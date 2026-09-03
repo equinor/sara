@@ -19,12 +19,9 @@ public record ArgoWorkflowSnapshot(
 /// <summary>Creates, lists, and watches SARA-managed Argo Workflows in Kubernetes.</summary>
 public interface IArgoWorkflowClient
 {
-    /// <summary>Creates a workflow from an Argo WorkflowTemplate.</summary>
+    /// <summary>Creates a generated Argo Workflow.</summary>
     Task<CreatedArgoWorkflow> CreateWorkflowAsync(
-        string workflowName,
-        string workflowTemplateName,
-        Guid workflowId,
-        IReadOnlyDictionary<string, string> arguments,
+        ArgoWorkflowResource workflow,
         CancellationToken cancellationToken = default
     );
 
@@ -49,31 +46,21 @@ public class ArgoWorkflowClient(IKubernetes kubernetes, IConfiguration configura
     : IArgoWorkflowClient
 {
     public const string ManagedByLabel = "app.kubernetes.io/managed-by";
-    public const string WorkflowIdLabel = "sara.equinor.com/workflow-id";
+    public const string AnalysisRunIdLabel = "sara.equinor.com/analysis-run-id";
     private const string Group = "argoproj.io";
     private const string Version = "v1alpha1";
     private const string Plural = "workflows";
-    private const string LabelSelector = ManagedByLabel + "=sara";
+    private const string LabelSelector = ManagedByLabel + "=sara," + AnalysisRunIdLabel;
     private readonly string _namespace =
         configuration["ArgoWorkflowsNamespace"]
         ?? throw new InvalidOperationException("ArgoWorkflowsNamespace is not configured");
 
     /// <inheritdoc />
     public async Task<CreatedArgoWorkflow> CreateWorkflowAsync(
-        string workflowName,
-        string workflowTemplateName,
-        Guid workflowId,
-        IReadOnlyDictionary<string, string> arguments,
+        ArgoWorkflowResource workflowResource,
         CancellationToken cancellationToken = default
     )
     {
-        var workflowResource = BuildWorkflowResource(
-            workflowName,
-            workflowTemplateName,
-            workflowId,
-            arguments
-        );
-
         ArgoWorkflowResource created;
         try
         {
@@ -96,7 +83,8 @@ public class ArgoWorkflowClient(IKubernetes kubernetes, IConfiguration configura
                     Version,
                     _namespace,
                     Plural,
-                    workflowName,
+                    workflowResource.Metadata.Name
+                        ?? throw new InvalidOperationException("Workflow has no name"),
                     cancellationToken
                 );
         }
@@ -157,36 +145,6 @@ public class ArgoWorkflowClient(IKubernetes kubernetes, IConfiguration configura
             yield return watchEvent.Item2;
         }
     }
-
-    /// <summary>Builds the Kubernetes resource used to create an Argo Workflow.</summary>
-    private static ArgoWorkflowResource BuildWorkflowResource(
-        string workflowName,
-        string workflowTemplateName,
-        Guid workflowId,
-        IReadOnlyDictionary<string, string> arguments
-    ) =>
-        new()
-        {
-            Metadata = new ArgoObjectMetadata
-            {
-                Name = workflowName,
-                Labels = new Dictionary<string, string>
-                {
-                    [ManagedByLabel] = "sara",
-                    [WorkflowIdLabel] = workflowId.ToString(),
-                },
-            },
-            Spec = new ArgoWorkflowSpec
-            {
-                WorkflowTemplateRef = new ArgoWorkflowTemplateRef { Name = workflowTemplateName },
-                Arguments = new ArgoArguments
-                {
-                    Parameters = arguments
-                        .Select(pair => new ArgoParameter { Name = pair.Key, Value = pair.Value })
-                        .ToList(),
-                },
-            },
-        };
 }
 
 public class ArgoWorkflowResource
@@ -244,17 +202,56 @@ public class ArgoWorkflowWatchException(int? statusCode, string message) : Excep
 
 public class ArgoWorkflowSpec
 {
-    [JsonPropertyName("workflowTemplateRef")]
-    public required ArgoWorkflowTemplateRef WorkflowTemplateRef { get; set; }
+    [JsonPropertyName("entrypoint")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Entrypoint { get; set; }
 
-    [JsonPropertyName("arguments")]
-    public required ArgoArguments Arguments { get; set; }
+    [JsonPropertyName("templates")]
+    public List<ArgoTemplate> Templates { get; set; } = [];
 }
 
-public class ArgoWorkflowTemplateRef
+public class ArgoTemplate
 {
     [JsonPropertyName("name")]
     public required string Name { get; set; }
+
+    [JsonPropertyName("dag")]
+    public required ArgoDag Dag { get; set; }
+}
+
+public class ArgoDag
+{
+    [JsonPropertyName("tasks")]
+    public List<ArgoDagTask> Tasks { get; set; } = [];
+}
+
+public class ArgoDagTask
+{
+    [JsonPropertyName("name")]
+    public required string Name { get; set; }
+
+    [JsonPropertyName("templateRef")]
+    public required ArgoTemplateRef TemplateRef { get; set; }
+
+    [JsonPropertyName("arguments")]
+    public required ArgoArguments Arguments { get; set; }
+
+    [JsonPropertyName("depends")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Depends { get; set; }
+
+    [JsonPropertyName("when")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? When { get; set; }
+}
+
+public class ArgoTemplateRef
+{
+    [JsonPropertyName("name")]
+    public required string Name { get; set; }
+
+    [JsonPropertyName("template")]
+    public required string Template { get; set; }
 }
 
 public class ArgoArguments
@@ -269,7 +266,7 @@ public class ArgoParameter
     public required string Name { get; set; }
 
     [JsonPropertyName("value")]
-    public required string Value { get; set; }
+    public string? Value { get; set; }
 }
 
 public class ArgoWorkflowStatus
@@ -279,6 +276,33 @@ public class ArgoWorkflowStatus
 
     [JsonPropertyName("message")]
     public string? Message { get; set; }
+
+    [JsonPropertyName("outputs")]
+    public ArgoOutputs? Outputs { get; set; }
+
+    [JsonPropertyName("nodes")]
+    public Dictionary<string, ArgoNodeStatus> Nodes { get; set; } = [];
+}
+
+public class ArgoNodeStatus
+{
+    [JsonPropertyName("displayName")]
+    public string? DisplayName { get; set; }
+
+    [JsonPropertyName("type")]
+    public string? Type { get; set; }
+
+    [JsonPropertyName("phase")]
+    public string? Phase { get; set; }
+
+    [JsonPropertyName("message")]
+    public string? Message { get; set; }
+
+    [JsonPropertyName("startedAt")]
+    public DateTime? StartedAt { get; set; }
+
+    [JsonPropertyName("finishedAt")]
+    public DateTime? FinishedAt { get; set; }
 
     [JsonPropertyName("outputs")]
     public ArgoOutputs? Outputs { get; set; }
