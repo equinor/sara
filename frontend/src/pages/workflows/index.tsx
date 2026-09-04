@@ -16,6 +16,7 @@ import StatusChip from "../../components/StatusChip";
 import TableSkeleton from "../../components/TableSkeleton";
 import { PAGE_SIZE_OPTIONS, usePagedList } from "../../utils/usePagedList";
 import { argoWorkflowStepUrl } from "../../utils/argo";
+import { formatElapsedDuration } from "../../utils/duration";
 
 const FILTER_KEYS: (keyof WorkflowParams & string)[] = [
   "workflowType",
@@ -110,16 +111,17 @@ export default function WorkflowsPage() {
             <Table.Cell>Status</Table.Cell>
             <Table.Cell>Started</Table.Cell>
             <Table.Cell>Completed</Table.Cell>
+            <Table.Cell>Duration</Table.Cell>
             <Table.Cell>Run</Table.Cell>
             <Table.Cell>Actions</Table.Cell>
           </Table.Row>
         </Table.Head>
         <Table.Body>
           {showSkeleton ? (
-            <TableSkeleton columns={8} rows={pageSize} />
+            <TableSkeleton columns={9} rows={pageSize} />
           ) : items.length === 0 ? (
             <Table.Row>
-              <Table.Cell colSpan={8}>No workflows.</Table.Cell>
+              <Table.Cell colSpan={9}>No workflows.</Table.Cell>
             </Table.Row>
           ) : (
             items.map((w) => (
@@ -142,6 +144,7 @@ export default function WorkflowsPage() {
                 <Table.Cell>
                   {w.completedAt ? new Date(w.completedAt).toLocaleString() : "–"}
                 </Table.Cell>
+                <Table.Cell>{formatElapsedDuration(w.startedAt, w.completedAt)}</Table.Cell>
                 <Table.Cell>
                   {w.analysisRunId && (
                     <Button
