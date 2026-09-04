@@ -177,7 +177,7 @@ export default function InspectionRecordDetailPage() {
       <Table>
         <Table.Head>
           <Table.Row>
-            <Table.Cell>Name</Table.Cell>
+            <Table.Cell>Type</Table.Cell>
             <Table.Cell>Created</Table.Cell>
             <Table.Cell>#Runs</Table.Cell>
             <Table.Cell>Latest Run</Table.Cell>
@@ -195,7 +195,7 @@ export default function InspectionRecordDetailPage() {
               const latest = runs[runs.length - 1];
               return (
                 <Table.Row key={a.id}>
-                  <Table.Cell>{a.name}</Table.Cell>
+                  <Table.Cell>{a.analysisType}</Table.Cell>
                   <Table.Cell>{new Date(a.createdAt).toLocaleString()}</Table.Cell>
                   <Table.Cell>{runs.length}</Table.Cell>
                   <Table.Cell>

@@ -105,7 +105,7 @@ export default function AnalysisGroupDetailPage() {
       <Table>
         <Table.Head>
           <Table.Row>
-            <Table.Cell>Name</Table.Cell>
+            <Table.Cell>Type</Table.Cell>
             <Table.Cell>Created</Table.Cell>
             <Table.Cell>#Runs</Table.Cell>
             <Table.Cell></Table.Cell>
@@ -119,7 +119,7 @@ export default function AnalysisGroupDetailPage() {
           ) : (
             (group.analyses ?? []).map((a) => (
               <Table.Row key={a.id}>
-                <Table.Cell>{a.name}</Table.Cell>
+                <Table.Cell>{a.analysisType}</Table.Cell>
                 <Table.Cell>{new Date(a.createdAt).toLocaleString()}</Table.Cell>
                 <Table.Cell>{(a.runs ?? []).length}</Table.Cell>
                 <Table.Cell>

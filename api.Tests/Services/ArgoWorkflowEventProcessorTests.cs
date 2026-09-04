@@ -60,6 +60,8 @@ public class ArgoWorkflowEventProcessorTests : IAsyncLifetime
         await _context.Entry(run).ReloadAsync(TestContext.Current.CancellationToken);
         Assert.Equal(WorkflowStatus.Succeeded, first.Status);
         Assert.Equal(WorkflowStatus.Succeeded, second.Status);
+        Assert.Equal("node-0", first.ArgoNodeId);
+        Assert.Equal("node-1", second.ArgoNodeId);
         Assert.Equal(AnalysisRunStatus.Succeeded, run.Status);
     }
 

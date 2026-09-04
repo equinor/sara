@@ -125,7 +125,7 @@ export default function AnalysesPage() {
                   <Table.Cell>
                     <IdCell id={a.id} />
                   </Table.Cell>
-                  <Table.Cell>{a.name}</Table.Cell>
+                  <Table.Cell>{a.analysisType}</Table.Cell>
                   <Table.Cell>{new Date(a.createdAt).toLocaleString()}</Table.Cell>
                   <Table.Cell>
                     {a.analysisGroupId ? (

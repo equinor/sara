@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router";
 import { Button, Icon, Table, Typography } from "@equinor/eds-core-react";
 import { arrow_back } from "@equinor/eds-icons";
 import { getAnalysisRun, type AnalysisRun } from "../../api/client";
-import { argoWorkflowUrl } from "../../authConfig";
+import { argoWorkflowStepUrl, argoWorkflowUrl } from "../../utils/argo";
 import StatusChip from "../../components/StatusChip";
 
 Icon.add({ arrow_back });
@@ -32,6 +32,7 @@ export default function AnalysisRunDetailPage() {
   const workflows = (run.workflows ?? [])
     .slice()
     .sort((a, b) => a.stepNumber - b.stepNumber);
+  const argoUrl = argoWorkflowUrl(workflows[0]?.argoWorkflowName);
 
   return (
     <div style={{ paddingTop: "1rem" }}>
@@ -52,7 +53,7 @@ export default function AnalysisRunDetailPage() {
             <Table.Cell>Analysis</Table.Cell>
             <Table.Cell>
               <Button variant="ghost" onClick={() => navigate(`/analyses/${run.analysisId}`)}>
-                {run.analysis?.name ?? run.analysisId}
+                {run.analysis?.analysisType ?? run.analysisId}
               </Button>
             </Table.Cell>
           </Table.Row>
@@ -74,6 +75,16 @@ export default function AnalysisRunDetailPage() {
               {run.completedAt ? new Date(run.completedAt).toLocaleString() : "–"}
             </Table.Cell>
           </Table.Row>
+          {argoUrl && (
+            <Table.Row>
+              <Table.Cell>Argo Workflow</Table.Cell>
+              <Table.Cell>
+                <Typography link href={argoUrl} target="_blank" rel="noopener noreferrer">
+                  View
+                </Typography>
+              </Table.Cell>
+            </Table.Row>
+          )}
         </Table.Body>
       </Table>
 
@@ -114,10 +125,14 @@ export default function AnalysisRunDetailPage() {
                   <Button variant="ghost" onClick={() => navigate(`/workflows/${w.id}`)}>
                     View
                   </Button>
-                  {argoWorkflowUrl(w.argoWorkflowName) && (
+                  {argoWorkflowStepUrl(w.argoWorkflowName, w.argoNodeId, w.argoWorkflowUid) && (
                     <Typography
                       link
-                      href={argoWorkflowUrl(w.argoWorkflowName)!}
+                      href={argoWorkflowStepUrl(
+                        w.argoWorkflowName,
+                        w.argoNodeId,
+                        w.argoWorkflowUid
+                      )!}
                       target="_blank"
                       rel="noopener noreferrer"
                       style={{ marginLeft: "0.75rem" }}

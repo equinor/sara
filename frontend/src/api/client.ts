@@ -127,6 +127,8 @@ export interface WorkflowWithoutSAS {
   inputBlobStorageLocations: BlobStorageLocation[];
   status: WorkflowStatus;
   argoWorkflowName?: string | null;
+  argoWorkflowUid?: string | null;
+  argoNodeId?: string | null;
   outputBlobStorageLocation?: BlobStorageLocation | null;
   resultJson?: string | null;
   startedAt?: string | null;
@@ -142,6 +144,8 @@ export interface Workflow {
   workflowType: string;
   status: WorkflowStatus;
   argoWorkflowName?: string | null;
+  argoWorkflowUid?: string | null;
+  argoNodeId?: string | null;
   outputBlobSAS?: string | null;
   resultJson?: string | null;
   startedAt?: string | null;
@@ -163,7 +167,7 @@ export interface AnalysisRun {
 
 export interface Analysis {
   id: string;
-  name: string;
+  analysisType: string;
   createdAt: string;
   anonymizedSAS: string;
   visualizedSAS: string;

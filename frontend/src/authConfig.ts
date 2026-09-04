@@ -22,21 +22,6 @@ export function getAppConfig(): AppConfig {
   return appConfig;
 }
 
-/**
- * Build a deep link to the Argo Workflows UI for a given Argo workflow name.
- * Returns null when the base URL is not configured (e.g. local dev) or the
- * workflow has no stored Argo name (older records / not yet started).
- */
-export function argoWorkflowUrl(
-  argoWorkflowName: string | null | undefined,
-): string | null {
-  const { argoWorkflowsBaseUrl, argoWorkflowsNamespace } = appConfig;
-  if (!argoWorkflowsBaseUrl || !argoWorkflowsNamespace || !argoWorkflowName) {
-    return null;
-  }
-  return `${argoWorkflowsBaseUrl}/workflows/${argoWorkflowsNamespace}/${argoWorkflowName}`;
-}
-
 // Resolve the config endpoint against the app's base (where the bundle lives),
 // not the current route. With Vite's relative base the bundle is served from
 // `{basePath}/assets/*.js`, so "../api/config" always resolves to
