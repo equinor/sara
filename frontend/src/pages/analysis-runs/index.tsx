@@ -16,6 +16,7 @@ import StatusChip from "../../components/StatusChip";
 import TableSkeleton from "../../components/TableSkeleton";
 import { PAGE_SIZE_OPTIONS, usePagedList } from "../../utils/usePagedList";
 import { argoWorkflowUrl } from "../../utils/argo";
+import { formatElapsedDuration } from "../../utils/duration";
 import styled from "styled-components";
 
 const FilterPanel = styled.div`
@@ -296,6 +297,7 @@ export default function AnalysisRunsPage() {
             <Table.Cell>Status</Table.Cell>
             <Table.Cell>Started</Table.Cell>
             <Table.Cell>Completed</Table.Cell>
+            <Table.Cell>Duration</Table.Cell>
             <Table.Cell>#Workflows</Table.Cell>
             <Table.Cell>Argo</Table.Cell>
             <Table.Cell>Actions</Table.Cell>
@@ -303,10 +305,10 @@ export default function AnalysisRunsPage() {
         </Table.Head>
         <Table.Body>
           {showSkeleton ? (
-            <TableSkeleton columns={9} rows={pageSize} />
+            <TableSkeleton columns={10} rows={pageSize} />
           ) : items.length === 0 ? (
             <Table.Row>
-              <Table.Cell colSpan={9}>No runs.</Table.Cell>
+              <Table.Cell colSpan={10}>No runs.</Table.Cell>
             </Table.Row>
           ) : (
             items.map((r) => (
@@ -343,6 +345,7 @@ export default function AnalysisRunsPage() {
                 <Table.Cell>
                   {r.completedAt ? new Date(r.completedAt).toLocaleString() : "–"}
                 </Table.Cell>
+                <Table.Cell>{formatElapsedDuration(r.startedAt, r.completedAt)}</Table.Cell>
                 <Table.Cell>{(r.workflows ?? []).length}</Table.Cell>
                 <Table.Cell>
                   {argoWorkflowUrl(r.workflows?.[0]?.argoWorkflowName) && (
