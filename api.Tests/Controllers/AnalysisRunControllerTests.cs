@@ -41,6 +41,30 @@ public class AnalysisRunControllerTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task GetAllFiltersByAnalysisType()
+    {
+        var cloe = await _db.NewAnalysis(type: "cloe");
+        var fencilla = await _db.NewAnalysis(type: "fencilla");
+        var cloeRun = await _db.NewAnalysisRun(cloe);
+        await _db.NewAnalysisRun(fencilla);
+
+        var response = await _client.GetAsync(
+            "/api/analysis-run?AnalysisType=cloe",
+            TestContext.Current.CancellationToken
+        );
+        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        options.Converters.Add(new JsonStringEnumConverter());
+        var page = await response.Content.ReadFromJsonAsync<PagedResponse<AnalysisRun>>(
+            options,
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.True(response.IsSuccessStatusCode);
+        Assert.NotNull(page);
+        Assert.Equal([cloeRun.Id], page.Items.Select(run => run.Id));
+    }
+
+    [Fact]
     public async Task GetAllFiltersStartedAtWithInclusiveBounds()
     {
         var since = new DateTime(2026, 9, 4, 10, 0, 0, DateTimeKind.Utc);
