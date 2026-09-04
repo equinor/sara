@@ -1,8 +1,9 @@
 import { useNavigate } from "react-router";
-import type { MouseEvent } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import { Button, Search, Table, Typography } from "@equinor/eds-core-react";
 import {
   deleteAnalysisRun,
+  getConfiguredAnalyses,
   getAnalysisRuns,
   type AnalysisRun,
   type AnalysisRunParams,
@@ -24,11 +25,11 @@ const FilterPanel = styled.div`
 
 const FilterGrid = styled.div`
   display: grid;
-  grid-template-columns: minmax(220px, 1.5fr) minmax(150px, 0.75fr) minmax(185px, 1fr) auto minmax(185px, 1fr) auto;
+  grid-template-columns: minmax(200px, 1.25fr) minmax(150px, 0.8fr) minmax(140px, 0.7fr) minmax(185px, 1fr) auto minmax(185px, 1fr) auto;
   gap: 0.75rem;
   align-items: end;
 
-  @media (max-width: 900px) {
+  @media (max-width: 1100px) {
     grid-template-columns: 1fr 1fr;
   }
 
@@ -46,7 +47,7 @@ const FilterField = styled.label`
   font-weight: 600;
 `;
 
-const StatusSelect = styled.select`
+const FilterSelect = styled.select`
   width: 100%;
   min-height: 42px;
   padding: 0.5rem 2rem 0.5rem 0.65rem;
@@ -87,17 +88,17 @@ const RangeSeparator = styled.span`
   color: #6f6f6f;
   font-size: 0.8rem;
 
-  @media (max-width: 900px) {
+  @media (max-width: 1100px) {
     display: none;
   }
 `;
 
 const ValidationMessage = styled.span`
-  grid-column: 3 / 6;
+  grid-column: 4 / 7;
   color: #eb0000;
   font-size: 0.75rem;
 
-  @media (max-width: 900px) {
+  @media (max-width: 1100px) {
     grid-column: 1 / -1;
   }
 `;
@@ -109,14 +110,31 @@ const ClearButton = styled(Button)`
 
 const FILTER_KEYS: (keyof AnalysisRunParams & string)[] = [
   "analysisId",
+  "analysisType",
   "status",
   "startedSince",
   "startedUntil",
 ];
 const STATUSES: AnalysisRunStatus[] = ["Pending", "InProgress", "Succeeded", "Failed"];
 
+function formatAnalysisType(analysisType: string): string {
+  switch (analysisType.toLowerCase()) {
+    case "fencilla":
+      return "Fence detection";
+    case "thermal-reading":
+      return "Thermal reading";
+    case "cloe":
+      return "CLOE";
+    case "co2":
+      return "CO2";
+    default:
+      return analysisType;
+  }
+}
+
 export default function AnalysisRunsPage() {
   const navigate = useNavigate();
+  const [analysisTypes, setAnalysisTypes] = useState<string[]>([]);
   const {
     response,
     loading,
@@ -155,6 +173,14 @@ export default function AnalysisRunsPage() {
     setFilters({ [key]: value ? new Date(value).toISOString() : undefined });
   };
 
+  useEffect(() => {
+    getConfiguredAnalyses()
+      .then((analyses) =>
+        setAnalysisTypes(analyses.map((analysis) => analysis.name).sort((a, b) => a.localeCompare(b)))
+      )
+      .catch(() => setAnalysisTypes([]));
+  }, []);
+
   const handleDelete = async (id: string) => {
     if (!window.confirm("Delete this run and its workflows?")) return;
     try {
@@ -181,8 +207,24 @@ export default function AnalysisRunsPage() {
             />
           </FilterField>
           <FilterField>
+            Analysis name
+            <FilterSelect
+              value={filters.analysisType ?? ""}
+              onChange={(event) =>
+                setFilters({ analysisType: event.target.value || undefined })
+              }
+            >
+              <option value="">All analyses</option>
+              {analysisTypes.map((analysisType) => (
+                <option key={analysisType} value={analysisType}>
+                  {formatAnalysisType(analysisType)}
+                </option>
+              ))}
+            </FilterSelect>
+          </FilterField>
+          <FilterField>
             Status
-            <StatusSelect
+            <FilterSelect
               value={filters.status ?? ""}
               onChange={(e) =>
                 setFilters({
@@ -196,7 +238,7 @@ export default function AnalysisRunsPage() {
                   {status}
                 </option>
               ))}
-            </StatusSelect>
+            </FilterSelect>
           </FilterField>
           <FilterField>
             Started since
@@ -223,6 +265,7 @@ export default function AnalysisRunsPage() {
               onClick={() =>
                 setFilters({
                   analysisId: undefined,
+                  analysisType: undefined,
                   status: undefined,
                   startedSince: undefined,
                   startedUntil: undefined,

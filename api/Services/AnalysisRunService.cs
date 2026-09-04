@@ -19,6 +19,7 @@ public class AnalysisRunParameters
     public int PageNumber { get; set; } = 1;
     public int PageSize { get; set; } = 25;
     public Guid? AnalysisId { get; set; }
+    public string? AnalysisType { get; set; }
     public AnalysisRunStatus? Status { get; set; }
     public DateTime? StartedSince { get; set; }
     public DateTime? StartedUntil { get; set; }
@@ -46,6 +47,9 @@ public class AnalysisRunService(SaraDbContext context) : IAnalysisRunService
 
         if (parameters.AnalysisId is { } analysisId)
             query = query.Where(r => r.AnalysisId == analysisId);
+
+        if (!string.IsNullOrWhiteSpace(parameters.AnalysisType))
+            query = query.Where(r => r.Analysis.AnalysisType == parameters.AnalysisType);
 
         if (parameters.Status is { } status)
             query = query.Where(r => r.Status == status);

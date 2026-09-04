@@ -72,16 +72,97 @@ const BucketLabel = styled.span`
   }
 `;
 
-const DetailGrid = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem 1.25rem;
-  margin-top: 0.35rem;
+const PopoverHeading = styled.div`
+  display: grid;
+  gap: 0.2rem;
+  margin-bottom: 0.5rem;
 `;
 
-const BucketPopover = styled(Popover)`
-  min-width: 240px;
-  max-width: 360px;
+const BucketPopover = styled(Popover)<{
+  $viewportWidth: number;
+  $viewportHeight: number;
+  $viewportLeft: number;
+  $viewportTop: number;
+}>`
+  width: min(420px, calc(100vw - 2rem));
+  max-width: calc(100vw - 2rem);
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+
+  > div,
+  > div > div {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  @media (max-width: 700px) {
+    position: fixed !important;
+    inset: ${(p) => p.$viewportTop + 16}px auto auto
+      ${(p) => p.$viewportLeft + 16}px !important;
+    width: ${(p) => Math.max(0, p.$viewportWidth - 32)}px;
+    max-width: none;
+    max-height: ${(p) => Math.max(0, p.$viewportHeight - 32)}px;
+    transform: none !important;
+  }
+
+`;
+
+const DetailTable = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 0.75rem;
+
+  th,
+  td {
+    padding: 0.4rem 0.5rem;
+    border-top: 1px solid #dcdcdc;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  th:first-child,
+  td:first-child {
+    width: 46%;
+    overflow: hidden;
+    text-align: left;
+    text-overflow: ellipsis;
+  }
+
+  th {
+    color: #565656;
+    font-weight: 600;
+  }
+
+  @media (max-width: 700px) {
+    font-size: 0.7rem;
+
+    th,
+    td {
+      padding-right: 0.25rem;
+      padding-left: 0.25rem;
+    }
+
+    th:first-child,
+    td:first-child {
+      width: 40%;
+    }
+  }
+`;
+
+const DesktopHeader = styled.span`
+  @media (max-width: 700px) {
+    display: none;
+  }
+`;
+
+const MobileHeader = styled.span`
+  display: none;
+
+  @media (max-width: 700px) {
+    display: inline;
+  }
 `;
 
 const Legend = styled.div`
@@ -121,6 +202,12 @@ export default function TrendChart({
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [details, setDetails] = useState<Record<string, TrendBucketDetails>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [viewport, setViewport] = useState(() => ({
+    width: window.visualViewport?.width ?? window.innerWidth,
+    height: window.visualViewport?.height ?? window.innerHeight,
+    left: window.visualViewport?.offsetLeft ?? 0,
+    top: window.visualViewport?.offsetTop ?? 0,
+  }));
   const loading = useRef(new Set<string>());
   const hoverTimer = useRef<number | null>(null);
   const max = Math.max(1, ...data.map((bucket) => bucket.succeeded + bucket.failed));
@@ -158,6 +245,25 @@ export default function TrendChart({
     },
     []
   );
+
+  useEffect(() => {
+    const updateViewport = () =>
+      setViewport({
+        width: window.visualViewport?.width ?? window.innerWidth,
+        height: window.visualViewport?.height ?? window.innerHeight,
+        left: window.visualViewport?.offsetLeft ?? 0,
+        top: window.visualViewport?.offsetTop ?? 0,
+      });
+    const visualViewport = window.visualViewport;
+    window.addEventListener("resize", updateViewport);
+    visualViewport?.addEventListener("resize", updateViewport);
+    visualViewport?.addEventListener("scroll", updateViewport);
+    return () => {
+      window.removeEventListener("resize", updateViewport);
+      visualViewport?.removeEventListener("resize", updateViewport);
+      visualViewport?.removeEventListener("scroll", updateViewport);
+    };
+  }, []);
 
   const activateBucket = (bucketStart: string, anchor: HTMLElement) => {
     setSelectedBucket(bucketStart);
@@ -224,9 +330,13 @@ export default function TrendChart({
           })}
         </ChartTrack>
         <BucketPopover
+          $viewportWidth={viewport.width}
+          $viewportHeight={viewport.height}
+          $viewportLeft={viewport.left}
+          $viewportTop={viewport.top}
           open={selected !== undefined && anchorEl !== null}
           anchorEl={anchorEl}
-          placement="top"
+          placement="bottom"
           onClose={closePopover}
           onMouseEnter={() => {
             if (hoverTimer.current !== null) window.clearTimeout(hoverTimer.current);
@@ -237,9 +347,14 @@ export default function TrendChart({
           <PopoverContent>
             {selected && (
               <>
-            <Typography variant="caption" style={{ fontWeight: 600 }}>
-              {formatRange(selected.bucketStart, selected.bucketEnd)} · {selected.succeeded} succeeded, {selected.failed} failed
-            </Typography>
+            <PopoverHeading>
+              <Typography variant="caption" style={{ fontWeight: 600 }}>
+                {formatRange(selected.bucketStart, selected.bucketEnd)}
+              </Typography>
+              <Typography variant="caption">
+                {selected.succeeded} succeeded · {selected.failed} failed
+              </Typography>
+            </PopoverHeading>
             {selectedBucket && errors[selectedBucket] ? (
               <Typography variant="caption" style={{ color: FAILED_COLOR, display: "block" }}>
                 {errors[selectedBucket]}
@@ -253,13 +368,31 @@ export default function TrendChart({
                 No completed analyses in this bucket.
               </Typography>
             ) : (
-              <DetailGrid>
-                {selectedDetails.perAnalysisType.map((stat) => (
-                  <Typography key={stat.analysisType} variant="caption">
-                    <strong>{formatAnalysisType(stat.analysisType)}</strong>: {stat.succeeded} succeeded, {stat.failed} failed
-                  </Typography>
-                ))}
-              </DetailGrid>
+              <DetailTable>
+                <thead>
+                  <tr>
+                    <th>Analysis</th>
+                    <th>
+                      <DesktopHeader>Succeeded</DesktopHeader>
+                      <MobileHeader>OK</MobileHeader>
+                    </th>
+                    <th>Failed</th>
+                    <th>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedDetails.perAnalysisType.map((stat) => (
+                    <tr key={stat.analysisType}>
+                      <td title={formatAnalysisType(stat.analysisType)}>
+                        {formatAnalysisType(stat.analysisType)}
+                      </td>
+                      <td>{stat.succeeded}</td>
+                      <td>{stat.failed}</td>
+                      <td>{stat.succeeded + stat.failed}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </DetailTable>
             )}
               </>
             )}

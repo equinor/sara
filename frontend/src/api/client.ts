@@ -349,6 +349,7 @@ export async function deleteAnalysisGroup(id: string): Promise<void> {
 
 export interface AnalysisRunParams {
   analysisId?: string;
+  analysisType?: string;
   status?: AnalysisRunStatus;
   startedSince?: string;
   startedUntil?: string;
@@ -361,6 +362,7 @@ export async function getAnalysisRuns(
 ): Promise<PagedResponse<AnalysisRun>> {
   const q = pagedQuery(pageNumber, pageSize, {
     AnalysisId: filters.analysisId,
+    AnalysisType: filters.analysisType,
     Status: filters.status,
     StartedSince: filters.startedSince,
     StartedUntil: filters.startedUntil,
