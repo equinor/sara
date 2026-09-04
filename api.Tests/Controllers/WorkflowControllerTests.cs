@@ -224,6 +224,34 @@ public class WorkflowControllerTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ArgoLinkIdentifiers_AreIncludedInWorkflowDto()
+    {
+        var analysis = await _db.NewAnalysis();
+        var run = await _db.NewAnalysisRun(analysis);
+        var workflow = await _db.NewWorkflow(run);
+        workflow.ArgoWorkflowName = "analysis-workflow";
+        workflow.ArgoWorkflowUid = "workflow-uid";
+        workflow.ArgoNodeId = "analysis-workflow-123";
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var response = await Client.GetAsync(
+            $"/api/workflow/id/{workflow.Id}",
+            TestContext.Current.CancellationToken
+        );
+        var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        jsonOptions.Converters.Add(new JsonStringEnumConverter());
+        var workflowDto = await response.Content.ReadFromJsonAsync<WorkflowDto>(
+            jsonOptions,
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.NotNull(workflowDto);
+        Assert.Equal(workflow.ArgoWorkflowName, workflowDto.ArgoWorkflowName);
+        Assert.Equal(workflow.ArgoWorkflowUid, workflowDto.ArgoWorkflowUid);
+        Assert.Equal(workflow.ArgoNodeId, workflowDto.ArgoNodeId);
+    }
+
+    [Fact]
     public async Task DeleteInProgressWorkflow_ReturnsConflict()
     {
         var analysis = await _db.NewAnalysis();

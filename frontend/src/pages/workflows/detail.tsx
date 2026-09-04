@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router";
 import { Button, Icon, Table, Typography } from "@equinor/eds-core-react";
 import { arrow_back } from "@equinor/eds-icons";
 import { getWorkflow, retryWorkflow, type Workflow } from "../../api/client";
-import { argoWorkflowUrl } from "../../authConfig";
+import { argoWorkflowStepUrl } from "../../utils/argo";
 import StatusChip from "../../components/StatusChip";
 
 Icon.add({ arrow_back });
@@ -53,7 +53,11 @@ export default function WorkflowDetailPage() {
     );
   if (!workflow) return <Typography variant="body_short">Loading…</Typography>;
 
-  const argoUrl = argoWorkflowUrl(workflow.argoWorkflowName);
+  const argoUrl = argoWorkflowStepUrl(
+    workflow.argoWorkflowName,
+    workflow.argoNodeId,
+    workflow.argoWorkflowUid
+  );
 
   return (
     <div style={{ paddingTop: "1rem" }}>

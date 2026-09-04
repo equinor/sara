@@ -68,13 +68,15 @@ public class ArgoWorkflowEventProcessor(
         await RecoverUidAsync(identity.Value, cancellationToken);
         foreach (var workflow in workflows)
         {
-            var node = resource.Status?.Nodes.Values.FirstOrDefault(candidate =>
-                candidate.DisplayName == AnalysisWorkflowGraphBuilder.GetTaskName(workflow)
+            var nodeEntry = resource.Status?.Nodes.FirstOrDefault(candidate =>
+                candidate.Value.DisplayName == AnalysisWorkflowGraphBuilder.GetTaskName(workflow)
             );
-            if (node is null)
+            if (nodeEntry is not { Key: { Length: > 0 } nodeId, Value: { } node })
             {
                 continue;
             }
+
+            await PersistNodeIdAsync(workflow.Id, nodeId, cancellationToken);
 
             if (node.Phase is "Pending" or "Running")
             {
@@ -87,6 +89,20 @@ public class ArgoWorkflowEventProcessor(
         }
 
         await CompleteAnalysisRunAsync(resource, identity.Value.AnalysisRunId, cancellationToken);
+    }
+
+    private async Task PersistNodeIdAsync(
+        Guid workflowId,
+        string nodeId,
+        CancellationToken cancellationToken
+    )
+    {
+        await context
+            .Workflows.Where(workflow => workflow.Id == workflowId && workflow.ArgoNodeId != nodeId)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(workflow => workflow.ArgoNodeId, nodeId),
+                cancellationToken
+            );
     }
 
     private async Task CompleteWorkflowAsync(

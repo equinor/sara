@@ -15,7 +15,7 @@ import PaginationFooter from "../../components/PaginationFooter";
 import StatusChip from "../../components/StatusChip";
 import TableSkeleton from "../../components/TableSkeleton";
 import { PAGE_SIZE_OPTIONS, usePagedList } from "../../utils/usePagedList";
-import { argoWorkflowUrl } from "../../authConfig";
+import { argoWorkflowStepUrl } from "../../utils/argo";
 
 const FILTER_KEYS: (keyof WorkflowParams & string)[] = [
   "workflowType",
@@ -167,10 +167,14 @@ export default function WorkflowsPage() {
                       Retry
                     </Button>
                   )}
-                  {argoWorkflowUrl(w.argoWorkflowName) && (
+                  {argoWorkflowStepUrl(w.argoWorkflowName, w.argoNodeId, w.argoWorkflowUid) && (
                     <Typography
                       link
-                      href={argoWorkflowUrl(w.argoWorkflowName)!}
+                      href={argoWorkflowStepUrl(
+                        w.argoWorkflowName,
+                        w.argoNodeId,
+                        w.argoWorkflowUid
+                      )!}
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e: MouseEvent) => e.stopPropagation()}

@@ -59,7 +59,7 @@ export default function AnalysisDetailPage() {
       </Button>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <Typography variant="h3" style={{ margin: "0.5rem 0" }}>
-          Analysis: {analysis.name}
+          Analysis: {analysis.analysisType}
         </Typography>
         <Button onClick={handleRerun} disabled={busy}>
           {busy ? "Triggering…" : "Rerun"}

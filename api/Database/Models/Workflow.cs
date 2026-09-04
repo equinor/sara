@@ -69,6 +69,8 @@ public class Workflow
 
     public string? ArgoWorkflowUid { get; set; }
 
+    public string? ArgoNodeId { get; set; }
+
     public BlobStorageLocation? OutputBlobStorageLocation { get; set; }
 
     public string? ResultJson { get; set; }

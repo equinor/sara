@@ -1,4 +1,4 @@
-import { useCallback, type ReactNode } from "react";
+import { useCallback, type MouseEvent, type ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import {
   Button,
@@ -8,9 +8,11 @@ import {
 } from "@equinor/eds-core-react";
 import {
   DASHBOARD_WINDOWS,
+  getAnalysisRuns,
   getDashboardSummary,
   getWorkflows,
   retryWorkflow,
+  type AnalysisRun,
   type DashboardSummary,
   type Workflow,
 } from "../../api/client";
@@ -21,6 +23,7 @@ import StatusChip from "../../components/StatusChip";
 import TrendChart from "../../components/TrendChart";
 import { useAutoRefresh } from "../../utils/useAutoRefresh";
 import styled from "styled-components";
+import { argoWorkflowUrl } from "../../utils/argo";
 
 const REFRESH_MS = 60000;
 
@@ -92,7 +95,7 @@ function Block({
 
 interface OverviewData {
   summary: DashboardSummary;
-  latest: Workflow[];
+  latestRuns: AnalysisRun[];
   failures: Workflow[];
 }
 
@@ -107,6 +110,21 @@ function fmtTime(iso: string | null): string {
   return iso ? new Date(iso).toLocaleString() : "–";
 }
 
+function formatAnalysisType(analysisType: string | undefined): string {
+  switch (analysisType?.toLowerCase()) {
+    case "fencilla":
+      return "Fence detection";
+    case "thermal-reading":
+      return "Thermal reading";
+    case "cloe":
+      return "CLOE";
+    case "co2":
+      return "CO2";
+    default:
+      return analysisType ?? "–";
+  }
+}
+
 export default function OverviewPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -119,14 +137,14 @@ export default function OverviewPage() {
   })();
 
   const fetcher = useCallback(async (): Promise<OverviewData> => {
-    const [summary, latest, failures] = await Promise.all([
+    const [summary, latestRuns, failures] = await Promise.all([
       getDashboardSummary(windowHours),
-      getWorkflows(1, 5, {}),
+      getAnalysisRuns(1, 5, {}),
       getWorkflows(1, 5, { status: "Failed" }),
     ]);
     return {
       summary,
-      latest: latest.items,
+      latestRuns: latestRuns.items,
       failures: failures.items,
     };
   }, [windowHours]);
@@ -162,8 +180,8 @@ export default function OverviewPage() {
   const hourly = windowHours <= 24;
 
   // Show not-completed (InProgress/Pending) rows first, preserving recency within each group.
-  const latest = data
-    ? [...data.latest].sort(
+  const latestRuns = data
+    ? [...data.latestRuns].sort(
         (a, b) => Number(a.completedAt != null) - Number(b.completedAt != null)
       )
     : [];
@@ -321,37 +339,49 @@ export default function OverviewPage() {
               </Block>
             )}
 
-            {/* Latest workflows */}
-            <Block title="Latest workflows">
+            {/* Latest analysis runs */}
+            <Block title="Latest analysis runs">
               <DenseTable>
                 <Table.Head>
                   <Table.Row>
-                    <Table.Cell>ID</Table.Cell>
-                    <Table.Cell>Type</Table.Cell>
+                    <Table.Cell>Started</Table.Cell>
+                    <Table.Cell>Analysis</Table.Cell>
                     <Table.Cell>Status</Table.Cell>
                     <Table.Cell>Completed</Table.Cell>
+                    <Table.Cell>Argo</Table.Cell>
                   </Table.Row>
                 </Table.Head>
                 <Table.Body>
-                  {latest.length === 0 ? (
+                  {latestRuns.length === 0 ? (
                     <Table.Row>
-                      <Table.Cell colSpan={4}>No workflows.</Table.Cell>
+                      <Table.Cell colSpan={5}>No analysis runs.</Table.Cell>
                     </Table.Row>
                   ) : (
-                    latest.map((w) => (
+                    latestRuns.map((run) => (
                       <Table.Row
-                        key={w.id}
-                        onClick={() => navigate(`/workflows/${w.id}`)}
+                        key={run.id}
+                        onClick={() => navigate(`/analysis-runs/${run.id}`)}
                         style={{ cursor: "pointer" }}
                       >
+                        <Table.Cell>{fmtTime(run.startedAt ?? null)}</Table.Cell>
+                        <Table.Cell>{formatAnalysisType(run.analysis?.analysisType)}</Table.Cell>
                         <Table.Cell>
-                          <IdCell id={w.id} />
+                          <StatusChip status={run.status} />
                         </Table.Cell>
-                        <Table.Cell>{w.workflowType}</Table.Cell>
+                        <Table.Cell>{fmtTime(run.completedAt ?? null)}</Table.Cell>
                         <Table.Cell>
-                          <StatusChip status={w.status} />
+                          {argoWorkflowUrl(run.workflows?.[0]?.argoWorkflowName) && (
+                            <Typography
+                              link
+                              href={argoWorkflowUrl(run.workflows?.[0]?.argoWorkflowName)!}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e: MouseEvent) => e.stopPropagation()}
+                            >
+                              View
+                            </Typography>
+                          )}
                         </Table.Cell>
-                        <Table.Cell>{fmtTime(w.completedAt ?? null)}</Table.Cell>
                       </Table.Row>
                     ))
                   )}

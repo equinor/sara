@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router";
+import type { MouseEvent } from "react";
 import { Button, Search, Table, Typography } from "@equinor/eds-core-react";
 import {
   deleteAnalysisRun,
@@ -13,6 +14,7 @@ import PaginationFooter from "../../components/PaginationFooter";
 import StatusChip from "../../components/StatusChip";
 import TableSkeleton from "../../components/TableSkeleton";
 import { PAGE_SIZE_OPTIONS, usePagedList } from "../../utils/usePagedList";
+import { argoWorkflowUrl } from "../../utils/argo";
 
 const FILTER_KEYS: (keyof AnalysisRunParams & string)[] = ["analysisId", "status"];
 const STATUSES: AnalysisRunStatus[] = ["Pending", "InProgress", "Succeeded", "Failed"];
@@ -89,15 +91,16 @@ export default function AnalysisRunsPage() {
             <Table.Cell>Started</Table.Cell>
             <Table.Cell>Completed</Table.Cell>
             <Table.Cell>#Workflows</Table.Cell>
+            <Table.Cell>Argo</Table.Cell>
             <Table.Cell>Actions</Table.Cell>
           </Table.Row>
         </Table.Head>
         <Table.Body>
           {showSkeleton ? (
-            <TableSkeleton columns={8} rows={pageSize} />
+            <TableSkeleton columns={9} rows={pageSize} />
           ) : items.length === 0 ? (
             <Table.Row>
-              <Table.Cell colSpan={8}>No runs.</Table.Cell>
+              <Table.Cell colSpan={9}>No runs.</Table.Cell>
             </Table.Row>
           ) : (
             items.map((r) => (
@@ -118,7 +121,7 @@ export default function AnalysisRunsPage() {
                         navigate(`/analyses/${r.analysisId}`);
                       }}
                     >
-                      {r.analysis.name}
+                      {r.analysis.analysisType}
                     </Button>
                   ) : (
                     r.analysisId
@@ -135,6 +138,19 @@ export default function AnalysisRunsPage() {
                   {r.completedAt ? new Date(r.completedAt).toLocaleString() : "–"}
                 </Table.Cell>
                 <Table.Cell>{(r.workflows ?? []).length}</Table.Cell>
+                <Table.Cell>
+                  {argoWorkflowUrl(r.workflows?.[0]?.argoWorkflowName) && (
+                    <Typography
+                      link
+                      href={argoWorkflowUrl(r.workflows?.[0]?.argoWorkflowName)!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e: MouseEvent) => e.stopPropagation()}
+                    >
+                      View
+                    </Typography>
+                  )}
+                </Table.Cell>
                 <Table.Cell>
                   <Button
                     variant="ghost"

@@ -38,6 +38,8 @@ public class WorkflowDto
         this.WorkflowType = workflow.WorkflowType;
         this.Status = workflow.Status;
         this.ArgoWorkflowName = workflow.ArgoWorkflowName;
+        this.ArgoWorkflowUid = workflow.ArgoWorkflowUid;
+        this.ArgoNodeId = workflow.ArgoNodeId;
         this.OutputBlobSAS =
             workflow.OutputBlobStorageLocation != null
                 ? blobService.CreateReadSasUri(workflow.OutputBlobStorageLocation).Result
@@ -154,6 +156,8 @@ public class WorkflowDto
     public string WorkflowType { get; set; }
     public WorkflowStatus Status { get; set; }
     public string? ArgoWorkflowName { get; set; }
+    public string? ArgoWorkflowUid { get; set; }
+    public string? ArgoNodeId { get; set; }
     public Uri? OutputBlobSAS { get; set; }
     public AnalysisResultDto? Result { get; set; }
     public string? ResultJson { get; set; }
