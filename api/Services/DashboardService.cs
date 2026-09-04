@@ -10,6 +10,7 @@ namespace api.Services;
 public interface IDashboardService
 {
     Task<DashboardSummaryDto> GetSummary(int windowHours);
+    Task<TrendBucketDetailsDto> GetTrendBucketDetails(DateTime bucketStart, int windowHours);
 }
 
 public class DashboardService(SaraDbContext context, IOptions<DashboardOptions> options)
@@ -20,6 +21,13 @@ public class DashboardService(SaraDbContext context, IOptions<DashboardOptions> 
     private record TerminalWorkflow(
         string WorkflowType,
         WorkflowStatus Status,
+        DateTime? StartedAt,
+        DateTime CompletedAt
+    );
+
+    private record TerminalAnalysisRun(
+        string AnalysisType,
+        AnalysisRunStatus Status,
         DateTime? StartedAt,
         DateTime CompletedAt
     );
@@ -50,6 +58,24 @@ public class DashboardService(SaraDbContext context, IOptions<DashboardOptions> 
             ))
             .ToListAsync();
 
+        var terminalAnalysisRuns = await context
+            .AnalysisRuns.Where(run =>
+                run.CompletedAt != null
+                && run.CompletedAt >= since
+                && (
+                    run.Status == AnalysisRunStatus.Succeeded
+                    || run.Status == AnalysisRunStatus.Failed
+                    || run.Status == AnalysisRunStatus.Skipped
+                )
+            )
+            .Select(run => new TerminalAnalysisRun(
+                run.Analysis.AnalysisType,
+                run.Status,
+                run.StartedAt,
+                run.CompletedAt!.Value
+            ))
+            .ToListAsync();
+
         var workflowStatusCounts = new StatusCounts
         {
             Succeeded = terminalWorkflows.Count(w => w.Status == WorkflowStatus.Succeeded),
@@ -63,21 +89,11 @@ public class DashboardService(SaraDbContext context, IOptions<DashboardOptions> 
 
         var runStatusCounts = new StatusCounts
         {
-            Succeeded = await context.AnalysisRuns.CountAsync(r =>
-                r.Status == AnalysisRunStatus.Succeeded
-                && r.CompletedAt != null
-                && r.CompletedAt >= since
+            Succeeded = terminalAnalysisRuns.Count(run =>
+                run.Status == AnalysisRunStatus.Succeeded
             ),
-            Failed = await context.AnalysisRuns.CountAsync(r =>
-                r.Status == AnalysisRunStatus.Failed
-                && r.CompletedAt != null
-                && r.CompletedAt >= since
-            ),
-            Skipped = await context.AnalysisRuns.CountAsync(r =>
-                r.Status == AnalysisRunStatus.Skipped
-                && r.CompletedAt != null
-                && r.CompletedAt >= since
-            ),
+            Failed = terminalAnalysisRuns.Count(run => run.Status == AnalysisRunStatus.Failed),
+            Skipped = terminalAnalysisRuns.Count(run => run.Status == AnalysisRunStatus.Skipped),
             InProgress = await context.AnalysisRuns.CountAsync(r =>
                 r.Status == AnalysisRunStatus.InProgress
             ),
@@ -86,8 +102,8 @@ public class DashboardService(SaraDbContext context, IOptions<DashboardOptions> 
             ),
         };
 
-        var succeeded = workflowStatusCounts.Succeeded;
-        var failed = workflowStatusCounts.Failed;
+        var succeeded = runStatusCounts.Succeeded;
+        var failed = runStatusCounts.Failed;
         var successRate =
             (succeeded + failed) == 0 ? 0.0 : (double)succeeded / (succeeded + failed);
 
@@ -119,7 +135,9 @@ public class DashboardService(SaraDbContext context, IOptions<DashboardOptions> 
             .OrderByDescending(s => s.Total)
             .ToList();
 
-        var trend = BuildTrend(terminalWorkflows, since, now, windowHours);
+        var perAnalysisType = BuildAnalysisTypeStats(terminalAnalysisRuns);
+
+        var trend = BuildTrend(terminalAnalysisRuns, since, now, windowHours);
 
         var stuckThreshold = now.AddMinutes(-_options.StuckWorkflowThresholdMinutes);
         var stuck = await context
@@ -181,6 +199,7 @@ public class DashboardService(SaraDbContext context, IOptions<DashboardOptions> 
                 Runs = runStatusCounts.InProgress,
             },
             PerWorkflowType = perWorkflowType,
+            PerAnalysisType = perAnalysisType,
             Stuck = stuckDtos,
             AnalysisGroupCounts = analysisGroupCounts,
             InspectionRecordsIngested = inspectionRecordsIngested,
@@ -188,34 +207,69 @@ public class DashboardService(SaraDbContext context, IOptions<DashboardOptions> 
         };
     }
 
+    public async Task<TrendBucketDetailsDto> GetTrendBucketDetails(
+        DateTime bucketStart,
+        int windowHours
+    )
+    {
+        bucketStart = bucketStart.ToUniversalTime();
+        var bucketEnd = bucketStart + GetBucketSpan(windowHours);
+        var runs = await context
+            .AnalysisRuns.Where(run =>
+                run.CompletedAt != null
+                && run.CompletedAt >= bucketStart
+                && run.CompletedAt < bucketEnd
+                && (
+                    run.Status == AnalysisRunStatus.Succeeded
+                    || run.Status == AnalysisRunStatus.Failed
+                )
+            )
+            .Select(run => new TerminalAnalysisRun(
+                run.Analysis.AnalysisType,
+                run.Status,
+                run.StartedAt,
+                run.CompletedAt!.Value
+            ))
+            .ToListAsync();
+
+        return new TrendBucketDetailsDto
+        {
+            BucketStart = bucketStart,
+            BucketEnd = bucketEnd,
+            PerAnalysisType = BuildAnalysisTypeStats(runs),
+        };
+    }
+
     /// <summary>
-    /// Buckets terminal workflows into hourly buckets for a &lt;= 24h window,
+    /// Buckets terminal analysis runs into hourly buckets for a &lt;= 24h window,
     /// otherwise daily buckets, keeping every bucket in range (including empty).
     /// </summary>
     private static List<TrendBucket> BuildTrend(
-        IReadOnlyList<TerminalWorkflow> terminalWorkflows,
+        IReadOnlyList<TerminalAnalysisRun> terminalAnalysisRuns,
         DateTime since,
         DateTime now,
         int windowHours
     )
     {
         var hourly = windowHours <= 24;
-        var bucketSpan = hourly ? TimeSpan.FromHours(1) : TimeSpan.FromDays(1);
+        var bucketSpan = GetBucketSpan(windowHours);
 
         DateTime Truncate(DateTime dt) =>
             hourly
                 ? new DateTime(dt.Year, dt.Month, dt.Day, dt.Hour, 0, 0, DateTimeKind.Utc)
                 : new DateTime(dt.Year, dt.Month, dt.Day, 0, 0, 0, DateTimeKind.Utc);
 
-        var counts = terminalWorkflows
-            .Where(w => w.Status == WorkflowStatus.Succeeded || w.Status == WorkflowStatus.Failed)
-            .GroupBy(w => Truncate(w.CompletedAt))
+        var counts = terminalAnalysisRuns
+            .Where(run =>
+                run.Status == AnalysisRunStatus.Succeeded || run.Status == AnalysisRunStatus.Failed
+            )
+            .GroupBy(run => Truncate(run.CompletedAt))
             .ToDictionary(
                 g => g.Key,
                 g =>
                     (
-                        Succeeded: g.Count(w => w.Status == WorkflowStatus.Succeeded),
-                        Failed: g.Count(w => w.Status == WorkflowStatus.Failed)
+                        Succeeded: g.Count(run => run.Status == AnalysisRunStatus.Succeeded),
+                        Failed: g.Count(run => run.Status == AnalysisRunStatus.Failed)
                     )
             );
 
@@ -227,6 +281,7 @@ public class DashboardService(SaraDbContext context, IOptions<DashboardOptions> 
                 new TrendBucket
                 {
                     BucketStart = bucket,
+                    BucketEnd = bucket + bucketSpan,
                     Succeeded = c.Succeeded,
                     Failed = c.Failed,
                 }
@@ -235,4 +290,37 @@ public class DashboardService(SaraDbContext context, IOptions<DashboardOptions> 
 
         return buckets;
     }
+
+    private static TimeSpan GetBucketSpan(int windowHours) =>
+        windowHours <= 24 ? TimeSpan.FromHours(1) : TimeSpan.FromDays(1);
+
+    private static List<AnalysisTypeStat> BuildAnalysisTypeStats(
+        IReadOnlyList<TerminalAnalysisRun> runs
+    ) =>
+        runs.GroupBy(run => run.AnalysisType)
+            .Select(group =>
+            {
+                var typeSucceeded = group.Count(run => run.Status == AnalysisRunStatus.Succeeded);
+                var typeFailed = group.Count(run => run.Status == AnalysisRunStatus.Failed);
+                var durations = group
+                    .Where(run => run.StartedAt != null)
+                    .Select(run => (run.CompletedAt - run.StartedAt!.Value).TotalSeconds)
+                    .Where(seconds => seconds >= 0)
+                    .ToList();
+                return new AnalysisTypeStat
+                {
+                    AnalysisType = group.Key,
+                    Total = group.Count(),
+                    Succeeded = typeSucceeded,
+                    Failed = typeFailed,
+                    Skipped = group.Count(run => run.Status == AnalysisRunStatus.Skipped),
+                    FailureRate =
+                        typeSucceeded + typeFailed == 0
+                            ? 0.0
+                            : (double)typeFailed / (typeSucceeded + typeFailed),
+                    AverageDurationSeconds = durations.Count == 0 ? null : durations.Average(),
+                };
+            })
+            .OrderByDescending(stat => stat.Total)
+            .ToList();
 }

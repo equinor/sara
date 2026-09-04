@@ -1,13 +1,87 @@
-import { useMemo } from "react";
-import { Typography } from "@equinor/eds-core-react";
+import { useEffect, useRef, useState } from "react";
+import { Popover, PopoverContent, Typography } from "@equinor/eds-core-react";
 import styled from "styled-components";
-import type { TrendBucket } from "../api/client";
+import type { TrendBucket, TrendBucketDetails } from "../api/client";
 
 const SUCCEEDED_COLOR = "#4bb748";
 const FAILED_COLOR = "#eb0000";
 
 const Wrapper = styled.div`
   width: 100%;
+`;
+
+const Chart = styled.div`
+  position: relative;
+  padding: 0.25rem 0 0.5rem;
+`;
+
+const ChartTrack = styled.div<{ $bucketCount: number }>`
+  display: grid;
+  grid-template-columns: repeat(${(p) => p.$bucketCount}, minmax(0, 1fr));
+  align-items: stretch;
+  width: 100%;
+`;
+
+const BucketButton = styled.button<{ $selected: boolean }>`
+  min-width: 0;
+  padding: 0 2px;
+  border: 0;
+  border-radius: 2px;
+  background: ${(p) => (p.$selected ? "#e6f3f3" : "transparent")};
+  color: inherit;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    background: #e6f3f3;
+    outline: 2px solid #007079;
+    outline-offset: -2px;
+  }
+`;
+
+const BarArea = styled.span<{ $height: number }>`
+  height: ${(p) => p.$height}px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  background: linear-gradient(to top, #e8e8e8 1px, transparent 1px);
+`;
+
+const Bar = styled.span<{ $height: number; $color: string }>`
+  display: block;
+  min-height: ${(p) => (p.$height > 0 ? 2 : 0)}px;
+  height: ${(p) => p.$height}px;
+  background: ${(p) => p.$color};
+`;
+
+const BucketLabel = styled.span`
+  display: block;
+  margin-top: 0.35rem;
+  font-size: clamp(0.5rem, 0.7vw, 0.68rem);
+  line-height: 1.1;
+  color: #565656;
+  overflow: hidden;
+  text-overflow: clip;
+  white-space: nowrap;
+
+  @media (max-width: 700px) {
+    height: 2.25rem;
+    overflow: visible;
+    transform: rotate(-55deg);
+    transform-origin: top center;
+  }
+`;
+
+const DetailGrid = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 1.25rem;
+  margin-top: 0.35rem;
+`;
+
+const BucketPopover = styled(Popover)`
+  min-width: 240px;
+  max-width: 360px;
 `;
 
 const Legend = styled.div`
@@ -29,18 +103,25 @@ const Swatch = styled.span<{ $color: string }>`
 interface Props {
   data: TrendBucket[];
   hourly: boolean;
+  loadDetails: (bucketStart: string) => Promise<TrendBucketDetails>;
+  formatAnalysisType: (analysisType: string) => string;
   height?: number;
 }
 
-/**
- * Stacked bar chart (succeeded + failed per time bucket) rendered as inline SVG
- * using a 0..100 viewBox so it scales fluidly to its container width.
- */
-export default function TrendChart({ data, hourly, height = 96 }: Props) {
-  const max = useMemo(
-    () => Math.max(1, ...data.map((d) => d.succeeded + d.failed)),
-    [data]
-  );
+export default function TrendChart({
+  data,
+  hourly,
+  loadDetails,
+  formatAnalysisType,
+  height = 110,
+}: Props) {
+  const [selectedBucket, setSelectedBucket] = useState<string | null>(null);
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const [details, setDetails] = useState<Record<string, TrendBucketDetails>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const loading = useRef(new Set<string>());
+  const hoverTimer = useRef<number | null>(null);
+  const max = Math.max(1, ...data.map((bucket) => bucket.succeeded + bucket.failed));
 
   if (data.length === 0) {
     return (
@@ -50,63 +131,144 @@ export default function TrendChart({ data, hourly, height = 96 }: Props) {
     );
   }
 
-  const gap = 0.2;
-  const slot = 100 / data.length;
-  const barWidth = slot - gap;
-
-  const fmt = (iso: string) => {
-    const d = new Date(iso);
+  const formatLabel = (iso: string) => {
+    const date = new Date(iso);
     return hourly
-      ? d.toLocaleTimeString([], { hour: "2-digit" })
-      : d.toLocaleDateString([], { month: "short", day: "numeric" });
+      ? date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+      : date.toLocaleDateString([], { month: "short", day: "numeric" });
   };
+
+  const formatRange = (start: string, end: string) => {
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    if (hourly) {
+      return `${startDate.toLocaleDateString()} ${startDate.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })} – ${endDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+    }
+    return startDate.toLocaleDateString([], { dateStyle: "medium" });
+  };
+
+  useEffect(
+    () => () => {
+      if (hoverTimer.current !== null) window.clearTimeout(hoverTimer.current);
+    },
+    []
+  );
+
+  const activateBucket = (bucketStart: string, anchor: HTMLElement) => {
+    setSelectedBucket(bucketStart);
+    setAnchorEl(anchor);
+    if (details[bucketStart] || loading.current.has(bucketStart)) return;
+
+    loading.current.add(bucketStart);
+    loadDetails(bucketStart)
+      .then((result) => setDetails((current) => ({ ...current, [bucketStart]: result })))
+      .catch((error) =>
+        setErrors((current) => ({
+          ...current,
+          [bucketStart]: error instanceof Error ? error.message : "Failed to load details",
+        }))
+      )
+      .finally(() => loading.current.delete(bucketStart));
+  };
+
+  const activateBucketAfterDelay = (bucketStart: string, anchor: HTMLElement) => {
+    if (hoverTimer.current !== null) window.clearTimeout(hoverTimer.current);
+    hoverTimer.current = window.setTimeout(() => activateBucket(bucketStart, anchor), 150);
+  };
+
+  const closePopover = () => {
+    if (hoverTimer.current !== null) window.clearTimeout(hoverTimer.current);
+    hoverTimer.current = null;
+    setAnchorEl(null);
+    setSelectedBucket(null);
+  };
+
+  const selected = data.find((bucket) => bucket.bucketStart === selectedBucket);
+  const selectedDetails = selectedBucket ? details[selectedBucket] : undefined;
 
   return (
     <Wrapper>
-      <svg
-        viewBox="0 0 100 100"
-        preserveAspectRatio="none"
-        style={{ width: "100%", height, display: "block" }}
-        role="img"
-        aria-label="Workflow success and failure trend"
-      >
-        {data.map((d, i) => {
-          const x = i * slot + gap / 2;
-          const succH = (d.succeeded / max) * 100;
-          const failH = (d.failed / max) * 100;
-          const total = d.succeeded + d.failed;
-          return (
-            <g key={d.bucketStart}>
-              <rect
-                x={x}
-                y={100 - succH}
-                width={barWidth}
-                height={succH}
-                fill={SUCCEEDED_COLOR}
-              />
-              <rect
-                x={x}
-                y={100 - succH - failH}
-                width={barWidth}
-                height={failH}
-                fill={FAILED_COLOR}
-              />
-              <title>{`${fmt(d.bucketStart)} — ${d.succeeded} succeeded, ${d.failed} failed (${total} total)`}</title>
-            </g>
-          );
-        })}
-      </svg>
+      <Chart onMouseLeave={closePopover}>
+        <ChartTrack $bucketCount={data.length}>
+          {data.map((bucket) => {
+            const succeededHeight = (bucket.succeeded / max) * height;
+            const failedHeight = (bucket.failed / max) * height;
+            return (
+              <BucketButton
+                key={bucket.bucketStart}
+                type="button"
+                $selected={selectedBucket === bucket.bucketStart}
+                onMouseEnter={(event) =>
+                  activateBucketAfterDelay(bucket.bucketStart, event.currentTarget)
+                }
+                onFocus={(event) => activateBucket(bucket.bucketStart, event.currentTarget)}
+                onClick={(event) => activateBucket(bucket.bucketStart, event.currentTarget)}
+                aria-label={`${formatRange(bucket.bucketStart, bucket.bucketEnd)}: ${bucket.succeeded} succeeded, ${bucket.failed} failed`}
+              >
+                <BarArea $height={height}>
+                  <Bar $height={failedHeight} $color={FAILED_COLOR} />
+                  <Bar $height={succeededHeight} $color={SUCCEEDED_COLOR} />
+                </BarArea>
+                <BucketLabel>{formatLabel(bucket.bucketStart)}</BucketLabel>
+              </BucketButton>
+            );
+          })}
+        </ChartTrack>
+        <BucketPopover
+          open={selected !== undefined && anchorEl !== null}
+          anchorEl={anchorEl}
+          placement="top"
+          onClose={closePopover}
+          onMouseEnter={() => {
+            if (hoverTimer.current !== null) window.clearTimeout(hoverTimer.current);
+          }}
+          onMouseLeave={closePopover}
+          aria-live="polite"
+        >
+          <PopoverContent>
+            {selected && (
+              <>
+            <Typography variant="caption" style={{ fontWeight: 600 }}>
+              {formatRange(selected.bucketStart, selected.bucketEnd)} · {selected.succeeded} succeeded, {selected.failed} failed
+            </Typography>
+            {selectedBucket && errors[selectedBucket] ? (
+              <Typography variant="caption" style={{ color: FAILED_COLOR, display: "block" }}>
+                {errors[selectedBucket]}
+              </Typography>
+            ) : !selectedDetails ? (
+              <Typography variant="caption" style={{ display: "block" }}>
+                Loading analysis breakdown…
+              </Typography>
+            ) : selectedDetails.perAnalysisType.length === 0 ? (
+              <Typography variant="caption" style={{ display: "block" }}>
+                No completed analyses in this bucket.
+              </Typography>
+            ) : (
+              <DetailGrid>
+                {selectedDetails.perAnalysisType.map((stat) => (
+                  <Typography key={stat.analysisType} variant="caption">
+                    <strong>{formatAnalysisType(stat.analysisType)}</strong>: {stat.succeeded} succeeded, {stat.failed} failed
+                  </Typography>
+                ))}
+              </DetailGrid>
+            )}
+              </>
+            )}
+          </PopoverContent>
+        </BucketPopover>
+      </Chart>
+
       <Legend>
         <Typography variant="caption">
           <Swatch $color={SUCCEEDED_COLOR} />
-          Succeeded
+          Succeeded analyses
         </Typography>
         <Typography variant="caption">
           <Swatch $color={FAILED_COLOR} />
-          Failed
-        </Typography>
-        <Typography variant="caption" style={{ marginLeft: "auto", color: "#6f6f6f" }}>
-          {fmt(data[0].bucketStart)} – {fmt(data[data.length - 1].bucketStart)}
+          Failed analyses
         </Typography>
       </Legend>
     </Wrapper>

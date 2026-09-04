@@ -596,6 +596,16 @@ export interface WorkflowTypeStat {
   averageDurationSeconds: number | null;
 }
 
+export interface AnalysisTypeStat {
+  analysisType: string;
+  total: number;
+  succeeded: number;
+  failed: number;
+  skipped: number;
+  failureRate: number;
+  averageDurationSeconds: number | null;
+}
+
 export interface StuckWorkflow {
   id: string;
   workflowType: string;
@@ -612,8 +622,15 @@ export interface AnalysisGroupCounts {
 
 export interface TrendBucket {
   bucketStart: string;
+  bucketEnd: string;
   succeeded: number;
   failed: number;
+}
+
+export interface TrendBucketDetails {
+  bucketStart: string;
+  bucketEnd: string;
+  perAnalysisType: AnalysisTypeStat[];
 }
 
 export interface DashboardSummary {
@@ -625,6 +642,7 @@ export interface DashboardSummary {
   successRate: number;
   currentlyRunning: RunningCounts;
   perWorkflowType: WorkflowTypeStat[];
+  perAnalysisType: AnalysisTypeStat[];
   stuck: StuckWorkflow[];
   analysisGroupCounts: AnalysisGroupCounts;
   inspectionRecordsIngested: number;
@@ -639,7 +657,15 @@ export const DASHBOARD_WINDOWS = [
 ] as const;
 
 export async function getDashboardSummary(
-  sinceHours = 24
+  sinceHours = 168
 ): Promise<DashboardSummary> {
   return apiFetch(apiUrl(`/api/dashboard/summary?sinceHours=${sinceHours}`));
+}
+
+export async function getTrendBucketDetails(
+  bucketStart: string,
+  windowHours: number
+): Promise<TrendBucketDetails> {
+  const query = new URLSearchParams({ bucketStart, windowHours: String(windowHours) });
+  return apiFetch(apiUrl(`/api/dashboard/trend-details?${query}`));
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
@@ -76,56 +77,62 @@ public class DashboardControllerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task SummaryCountsTerminalWorkflowsWithinWindowAndExcludesOlderOnes()
+    public async Task SummaryCountsAnalysisRunsWithoutInflatingCountsForWorkflowSteps()
     {
         var now = DateTime.UtcNow;
-        var record = await _db.NewInspectionRecord(blobName: "test");
-        var analysis = await _db.NewAnalysis(inspectionRecords: [record]);
-        var run = await _db.NewAnalysisRun(analysis);
-
-        // In window (last 24h)
+        var cloe = await _db.NewAnalysis(type: "cloe");
+        var succeededRun = await _db.NewAnalysisRun(cloe);
+        succeededRun.Status = AnalysisRunStatus.Succeeded;
+        succeededRun.StartedAt = now.AddHours(-2);
+        succeededRun.CompletedAt = now.AddHours(-1);
         await SeedWorkflow(
-            run,
-            "fencilla",
+            succeededRun,
+            "anonymizer",
             WorkflowStatus.Succeeded,
             now.AddHours(-2),
-            now.AddHours(-1)
+            now.AddMinutes(-90)
         );
         await SeedWorkflow(
-            run,
+            succeededRun,
+            "cloe",
+            WorkflowStatus.Succeeded,
+            now.AddMinutes(-90),
+            now.AddHours(-1)
+        );
+
+        var fencilla = await _db.NewAnalysis(type: "fencilla");
+        var failedRun = await _db.NewAnalysisRun(fencilla);
+        failedRun.Status = AnalysisRunStatus.Failed;
+        failedRun.StartedAt = now.AddHours(-3);
+        failedRun.CompletedAt = now.AddHours(-2);
+        await SeedWorkflow(
+            failedRun,
             "fencilla",
             WorkflowStatus.Failed,
             now.AddHours(-3),
             now.AddHours(-2)
         );
-        await SeedWorkflow(
-            run,
-            "cloe",
-            WorkflowStatus.Succeeded,
-            now.AddHours(-5),
-            now.AddHours(-4)
-        );
-        // Out of window
-        await SeedWorkflow(
-            run,
-            "fencilla",
-            WorkflowStatus.Succeeded,
-            now.AddHours(-40),
-            now.AddHours(-39)
-        );
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var summary = await GetSummary(24);
 
         Assert.Equal(2, summary.WorkflowStatusCounts.Succeeded);
         Assert.Equal(1, summary.WorkflowStatusCounts.Failed);
-        Assert.Equal(2.0 / 3.0, summary.SuccessRate, 3);
+        Assert.Equal(1, summary.RunStatusCounts.Succeeded);
+        Assert.Equal(1, summary.RunStatusCounts.Failed);
+        Assert.Equal(0.5, summary.SuccessRate, 3);
 
-        var fencilla = summary.PerWorkflowType.Find(s => s.WorkflowType == "fencilla");
-        Assert.NotNull(fencilla);
-        Assert.Equal(2, fencilla!.Total); // one succeeded + one failed in window
-        Assert.Equal(1, fencilla.Succeeded);
-        Assert.Equal(1, fencilla.Failed);
-        Assert.Equal(0.5, fencilla.FailureRate, 3);
+        Assert.Contains(summary.PerWorkflowType, stat => stat.WorkflowType == "anonymizer");
+        Assert.DoesNotContain(summary.PerAnalysisType, stat => stat.AnalysisType == "anonymizer");
+        Assert.Contains(
+            summary.PerAnalysisType,
+            stat => stat.AnalysisType == "cloe" && stat.Succeeded == 1
+        );
+        Assert.Contains(
+            summary.PerAnalysisType,
+            stat => stat.AnalysisType == "fencilla" && stat.Failed == 1
+        );
+        Assert.Equal(2, summary.Trend.Sum(bucket => bucket.Succeeded + bucket.Failed));
     }
 
     [Fact]
@@ -165,5 +172,43 @@ public class DashboardControllerTests : IAsyncLifetime
         var summary = await GetSummary(24);
         // Hourly buckets across a 24h window => at least 24 buckets.
         Assert.True(summary.Trend.Count >= 24);
+        Assert.All(
+            summary.Trend,
+            bucket => Assert.Equal(TimeSpan.FromHours(1), bucket.BucketEnd - bucket.BucketStart)
+        );
+    }
+
+    [Fact]
+    public async Task TrendDetailsGroupsCompletedRunsByAnalysisTypeForRequestedBucket()
+    {
+        var bucketStart = new DateTime(2026, 9, 4, 10, 0, 0, DateTimeKind.Utc);
+        var cloe = await _db.NewAnalysis(type: "cloe");
+        var succeeded = await _db.NewAnalysisRun(cloe);
+        succeeded.Status = AnalysisRunStatus.Succeeded;
+        succeeded.CompletedAt = bucketStart.AddMinutes(10);
+        var failed = await _db.NewAnalysisRun(cloe, runNumber: 2);
+        failed.Status = AnalysisRunStatus.Failed;
+        failed.CompletedAt = bucketStart.AddMinutes(20);
+        var thermal = await _db.NewAnalysis(type: "thermal-reading");
+        var outsideBucket = await _db.NewAnalysisRun(thermal);
+        outsideBucket.Status = AnalysisRunStatus.Succeeded;
+        outsideBucket.CompletedAt = bucketStart.AddHours(1);
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var response = await Client.GetAsync(
+            $"/api/dashboard/trend-details?bucketStart={Uri.EscapeDataString(bucketStart.ToString("O"))}&windowHours=24",
+            TestContext.Current.CancellationToken
+        );
+        Assert.True(response.IsSuccessStatusCode);
+        var details = await response.Content.ReadFromJsonAsync<TrendBucketDetailsDto>(
+            JsonOptions,
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.NotNull(details);
+        var cloeDetails = Assert.Single(details.PerAnalysisType);
+        Assert.Equal("cloe", cloeDetails.AnalysisType);
+        Assert.Equal(1, cloeDetails.Succeeded);
+        Assert.Equal(1, cloeDetails.Failed);
     }
 }

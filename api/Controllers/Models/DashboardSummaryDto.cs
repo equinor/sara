@@ -21,6 +21,8 @@ public class DashboardSummaryDto
 
     public required List<WorkflowTypeStat> PerWorkflowType { get; init; }
 
+    public required List<AnalysisTypeStat> PerAnalysisType { get; init; }
+
     public required List<StuckWorkflowDto> Stuck { get; init; }
 
     public required AnalysisGroupCounts AnalysisGroupCounts { get; init; }
@@ -57,6 +59,17 @@ public class WorkflowTypeStat
     public double? AverageDurationSeconds { get; init; }
 }
 
+public class AnalysisTypeStat
+{
+    public required string AnalysisType { get; init; }
+    public int Total { get; init; }
+    public int Succeeded { get; init; }
+    public int Failed { get; init; }
+    public int Skipped { get; init; }
+    public double FailureRate { get; init; }
+    public double? AverageDurationSeconds { get; init; }
+}
+
 public class StuckWorkflowDto
 {
     public required Guid Id { get; init; }
@@ -76,6 +89,14 @@ public class AnalysisGroupCounts
 public class TrendBucket
 {
     public required DateTime BucketStart { get; init; }
+    public required DateTime BucketEnd { get; init; }
     public int Succeeded { get; init; }
     public int Failed { get; init; }
+}
+
+public class TrendBucketDetailsDto
+{
+    public required DateTime BucketStart { get; init; }
+    public required DateTime BucketEnd { get; init; }
+    public required List<AnalysisTypeStat> PerAnalysisType { get; init; }
 }
