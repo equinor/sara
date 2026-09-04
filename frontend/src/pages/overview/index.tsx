@@ -10,6 +10,7 @@ import {
   DASHBOARD_WINDOWS,
   getAnalysisRuns,
   getDashboardSummary,
+  getTrendBucketDetails,
   getWorkflows,
   retryWorkflow,
   type AnalysisRun,
@@ -133,7 +134,7 @@ export default function OverviewPage() {
     const fromUrl = Number(searchParams.get("window"));
     if (DASHBOARD_WINDOWS.some((w) => w.hours === fromUrl)) return fromUrl;
     const stored = Number(localStorage.getItem("overview.window"));
-    return DASHBOARD_WINDOWS.some((w) => w.hours === stored) ? stored : 24;
+    return DASHBOARD_WINDOWS.some((w) => w.hours === stored) ? stored : 168;
   })();
 
   const fetcher = useCallback(async (): Promise<OverviewData> => {
@@ -234,19 +235,19 @@ export default function OverviewPage() {
           <CardRow>
             <StatCard
               title={`Succeeded (${DASHBOARD_WINDOWS.find((w) => w.hours === windowHours)?.label})`}
-              value={summary.workflowStatusCounts.succeeded}
+              value={summary.runStatusCounts.succeeded}
               tone="success"
             />
             <StatCard
               title="Failed"
-              value={summary.workflowStatusCounts.failed}
-              tone={summary.workflowStatusCounts.failed > 0 ? "error" : "default"}
+              value={summary.runStatusCounts.failed}
+              tone={summary.runStatusCounts.failed > 0 ? "error" : "default"}
             />
             <StatCard
               title="In Progress"
-              value={summary.currentlyRunning.workflows}
+              value={summary.currentlyRunning.runs}
               tone="info"
-              subtitle={`${summary.currentlyRunning.runs} run(s)`}
+              subtitle={`${summary.currentlyRunning.workflows} workflow step(s)`}
             />
             <StatCard
               title="Success Rate"
@@ -284,7 +285,13 @@ export default function OverviewPage() {
           {/* Trend – full width, short */}
           <Panel style={{ marginBottom: "1rem" }}>
             <SectionTitle>Succeeded vs Failed over time</SectionTitle>
-            <TrendChart data={summary.trend} hourly={hourly} />
+            <TrendChart
+              key={windowHours}
+              data={summary.trend}
+              hourly={hourly}
+              loadDetails={(bucketStart) => getTrendBucketDetails(bucketStart, windowHours)}
+              formatAnalysisType={formatAnalysisType}
+            />
           </Panel>
 
           <Grid>
@@ -420,6 +427,43 @@ export default function OverviewPage() {
                           {Math.round(s.failureRate * 100)}%
                         </Table.Cell>
                         <Table.Cell>{fmtDuration(s.averageDurationSeconds)}</Table.Cell>
+                      </Table.Row>
+                    ))
+                  )}
+                </Table.Body>
+              </DenseTable>
+            </Block>
+
+            <Block title="By analysis type">
+              <DenseTable>
+                <Table.Head>
+                  <Table.Row>
+                    <Table.Cell>Type</Table.Cell>
+                    <Table.Cell>Total</Table.Cell>
+                    <Table.Cell>OK</Table.Cell>
+                    <Table.Cell>Fail</Table.Cell>
+                    <Table.Cell>Fail %</Table.Cell>
+                    <Table.Cell>Avg</Table.Cell>
+                  </Table.Row>
+                </Table.Head>
+                <Table.Body>
+                  {summary.perAnalysisType.length === 0 ? (
+                    <Table.Row>
+                      <Table.Cell colSpan={6}>No completed analyses in window.</Table.Cell>
+                    </Table.Row>
+                  ) : (
+                    summary.perAnalysisType.map((stat) => (
+                      <Table.Row key={stat.analysisType}>
+                        <Table.Cell>{formatAnalysisType(stat.analysisType)}</Table.Cell>
+                        <Table.Cell>{stat.total}</Table.Cell>
+                        <Table.Cell>{stat.succeeded}</Table.Cell>
+                        <Table.Cell>{stat.failed}</Table.Cell>
+                        <Table.Cell
+                          style={{ color: stat.failureRate > 0 ? "#eb0000" : undefined }}
+                        >
+                          {Math.round(stat.failureRate * 100)}%
+                        </Table.Cell>
+                        <Table.Cell>{fmtDuration(stat.averageDurationSeconds)}</Table.Cell>
                       </Table.Row>
                     ))
                   )}

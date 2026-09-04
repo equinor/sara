@@ -41,4 +41,32 @@ public class DashboardController(
             throw;
         }
     }
+
+    [HttpGet]
+    [Authorize(Roles = Role.Any)]
+    [Route("trend-details")]
+    [ProducesResponseType(typeof(TrendBucketDetailsDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<TrendBucketDetailsDto>> GetTrendDetails(
+        [FromQuery] DateTime bucketStart,
+        [FromQuery] int windowHours = 24
+    )
+    {
+        if (!_options.AllowedWindowHours.Contains(windowHours))
+        {
+            return BadRequest(
+                $"windowHours must be one of: {string.Join(", ", _options.AllowedWindowHours)}"
+            );
+        }
+
+        try
+        {
+            return Ok(await service.GetTrendBucketDetails(bucketStart, windowHours));
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Error building dashboard trend bucket details");
+            throw;
+        }
+    }
 }
