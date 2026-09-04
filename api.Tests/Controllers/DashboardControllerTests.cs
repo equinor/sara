@@ -61,10 +61,10 @@ public class DashboardControllerTests : IAsyncLifetime
         return workflow;
     }
 
-    private async Task<DashboardSummaryDto> GetSummary(int sinceHours)
+    private async Task<DashboardSummaryDto> GetSummary(int sinceHours, string timeZone = "UTC")
     {
         var response = await Client.GetAsync(
-            $"/api/dashboard/summary?sinceHours={sinceHours}",
+            $"/api/dashboard/summary?sinceHours={sinceHours}&timeZone={Uri.EscapeDataString(timeZone)}",
             TestContext.Current.CancellationToken
         );
         Assert.True(response.IsSuccessStatusCode);
@@ -179,19 +179,70 @@ public class DashboardControllerTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task DailyTrendUsesLocalMidnightBoundaries()
+    {
+        var summary = await GetSummary(168, "Europe/Oslo");
+
+        Assert.Equal(7, summary.Trend.Count);
+        Assert.All(
+            summary.Trend,
+            bucket =>
+            {
+                var localStart = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(
+                    bucket.BucketStart,
+                    "Europe/Oslo"
+                );
+                Assert.Equal(TimeSpan.Zero, localStart.TimeOfDay);
+            }
+        );
+    }
+
+    [Fact]
+    public async Task DailyTrendDetailsRespectDaylightSavingTime()
+    {
+        var localMidnightUtc = new DateTime(2026, 3, 28, 23, 0, 0, DateTimeKind.Utc);
+        var response = await Client.GetAsync(
+            $"/api/dashboard/trend-details?bucketStart={Uri.EscapeDataString(localMidnightUtc.ToString("O"))}&windowHours=168&timeZone=Europe%2FOslo",
+            TestContext.Current.CancellationToken
+        );
+        var details = await response.Content.ReadFromJsonAsync<TrendBucketDetailsDto>(
+            JsonOptions,
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.True(response.IsSuccessStatusCode);
+        Assert.NotNull(details);
+        Assert.Equal(TimeSpan.FromHours(23), details.BucketEnd - details.BucketStart);
+    }
+
+    [Fact]
+    public async Task SummaryRejectsUnknownTimeZone()
+    {
+        var response = await Client.GetAsync(
+            "/api/dashboard/summary?sinceHours=168&timeZone=not-a-time-zone",
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task TrendDetailsGroupsCompletedRunsByAnalysisTypeForRequestedBucket()
     {
         var bucketStart = new DateTime(2026, 9, 4, 10, 0, 0, DateTimeKind.Utc);
         var cloe = await _db.NewAnalysis(type: "cloe");
         var succeeded = await _db.NewAnalysisRun(cloe);
         succeeded.Status = AnalysisRunStatus.Succeeded;
-        succeeded.CompletedAt = bucketStart.AddMinutes(10);
+        succeeded.StartedAt = bucketStart.AddMinutes(10);
+        succeeded.CompletedAt = bucketStart.AddHours(2);
         var failed = await _db.NewAnalysisRun(cloe, runNumber: 2);
         failed.Status = AnalysisRunStatus.Failed;
-        failed.CompletedAt = bucketStart.AddMinutes(20);
+        failed.StartedAt = bucketStart.AddMinutes(20);
+        failed.CompletedAt = bucketStart.AddHours(2);
         var thermal = await _db.NewAnalysis(type: "thermal-reading");
         var outsideBucket = await _db.NewAnalysisRun(thermal);
         outsideBucket.Status = AnalysisRunStatus.Succeeded;
+        outsideBucket.StartedAt = bucketStart.AddHours(1);
         outsideBucket.CompletedAt = bucketStart.AddHours(1);
         await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 

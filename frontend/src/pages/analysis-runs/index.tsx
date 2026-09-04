@@ -15,8 +15,104 @@ import StatusChip from "../../components/StatusChip";
 import TableSkeleton from "../../components/TableSkeleton";
 import { PAGE_SIZE_OPTIONS, usePagedList } from "../../utils/usePagedList";
 import { argoWorkflowUrl } from "../../utils/argo";
+import styled from "styled-components";
 
-const FILTER_KEYS: (keyof AnalysisRunParams & string)[] = ["analysisId", "status"];
+const FilterPanel = styled.div`
+  margin-bottom: 1rem;
+  padding-bottom: 0.25rem;
+`;
+
+const FilterGrid = styled.div`
+  display: grid;
+  grid-template-columns: minmax(220px, 1.5fr) minmax(150px, 0.75fr) minmax(185px, 1fr) auto minmax(185px, 1fr) auto;
+  gap: 0.75rem;
+  align-items: end;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  @media (max-width: 560px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const FilterField = styled.label`
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+  color: #3d3d3d;
+  font-size: 0.75rem;
+  font-weight: 600;
+`;
+
+const StatusSelect = styled.select`
+  width: 100%;
+  min-height: 42px;
+  padding: 0.5rem 2rem 0.5rem 0.65rem;
+  border: 1px solid #6f6f6f;
+  border-radius: 2px;
+  background: #ffffff;
+  color: #3d3d3d;
+  font: inherit;
+  font-size: 0.875rem;
+
+  &:focus-visible {
+    outline: 2px solid #007079;
+    outline-offset: 1px;
+  }
+`;
+
+const DateTimeInput = styled.input<{ $invalid?: boolean }>`
+  width: 100%;
+  min-height: 42px;
+  box-sizing: border-box;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid ${(p) => (p.$invalid ? "#eb0000" : "#6f6f6f")};
+  border-radius: 2px;
+  background: #ffffff;
+  color: #3d3d3d;
+  font: inherit;
+  font-size: 0.875rem;
+
+  &:focus-visible {
+    outline: 2px solid ${(p) => (p.$invalid ? "#eb0000" : "#007079")};
+    outline-offset: 1px;
+  }
+`;
+
+const RangeSeparator = styled.span`
+  align-self: end;
+  padding-bottom: 0.65rem;
+  color: #6f6f6f;
+  font-size: 0.8rem;
+
+  @media (max-width: 900px) {
+    display: none;
+  }
+`;
+
+const ValidationMessage = styled.span`
+  grid-column: 3 / 6;
+  color: #eb0000;
+  font-size: 0.75rem;
+
+  @media (max-width: 900px) {
+    grid-column: 1 / -1;
+  }
+`;
+
+const ClearButton = styled(Button)`
+  min-height: 42px;
+  white-space: nowrap;
+`;
+
+const FILTER_KEYS: (keyof AnalysisRunParams & string)[] = [
+  "analysisId",
+  "status",
+  "startedSince",
+  "startedUntil",
+];
 const STATUSES: AnalysisRunStatus[] = ["Pending", "InProgress", "Succeeded", "Failed"];
 
 export default function AnalysisRunsPage() {
@@ -40,6 +136,24 @@ export default function AnalysisRunsPage() {
 
   const items = response?.items ?? [];
   const showSkeleton = loading || (response === null && error === null);
+  const parseFilterDate = (value: string | undefined): Date | null => {
+    if (!value) return null;
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  };
+  const startedSince = parseFilterDate(filters.startedSince);
+  const startedUntil = parseFilterDate(filters.startedUntil);
+  const invalidRange =
+    startedSince !== null && startedUntil !== null && startedSince > startedUntil;
+  const hasFilters = Object.values(filters).some((value) => value != null && value !== "");
+  const formatDateTimeLocal = (date: Date | null): string => {
+    if (!date) return "";
+    const offset = date.getTimezoneOffset() * 60_000;
+    return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+  };
+  const updateDateFilter = (key: "startedSince" | "startedUntil", value: string) => {
+    setFilters({ [key]: value ? new Date(value).toISOString() : undefined });
+  };
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("Delete this run and its workflows?")) return;
@@ -53,27 +167,76 @@ export default function AnalysisRunsPage() {
 
   return (
     <PageHeader title="Analysis Runs" loading={loading} onRefresh={refetch}>
-      <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1rem", flexWrap: "wrap" }}>
-        <Search
-          placeholder="Analysis ID (uuid)"
-          value={filters.analysisId ?? ""}
-          onChange={(e) => setFilters({ analysisId: (e.target as HTMLInputElement).value })}
-        />
-        <select
-          value={filters.status ?? ""}
-          onChange={(e) =>
-            setFilters({ status: (e.target.value || undefined) as AnalysisRunStatus | undefined })
-          }
-          style={{ padding: "0.4rem" }}
-        >
-          <option value="">All statuses</option>
-          {STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-      </div>
+      <FilterPanel>
+        <Typography variant="caption" style={{ display: "block", marginBottom: "0.65rem" }}>
+          Filters
+        </Typography>
+        <FilterGrid>
+          <FilterField>
+            Analysis ID
+            <Search
+              placeholder="UUID"
+              value={filters.analysisId ?? ""}
+              onChange={(e) => setFilters({ analysisId: (e.target as HTMLInputElement).value })}
+            />
+          </FilterField>
+          <FilterField>
+            Status
+            <StatusSelect
+              value={filters.status ?? ""}
+              onChange={(e) =>
+                setFilters({
+                  status: (e.target.value || undefined) as AnalysisRunStatus | undefined,
+                })
+              }
+            >
+              <option value="">All statuses</option>
+              {STATUSES.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
+            </StatusSelect>
+          </FilterField>
+          <FilterField>
+            Started since
+            <DateTimeInput
+              type="datetime-local"
+              value={formatDateTimeLocal(startedSince)}
+              onChange={(event) => updateDateFilter("startedSince", event.target.value)}
+            />
+          </FilterField>
+          <RangeSeparator>to</RangeSeparator>
+          <FilterField>
+            Started until
+            <DateTimeInput
+              type="datetime-local"
+              value={formatDateTimeLocal(startedUntil)}
+              onChange={(event) => updateDateFilter("startedUntil", event.target.value)}
+              aria-invalid={invalidRange}
+              $invalid={invalidRange}
+            />
+          </FilterField>
+          {hasFilters && (
+            <ClearButton
+              variant="ghost"
+              onClick={() =>
+                setFilters({
+                  analysisId: undefined,
+                  status: undefined,
+                  startedSince: undefined,
+                  startedUntil: undefined,
+                })
+              }
+            >
+              Clear filters
+            </ClearButton>
+          )}
+          {invalidRange && (
+            <ValidationMessage>Started until must not be earlier than started since.</ValidationMessage>
+          )}
+        </FilterGrid>
+      </FilterPanel>
 
       {error && (
         <Typography variant="body_short" style={{ color: "#eb0000", marginBottom: "1rem" }}>

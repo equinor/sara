@@ -113,6 +113,7 @@ export function usePagedList<T, F extends object>(
     (next: Partial<F>) => {
       const url = new URLSearchParams(searchParams);
       for (const key of filterKeys) {
+        if (!Object.prototype.hasOwnProperty.call(next, key)) continue;
         const v = next[key];
         if (v == null || v === "") url.delete(key);
         else url.set(key, String(v));

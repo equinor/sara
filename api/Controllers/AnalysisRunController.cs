@@ -21,6 +21,15 @@ public class AnalysisRunController(
         [FromQuery] AnalysisRunParameters parameters
     )
     {
+        if (
+            parameters.StartedSince is { } startedSince
+            && parameters.StartedUntil is { } startedUntil
+            && startedSince > startedUntil
+        )
+        {
+            return BadRequest("StartedSince must be earlier than or equal to StartedUntil");
+        }
+
         try
         {
             var page = await service.GetRuns(parameters);

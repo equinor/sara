@@ -2,7 +2,7 @@ namespace api.Controllers.Models;
 
 /// <summary>
 /// Aggregated snapshot of pipeline activity for the SARA overview dashboard.
-/// Terminal counts (Succeeded/Failed/Skipped) are bucketed by CompletedAt within
+/// Analysis run counts (Succeeded/Failed/Skipped) are bucketed by StartedAt within
 /// the requested window; live counts (InProgress/Pending) reflect the current state.
 /// </summary>
 public class DashboardSummaryDto

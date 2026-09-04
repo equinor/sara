@@ -22,14 +22,14 @@ const ChartTrack = styled.div<{ $bucketCount: number }>`
   width: 100%;
 `;
 
-const BucketButton = styled.button<{ $selected: boolean }>`
+const BucketButton = styled.button<{ $selected: boolean; $empty: boolean }>`
   min-width: 0;
   padding: 0 2px;
   border: 0;
   border-radius: 2px;
   background: ${(p) => (p.$selected ? "#e6f3f3" : "transparent")};
   color: inherit;
-  cursor: pointer;
+  cursor: ${(p) => (p.$empty ? "default" : "pointer")};
 
   &:hover,
   &:focus-visible {
@@ -105,6 +105,7 @@ interface Props {
   hourly: boolean;
   loadDetails: (bucketStart: string) => Promise<TrendBucketDetails>;
   formatAnalysisType: (analysisType: string) => string;
+  onBucketClick: (bucket: TrendBucket) => void;
   height?: number;
 }
 
@@ -113,6 +114,7 @@ export default function TrendChart({
   hourly,
   loadDetails,
   formatAnalysisType,
+  onBucketClick,
   height = 110,
 }: Props) {
   const [selectedBucket, setSelectedBucket] = useState<string | null>(null);
@@ -194,6 +196,7 @@ export default function TrendChart({
       <Chart onMouseLeave={closePopover}>
         <ChartTrack $bucketCount={data.length}>
           {data.map((bucket) => {
+            const empty = bucket.succeeded + bucket.failed === 0;
             const succeededHeight = (bucket.succeeded / max) * height;
             const failedHeight = (bucket.failed / max) * height;
             return (
@@ -201,11 +204,14 @@ export default function TrendChart({
                 key={bucket.bucketStart}
                 type="button"
                 $selected={selectedBucket === bucket.bucketStart}
+                $empty={empty}
                 onMouseEnter={(event) =>
                   activateBucketAfterDelay(bucket.bucketStart, event.currentTarget)
                 }
                 onFocus={(event) => activateBucket(bucket.bucketStart, event.currentTarget)}
-                onClick={(event) => activateBucket(bucket.bucketStart, event.currentTarget)}
+                onClick={() => {
+                  if (!empty) onBucketClick(bucket);
+                }}
                 aria-label={`${formatRange(bucket.bucketStart, bucket.bucketEnd)}: ${bucket.succeeded} succeeded, ${bucket.failed} failed`}
               >
                 <BarArea $height={height}>

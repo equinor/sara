@@ -20,6 +20,8 @@ public class AnalysisRunParameters
     public int PageSize { get; set; } = 25;
     public Guid? AnalysisId { get; set; }
     public AnalysisRunStatus? Status { get; set; }
+    public DateTime? StartedSince { get; set; }
+    public DateTime? StartedUntil { get; set; }
 }
 
 public class AnalysisRunService(SaraDbContext context) : IAnalysisRunService
@@ -47,6 +49,12 @@ public class AnalysisRunService(SaraDbContext context) : IAnalysisRunService
 
         if (parameters.Status is { } status)
             query = query.Where(r => r.Status == status);
+
+        if (parameters.StartedSince is { } startedSince)
+            query = query.Where(r => r.StartedAt >= startedSince.ToUniversalTime());
+
+        if (parameters.StartedUntil is { } startedUntil)
+            query = query.Where(r => r.StartedAt <= startedUntil.ToUniversalTime());
 
         query = query.OrderByDescending(r => r.StartedAt ?? DateTime.MinValue).ThenBy(r => r.Id);
 

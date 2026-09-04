@@ -22,7 +22,10 @@ public class DashboardController(
     [Route("summary")]
     [ProducesResponseType(typeof(DashboardSummaryDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<DashboardSummaryDto>> GetSummary([FromQuery] int sinceHours = 24)
+    public async Task<ActionResult<DashboardSummaryDto>> GetSummary(
+        [FromQuery] int sinceHours = 24,
+        [FromQuery] string timeZone = "UTC"
+    )
     {
         if (!_options.AllowedWindowHours.Contains(sinceHours))
         {
@@ -31,9 +34,12 @@ public class DashboardController(
             );
         }
 
+        if (!TryGetTimeZone(timeZone, out var parsedTimeZone, out var error))
+            return BadRequest(error);
+
         try
         {
-            return Ok(await service.GetSummary(sinceHours));
+            return Ok(await service.GetSummary(sinceHours, parsedTimeZone!));
         }
         catch (Exception e)
         {
@@ -49,7 +55,8 @@ public class DashboardController(
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<TrendBucketDetailsDto>> GetTrendDetails(
         [FromQuery] DateTime bucketStart,
-        [FromQuery] int windowHours = 24
+        [FromQuery] int windowHours = 24,
+        [FromQuery] string timeZone = "UTC"
     )
     {
         if (!_options.AllowedWindowHours.Contains(windowHours))
@@ -59,14 +66,45 @@ public class DashboardController(
             );
         }
 
+        if (!TryGetTimeZone(timeZone, out var parsedTimeZone, out var error))
+            return BadRequest(error);
+
         try
         {
-            return Ok(await service.GetTrendBucketDetails(bucketStart, windowHours));
+            return Ok(
+                await service.GetTrendBucketDetails(bucketStart, windowHours, parsedTimeZone!)
+            );
         }
         catch (Exception e)
         {
             logger.LogError(e, "Error building dashboard trend bucket details");
             throw;
+        }
+    }
+
+    private static bool TryGetTimeZone(
+        string timeZoneId,
+        out TimeZoneInfo? timeZone,
+        out string? error
+    )
+    {
+        try
+        {
+            timeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+            error = null;
+            return true;
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            timeZone = null;
+            error = $"Unknown time zone '{timeZoneId}'";
+            return false;
+        }
+        catch (InvalidTimeZoneException)
+        {
+            timeZone = null;
+            error = $"Invalid time zone '{timeZoneId}'";
+            return false;
         }
     }
 }
