@@ -9,8 +9,12 @@ namespace api.Services;
 
 public interface IDashboardService
 {
-    Task<DashboardSummaryDto> GetSummary(int windowHours);
-    Task<TrendBucketDetailsDto> GetTrendBucketDetails(DateTime bucketStart, int windowHours);
+    Task<DashboardSummaryDto> GetSummary(int windowHours, TimeZoneInfo timeZone);
+    Task<TrendBucketDetailsDto> GetTrendBucketDetails(
+        DateTime bucketStart,
+        int windowHours,
+        TimeZoneInfo timeZone
+    );
 }
 
 public class DashboardService(SaraDbContext context, IOptions<DashboardOptions> options)
@@ -32,10 +36,12 @@ public class DashboardService(SaraDbContext context, IOptions<DashboardOptions> 
         DateTime CompletedAt
     );
 
-    public async Task<DashboardSummaryDto> GetSummary(int windowHours)
+    public async Task<DashboardSummaryDto> GetSummary(int windowHours, TimeZoneInfo timeZone)
     {
         var now = DateTime.UtcNow;
-        var since = now.AddHours(-windowHours);
+        var bucketBoundaries = BuildBucketBoundaries(windowHours, timeZone, now);
+        var since = bucketBoundaries[0];
+        var until = bucketBoundaries[^1];
 
         // Single projection of all workflows that reached a terminal state within
         // the window. Everything time-bucketed (status counts, per-type stats,
@@ -44,6 +50,7 @@ public class DashboardService(SaraDbContext context, IOptions<DashboardOptions> 
             .Workflows.Where(w =>
                 w.CompletedAt != null
                 && w.CompletedAt >= since
+                && w.CompletedAt < until
                 && (
                     w.Status == WorkflowStatus.Succeeded
                     || w.Status == WorkflowStatus.Failed
@@ -61,7 +68,9 @@ public class DashboardService(SaraDbContext context, IOptions<DashboardOptions> 
         var terminalAnalysisRuns = await context
             .AnalysisRuns.Where(run =>
                 run.CompletedAt != null
-                && run.CompletedAt >= since
+                && run.StartedAt != null
+                && run.StartedAt >= since
+                && run.StartedAt < until
                 && (
                     run.Status == AnalysisRunStatus.Succeeded
                     || run.Status == AnalysisRunStatus.Failed
@@ -137,7 +146,7 @@ public class DashboardService(SaraDbContext context, IOptions<DashboardOptions> 
 
         var perAnalysisType = BuildAnalysisTypeStats(terminalAnalysisRuns);
 
-        var trend = BuildTrend(terminalAnalysisRuns, since, now, windowHours);
+        var trend = BuildTrend(terminalAnalysisRuns, bucketBoundaries);
 
         var stuckThreshold = now.AddMinutes(-_options.StuckWorkflowThresholdMinutes);
         var stuck = await context
@@ -209,16 +218,18 @@ public class DashboardService(SaraDbContext context, IOptions<DashboardOptions> 
 
     public async Task<TrendBucketDetailsDto> GetTrendBucketDetails(
         DateTime bucketStart,
-        int windowHours
+        int windowHours,
+        TimeZoneInfo timeZone
     )
     {
         bucketStart = bucketStart.ToUniversalTime();
-        var bucketEnd = bucketStart + GetBucketSpan(windowHours);
+        var bucketEnd = GetBucketEnd(bucketStart, windowHours, timeZone);
         var runs = await context
             .AnalysisRuns.Where(run =>
                 run.CompletedAt != null
-                && run.CompletedAt >= bucketStart
-                && run.CompletedAt < bucketEnd
+                && run.StartedAt != null
+                && run.StartedAt >= bucketStart
+                && run.StartedAt < bucketEnd
                 && (
                     run.Status == AnalysisRunStatus.Succeeded
                     || run.Status == AnalysisRunStatus.Failed
@@ -246,44 +257,24 @@ public class DashboardService(SaraDbContext context, IOptions<DashboardOptions> 
     /// </summary>
     private static List<TrendBucket> BuildTrend(
         IReadOnlyList<TerminalAnalysisRun> terminalAnalysisRuns,
-        DateTime since,
-        DateTime now,
-        int windowHours
+        IReadOnlyList<DateTime> bucketBoundaries
     )
     {
-        var hourly = windowHours <= 24;
-        var bucketSpan = GetBucketSpan(windowHours);
-
-        DateTime Truncate(DateTime dt) =>
-            hourly
-                ? new DateTime(dt.Year, dt.Month, dt.Day, dt.Hour, 0, 0, DateTimeKind.Utc)
-                : new DateTime(dt.Year, dt.Month, dt.Day, 0, 0, 0, DateTimeKind.Utc);
-
-        var counts = terminalAnalysisRuns
-            .Where(run =>
-                run.Status == AnalysisRunStatus.Succeeded || run.Status == AnalysisRunStatus.Failed
-            )
-            .GroupBy(run => Truncate(run.CompletedAt))
-            .ToDictionary(
-                g => g.Key,
-                g =>
-                    (
-                        Succeeded: g.Count(run => run.Status == AnalysisRunStatus.Succeeded),
-                        Failed: g.Count(run => run.Status == AnalysisRunStatus.Failed)
-                    )
-            );
-
         var buckets = new List<TrendBucket>();
-        for (var bucket = Truncate(since); bucket <= now; bucket += bucketSpan)
+        for (var index = 0; index < bucketBoundaries.Count - 1; index++)
         {
-            counts.TryGetValue(bucket, out var c);
+            var bucketStart = bucketBoundaries[index];
+            var bucketEnd = bucketBoundaries[index + 1];
+            var runs = terminalAnalysisRuns.Where(run =>
+                run.StartedAt >= bucketStart && run.StartedAt < bucketEnd
+            );
             buckets.Add(
                 new TrendBucket
                 {
-                    BucketStart = bucket,
-                    BucketEnd = bucket + bucketSpan,
-                    Succeeded = c.Succeeded,
-                    Failed = c.Failed,
+                    BucketStart = bucketStart,
+                    BucketEnd = bucketEnd,
+                    Succeeded = runs.Count(run => run.Status == AnalysisRunStatus.Succeeded),
+                    Failed = runs.Count(run => run.Status == AnalysisRunStatus.Failed),
                 }
             );
         }
@@ -291,8 +282,60 @@ public class DashboardService(SaraDbContext context, IOptions<DashboardOptions> 
         return buckets;
     }
 
-    private static TimeSpan GetBucketSpan(int windowHours) =>
-        windowHours <= 24 ? TimeSpan.FromHours(1) : TimeSpan.FromDays(1);
+    private static List<DateTime> BuildBucketBoundaries(
+        int windowHours,
+        TimeZoneInfo timeZone,
+        DateTime now
+    )
+    {
+        if (windowHours <= 24)
+        {
+            var currentHour = new DateTime(
+                now.Year,
+                now.Month,
+                now.Day,
+                now.Hour,
+                0,
+                0,
+                DateTimeKind.Utc
+            );
+            return Enumerable
+                .Range(0, windowHours + 1)
+                .Select(index => currentHour.AddHours(index - windowHours + 1))
+                .ToList();
+        }
+
+        var dayCount = windowHours / 24;
+        var localToday = TimeZoneInfo.ConvertTimeFromUtc(now, timeZone).Date;
+        return Enumerable
+            .Range(0, dayCount + 1)
+            .Select(index =>
+                TimeZoneInfo.ConvertTimeToUtc(
+                    DateTime.SpecifyKind(
+                        localToday.AddDays(index - dayCount + 1),
+                        DateTimeKind.Unspecified
+                    ),
+                    timeZone
+                )
+            )
+            .ToList();
+    }
+
+    private static DateTime GetBucketEnd(
+        DateTime bucketStart,
+        int windowHours,
+        TimeZoneInfo timeZone
+    )
+    {
+        if (windowHours <= 24)
+            return bucketStart.AddHours(1);
+
+        var localDate = TimeZoneInfo.ConvertTimeFromUtc(bucketStart, timeZone).Date;
+        return TimeZoneInfo.ConvertTimeToUtc(
+            DateTime.SpecifyKind(localDate.AddDays(1), DateTimeKind.Unspecified),
+            timeZone
+        );
+    }
 
     private static List<AnalysisTypeStat> BuildAnalysisTypeStats(
         IReadOnlyList<TerminalAnalysisRun> runs

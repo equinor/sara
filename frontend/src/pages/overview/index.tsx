@@ -291,6 +291,18 @@ export default function OverviewPage() {
               hourly={hourly}
               loadDetails={(bucketStart) => getTrendBucketDetails(bucketStart, windowHours)}
               formatAnalysisType={formatAnalysisType}
+              onBucketClick={(bucket) => {
+                const inclusiveEnd = new Date(
+                  new Date(bucket.bucketEnd).getTime() - 1
+                ).toISOString();
+                const query = new URLSearchParams({
+                  pageSize: "25",
+                  page: "1",
+                  startedSince: bucket.bucketStart,
+                  startedUntil: inclusiveEnd,
+                });
+                navigate(`/analysis-runs?${query}`);
+              }}
             />
           </Panel>
 

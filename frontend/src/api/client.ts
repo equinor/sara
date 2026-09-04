@@ -350,6 +350,8 @@ export async function deleteAnalysisGroup(id: string): Promise<void> {
 export interface AnalysisRunParams {
   analysisId?: string;
   status?: AnalysisRunStatus;
+  startedSince?: string;
+  startedUntil?: string;
 }
 
 export async function getAnalysisRuns(
@@ -360,6 +362,8 @@ export async function getAnalysisRuns(
   const q = pagedQuery(pageNumber, pageSize, {
     AnalysisId: filters.analysisId,
     Status: filters.status,
+    StartedSince: filters.startedSince,
+    StartedUntil: filters.startedUntil,
   });
   return apiFetch(apiUrl(`/api/analysis-run?${q}`));
 }
@@ -657,15 +661,18 @@ export const DASHBOARD_WINDOWS = [
 ] as const;
 
 export async function getDashboardSummary(
-  sinceHours = 168
+  sinceHours = 168,
+  timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
 ): Promise<DashboardSummary> {
-  return apiFetch(apiUrl(`/api/dashboard/summary?sinceHours=${sinceHours}`));
+  const query = new URLSearchParams({ sinceHours: String(sinceHours), timeZone });
+  return apiFetch(apiUrl(`/api/dashboard/summary?${query}`));
 }
 
 export async function getTrendBucketDetails(
   bucketStart: string,
-  windowHours: number
+  windowHours: number,
+  timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
 ): Promise<TrendBucketDetails> {
-  const query = new URLSearchParams({ bucketStart, windowHours: String(windowHours) });
+  const query = new URLSearchParams({ bucketStart, windowHours: String(windowHours), timeZone });
   return apiFetch(apiUrl(`/api/dashboard/trend-details?${query}`));
 }
