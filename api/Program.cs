@@ -87,7 +87,7 @@ builder
     )
     .ValidateOnStart();
 
-builder.Services.AddScoped<IThermalReferenceMetadataService, ThermalReferenceMetadataService>();
+builder.Services.AddScoped<IReferencePolygonMetadataService, ReferencePolygonMetadataService>();
 
 // Singleton so the delegation key is shared across requests, not refetched per
 // scope. BlobStorageService stays scoped.
