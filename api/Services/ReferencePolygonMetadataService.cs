@@ -13,7 +13,7 @@ public class BlobDirectoryInput
     public required string BlobName { get; set; }
 }
 
-public class ThermalReferenceMetadataInput
+public class ReferencePolygonMetadataInput
 {
     public required string TagId { get; set; }
 
@@ -24,7 +24,7 @@ public class ThermalReferenceMetadataInput
     public required BlobDirectoryInput ReferenceBlobStorageDirectory { get; set; }
 }
 
-public interface IThermalReferenceMetadataService
+public interface IReferencePolygonMetadataService
 {
     public Task<List<ThermalReferenceMetadata>> GetThermalReferenceMetadatas();
 
@@ -37,14 +37,14 @@ public interface IThermalReferenceMetadataService
     );
 
     public Task<ThermalReferenceMetadata> CreateThermalReferenceMetadata(
-        ThermalReferenceMetadataInput input,
+        ReferencePolygonMetadataInput input,
         BlobStorageLocation referenceImageLocation,
         BlobStorageLocation referencePolygonLocation
     );
 
     public Task<ThermalReferenceMetadata> UpdateThermalReferenceMetadata(
         Guid id,
-        ThermalReferenceMetadataInput input,
+        ReferencePolygonMetadataInput input,
         BlobStorageLocation referenceImageLocation,
         BlobStorageLocation referencePolygonLocation
     );
@@ -60,14 +60,14 @@ public interface IThermalReferenceMetadataService
     );
 }
 
-public class ThermalReferenceMetadataService(
+public class ReferencePolygonMetadataService(
     SaraDbContext context,
-    ILogger<ThermalReferenceMetadataService> logger,
+    ILogger<ReferencePolygonMetadataService> logger,
     IBlobStorageService blobStorageService,
     IConfiguration configuration
-) : IThermalReferenceMetadataService
+) : IReferencePolygonMetadataService
 {
-    private readonly ILogger<ThermalReferenceMetadataService> _logger = logger;
+    private readonly ILogger<ReferencePolygonMetadataService> _logger = logger;
 
     public async Task<List<ThermalReferenceMetadata>> GetThermalReferenceMetadatas()
     {
@@ -98,7 +98,7 @@ public class ThermalReferenceMetadataService(
     }
 
     public async Task<ThermalReferenceMetadata> CreateThermalReferenceMetadata(
-        ThermalReferenceMetadataInput input,
+        ReferencePolygonMetadataInput input,
         BlobStorageLocation referenceImageLocation,
         BlobStorageLocation referencePolygonLocation
     )
@@ -121,7 +121,7 @@ public class ThermalReferenceMetadataService(
 
     public async Task<ThermalReferenceMetadata> UpdateThermalReferenceMetadata(
         Guid id,
-        ThermalReferenceMetadataInput input,
+        ReferencePolygonMetadataInput input,
         BlobStorageLocation referenceImageLocation,
         BlobStorageLocation referencePolygonLocation
     )
@@ -172,7 +172,7 @@ public class ThermalReferenceMetadataService(
             preprocessedLocation.BlobContainer
         );
 
-        var input = new ThermalReferenceMetadataInput
+        var input = new ReferencePolygonMetadataInput
         {
             TagId = tagId,
             InstallationCode = installationCode,
@@ -255,7 +255,7 @@ public class ThermalReferenceMetadataService(
         await blobStorageService.UploadBlobAsync(destination, polygonStream, "application/json");
     }
 
-    private async Task ThrowIfDuplicateExists(ThermalReferenceMetadataInput input, Guid? existingId)
+    private async Task ThrowIfDuplicateExists(ReferencePolygonMetadataInput input, Guid? existingId)
     {
         var existingReference = await ReadByUniqueKey(
             input.InstallationCode,

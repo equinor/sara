@@ -30,7 +30,7 @@ public class UtilitiesPayloadEnricher : ITriggerPayloadEnricher
 }
 
 public class ThermalReadingPayloadEnricher(
-    IThermalReferenceMetadataService thermalReferenceMetadataService,
+    IReferencePolygonMetadataService thermalReferenceMetadataService,
     ILogger<ThermalReadingPayloadEnricher> logger
 ) : ITriggerPayloadEnricher
 {

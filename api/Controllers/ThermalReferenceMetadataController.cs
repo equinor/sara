@@ -21,7 +21,7 @@ public class CreateFromInspectionRecordRequest
 [Route("[controller]")]
 public class ThermalReferenceMetadataController(
     ILogger<ThermalReferenceMetadataController> logger,
-    IThermalReferenceMetadataService thermalReferenceMetadataService,
+    IReferencePolygonMetadataService thermalReferenceMetadataService,
     IThermalImageService thermalImageService,
     IInspectionRecordService inspectionRecordService,
     IConfiguration configuration
@@ -79,7 +79,7 @@ public class ThermalReferenceMetadataController(
     [Authorize(Roles = Role.Any)]
     [ProducesResponseType(typeof(ThermalReferenceMetadata), StatusCodes.Status200OK)]
     public async Task<ActionResult<ThermalReferenceMetadata>> CreateThermalReferenceMetadata(
-        [FromBody] ThermalReferenceMetadataInput input
+        [FromBody] ReferencePolygonMetadataInput input
     )
     {
         input.InstallationCode = Sanitize.SanitizeUserInput(input.InstallationCode);
@@ -202,7 +202,7 @@ public class ThermalReferenceMetadataController(
     [ProducesResponseType(typeof(ThermalReferenceMetadata), StatusCodes.Status200OK)]
     public async Task<ActionResult<ThermalReferenceMetadata>> UpdateThermalReferenceMetadata(
         [FromRoute] Guid id,
-        [FromBody] ThermalReferenceMetadataInput input
+        [FromBody] ReferencePolygonMetadataInput input
     )
     {
         try
