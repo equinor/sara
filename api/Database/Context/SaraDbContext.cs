@@ -15,7 +15,7 @@ namespace api.Database.Context
 
         public DbSet<AnalysisGroup> AnalysisGroups { get; set; } = null!;
 
-        public DbSet<ThermalReferenceMetadata> ThermalReferenceMetadata { get; set; } = null!;
+        public DbSet<ReferencePolygonMetadata> ReferencePolygonMetadata { get; set; } = null!;
 
         public DbSet<AnalysisRunFeedback> AnalysisRunFeedbacks { get; set; } = null!;
 
@@ -67,7 +67,7 @@ namespace api.Database.Context
                 );
 
             modelBuilder
-                .Entity<ThermalReferenceMetadata>()
+                .Entity<ReferencePolygonMetadata>()
                 .HasIndex(tri => new
                 {
                     tri.InstallationCode,

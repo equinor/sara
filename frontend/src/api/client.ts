@@ -189,7 +189,7 @@ export interface AnalysisGroup {
 
 // --- Thermal Reference Metadata (unchanged) ---
 
-export interface ThermalReferenceMetadata {
+export interface ReferencePolygonMetadata {
   id: string;
   tagId: string;
   installationCode: string;
@@ -204,7 +204,7 @@ export interface BlobDirectoryInput {
   blobName: string;
 }
 
-export interface ThermalReferenceMetadataInput {
+export interface ReferencePolygonMetadataInput {
   tagId: string;
   installationCode: string;
   inspectionDescription: string;
@@ -432,31 +432,31 @@ export async function getConfiguredAnalyses(): Promise<AnalysisConfigEntry[]> {
 
 // --- Thermal Reference Metadata ---
 
-export async function getThermalReferenceMetadata(): Promise<ThermalReferenceMetadata[]> {
-  return apiFetch(apiUrl(`/api/ThermalReferenceMetadata`));
+export async function getReferencePolygonMetadata(): Promise<ReferencePolygonMetadata[]> {
+  return apiFetch(apiUrl(`/api/ReferencePolygonMetadata`));
 }
 
-export async function getThermalReferenceMetadataById(
+export async function getReferencePolygonMetadataById(
   id: string
-): Promise<ThermalReferenceMetadata> {
-  return apiFetch(apiUrl(`/api/ThermalReferenceMetadata/id/${encodeURIComponent(id)}`));
+): Promise<ReferencePolygonMetadata> {
+  return apiFetch(apiUrl(`/api/ReferencePolygonMetadata/id/${encodeURIComponent(id)}`));
 }
 
-export async function createThermalReferenceMetadata(
-  request: ThermalReferenceMetadataInput
-): Promise<ThermalReferenceMetadata> {
-  return apiFetch(apiUrl("/api/ThermalReferenceMetadata"), {
+export async function createReferencePolygonMetadata(
+  request: ReferencePolygonMetadataInput
+): Promise<ReferencePolygonMetadata> {
+  return apiFetch(apiUrl("/api/ReferencePolygonMetadata"), {
     method: "POST",
     body: JSON.stringify(request),
   });
 }
 
-export async function updateThermalReferenceMetadata(
+export async function updateReferencePolygonMetadata(
   id: string,
-  request: ThermalReferenceMetadataInput
-): Promise<ThermalReferenceMetadata> {
+  request: ReferencePolygonMetadataInput
+): Promise<ReferencePolygonMetadata> {
   return apiFetch(
-    apiUrl(`/api/ThermalReferenceMetadata/id/${encodeURIComponent(id)}`),
+    apiUrl(`/api/ReferencePolygonMetadata/id/${encodeURIComponent(id)}`),
     {
       method: "PUT",
       body: JSON.stringify(request),
@@ -464,8 +464,8 @@ export async function updateThermalReferenceMetadata(
   );
 }
 
-export async function deleteThermalReferenceMetadata(id: string): Promise<void> {
-  await apiFetch(apiUrl(`/api/ThermalReferenceMetadata/id/${encodeURIComponent(id)}`), {
+export async function deleteReferencePolygonMetadata(id: string): Promise<void> {
+  await apiFetch(apiUrl(`/api/ReferencePolygonMetadata/id/${encodeURIComponent(id)}`), {
     method: "DELETE",
   });
 }
@@ -478,12 +478,12 @@ export interface ThermalImageData {
   maxTemperature: number;
 }
 
-export async function getThermalReferenceImageData(
+export async function getReferencePolygonImageData(
   id: string
 ): Promise<ThermalImageData> {
   const token = await getAccessToken();
   const response = await fetch(
-    apiUrl(`/api/ThermalReferenceMetadata/id/${encodeURIComponent(id)}/image`),
+    apiUrl(`/api/ReferencePolygonMetadata/id/${encodeURIComponent(id)}/image`),
     {
       headers: { Authorization: `Bearer ${token}` },
     }
@@ -506,11 +506,11 @@ export async function getThermalReferenceImageData(
   };
 }
 
-export async function getThermalReferencePolygonData(
+export async function getReferencePolygonPolygonData(
   id: string
 ): Promise<number[][]> {
   return apiFetch(
-    apiUrl(`/api/ThermalReferenceMetadata/id/${encodeURIComponent(id)}/polygon`)
+    apiUrl(`/api/ReferencePolygonMetadata/id/${encodeURIComponent(id)}/polygon`)
   );
 }
 
@@ -569,10 +569,10 @@ export interface CreateFromInspectionRecordInput {
   polygon: number[][];
 }
 
-export async function createThermalReferenceFromInspectionRecord(
+export async function createReferencePolygonFromInspectionRecord(
   input: CreateFromInspectionRecordInput
-): Promise<ThermalReferenceMetadata> {
-  return apiFetch(apiUrl("/api/ThermalReferenceMetadata/from-inspection-record"), {
+): Promise<ReferencePolygonMetadata> {
+  return apiFetch(apiUrl("/api/ReferencePolygonMetadata/from-inspection-record"), {
     method: "POST",
     body: JSON.stringify(input),
   });

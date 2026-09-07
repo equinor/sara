@@ -30,7 +30,7 @@ public class UtilitiesPayloadEnricher : ITriggerPayloadEnricher
 }
 
 public class ThermalReadingPayloadEnricher(
-    IReferencePolygonMetadataService thermalReferenceMetadataService,
+    IReferencePolygonMetadataService referencePolygonMetadataService,
     ILogger<ThermalReadingPayloadEnricher> logger
 ) : ITriggerPayloadEnricher
 {
@@ -81,7 +81,7 @@ public class ThermalReadingPayloadEnricher(
             );
         }
 
-        var metadata = await thermalReferenceMetadataService.ReadByUniqueKey(
+        var metadata = await referencePolygonMetadataService.ReadByUniqueKey(
             inspectionRecord.InstallationCode,
             inspectionRecord.Tag,
             inspectionRecord.InspectionDescription

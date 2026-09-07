@@ -26,32 +26,32 @@ public class ReferencePolygonMetadataInput
 
 public interface IReferencePolygonMetadataService
 {
-    public Task<List<ThermalReferenceMetadata>> GetThermalReferenceMetadatas();
+    public Task<List<ReferencePolygonMetadata>> GetReferencePolygonMetadatas();
 
-    public Task<ThermalReferenceMetadata?> ReadById(Guid id);
+    public Task<ReferencePolygonMetadata?> ReadById(Guid id);
 
-    public Task<ThermalReferenceMetadata?> ReadByUniqueKey(
+    public Task<ReferencePolygonMetadata?> ReadByUniqueKey(
         string installationCode,
         string tagId,
         string inspectionDescription
     );
 
-    public Task<ThermalReferenceMetadata> CreateThermalReferenceMetadata(
+    public Task<ReferencePolygonMetadata> CreateReferencePolygonMetadata(
         ReferencePolygonMetadataInput input,
         BlobStorageLocation referenceImageLocation,
         BlobStorageLocation referencePolygonLocation
     );
 
-    public Task<ThermalReferenceMetadata> UpdateThermalReferenceMetadata(
+    public Task<ReferencePolygonMetadata> UpdateReferencePolygonMetadata(
         Guid id,
         ReferencePolygonMetadataInput input,
         BlobStorageLocation referenceImageLocation,
         BlobStorageLocation referencePolygonLocation
     );
 
-    public Task RemoveThermalReferenceMetadata(Guid id);
+    public Task RemoveReferencePolygonMetadata(Guid id);
 
-    public Task<ThermalReferenceMetadata> CreateFromInspectionRecord(
+    public Task<ReferencePolygonMetadata> CreateFromInspectionRecord(
         InspectionRecord record,
         string tagId,
         string installationCode,
@@ -69,35 +69,35 @@ public class ReferencePolygonMetadataService(
 {
     private readonly ILogger<ReferencePolygonMetadataService> _logger = logger;
 
-    public async Task<List<ThermalReferenceMetadata>> GetThermalReferenceMetadatas()
+    public async Task<List<ReferencePolygonMetadata>> GetReferencePolygonMetadatas()
     {
         return await context
-            .ThermalReferenceMetadata.OrderByDescending(reference => reference.DateCreated)
+            .ReferencePolygonMetadata.OrderByDescending(reference => reference.DateCreated)
             .ThenBy(reference => reference.TagId)
             .ToListAsync();
     }
 
-    public async Task<ThermalReferenceMetadata?> ReadById(Guid id)
+    public async Task<ReferencePolygonMetadata?> ReadById(Guid id)
     {
-        return await context.ThermalReferenceMetadata.FirstOrDefaultAsync(reference =>
+        return await context.ReferencePolygonMetadata.FirstOrDefaultAsync(reference =>
             reference.Id == id
         );
     }
 
-    public async Task<ThermalReferenceMetadata?> ReadByUniqueKey(
+    public async Task<ReferencePolygonMetadata?> ReadByUniqueKey(
         string installationCode,
         string tagId,
         string inspectionDescription
     )
     {
-        return await context.ThermalReferenceMetadata.FirstOrDefaultAsync(reference =>
+        return await context.ReferencePolygonMetadata.FirstOrDefaultAsync(reference =>
             reference.InstallationCode.ToLower().Equals(installationCode.ToLower())
             && reference.TagId.ToLower().Equals(tagId.ToLower())
             && reference.InspectionDescription.ToLower().Equals(inspectionDescription.ToLower())
         );
     }
 
-    public async Task<ThermalReferenceMetadata> CreateThermalReferenceMetadata(
+    public async Task<ReferencePolygonMetadata> CreateReferencePolygonMetadata(
         ReferencePolygonMetadataInput input,
         BlobStorageLocation referenceImageLocation,
         BlobStorageLocation referencePolygonLocation
@@ -105,7 +105,7 @@ public class ReferencePolygonMetadataService(
     {
         await ThrowIfDuplicateExists(input, null);
 
-        var thermalReferenceMetadata = new ThermalReferenceMetadata
+        var referencePolygonMetadata = new ReferencePolygonMetadata
         {
             TagId = input.TagId,
             InstallationCode = input.InstallationCode,
@@ -114,19 +114,19 @@ public class ReferencePolygonMetadataService(
             ReferencePolygonBlobStorageLocation = referencePolygonLocation,
         };
 
-        context.ThermalReferenceMetadata.Add(thermalReferenceMetadata);
+        context.ReferencePolygonMetadata.Add(referencePolygonMetadata);
         await context.SaveChangesAsync();
-        return thermalReferenceMetadata;
+        return referencePolygonMetadata;
     }
 
-    public async Task<ThermalReferenceMetadata> UpdateThermalReferenceMetadata(
+    public async Task<ReferencePolygonMetadata> UpdateReferencePolygonMetadata(
         Guid id,
         ReferencePolygonMetadataInput input,
         BlobStorageLocation referenceImageLocation,
         BlobStorageLocation referencePolygonLocation
     )
     {
-        var thermalReferenceMetadata =
+        var referencePolygonMetadata =
             await ReadById(id)
             ?? throw new KeyNotFoundException(
                 $"Thermal reference metadata with id {id} was not found"
@@ -134,30 +134,30 @@ public class ReferencePolygonMetadataService(
 
         await ThrowIfDuplicateExists(input, id);
 
-        thermalReferenceMetadata.TagId = input.TagId;
-        thermalReferenceMetadata.InstallationCode = input.InstallationCode;
-        thermalReferenceMetadata.InspectionDescription = input.InspectionDescription;
-        thermalReferenceMetadata.ReferenceImageBlobStorageLocation = referenceImageLocation;
-        thermalReferenceMetadata.ReferencePolygonBlobStorageLocation = referencePolygonLocation;
+        referencePolygonMetadata.TagId = input.TagId;
+        referencePolygonMetadata.InstallationCode = input.InstallationCode;
+        referencePolygonMetadata.InspectionDescription = input.InspectionDescription;
+        referencePolygonMetadata.ReferenceImageBlobStorageLocation = referenceImageLocation;
+        referencePolygonMetadata.ReferencePolygonBlobStorageLocation = referencePolygonLocation;
 
-        context.ThermalReferenceMetadata.Update(thermalReferenceMetadata);
+        context.ReferencePolygonMetadata.Update(referencePolygonMetadata);
         await context.SaveChangesAsync();
-        return thermalReferenceMetadata;
+        return referencePolygonMetadata;
     }
 
-    public async Task RemoveThermalReferenceMetadata(Guid id)
+    public async Task RemoveReferencePolygonMetadata(Guid id)
     {
-        var thermalReferenceMetadata =
+        var referencePolygonMetadata =
             await ReadById(id)
             ?? throw new KeyNotFoundException(
                 $"Thermal reference metadata with id {id} was not found"
             );
 
-        context.ThermalReferenceMetadata.Remove(thermalReferenceMetadata);
+        context.ReferencePolygonMetadata.Remove(referencePolygonMetadata);
         await context.SaveChangesAsync();
     }
 
-    public async Task<ThermalReferenceMetadata> CreateFromInspectionRecord(
+    public async Task<ReferencePolygonMetadata> CreateFromInspectionRecord(
         InspectionRecord record,
         string tagId,
         string installationCode,
@@ -189,7 +189,7 @@ public class ReferencePolygonMetadataService(
         await blobStorageService.CopyBlobAsync(preprocessedLocation, imageDestination);
         await UploadPolygonAsync(polygon, polygonDestination);
 
-        return await CreateThermalReferenceMetadata(input, imageDestination, polygonDestination);
+        return await CreateReferencePolygonMetadata(input, imageDestination, polygonDestination);
     }
 
     private static BlobStorageLocation GetPreprocessedBlobLocation(InspectionRecord record)

@@ -9,9 +9,9 @@ import { add, refresh } from "@equinor/eds-icons";
 import { useNavigate } from "react-router";
 import styled from "styled-components";
 import {
-  deleteThermalReferenceMetadata,
-  getThermalReferenceMetadata,
-  type ThermalReferenceMetadata,
+  deleteReferencePolygonMetadata,
+  getReferencePolygonMetadata,
+  type ReferencePolygonMetadata,
 } from "../../api/client";
 import IdCell from "../../components/IdCell";
 
@@ -29,9 +29,9 @@ const StyledActions = styled.div`
   gap: 0.5rem;
 `;
 
-export default function ThermalReferenceImagesPage() {
+export default function ReferencePolygonImagesPage() {
   const navigate = useNavigate();
-  const [data, setData] = useState<ThermalReferenceMetadata[]>([]);
+  const [data, setData] = useState<ReferencePolygonMetadata[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,7 +39,7 @@ export default function ThermalReferenceImagesPage() {
     setLoading(true);
     setError(null);
     try {
-      const result = await getThermalReferenceMetadata();
+      const result = await getReferencePolygonMetadata();
       setData(result);
     } catch (e) {
       setError(
@@ -67,7 +67,7 @@ export default function ThermalReferenceImagesPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      await deleteThermalReferenceMetadata(id);
+      await deleteReferencePolygonMetadata(id);
       await fetchData();
     } catch (e) {
       setError(

@@ -9,10 +9,10 @@ import { arrow_back } from "@equinor/eds-icons";
 import { useNavigate, useSearchParams } from "react-router";
 import styled from "styled-components";
 import {
-  createThermalReferenceMetadata,
-  createThermalReferenceFromInspectionRecord,
+  createReferencePolygonMetadata,
+  createReferencePolygonFromInspectionRecord,
   getInspectionRecordThermalImage,
-  type ThermalReferenceMetadataInput,
+  type ReferencePolygonMetadataInput,
   type InspectionRecord,
   type ThermalImageData,
 } from "../../api/client";
@@ -99,7 +99,7 @@ const LoadingOverlay = styled.div`
 
 Icon.add({ arrow_back });
 
-const emptyForm: ThermalReferenceMetadataInput = {
+const emptyForm: ReferencePolygonMetadataInput = {
   tagId: "",
   installationCode: "",
   inspectionDescription: "",
@@ -109,11 +109,11 @@ const emptyForm: ThermalReferenceMetadataInput = {
   },
 };
 
-export default function CreateThermalReferenceMetadataPage() {
+export default function CreateReferencePolygonMetadataPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const fromInspection = searchParams.get("mode") === "inspection";
-  const [form, setForm] = useState<ThermalReferenceMetadataInput>(emptyForm);
+  const [form, setForm] = useState<ReferencePolygonMetadataInput>(emptyForm);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -165,7 +165,7 @@ export default function CreateThermalReferenceMetadataPage() {
     setCreating(true);
     setError(null);
     try {
-      await createThermalReferenceMetadata(form);
+      await createReferencePolygonMetadata(form);
       navigateBack();
     } catch (e) {
       setError(
@@ -188,7 +188,7 @@ export default function CreateThermalReferenceMetadataPage() {
     setCreating(true);
     setError(null);
     try {
-      const result = await createThermalReferenceFromInspectionRecord({
+      const result = await createReferencePolygonFromInspectionRecord({
         inspectionRecordId: selectedRecord.id,
         tagId: form.tagId,
         installationCode: form.installationCode,

@@ -9,13 +9,13 @@ import { arrow_back } from "@equinor/eds-icons";
 import { useNavigate, useParams } from "react-router";
 import styled from "styled-components";
 import {
-  getThermalReferenceMetadataById,
-  updateThermalReferenceMetadata,
-  deleteThermalReferenceMetadata,
-  getThermalReferenceImageData,
-  getThermalReferencePolygonData,
-  type ThermalReferenceMetadata,
-  type ThermalReferenceMetadataInput,
+  getReferencePolygonMetadataById,
+  updateReferencePolygonMetadata,
+  deleteReferencePolygonMetadata,
+  getReferencePolygonImageData,
+  getReferencePolygonPolygonData,
+  type ReferencePolygonMetadata,
+  type ReferencePolygonMetadataInput,
   type ThermalImageData,
   type BlobStorageLocation,
 } from "../../api/client";
@@ -76,15 +76,15 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-export default function ThermalReferenceMetadataDetailPage() {
+export default function ReferencePolygonMetadataDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [data, setData] = useState<ThermalReferenceMetadata | null>(null);
+  const [data, setData] = useState<ReferencePolygonMetadata | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState<ThermalReferenceMetadataInput>({
+  const [form, setForm] = useState<ReferencePolygonMetadataInput>({
     tagId: "",
     installationCode: "",
     inspectionDescription: "",
@@ -103,7 +103,7 @@ export default function ThermalReferenceMetadataDetailPage() {
     setLoading(true);
     setError(null);
     try {
-      const result = await getThermalReferenceMetadataById(id);
+      const result = await getReferencePolygonMetadataById(id);
       setData(result);
     } catch (e) {
       setError(
@@ -126,7 +126,7 @@ export default function ThermalReferenceMetadataDetailPage() {
     setImageLoading(true);
     setImageError(null);
     setThermalImage(null);
-    getThermalReferenceImageData(id)
+    getReferencePolygonImageData(id)
       .then((result) => {
         if (!cancelled) setThermalImage(result);
       })
@@ -149,7 +149,7 @@ export default function ThermalReferenceMetadataDetailPage() {
     let cancelled = false;
     setPolygon(null);
     setPolygonError(null);
-    getThermalReferencePolygonData(id)
+    getReferencePolygonPolygonData(id)
       .then((result) => {
         if (!cancelled) setPolygon(result);
       })
@@ -185,7 +185,7 @@ export default function ThermalReferenceMetadataDetailPage() {
     setSaving(true);
     setError(null);
     try {
-      await updateThermalReferenceMetadata(id, form);
+      await updateReferencePolygonMetadata(id, form);
       setEditing(false);
       await fetchData();
     } catch (e) {
@@ -202,7 +202,7 @@ export default function ThermalReferenceMetadataDetailPage() {
   const handleDelete = async () => {
     if (!id) return;
     try {
-      await deleteThermalReferenceMetadata(id);
+      await deleteReferencePolygonMetadata(id);
       navigateBack();
     } catch (e) {
       setError(

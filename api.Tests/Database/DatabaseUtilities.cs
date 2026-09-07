@@ -68,13 +68,13 @@ public class DatabaseUtilities(SaraDbContext context)
         return record;
     }
 
-    public async Task<ThermalReferenceMetadata> NewThermalReferenceMetadata(
+    public async Task<ReferencePolygonMetadata> NewReferencePolygonMetadata(
         string installationCode = "TST",
         string tagId = "test-tag",
         string inspectionDescription = "test-description"
     )
     {
-        var metadata = new ThermalReferenceMetadata
+        var metadata = new ReferencePolygonMetadata
         {
             InstallationCode = installationCode,
             TagId = tagId,
@@ -89,7 +89,7 @@ public class DatabaseUtilities(SaraDbContext context)
             ),
         };
 
-        _context.ThermalReferenceMetadata.Add(metadata);
+        _context.ReferencePolygonMetadata.Add(metadata);
         await _context.SaveChangesAsync();
         return metadata;
     }

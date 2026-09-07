@@ -125,13 +125,13 @@ namespace Api.Database.Context
             return inspectionRecord;
         }
 
-        private static List<ThermalReferenceMetadata> GetThermalReferenceMetadata(
+        private static List<ReferencePolygonMetadata> GetReferencePolygonMetadata(
             IConfiguration configuration
         )
         {
             var storageAccount = configuration["Storage:ThermalReferenceStorageAccount"] ?? "";
 
-            var entry1 = new ThermalReferenceMetadata
+            var entry1 = new ReferencePolygonMetadata
             {
                 TagId = "thermal",
                 InstallationCode = "hua",
@@ -156,7 +156,7 @@ namespace Api.Database.Context
         public static void PopulateDb(SaraDbContext context, IConfiguration configuration)
         {
             context.AddRange(GetInspectionRecords());
-            context.AddRange(GetThermalReferenceMetadata(configuration));
+            context.AddRange(GetReferencePolygonMetadata(configuration));
 
             context.SaveChanges();
             context.ChangeTracker.Clear();

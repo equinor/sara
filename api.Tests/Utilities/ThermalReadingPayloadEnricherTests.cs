@@ -50,7 +50,7 @@ public class ThermalReadingPayloadEnricherTests : IAsyncLifetime
             tag: "tag-42",
             inspectionDescription: "thermal-spot"
         );
-        var metadata = await _db.NewThermalReferenceMetadata(
+        var metadata = await _db.NewReferencePolygonMetadata(
             installationCode: "HUA",
             tagId: "tag-42",
             inspectionDescription: "thermal-spot"

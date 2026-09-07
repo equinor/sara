@@ -19,9 +19,9 @@ public class CreateFromInspectionRecordRequest
 
 [ApiController]
 [Route("[controller]")]
-public class ThermalReferenceMetadataController(
-    ILogger<ThermalReferenceMetadataController> logger,
-    IReferencePolygonMetadataService thermalReferenceMetadataService,
+public class ReferencePolygonMetadataController(
+    ILogger<ReferencePolygonMetadataController> logger,
+    IReferencePolygonMetadataService referencePolygonMetadataService,
     IThermalImageService thermalImageService,
     IInspectionRecordService inspectionRecordService,
     IConfiguration configuration
@@ -29,14 +29,14 @@ public class ThermalReferenceMetadataController(
 {
     [HttpGet]
     [Authorize(Roles = Role.Any)]
-    [ProducesResponseType(typeof(IList<ThermalReferenceMetadata>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IList<ThermalReferenceMetadata>>> GetThermalReferenceMetadatas()
+    [ProducesResponseType(typeof(IList<ReferencePolygonMetadata>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IList<ReferencePolygonMetadata>>> GetReferencePolygonMetadatas()
     {
         try
         {
-            var thermalReferenceMetadatas =
-                await thermalReferenceMetadataService.GetThermalReferenceMetadatas();
-            return Ok(thermalReferenceMetadatas);
+            var referencePolygonMetadatas =
+                await referencePolygonMetadataService.GetReferencePolygonMetadatas();
+            return Ok(referencePolygonMetadatas);
         }
         catch (Exception ex)
         {
@@ -50,20 +50,20 @@ public class ThermalReferenceMetadataController(
 
     [HttpGet("id/{id}")]
     [Authorize(Roles = Role.Any)]
-    [ProducesResponseType(typeof(ThermalReferenceMetadata), StatusCodes.Status200OK)]
-    public async Task<ActionResult<ThermalReferenceMetadata>> GetThermalReferenceMetadataById(
+    [ProducesResponseType(typeof(ReferencePolygonMetadata), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ReferencePolygonMetadata>> GetReferencePolygonMetadataById(
         [FromRoute] Guid id
     )
     {
         try
         {
-            var thermalReferenceMetadata = await thermalReferenceMetadataService.ReadById(id);
-            if (thermalReferenceMetadata is null)
+            var referencePolygonMetadata = await referencePolygonMetadataService.ReadById(id);
+            if (referencePolygonMetadata is null)
             {
                 return NotFound($"Could not find thermal reference metadata with id {id}");
             }
 
-            return Ok(thermalReferenceMetadata);
+            return Ok(referencePolygonMetadata);
         }
         catch (Exception ex)
         {
@@ -77,8 +77,8 @@ public class ThermalReferenceMetadataController(
 
     [HttpPost]
     [Authorize(Roles = Role.Any)]
-    [ProducesResponseType(typeof(ThermalReferenceMetadata), StatusCodes.Status200OK)]
-    public async Task<ActionResult<ThermalReferenceMetadata>> CreateThermalReferenceMetadata(
+    [ProducesResponseType(typeof(ReferencePolygonMetadata), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ReferencePolygonMetadata>> CreateReferencePolygonMetadata(
         [FromBody] ReferencePolygonMetadataInput input
     )
     {
@@ -91,13 +91,13 @@ public class ThermalReferenceMetadataController(
             var (imageLocation, polygonLocation) = BuildReferenceLocations(
                 input.ReferenceBlobStorageDirectory
             );
-            var thermalReferenceMetadata =
-                await thermalReferenceMetadataService.CreateThermalReferenceMetadata(
+            var referencePolygonMetadata =
+                await referencePolygonMetadataService.CreateReferencePolygonMetadata(
                     input,
                     imageLocation,
                     polygonLocation
                 );
-            return Ok(thermalReferenceMetadata);
+            return Ok(referencePolygonMetadata);
         }
         catch (ArgumentException ex)
         {
@@ -116,12 +116,12 @@ public class ThermalReferenceMetadataController(
 
     [HttpPost("from-inspection-record")]
     [Authorize(Roles = Role.Any)]
-    [ProducesResponseType(typeof(ThermalReferenceMetadata), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ReferencePolygonMetadata), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<ThermalReferenceMetadata>> CreateFromInspectionRecord(
+    public async Task<ActionResult<ReferencePolygonMetadata>> CreateFromInspectionRecord(
         [FromBody] CreateFromInspectionRecordRequest request
     )
     {
@@ -156,15 +156,15 @@ public class ThermalReferenceMetadataController(
                 );
             }
 
-            var thermalReferenceMetadata =
-                await thermalReferenceMetadataService.CreateFromInspectionRecord(
+            var referencePolygonMetadata =
+                await referencePolygonMetadataService.CreateFromInspectionRecord(
                     record,
                     request.TagId,
                     request.InstallationCode,
                     request.InspectionDescription,
                     request.Polygon
                 );
-            return Ok(thermalReferenceMetadata);
+            return Ok(referencePolygonMetadata);
         }
         catch (KeyNotFoundException ex)
         {
@@ -199,8 +199,8 @@ public class ThermalReferenceMetadataController(
 
     [HttpPut("id/{id}")]
     [Authorize(Roles = Role.Any)]
-    [ProducesResponseType(typeof(ThermalReferenceMetadata), StatusCodes.Status200OK)]
-    public async Task<ActionResult<ThermalReferenceMetadata>> UpdateThermalReferenceMetadata(
+    [ProducesResponseType(typeof(ReferencePolygonMetadata), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ReferencePolygonMetadata>> UpdateReferencePolygonMetadata(
         [FromRoute] Guid id,
         [FromBody] ReferencePolygonMetadataInput input
     )
@@ -210,14 +210,14 @@ public class ThermalReferenceMetadataController(
             var (imageLocation, polygonLocation) = BuildReferenceLocations(
                 input.ReferenceBlobStorageDirectory
             );
-            var thermalReferenceMetadata =
-                await thermalReferenceMetadataService.UpdateThermalReferenceMetadata(
+            var referencePolygonMetadata =
+                await referencePolygonMetadataService.UpdateReferencePolygonMetadata(
                     id,
                     input,
                     imageLocation,
                     polygonLocation
                 );
-            return Ok(thermalReferenceMetadata);
+            return Ok(referencePolygonMetadata);
         }
         catch (KeyNotFoundException ex)
         {
@@ -242,11 +242,11 @@ public class ThermalReferenceMetadataController(
     [HttpDelete("id/{id}")]
     [Authorize(Roles = Role.Any)]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<ActionResult> DeleteThermalReferenceMetadata([FromRoute] Guid id)
+    public async Task<ActionResult> DeleteReferencePolygonMetadata([FromRoute] Guid id)
     {
         try
         {
-            await thermalReferenceMetadataService.RemoveThermalReferenceMetadata(id);
+            await referencePolygonMetadataService.RemoveReferencePolygonMetadata(id);
             return Ok("Thermal reference metadata removed successfully");
         }
         catch (KeyNotFoundException ex)
@@ -268,11 +268,11 @@ public class ThermalReferenceMetadataController(
     [Authorize(Roles = Role.Any)]
     [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult> GetThermalReferenceImage([FromRoute] Guid id)
+    public async Task<ActionResult> GetReferencePolygonImage([FromRoute] Guid id)
     {
         try
         {
-            var metadata = await thermalReferenceMetadataService.ReadById(id);
+            var metadata = await referencePolygonMetadataService.ReadById(id);
             if (metadata is null)
             {
                 return NotFound($"Could not find thermal reference metadata with id {id}");
@@ -318,11 +318,11 @@ public class ThermalReferenceMetadataController(
     [Authorize(Roles = Role.Any)]
     [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult> GetThermalReferencePolygon([FromRoute] Guid id)
+    public async Task<ActionResult> GetReferencePolygonPolygon([FromRoute] Guid id)
     {
         try
         {
-            var metadata = await thermalReferenceMetadataService.ReadById(id);
+            var metadata = await referencePolygonMetadataService.ReadById(id);
             if (metadata is null)
             {
                 return NotFound($"Could not find thermal reference metadata with id {id}");
