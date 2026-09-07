@@ -6,6 +6,9 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      # Match frontend/pnpm-workspace.yaml's minimumReleaseAge (7200 minutes).
+      default-days: 5
     open-pull-requests-limit: 5
     groups:
       frontend-patch-minor:
