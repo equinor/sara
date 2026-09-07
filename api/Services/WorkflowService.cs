@@ -32,6 +32,7 @@ public class WorkflowParameters
     public string? WorkflowType { get; set; }
     public WorkflowStatus? Status { get; set; }
     public Guid? AnalysisRunId { get; set; }
+    public DateTime? StartedSince { get; set; }
 }
 
 public class WorkflowService(
@@ -153,6 +154,9 @@ public class WorkflowService(
 
         if (parameters.AnalysisRunId is { } runId)
             query = query.Where(w => w.AnalysisRunId == runId);
+
+        if (parameters.StartedSince is { } startedSince)
+            query = query.Where(w => w.StartedAt >= startedSince.ToUniversalTime());
 
         query = query.OrderByDescending(w => w.StartedAt ?? DateTime.MinValue).ThenBy(w => w.Id);
 

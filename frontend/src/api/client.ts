@@ -386,6 +386,7 @@ export interface WorkflowParams {
   workflowType?: string;
   status?: WorkflowStatus;
   analysisRunId?: string;
+  startedSince?: string;
 }
 
 export async function getWorkflows(
@@ -397,6 +398,7 @@ export async function getWorkflows(
     WorkflowType: filters.workflowType,
     Status: filters.status,
     AnalysisRunId: filters.analysisRunId,
+    StartedSince: filters.startedSince,
   });
   return apiFetch(apiUrl(`/api/workflow?${q}`));
 }
