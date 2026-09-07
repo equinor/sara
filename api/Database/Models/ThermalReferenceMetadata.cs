@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 #pragma warning disable CS8618
 namespace api.Database.Models;
 
-public class ThermalReferenceMetadata
+public class ReferencePolygonMetadata
 {
     [Key]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
