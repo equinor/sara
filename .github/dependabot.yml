@@ -1,9 +1,43 @@
 version: 2
 updates:
+  # pnpm dependencies in frontend/package.json and frontend/pnpm-lock.yaml.
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      frontend-patch-minor:
+        patterns: ["*"]
+        update-types: ["patch", "minor"]
+      frontend-major:
+        patterns: ["*"]
+        update-types: ["major"]
+
+  # sara.sln includes api/api.csproj and api.Tests/api.test.csproj.
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      nuget-patch-minor:
+        patterns: ["*"]
+        update-types: ["patch", "minor"]
+      nuget-major:
+        patterns: ["*"]
+        update-types: ["major"]
+
   - package-ecosystem: docker
     directory: /
     schedule:
       interval: weekly
+      day: monday
+    groups:
+      docker-images:
+        patterns: ["*"]
     ignore:
       - dependency-name: dotnet/sdk
         update-types:
