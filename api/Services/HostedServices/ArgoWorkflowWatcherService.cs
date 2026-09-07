@@ -18,13 +18,14 @@ public class ArgoWorkflowWatcherService(
     /// Each iteration opens a streaming watch and normally remains there while events arrive;
     /// this is not a polling loop. Kubernetes watch connections are not guaranteed to remain
     /// open, so the loop creates a new workflow snapshot and watch when the connection closes.
-    /// Expired resource versions are relisted immediately, while unexpected failures are
-    /// retried after a delay.
+    /// Expired resource versions are relisted immediately, while interrupted streams and
+    /// unexpected failures are retried after a delay.
     /// </summary>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
         {
+            var retryAfterDelay = false;
             try
             {
                 await WatchWorkflowsAsync(stoppingToken);
@@ -42,10 +43,27 @@ public class ArgoWorkflowWatcherService(
             {
                 logger.LogInformation("Argo Workflow watch resource version expired; relisting");
             }
+            catch (WatchStreamClosedException ex)
+            {
+                logger.LogInformation(ex, "Argo Workflow watch stream closed; relisting");
+                retryAfterDelay = true;
+            }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Argo Workflow watch failed; relisting");
-                await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
+                retryAfterDelay = true;
+            }
+
+            if (retryAfterDelay)
+            {
+                try
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    break;
+                }
             }
         }
     }
@@ -69,13 +87,35 @@ public class ArgoWorkflowWatcherService(
             await HandleWorkflowEventAsync(workflow, cancellationToken);
         }
 
-        await foreach (
-            var workflow in client.WatchWorkflowsAsync(snapshot.ResourceVersion, cancellationToken)
-        )
+        await using var events = client
+            .WatchWorkflowsAsync(snapshot.ResourceVersion, cancellationToken)
+            .GetAsyncEnumerator(cancellationToken);
+        while (await MoveNextWatchEventAsync(events, cancellationToken))
         {
-            await HandleWorkflowEventAsync(workflow, cancellationToken);
+            await HandleWorkflowEventAsync(events.Current, cancellationToken);
         }
     }
+
+    private static async ValueTask<bool> MoveNextWatchEventAsync(
+        IAsyncEnumerator<ArgoWorkflowResource> events,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            return await events.MoveNextAsync();
+        }
+        catch (HttpRequestException ex)
+            when (ex.StatusCode is null && ex.InnerException is EndOfStreamException)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            // Classify only watch reads, never snapshot requests or event processing.
+            throw new WatchStreamClosedException(ex);
+        }
+    }
+
+    private sealed class WatchStreamClosedException(HttpRequestException innerException)
+        : Exception("Argo Workflow watch stream closed", innerException);
 
     /// <summary>
     /// Creates an isolated dependency-injection scope for each workflow event because the processor
