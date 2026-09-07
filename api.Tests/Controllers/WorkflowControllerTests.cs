@@ -25,6 +25,15 @@ public class WorkflowControllerTests : IAsyncLifetime
 
     public required IWorkflowService WorkflowService;
 
+    private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
+
+    private static JsonSerializerOptions CreateJsonOptions()
+    {
+        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        options.Converters.Add(new JsonStringEnumConverter());
+        return options;
+    }
+
     public async ValueTask InitializeAsync()
     {
         (var _container, string cs) = await TestSetupHelpers.ConfigurePostgreSqlDatabase();
@@ -41,6 +50,37 @@ public class WorkflowControllerTests : IAsyncLifetime
     {
         GC.SuppressFinalize(this);
         return ValueTask.CompletedTask;
+    }
+
+    [Fact]
+    public async Task GetAll_WithStartedSince_ReturnsOnlyWorkflowsStartedWithinRange()
+    {
+        var analysis = await _db.NewAnalysis();
+        var run = await _db.NewAnalysisRun(analysis);
+        var cutoff = DateTime.UtcNow.AddDays(-1);
+        var recent = await _db.NewWorkflow(run, workflowType: "recent");
+        recent.StartedAt = cutoff.AddHours(1);
+        recent.Status = WorkflowStatus.Failed;
+        var old = await _db.NewWorkflow(run, workflowType: "old");
+        old.StartedAt = cutoff.AddHours(-1);
+        old.Status = WorkflowStatus.Failed;
+        var notStarted = await _db.NewWorkflow(run, workflowType: "not-started");
+        notStarted.Status = WorkflowStatus.Failed;
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var response = await Client.GetAsync(
+            $"/api/workflow?Status=Failed&StartedSince={Uri.EscapeDataString(cutoff.ToString("O"))}",
+            TestContext.Current.CancellationToken
+        );
+
+        response.EnsureSuccessStatusCode();
+        var page = await response.Content.ReadFromJsonAsync<PagedResponse<WorkflowDto>>(
+            JsonOptions,
+            TestContext.Current.CancellationToken
+        );
+        Assert.NotNull(page);
+        var workflow = Assert.Single(page.Items);
+        Assert.Equal(recent.Id, workflow.Id);
     }
 
     [Fact]

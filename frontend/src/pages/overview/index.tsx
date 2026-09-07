@@ -138,10 +138,11 @@ export default function OverviewPage() {
   })();
 
   const fetcher = useCallback(async (): Promise<OverviewData> => {
+    const startedSince = new Date(Date.now() - windowHours * 60 * 60 * 1000).toISOString();
     const [summary, latestRuns, failures] = await Promise.all([
       getDashboardSummary(windowHours),
       getAnalysisRuns(1, 5, {}),
-      getWorkflows(1, 5, { status: "Failed" }),
+      getWorkflows(1, 5, { status: "Failed", startedSince }),
     ]);
     return {
       summary,
