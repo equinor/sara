@@ -41,7 +41,7 @@ public class InspectionRecordServiceTests : IAsyncLifetime
     {
         using var scope = _factory.Services.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<IInspectionRecordService>();
-        return await service.CreateFromMqttMessage(message);
+        return (await service.CreateFromMqttMessage(message)).Record;
     }
 
     [Fact]
@@ -77,6 +77,17 @@ public class InspectionRecordServiceTests : IAsyncLifetime
         Assert.Equal(1.0f, created.RobotPose!.Position.X);
         Assert.Equal(0.4f, created.RobotPose.Orientation.W);
         Assert.Equal(8.0f, created.TargetPosition!.Y);
+    }
+
+    [Fact]
+    public async Task CreateFromMqttMessage_WithGroup_PersistsRecord()
+    {
+        var message = _db.NewIsarInspectionResultMessage(
+            requiredAnalysis: ["group-test"],
+            analysisGroup: _db.NewAnalysisGroupMessage()
+        );
+
+        await CreateInScope(message);
     }
 
     [Fact]

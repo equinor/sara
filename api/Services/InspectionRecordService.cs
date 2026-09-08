@@ -5,12 +5,15 @@ using api.MQTT;
 using api.Utilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Npgsql;
 
 namespace api.Services;
 
 public interface IInspectionRecordService
 {
-    public Task<InspectionRecord> CreateFromMqttMessage(IsarInspectionResultMessage message);
+    public Task<MqttInspectionRecordResult> CreateFromMqttMessage(
+        IsarInspectionResultMessage message
+    );
 
     public Task<InspectionRecord> Create(InspectionRecord inspectionRecord);
 
@@ -82,17 +85,105 @@ public class InspectionRecordService(
 {
     private readonly AnalysisOptions _analysisOptions = analysisOptions.Value;
 
-    public async Task<InspectionRecord> CreateFromMqttMessage(IsarInspectionResultMessage message)
+    public async Task<MqttInspectionRecordResult> CreateFromMqttMessage(
+        IsarInspectionResultMessage message
+    )
+    {
+        var attempt = 0;
+        return await context
+            .Database.CreateExecutionStrategy()
+            .ExecuteAsync(async () =>
+            {
+                // A transient failure may leave tracked entities from a rolled-back attempt.
+                if (attempt++ > 0)
+                    context.ChangeTracker.Clear();
+                return await CreateFromMqttMessageAttempt(message);
+            });
+    }
+
+    private async Task<MqttInspectionRecordResult> CreateFromMqttMessageAttempt(
+        IsarInspectionResultMessage message
+    )
     {
         var inspectionId = Sanitize.SanitizeUserInput(message.InspectionId);
-
-        if (await ExistsByInspectionId(inspectionId))
+        var existing = await ReadMqttDuplicate(inspectionId);
+        if (existing is not null)
         {
-            throw new InvalidOperationException(
-                $"Inspection record with inspection id {inspectionId} already exists"
-            );
+            return await ClassifyMqttDuplicate(existing, message);
         }
 
+        // Group/analysis creation also saves changes. Roll all of it back if
+        // another delivery wins either unique insert.
+        await using var transaction = await context.Database.BeginTransactionAsync();
+        try
+        {
+            var created = await CreateMqttRecord(message, inspectionId);
+            await transaction.CommitAsync();
+            return new MqttInspectionRecordResult(created, false, []);
+        }
+        catch (DbUpdateException ex)
+            when (ex.InnerException
+                    is PostgresException
+                    {
+                        SqlState: PostgresErrorCodes.UniqueViolation,
+                        ConstraintName: "IX_InspectionRecords_InspectionId"
+                            or "IX_AnalysisGroups_GroupId"
+                    }
+            )
+        {
+            await transaction.RollbackAsync();
+            context.ChangeTracker.Clear();
+            existing = await ReadMqttDuplicate(inspectionId);
+            if (existing is null)
+                throw;
+
+            return await ClassifyMqttDuplicate(existing, message);
+        }
+    }
+
+    private async Task<InspectionRecord?> ReadMqttDuplicate(string inspectionId)
+    {
+        var stored = await context
+            .InspectionRecords.AsNoTracking()
+            .Include(r => r.AnalysisGroup)
+            .Include(r => r.Analyses)
+                .ThenInclude(a => a.Runs)
+                    .ThenInclude(r => r.Workflows)
+            .Where(r => r.InspectionId == inspectionId)
+            .Select(r => new { Record = r, r.Timestamp })
+            .FirstOrDefaultAsync();
+        // SQLite drops DateTime.Kind. Read the persisted UTC timestamp directly,
+        // avoiding the entity setter interpreting an unspecified value as local time.
+        if (stored?.Timestamp is DateTime timestamp)
+            stored.Record.Timestamp = DateTime.SpecifyKind(timestamp, DateTimeKind.Utc);
+        return stored?.Record;
+    }
+
+    private async Task<MqttInspectionRecordResult> ClassifyMqttDuplicate(
+        InspectionRecord existing,
+        IsarInspectionResultMessage message
+    )
+    {
+        MqttInspectionRecordResult.EnsureEquivalent(existing, message);
+        var group = existing.AnalysisGroup;
+        var awaitingGroup =
+            group is not null
+            && group.Status == AnalysisGroupStatus.Pending
+            && group.TimeoutAt > DateTime.UtcNow
+            && await context.InspectionRecords.CountAsync(r => r.AnalysisGroupId == group.Id)
+                < group.ExpectedSize;
+        return new MqttInspectionRecordResult(
+            existing,
+            true,
+            MqttInspectionRecordResult.FindIncompleteAnalyses(existing, message, awaitingGroup)
+        );
+    }
+
+    private async Task<InspectionRecord> CreateMqttRecord(
+        IsarInspectionResultMessage message,
+        string inspectionId
+    )
+    {
         var analysisGroup =
             message.AnalysisGroup != null
                 ? await GetOrCreateAnalysisGroup(
@@ -106,15 +197,14 @@ public class InspectionRecordService(
         if (message.RequiredAnalysis != null)
         {
             var analysesInGroup =
-                analysisGroup?.Analyses.Where(
-                    (a) => message.RequiredAnalysis.Contains(a.AnalysisType)
-                )
+                analysisGroup
+                    ?.Analyses.Where((a) => message.RequiredAnalysis.Contains(a.AnalysisType))
+                    .ToList()
                 ?? [];
 
             var newAnalyses = message
-                .RequiredAnalysis.Where(
-                    (r) => !analysesInGroup.Select((a) => a.AnalysisType).Contains(r)
-                )
+                .RequiredAnalysis.Distinct()
+                .Where((r) => !analysesInGroup.Select((a) => a.AnalysisType).Contains(r))
                 .Select((r) => new Analysis { AnalysisType = r, AnalysisGroup = analysisGroup })
                 .ToList();
 
