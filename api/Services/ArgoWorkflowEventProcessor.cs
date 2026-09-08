@@ -24,6 +24,7 @@ public interface IArgoWorkflowEventProcessor
 public class ArgoWorkflowEventProcessor(
     SaraDbContext context,
     IWorkflowService workflowService,
+    IArgoWorkflowClient argoWorkflowClient,
     IOptions<AnalysisOptions> analysisOptions,
     ILogger<ArgoWorkflowEventProcessor> logger
 ) : IArgoWorkflowEventProcessor
@@ -35,6 +36,13 @@ public class ArgoWorkflowEventProcessor(
         CancellationToken cancellationToken = default
     )
     {
+        if (
+            resource.Metadata.Labels.GetValueOrDefault(ArgoWorkflowClient.ReconciledLabel) == "true"
+        )
+        {
+            return;
+        }
+
         var identity = ReadIdentity(resource);
         if (identity is null)
         {
@@ -89,6 +97,33 @@ public class ArgoWorkflowEventProcessor(
         }
 
         await CompleteAnalysisRunAsync(resource, identity.Value.AnalysisRunId, cancellationToken);
+
+        // A failed run may still have unresolved steps. Only acknowledge fully persisted state,
+        // including on retries where the database committed but the previous label patch failed.
+        if (
+            !resource.IsDeleted
+            && resource.Status?.Phase is "Succeeded" or "Failed" or "Error"
+            && await context.AnalysisRuns.AnyAsync(
+                run =>
+                    run.Id == identity.Value.AnalysisRunId
+                    && (
+                        run.Status == AnalysisRunStatus.Succeeded
+                        || run.Status == AnalysisRunStatus.Failed
+                        || run.Status == AnalysisRunStatus.Skipped
+                    )
+                    && !run.Workflows.Any(workflow =>
+                        workflow.Status == WorkflowStatus.Pending
+                        || workflow.Status == WorkflowStatus.InProgress
+                    ),
+                cancellationToken
+            )
+        )
+        {
+            await argoWorkflowClient.MarkWorkflowReconciledAsync(
+                resource.Metadata,
+                cancellationToken
+            );
+        }
     }
 
     private async Task PersistNodeIdAsync(

@@ -69,7 +69,7 @@ public class ArgoWorkflowWatcherService(
     }
 
     /// <summary>
-    /// Lists and processes all existing SARA-managed workflows before starting the watch.
+    /// Lists and processes unacknowledged SARA-managed workflows before starting the watch.
     /// The list provides both the latest workflow states and a Kubernetes resource version.
     /// Watching from that version then delivers subsequent changes without leaving a gap
     /// between reading the current state and receiving new events.

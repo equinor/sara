@@ -1,7 +1,9 @@
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using k8s;
 using k8s.Autorest;
+using k8s.Models;
 
 namespace api.Services;
 
@@ -25,7 +27,13 @@ public interface IArgoWorkflowClient
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>Lists SARA-managed workflows and their current resource version.</summary>
+    /// <summary>Acknowledges a workflow after its final state and results are persisted.</summary>
+    Task MarkWorkflowReconciledAsync(
+        ArgoObjectMetadata metadata,
+        CancellationToken cancellationToken
+    );
+
+    /// <summary>Lists unacknowledged SARA-managed workflows and their resource version.</summary>
     Task<ArgoWorkflowSnapshot> ListWorkflowsAsync(CancellationToken cancellationToken);
 
     /// <summary>
@@ -47,10 +55,12 @@ public class ArgoWorkflowClient(IKubernetes kubernetes, IConfiguration configura
 {
     public const string ManagedByLabel = "app.kubernetes.io/managed-by";
     public const string AnalysisRunIdLabel = "sara.equinor.com/analysis-run-id";
+    public const string ReconciledLabel = "sara.equinor.com/reconciled";
     private const string Group = "argoproj.io";
     private const string Version = "v1alpha1";
     private const string Plural = "workflows";
-    private const string LabelSelector = ManagedByLabel + "=sara," + AnalysisRunIdLabel;
+    private const string LabelSelector =
+        ManagedByLabel + "=sara," + AnalysisRunIdLabel + "," + ReconciledLabel + "!=true";
     private readonly string _namespace =
         configuration["ArgoWorkflowsNamespace"]
         ?? throw new InvalidOperationException("ArgoWorkflowsNamespace is not configured");
@@ -93,6 +103,42 @@ public class ArgoWorkflowClient(IKubernetes kubernetes, IConfiguration configura
                 ?? throw new InvalidOperationException("Created Workflow has no name"),
             created.Metadata.Uid
                 ?? throw new InvalidOperationException("Created Workflow has no UID")
+        );
+    }
+
+    /// <inheritdoc />
+    public async Task MarkWorkflowReconciledAsync(
+        ArgoObjectMetadata metadata,
+        CancellationToken cancellationToken
+    )
+    {
+        // Preconditions prevent acknowledging a replacement or a newer, unreconciled state.
+        var patch = new V1Patch(
+            JsonSerializer.Serialize(
+                new
+                {
+                    metadata = new
+                    {
+                        uid = metadata.Uid
+                            ?? throw new InvalidOperationException("Workflow has no UID"),
+                        resourceVersion = metadata.ResourceVersion
+                            ?? throw new InvalidOperationException(
+                                "Workflow has no resource version"
+                            ),
+                        labels = new Dictionary<string, string> { [ReconciledLabel] = "true" },
+                    },
+                }
+            ),
+            V1Patch.PatchType.MergePatch
+        );
+        await kubernetes.CustomObjects.PatchNamespacedCustomObjectAsync<ArgoWorkflowResource>(
+            patch,
+            Group,
+            Version,
+            _namespace,
+            Plural,
+            metadata.Name ?? throw new InvalidOperationException("Workflow has no name"),
+            cancellationToken: cancellationToken
         );
     }
 
@@ -142,6 +188,7 @@ public class ArgoWorkflowClient(IKubernetes kubernetes, IConfiguration configura
                     watchEvent.Item2.Message ?? "Kubernetes Workflow watch returned an error"
                 );
             }
+            watchEvent.Item2.IsDeleted = watchEvent.Item1 == WatchEventType.Deleted;
             yield return watchEvent.Item2;
         }
     }
@@ -149,6 +196,9 @@ public class ArgoWorkflowClient(IKubernetes kubernetes, IConfiguration configura
 
 public class ArgoWorkflowResource
 {
+    [JsonIgnore]
+    public bool IsDeleted { get; set; }
+
     [JsonPropertyName("apiVersion")]
     public string ApiVersion { get; set; } = "argoproj.io/v1alpha1";
 
