@@ -1,8 +1,23 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 #pragma warning disable CS8618
 namespace api.Database.Models;
+
+public class ImageCoordinate
+{
+    [Required]
+    public required double X { get; set; }
+
+    [Required]
+    public required double Y { get; set; }
+
+    public override string ToString()
+    {
+        return "(" + X + ", " + Y + ")";
+    }
+}
 
 public class ReferencePolygonMetadata
 {
@@ -32,5 +47,5 @@ public class ReferencePolygonMetadata
     public required BlobStorageLocation ReferenceImageBlobStorageLocation { get; set; }
 
     [Required]
-    public required BlobStorageLocation ReferencePolygonBlobStorageLocation { get; set; }
+    public required List<ImageCoordinate> Polygon { get; set; }
 }

@@ -1,5 +1,7 @@
+using System.Text.Json;
 using api.Database.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 
 namespace api.Database.Context
 {
@@ -68,13 +70,36 @@ namespace api.Database.Context
 
             modelBuilder
                 .Entity<ReferencePolygonMetadata>()
-                .HasIndex(tri => new
+                .HasIndex(r => new
                 {
-                    tri.InstallationCode,
-                    tri.TagId,
-                    tri.InspectionDescription,
+                    r.InstallationCode,
+                    r.TagId,
+                    r.InspectionDescription,
                 })
                 .IsUnique();
+
+            var polygonPointsComparer = new ValueComparer<List<ImageCoordinate>?>(
+                (c1, c2) =>
+                    (c1 == null && c2 == null)
+                    || (c1 != null && c2 != null && c1.SequenceEqual(c2)),
+                c => c == null ? 0 : c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                c => c == null ? null : c.ToList()
+            );
+
+            modelBuilder
+                .Entity<ReferencePolygonMetadata>()
+                .Property(p => p.Polygon)
+#pragma warning disable CS8603
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+                    v =>
+                        JsonSerializer.Deserialize<List<ImageCoordinate>>(
+                            v,
+                            (JsonSerializerOptions?)null
+                        )
+                )
+                .Metadata.SetValueComparer(polygonPointsComparer);
+#pragma warning restore CS8603
 
             modelBuilder.Entity<AnalysisRunFeedback>().HasIndex(f => f.AnalysisRunId).IsUnique();
         }

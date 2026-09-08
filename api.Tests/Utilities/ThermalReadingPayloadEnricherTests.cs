@@ -69,10 +69,7 @@ public class ThermalReadingPayloadEnricherTests : IAsyncLifetime
             metadata.ReferenceImageBlobStorageLocation.ToString(),
             result["referenceImageBlobStorageLocation"].ToString()
         );
-        Assert.Equal(
-            metadata.ReferencePolygonBlobStorageLocation.ToString(),
-            result["referencePolygonBlobStorageLocation"].ToString()
-        );
+        Assert.Equal(metadata.Polygon.ToString(), result["referencePolygon"].ToString());
     }
 
     [Theory]

@@ -210,6 +210,10 @@ namespace api.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("Polygon")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("TagId")
                         .IsRequired()
                         .HasColumnType("text");
@@ -488,35 +492,7 @@ namespace api.Migrations
                                 .HasForeignKey("ReferencePolygonMetadataId");
                         });
 
-                    b.OwnsOne("api.Database.Models.BlobStorageLocation", "ReferencePolygonBlobStorageLocation", b1 =>
-                        {
-                            b1.Property<Guid>("ReferencePolygonMetadataId")
-                                .HasColumnType("uuid");
-
-                            b1.Property<string>("BlobContainer")
-                                .IsRequired()
-                                .HasColumnType("text");
-
-                            b1.Property<string>("BlobName")
-                                .IsRequired()
-                                .HasColumnType("text");
-
-                            b1.Property<string>("StorageAccount")
-                                .IsRequired()
-                                .HasColumnType("text");
-
-                            b1.HasKey("ReferencePolygonMetadataId");
-
-                            b1.ToTable("ReferencePolygonMetadata");
-
-                            b1.WithOwner()
-                                .HasForeignKey("ReferencePolygonMetadataId");
-                        });
-
                     b.Navigation("ReferenceImageBlobStorageLocation")
-                        .IsRequired();
-
-                    b.Navigation("ReferencePolygonBlobStorageLocation")
                         .IsRequired();
                 });
 

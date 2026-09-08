@@ -14,7 +14,7 @@ public class CreateFromInspectionRecordRequest
     public required string TagId { get; set; }
     public required string InstallationCode { get; set; }
     public required string InspectionDescription { get; set; }
-    public required double[][] Polygon { get; set; }
+    public required List<ImageCoordinate> Polygon { get; set; }
 }
 
 [ApiController]
@@ -88,14 +88,11 @@ public class ReferencePolygonMetadataController(
 
         try
         {
-            var (imageLocation, polygonLocation) = BuildReferenceLocations(
-                input.ReferenceBlobStorageDirectory
-            );
+            var imageLocation = BuildReferenceLocations(input.ReferenceBlobStorageDirectory);
             var referencePolygonMetadata =
                 await referencePolygonMetadataService.CreateReferencePolygonMetadata(
                     input,
-                    imageLocation,
-                    polygonLocation
+                    imageLocation
                 );
             return Ok(referencePolygonMetadata);
         }
@@ -130,16 +127,13 @@ public class ReferencePolygonMetadataController(
         request.InspectionDescription = Sanitize.SanitizeUserInput(request.InspectionDescription);
 
         const int MaxPolygonVertices = 100;
-        if (request.Polygon.Length is < 3 or > MaxPolygonVertices)
+        if (request.Polygon.Count is < 3 or > MaxPolygonVertices)
         {
             return BadRequest($"Polygon must have between 3 and {MaxPolygonVertices} vertices.");
         }
         if (
             request.Polygon.Any(vertex =>
-                vertex is null
-                || vertex.Length != 2
-                || !double.IsFinite(vertex[0])
-                || !double.IsFinite(vertex[1])
+                vertex is null || !double.IsFinite(vertex.X) || !double.IsFinite(vertex.Y)
             )
         )
         {
@@ -207,15 +201,12 @@ public class ReferencePolygonMetadataController(
     {
         try
         {
-            var (imageLocation, polygonLocation) = BuildReferenceLocations(
-                input.ReferenceBlobStorageDirectory
-            );
+            var imageLocation = BuildReferenceLocations(input.ReferenceBlobStorageDirectory);
             var referencePolygonMetadata =
                 await referencePolygonMetadataService.UpdateReferencePolygonMetadata(
                     id,
                     input,
-                    imageLocation,
-                    polygonLocation
+                    imageLocation
                 );
             return Ok(referencePolygonMetadata);
         }
@@ -328,11 +319,10 @@ public class ReferencePolygonMetadataController(
                 return NotFound($"Could not find thermal reference metadata with id {id}");
             }
 
-            var json = await thermalImageService.GetPolygonJsonAsync(
-                metadata.ReferencePolygonBlobStorageLocation
+            return Content(
+                String.Join(", ", metadata.Polygon.Select((c) => c.ToString()).ToArray()),
+                "application/json"
             );
-
-            return Content(json, "application/json");
         }
         catch (RequestFailedException ex) when (ex.Status == 404)
         {
@@ -349,10 +339,7 @@ public class ReferencePolygonMetadataController(
         }
     }
 
-    private (
-        BlobStorageLocation imageLocation,
-        BlobStorageLocation polygonLocation
-    ) BuildReferenceLocations(BlobDirectoryInput directoryInput)
+    private BlobStorageLocation BuildReferenceLocations(BlobDirectoryInput directoryInput)
     {
         var storageAccount =
             configuration["Storage:ThermalReferenceStorageAccount"]
@@ -367,13 +354,6 @@ public class ReferencePolygonMetadataController(
             BlobName = $"{directoryInput.BlobName}/reference_image.tiff",
         };
 
-        var polygonLocation = new BlobStorageLocation
-        {
-            StorageAccount = storageAccount,
-            BlobContainer = directoryInput.BlobContainer,
-            BlobName = $"{directoryInput.BlobName}/reference_polygon.json",
-        };
-
-        return (imageLocation, polygonLocation);
+        return imageLocation;
     }
 }

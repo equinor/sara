@@ -99,7 +99,7 @@ public class ThermalReadingPayloadEnricher(
         return new Dictionary<string, object>
         {
             ["referenceImageBlobStorageLocation"] = metadata.ReferenceImageBlobStorageLocation,
-            ["referencePolygonBlobStorageLocation"] = metadata.ReferencePolygonBlobStorageLocation,
+            ["referencePolygon"] = metadata.Polygon,
         };
     }
 }
