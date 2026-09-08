@@ -4,6 +4,7 @@ import { Button, Icon, Table, Typography } from "@equinor/eds-core-react";
 import { arrow_back } from "@equinor/eds-icons";
 import { getAnalysisRun, type AnalysisRun } from "../../api/client";
 import { argoWorkflowStepUrl, argoWorkflowUrl } from "../../utils/argo";
+import { formatElapsedDuration } from "../../utils/duration";
 import StatusChip from "../../components/StatusChip";
 
 Icon.add({ arrow_back });
@@ -75,6 +76,10 @@ export default function AnalysisRunDetailPage() {
               {run.completedAt ? new Date(run.completedAt).toLocaleString() : "–"}
             </Table.Cell>
           </Table.Row>
+          <Table.Row>
+            <Table.Cell>Duration</Table.Cell>
+            <Table.Cell>{formatElapsedDuration(run.startedAt, run.completedAt)}</Table.Cell>
+          </Table.Row>
           {argoUrl && (
             <Table.Row>
               <Table.Cell>Argo Workflow</Table.Cell>
@@ -99,13 +104,14 @@ export default function AnalysisRunDetailPage() {
             <Table.Cell>Status</Table.Cell>
             <Table.Cell>Started</Table.Cell>
             <Table.Cell>Completed</Table.Cell>
+            <Table.Cell>Duration</Table.Cell>
             <Table.Cell></Table.Cell>
           </Table.Row>
         </Table.Head>
         <Table.Body>
           {workflows.length === 0 ? (
             <Table.Row>
-              <Table.Cell colSpan={6}>None.</Table.Cell>
+              <Table.Cell colSpan={7}>None.</Table.Cell>
             </Table.Row>
           ) : (
             workflows.map((w) => (
@@ -121,6 +127,7 @@ export default function AnalysisRunDetailPage() {
                 <Table.Cell>
                   {w.completedAt ? new Date(w.completedAt).toLocaleString() : "–"}
                 </Table.Cell>
+                <Table.Cell>{formatElapsedDuration(w.startedAt, w.completedAt)}</Table.Cell>
                 <Table.Cell>
                   <Button variant="ghost" onClick={() => navigate(`/workflows/${w.id}`)}>
                     View
