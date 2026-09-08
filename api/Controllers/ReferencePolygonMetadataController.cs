@@ -15,6 +15,7 @@ public class CreateFromInspectionRecordRequest
     public required string InstallationCode { get; set; }
     public required string InspectionDescription { get; set; }
     public required List<ImageCoordinate> Polygon { get; set; }
+    public required AnalysisTypeEnum SourceAnalysisType { get; set; }
 }
 
 [ApiController]
@@ -23,6 +24,7 @@ public class ReferencePolygonMetadataController(
     ILogger<ReferencePolygonMetadataController> logger,
     IReferencePolygonMetadataService referencePolygonMetadataService,
     IThermalImageService thermalImageService,
+    IBlobStorageService blobStorageService,
     IInspectionRecordService inspectionRecordService,
     IConfiguration configuration
 ) : ControllerBase
@@ -40,10 +42,10 @@ public class ReferencePolygonMetadataController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error during GET of thermal reference metadata");
+            logger.LogError(ex, "Error during GET of reference polygon metadata");
             return StatusCode(
                 StatusCodes.Status500InternalServerError,
-                "An error occurred while retrieving thermal reference metadata"
+                "An error occurred while retrieving reference polygon metadata"
             );
         }
     }
@@ -60,17 +62,17 @@ public class ReferencePolygonMetadataController(
             var referencePolygonMetadata = await referencePolygonMetadataService.ReadById(id);
             if (referencePolygonMetadata is null)
             {
-                return NotFound($"Could not find thermal reference metadata with id {id}");
+                return NotFound($"Could not find reference polygon metadata with id {id}");
             }
 
             return Ok(referencePolygonMetadata);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error during GET of thermal reference metadata by id");
+            logger.LogError(ex, "Error during GET of reference polygon metadata by id");
             return StatusCode(
                 StatusCodes.Status500InternalServerError,
-                "An error occurred while retrieving the thermal reference metadata"
+                "An error occurred while retrieving the reference polygon metadata"
             );
         }
     }
@@ -88,7 +90,10 @@ public class ReferencePolygonMetadataController(
 
         try
         {
-            var imageLocation = BuildReferenceLocations(input.ReferenceBlobStorageDirectory);
+            var imageLocation = BuildReferenceLocations(
+                input.ReferenceBlobStorageDirectory,
+                input.SourceAnalysisType
+            );
             var referencePolygonMetadata =
                 await referencePolygonMetadataService.CreateReferencePolygonMetadata(
                     input,
@@ -98,15 +103,15 @@ public class ReferencePolygonMetadataController(
         }
         catch (ArgumentException ex)
         {
-            logger.LogWarning(ex, "Conflicting thermal reference metadata create request");
+            logger.LogWarning(ex, "Conflicting reference polygon metadata create request");
             return Conflict(ex.Message);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error during creation of thermal reference metadata");
+            logger.LogError(ex, "Error during creation of reference polygon metadata");
             return StatusCode(
                 StatusCodes.Status500InternalServerError,
-                "An error occurred while creating the thermal reference metadata"
+                "An error occurred while creating the reference polygon metadata"
             );
         }
     }
@@ -156,7 +161,8 @@ public class ReferencePolygonMetadataController(
                     request.TagId,
                     request.InstallationCode,
                     request.InspectionDescription,
-                    request.Polygon
+                    request.Polygon,
+                    request.SourceAnalysisType
                 );
             return Ok(referencePolygonMetadata);
         }
@@ -165,11 +171,19 @@ public class ReferencePolygonMetadataController(
             logger.LogWarning(ex, "Resource not found during create from inspection record");
             return NotFound(ex.Message);
         }
+        catch (NotSupportedException ex)
+        {
+            logger.LogWarning(
+                ex,
+                "Unsupported source analysis type during create from inspection record"
+            );
+            return BadRequest(ex.Message);
+        }
         catch (ArgumentException ex)
         {
             logger.LogWarning(
                 ex,
-                "Conflicting thermal reference metadata create from inspection record"
+                "Conflicting reference polygon metadata create from inspection record"
             );
             return Conflict(ex.Message);
         }
@@ -182,11 +196,11 @@ public class ReferencePolygonMetadataController(
         {
             logger.LogError(
                 ex,
-                "Error during creation of thermal reference metadata from inspection record"
+                "Error during creation of reference polygon metadata from inspection record"
             );
             return StatusCode(
                 StatusCodes.Status500InternalServerError,
-                "An error occurred while creating the thermal reference metadata from inspection record"
+                "An error occurred while creating the reference polygon metadata from inspection record"
             );
         }
     }
@@ -201,7 +215,10 @@ public class ReferencePolygonMetadataController(
     {
         try
         {
-            var imageLocation = BuildReferenceLocations(input.ReferenceBlobStorageDirectory);
+            var imageLocation = BuildReferenceLocations(
+                input.ReferenceBlobStorageDirectory,
+                input.SourceAnalysisType
+            );
             var referencePolygonMetadata =
                 await referencePolygonMetadataService.UpdateReferencePolygonMetadata(
                     id,
@@ -212,20 +229,20 @@ public class ReferencePolygonMetadataController(
         }
         catch (KeyNotFoundException ex)
         {
-            logger.LogWarning(ex, "Thermal reference metadata not found during update");
+            logger.LogWarning(ex, "Reference polygon metadata not found during update");
             return NotFound(ex.Message);
         }
         catch (ArgumentException ex)
         {
-            logger.LogWarning(ex, "Conflicting thermal reference metadata update request");
+            logger.LogWarning(ex, "Conflicting reference polygon metadata update request");
             return Conflict(ex.Message);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error during update of thermal reference metadata");
+            logger.LogError(ex, "Error during update of reference polygon metadata");
             return StatusCode(
                 StatusCodes.Status500InternalServerError,
-                "An error occurred while updating the thermal reference metadata"
+                "An error occurred while updating the reference polygon metadata"
             );
         }
     }
@@ -238,19 +255,19 @@ public class ReferencePolygonMetadataController(
         try
         {
             await referencePolygonMetadataService.RemoveReferencePolygonMetadata(id);
-            return Ok("Thermal reference metadata removed successfully");
+            return Ok("Reference polygon metadata removed successfully");
         }
         catch (KeyNotFoundException ex)
         {
-            logger.LogWarning(ex, "Thermal reference metadata not found during delete");
+            logger.LogWarning(ex, "Reference polygon metadata not found during delete");
             return NotFound(ex.Message);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error during removal of thermal reference metadata");
+            logger.LogError(ex, "Error during removal of reference polygon metadata");
             return StatusCode(
                 StatusCodes.Status500InternalServerError,
-                "An error occurred while removing the thermal reference metadata"
+                "An error occurred while removing the reference polygon metadata"
             );
         }
     }
@@ -266,7 +283,15 @@ public class ReferencePolygonMetadataController(
             var metadata = await referencePolygonMetadataService.ReadById(id);
             if (metadata is null)
             {
-                return NotFound($"Could not find thermal reference metadata with id {id}");
+                return NotFound($"Could not find reference polygon metadata with id {id}");
+            }
+
+            if (metadata.SourceAnalysisType != AnalysisTypeEnum.ThermalReading)
+            {
+                using var stream = await blobStorageService.DownloadBlobAsync(
+                    metadata.ReferenceImageBlobStorageLocation
+                );
+                return File(stream.ToArray(), "image/jpeg");
             }
 
             var result = await thermalImageService.GetThermalImageDataAsync(
@@ -297,15 +322,18 @@ public class ReferencePolygonMetadataController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error generating thermal reference image for id {Id}", id);
+            logger.LogError(ex, "Error generating reference image for id {Id}", id);
             return StatusCode(
                 StatusCodes.Status500InternalServerError,
-                "An error occurred while generating the thermal reference image"
+                "An error occurred while generating the reference image"
             );
         }
     }
 
-    private BlobStorageLocation BuildReferenceLocations(BlobDirectoryInput directoryInput)
+    private BlobStorageLocation BuildReferenceLocations(
+        BlobDirectoryInput directoryInput,
+        AnalysisTypeEnum sourceAnalysisType
+    )
     {
         var storageAccount =
             configuration["Storage:ThermalReferenceStorageAccount"]
@@ -313,11 +341,13 @@ public class ReferencePolygonMetadataController(
                 "Storage:ThermalReferenceStorageAccount is not configured"
             );
 
+        var extension = ReferencePolygonMetadata.GetReferenceImageFileExtension(sourceAnalysisType);
+
         var imageLocation = new BlobStorageLocation
         {
             StorageAccount = storageAccount,
             BlobContainer = directoryInput.BlobContainer,
-            BlobName = $"{directoryInput.BlobName}/reference_image.tiff",
+            BlobName = $"{directoryInput.BlobName}/reference_image.{extension}",
         };
 
         return imageLocation;

@@ -189,6 +189,11 @@ export interface AnalysisGroup {
 
 // --- Thermal Reference Metadata (unchanged) ---
 
+export interface ImageCoordinate {
+  x: number;
+  y: number;
+}
+
 export interface ReferencePolygonMetadata {
   id: string;
   tagId: string;
@@ -196,7 +201,7 @@ export interface ReferencePolygonMetadata {
   inspectionDescription: string;
   dateCreated: string;
   referenceImageBlobStorageLocation: BlobStorageLocation;
-  referencePolygonBlobStorageLocation: BlobStorageLocation;
+  polygon: ImageCoordinate[];
 }
 
 export interface BlobDirectoryInput {
@@ -504,14 +509,6 @@ export async function getReferencePolygonImageData(
       response.headers.get("X-Temperature-Max") ?? "0"
     ),
   };
-}
-
-export async function getReferencePolygonPolygonData(
-  id: string
-): Promise<number[][]> {
-  return apiFetch(
-    apiUrl(`/api/ReferencePolygonMetadata/id/${encodeURIComponent(id)}/polygon`)
-  );
 }
 
 // --- Thermal Inspection Records ---

@@ -71,7 +71,8 @@ public class DatabaseUtilities(SaraDbContext context)
     public async Task<ReferencePolygonMetadata> NewReferencePolygonMetadata(
         string installationCode = "TST",
         string tagId = "test-tag",
-        string inspectionDescription = "test-description"
+        string inspectionDescription = "test-description",
+        AnalysisTypeEnum sourceAnalysisType = AnalysisTypeEnum.ThermalReading
     )
     {
         var metadata = new ReferencePolygonMetadata
@@ -84,6 +85,7 @@ public class DatabaseUtilities(SaraDbContext context)
                 blobName: $"{Guid.NewGuid()}.jpg"
             ),
             Polygon = [new ImageCoordinate() { X = 0, Y = 0 }],
+            SourceAnalysisType = sourceAnalysisType,
         };
 
         _context.ReferencePolygonMetadata.Add(metadata);

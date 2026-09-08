@@ -143,6 +143,7 @@ namespace Api.Database.Context
                     BlobName = "thermal_thermal/reference_image.tiff",
                 },
                 Polygon = [],
+                SourceAnalysisType = AnalysisTypeEnum.ThermalReading,
             };
 
             return [entry1];

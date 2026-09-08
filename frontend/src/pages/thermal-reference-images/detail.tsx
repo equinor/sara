@@ -13,7 +13,6 @@ import {
   updateReferencePolygonMetadata,
   deleteReferencePolygonMetadata,
   getReferencePolygonImageData,
-  getReferencePolygonPolygonData,
   type ReferencePolygonMetadata,
   type ReferencePolygonMetadataInput,
   type ThermalImageData,
@@ -95,8 +94,6 @@ export default function ReferencePolygonMetadataDetailPage() {
   );
   const [imageLoading, setImageLoading] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
-  const [polygon, setPolygon] = useState<number[][] | null>(null);
-  const [polygonError, setPolygonError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!id) return;
@@ -138,26 +135,6 @@ export default function ReferencePolygonMetadataDetailPage() {
       })
       .finally(() => {
         if (!cancelled) setImageLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [id]);
-
-  useEffect(() => {
-    if (!id) return;
-    let cancelled = false;
-    setPolygon(null);
-    setPolygonError(null);
-    getReferencePolygonPolygonData(id)
-      .then((result) => {
-        if (!cancelled) setPolygon(result);
-      })
-      .catch((e) => {
-        if (!cancelled)
-          setPolygonError(
-            e instanceof Error ? e.message : "Failed to load reference polygon"
-          );
       });
     return () => {
       cancelled = true;
@@ -272,11 +249,6 @@ export default function ReferencePolygonMetadataDetailPage() {
             {imageError}
           </Typography>
         )}
-        {polygonError && (
-          <Typography variant="body_short" style={{ color: "#eb0000" }}>
-            {polygonError}
-          </Typography>
-        )}
         {thermalImage && (
           <ThermalImageViewer
             temperatures={thermalImage.temperatures}
@@ -284,7 +256,7 @@ export default function ReferencePolygonMetadataDetailPage() {
             height={thermalImage.height}
             minTemperature={thermalImage.minTemperature}
             maxTemperature={thermalImage.maxTemperature}
-            polygon={polygon ?? undefined}
+            polygon={data.polygon.map((c) => [c.x, c.y])}
           />
         )}
       </StyledImageSection>
@@ -373,7 +345,7 @@ export default function ReferencePolygonMetadataDetailPage() {
             />
             <DetailRow
               label="Reference Polygon"
-              value={formatBlobLocation(data.referencePolygonBlobStorageLocation)}
+              value={`${data.polygon.length} vertices`}
             />
           </StyledDetailGrid>
 

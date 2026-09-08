@@ -57,4 +57,15 @@ public class InspectionRecord
     public AnalysisGroup? AnalysisGroup { get; set; }
 
     public List<Analysis> Analyses { get; set; } = [];
+
+    public Workflow? FindLatestWorkflow(AnalysisTypeEnum sourceAnalysisType)
+    {
+        var workflowType = Analysis.GetAnalysisTypeFromAnalysisEnum(sourceAnalysisType);
+        return Analyses
+            .SelectMany(a => a.Runs)
+            .SelectMany(r => r.Workflows)
+            .Where(w => w.WorkflowType.Equals(workflowType, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(w => w.CompletedAt ?? w.StartedAt ?? DateTime.MinValue)
+            .FirstOrDefault();
+    }
 }

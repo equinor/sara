@@ -24,6 +24,8 @@ public class ReferencePolygonMetadataInput
     public required BlobDirectoryInput ReferenceBlobStorageDirectory { get; set; }
 
     public required List<ImageCoordinate> Polygon { get; set; }
+
+    public required AnalysisTypeEnum SourceAnalysisType { get; set; }
 }
 
 public interface IReferencePolygonMetadataService
@@ -56,7 +58,8 @@ public interface IReferencePolygonMetadataService
         string tagId,
         string installationCode,
         string inspectionDescription,
-        List<ImageCoordinate> polygon
+        List<ImageCoordinate> polygon,
+        AnalysisTypeEnum sourceAnalysisType
     );
 }
 
@@ -68,6 +71,12 @@ public class ReferencePolygonMetadataService(
 ) : IReferencePolygonMetadataService
 {
     private readonly ILogger<ReferencePolygonMetadataService> _logger = logger;
+
+    private static readonly AnalysisTypeEnum[] SupportedSourceAnalysisTypes =
+    [
+        AnalysisTypeEnum.ThermalReading,
+        AnalysisTypeEnum.Fencilla,
+    ];
 
     public async Task<List<ReferencePolygonMetadata>> GetReferencePolygonMetadatas()
     {
@@ -111,6 +120,7 @@ public class ReferencePolygonMetadataService(
             InspectionDescription = input.InspectionDescription,
             ReferenceImageBlobStorageLocation = referenceImageLocation,
             Polygon = input.Polygon,
+            SourceAnalysisType = input.SourceAnalysisType,
         };
 
         context.ReferencePolygonMetadata.Add(referencePolygonMetadata);
@@ -127,7 +137,7 @@ public class ReferencePolygonMetadataService(
         var referencePolygonMetadata =
             await ReadById(id)
             ?? throw new KeyNotFoundException(
-                $"Thermal reference metadata with id {id} was not found"
+                $"Reference polygon metadata with id {id} was not found"
             );
 
         await ThrowIfDuplicateExists(input, id);
@@ -137,6 +147,7 @@ public class ReferencePolygonMetadataService(
         referencePolygonMetadata.InspectionDescription = input.InspectionDescription;
         referencePolygonMetadata.ReferenceImageBlobStorageLocation = referenceImageLocation;
         referencePolygonMetadata.Polygon = input.Polygon;
+        referencePolygonMetadata.SourceAnalysisType = input.SourceAnalysisType;
 
         context.ReferencePolygonMetadata.Update(referencePolygonMetadata);
         await context.SaveChangesAsync();
@@ -148,7 +159,7 @@ public class ReferencePolygonMetadataService(
         var referencePolygonMetadata =
             await ReadById(id)
             ?? throw new KeyNotFoundException(
-                $"Thermal reference metadata with id {id} was not found"
+                $"Reference polygon metadata with id {id} was not found"
             );
 
         context.ReferencePolygonMetadata.Remove(referencePolygonMetadata);
@@ -160,14 +171,23 @@ public class ReferencePolygonMetadataService(
         string tagId,
         string installationCode,
         string inspectionDescription,
-        List<ImageCoordinate> polygon
+        List<ImageCoordinate> polygon,
+        AnalysisTypeEnum sourceAnalysisType
     )
     {
-        var preprocessedLocation = GetPreprocessedBlobLocation(record);
+        if (!SupportedSourceAnalysisTypes.Contains(sourceAnalysisType))
+        {
+            throw new NotSupportedException(
+                $"Unsupported source analysis type '{sourceAnalysisType}' for creating a reference polygon"
+            );
+        }
+
+        var preprocessedLocation = ResolveSourceBlobLocation(record, sourceAnalysisType);
         var imageDestination = BuildReferenceLocation(
             tagId,
             inspectionDescription,
-            preprocessedLocation.BlobContainer
+            preprocessedLocation.BlobContainer,
+            sourceAnalysisType
         );
 
         var input = new ReferencePolygonMetadataInput
@@ -181,6 +201,7 @@ public class ReferencePolygonMetadataService(
                 BlobName = $"{tagId}_{inspectionDescription}",
             },
             Polygon = polygon,
+            SourceAnalysisType = sourceAnalysisType,
         };
 
         await ThrowIfDuplicateExists(input, null);
@@ -190,36 +211,34 @@ public class ReferencePolygonMetadataService(
         return await CreateReferencePolygonMetadata(input, imageDestination);
     }
 
-    private static BlobStorageLocation GetPreprocessedBlobLocation(InspectionRecord record)
+    private static BlobStorageLocation ResolveSourceBlobLocation(
+        InspectionRecord record,
+        AnalysisTypeEnum sourceAnalysisType
+    )
     {
-        var thermalReadingWorkflow =
-            record
-                .Analyses.SelectMany(a => a.Runs)
-                .SelectMany(r => r.Workflows)
-                .Where(w =>
-                    w.WorkflowType.Equals("thermal-reading", StringComparison.OrdinalIgnoreCase)
-                )
-                .OrderByDescending(w => w.CompletedAt ?? w.StartedAt ?? DateTime.MinValue)
-                .FirstOrDefault()
+        var workflowType = Analysis.GetAnalysisTypeFromAnalysisEnum(sourceAnalysisType);
+        var sourceWorkflow =
+            record.FindLatestWorkflow(sourceAnalysisType)
             ?? throw new KeyNotFoundException(
-                $"No thermal-reading workflow found for inspection record {record.Id}"
+                $"No {workflowType} workflow found for inspection record {record.Id}"
             );
 
         if (
-            thermalReadingWorkflow.InputBlobStorageLocations is null
-            || thermalReadingWorkflow.InputBlobStorageLocations.Count == 0
+            sourceWorkflow.InputBlobStorageLocations is null
+            || sourceWorkflow.InputBlobStorageLocations.Count == 0
         )
         {
-            throw new KeyNotFoundException("Thermal-reading workflow has no input blob location");
+            throw new KeyNotFoundException($"{workflowType} workflow has no input blob location");
         }
 
-        return thermalReadingWorkflow.InputBlobStorageLocations[0];
+        return sourceWorkflow.InputBlobStorageLocations[0];
     }
 
     private BlobStorageLocation BuildReferenceLocation(
         string tagId,
         string inspectionDescription,
-        string blobContainer
+        string blobContainer,
+        AnalysisTypeEnum sourceAnalysisType
     )
     {
         var storageAccount =
@@ -229,12 +248,13 @@ public class ReferencePolygonMetadataService(
             );
 
         var directory = $"{tagId}_{inspectionDescription}";
+        var extension = ReferencePolygonMetadata.GetReferenceImageFileExtension(sourceAnalysisType);
 
         var imageLocation = new BlobStorageLocation
         {
             StorageAccount = storageAccount,
             BlobContainer = blobContainer,
-            BlobName = $"{directory}/reference_image.tiff",
+            BlobName = $"{directory}/reference_image.{extension}",
         };
 
         return imageLocation;
@@ -254,13 +274,13 @@ public class ReferencePolygonMetadataService(
         }
 
         _logger.LogWarning(
-            "Thermal reference metadata already exists for InstallationCode {InstallationCode}, TagId {TagId}, InspectionDescription {InspectionDescription}",
+            "Reference polygon metadata already exists for InstallationCode {InstallationCode}, TagId {TagId}, InspectionDescription {InspectionDescription}",
             Sanitize.SanitizeUserInput(input.InstallationCode),
             Sanitize.SanitizeUserInput(input.TagId),
             Sanitize.SanitizeUserInput(input.InspectionDescription)
         );
         throw new ArgumentException(
-            "A thermal reference metadata already exists for this installation code, tag ID, and inspection description"
+            "A reference polygon metadata already exists for this installation code, tag ID, and inspection description"
         );
     }
 }
