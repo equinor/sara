@@ -56,6 +56,25 @@ public class MqttDuplicateTests : IAsyncLifetime
             .CreateFromMqttMessage(message);
     }
 
+    private InspectionRecordService Service(SaraDbContext context) =>
+        new(
+            context,
+            Mock.Of<IAnalysisTriggerService>(),
+            Options.Create(new AnalysisOptions()),
+            NullLogger<InspectionRecordService>.Instance
+        );
+
+    private SaraDbContext ContextWith(IInterceptor interceptor) =>
+        new(
+            new DbContextOptionsBuilder<SaraDbContext>()
+                .UseNpgsql(
+                    _container.GetConnectionString(),
+                    o => o.EnableRetryOnFailure(1, TimeSpan.Zero, null)
+                )
+                .AddInterceptors(interceptor)
+                .Options
+        );
+
     private async Task Process(IsarInspectionResultMessage message)
     {
         using var handler = new MqttEventHandler(
@@ -81,14 +100,14 @@ public class MqttDuplicateTests : IAsyncLifetime
                 && i.Arguments[2].ToString()!.Contains(text)
         );
 
-    private void AssertNoErrors() =>
+    private void AssertNoWarningsOrErrors() =>
         Assert.DoesNotContain(
             _logger.Invocations,
-            i => i.Method.Name == "Log" && (LogLevel)i.Arguments[0] >= LogLevel.Error
+            i => i.Method.Name == "Log" && (LogLevel)i.Arguments[0] >= LogLevel.Warning
         );
 
     [Fact]
-    public async Task SubmittedReplay_DoesNotCreateAnotherRecordAnalysisRunOrWorkflow()
+    public async Task Duplicate_DoesNotCreateRecordsOrRetriggerAnalyses()
     {
         var message = _db.NewIsarInspectionResultMessage(requiredAnalysis: ["per-record-test"]);
         await Process(message);
@@ -107,57 +126,15 @@ public class MqttDuplicateTests : IAsyncLifetime
         Assert.Equal(1, await _context.Workflows.CountAsync(TestContext.Current.CancellationToken));
         Assert.Single(_factory.ArgoWorkflowClient.Requests);
         AssertLog(LogLevel.Information, "Ignoring duplicate");
-        AssertNoErrors();
+        AssertNoWarningsOrErrors();
     }
 
     [Fact]
-    public async Task CompletedReplay_WithLaterPendingRerun_IsStillHandled()
+    public async Task NoAnalysisDuplicate_UsesSanitizedInspectionId()
     {
-        var message = _db.NewIsarInspectionResultMessage(requiredAnalysis: ["per-record-test"]);
-        await Process(message);
-        var run = await _context
-            .AnalysisRuns.Include(r => r.Analysis)
-            .SingleAsync(TestContext.Current.CancellationToken);
-        run.Status = AnalysisRunStatus.Succeeded;
-        await _db.NewAnalysisRun(run.Analysis, runNumber: 2);
-
-        await Process(message);
-
-        Assert.Single(_factory.ArgoWorkflowClient.Requests);
-        Assert.Equal(
-            2,
-            await _context.AnalysisRuns.CountAsync(TestContext.Current.CancellationToken)
-        );
-        AssertLog(LogLevel.Information, "Ignoring duplicate");
-        AssertNoErrors();
-    }
-
-    [Fact]
-    public async Task NoAnalysisReplay_NormalizesStoredFieldsAndTimestampPrecision()
-    {
-        var message = _db.NewIsarInspectionResultMessage(
-            inspectionId: "test-\r\ninspection",
-            missionName: "test-\r\nmission",
-            tagId: "test-\r\ntag",
-            installationCode: "T\r\nST",
-            inspectionDescription: "test-\r\ndescription",
-            robotPose: new Pose(new Position(1, 2, 3), new Orientation(0, 0, 0, 1)),
-            targetPosition: new Position(4, 5, 6)
-        );
-        message.MissionId = "mission-\r\nid";
-        message.Timestamp = new DateTime(2026, 9, 7, 11, 0, 30, DateTimeKind.Utc).AddTicks(1234567);
+        var message = _db.NewIsarInspectionResultMessage(inspectionId: "test-\r\ninspection");
         await Process(message);
         message.InspectionId = "test-inspection";
-        message.MissionName = "test-mission";
-        message.TagId = "test-tag";
-        message.InstallationCode = "TST";
-        message.InspectionDescription = "test-description";
-        message.MissionId = "mission-id";
-        message.RequiredAnalysis = [];
-        // These fields are not persisted by ingestion and cannot establish a conflict.
-        message.IsarId = "different-isar";
-        message.Duration = 123;
-        message.FileType = "different-file-type";
 
         await Process(message);
 
@@ -167,60 +144,36 @@ public class MqttDuplicateTests : IAsyncLifetime
         );
         Assert.Empty(_factory.ArgoWorkflowClient.Requests);
         AssertLog(LogLevel.Information, "Ignoring duplicate");
-        AssertNoErrors();
+        AssertNoWarningsOrErrors();
     }
 
-    [Theory]
-    [InlineData("blob")]
-    [InlineData("metadata")]
-    [InlineData("pose")]
-    [InlineData("analysis")]
-    public async Task ConflictingReplay_RemainsAnError(string conflict)
+    [Fact]
+    public async Task Duplicate_WithDifferentMetadata_IsSkippedWithoutChangingStoredRecord()
     {
         var message = _db.NewIsarInspectionResultMessage(requiredAnalysis: ["per-record-test"]);
         await Process(message);
-        switch (conflict)
-        {
-            case "blob":
-                message.InspectionDataPath.BlobName = "other.jpg";
-                break;
-            case "metadata":
-                message.RobotName = "other-robot";
-                break;
-            case "pose":
-                message.TargetPosition = new Position(1, 2, 3);
-                break;
-            case "analysis":
-                message.RequiredAnalysis = ["group-test"];
-                break;
-        }
+        var originalBlobName = message.InspectionDataPath.BlobName;
+        var originalRobotName = message.RobotName;
+        message.InspectionDataPath.BlobName = "other.jpg";
+        message.RobotName = "other-robot";
+        message.TargetPosition = new Position(1, 2, 3);
+        message.RequiredAnalysis = ["group-test"];
 
         await Process(message);
 
-        AssertLog(LogLevel.Error, "Conflicting MQTT inspection result");
+        AssertLog(LogLevel.Information, "Ignoring duplicate");
+        AssertNoWarningsOrErrors();
         Assert.Single(_factory.ArgoWorkflowClient.Requests);
-        Assert.Equal(
-            1,
-            await _context.InspectionRecords.CountAsync(TestContext.Current.CancellationToken)
-        );
+        var record = await _context
+            .InspectionRecords.Include(r => r.Analyses)
+            .SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(originalBlobName, record.BlobStorageLocation.BlobName);
+        Assert.Equal(originalRobotName, record.RobotName);
+        Assert.Equal("per-record-test", Assert.Single(record.Analyses).AnalysisType);
     }
 
     [Fact]
-    public async Task RecordWithoutRun_ReplayWarnsAndDoesNotTrigger()
-    {
-        var message = _db.NewIsarInspectionResultMessage(requiredAnalysis: ["per-record-test"]);
-        await Create(message);
-
-        await Process(message);
-
-        AssertLog(LogLevel.Warning, "no initial run");
-        Assert.Empty(_factory.ArgoWorkflowClient.Requests);
-        Assert.False(await _context.AnalysisRuns.AnyAsync(TestContext.Current.CancellationToken));
-        AssertNoErrors();
-    }
-
-    [Fact]
-    public async Task SubmissionFailure_ReplayWarnsWithoutRetryingSideEffects()
+    public async Task SubmissionFailure_DuplicateDoesNotRetrySideEffects()
     {
         var message = _db.NewIsarInspectionResultMessage(requiredAnalysis: ["per-record-test"]);
         _factory.ArgoWorkflowClient.CreateException = new InvalidOperationException(
@@ -233,42 +186,17 @@ public class MqttDuplicateTests : IAsyncLifetime
 
         await Process(message);
 
-        AssertLog(LogLevel.Warning, "is Failed");
+        AssertLog(LogLevel.Information, "Ignoring duplicate");
         Assert.Empty(_factory.ArgoWorkflowClient.Requests);
         Assert.Equal(
             1,
             await _context.AnalysisRuns.CountAsync(TestContext.Current.CancellationToken)
         );
-        AssertNoErrors();
+        AssertNoWarningsOrErrors();
     }
 
     [Fact]
-    public async Task PartiallySubmittedRecord_ReplayWarnsWithoutRepeatingSuccessfulSubmission()
-    {
-        var message = _db.NewIsarInspectionResultMessage(
-            requiredAnalysis: ["per-record-test", "multi-step-test"]
-        );
-        var created = await Create(message);
-        using (var scope = _factory.Services.CreateScope())
-        {
-            var trigger = scope.ServiceProvider.GetRequiredService<IAnalysisTriggerService>();
-            await trigger.RerunAnalysis(created.Record.Analyses[0].Id);
-        }
-
-        await Process(message);
-
-        AssertLog(LogLevel.Warning, "no initial run");
-        Assert.Single(_factory.ArgoWorkflowClient.Requests);
-        Assert.Equal(
-            1,
-            await _context.AnalysisRuns.CountAsync(TestContext.Current.CancellationToken)
-        );
-    }
-
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task DeferredGroupReplay_DoesNotAddMembersOrRuns(bool complete)
+    public async Task GroupDuplicate_IsSkippedWhileWaitingOrAfterInterruptedCompletion()
     {
         var group = _db.NewAnalysisGroupMessage();
         var first = _db.NewIsarInspectionResultMessage(
@@ -276,133 +204,55 @@ public class MqttDuplicateTests : IAsyncLifetime
             analysisGroup: group
         );
         await Process(first);
-        if (complete)
-            await Process(
-                _db.NewIsarInspectionResultMessage(
-                    inspectionId: "second",
-                    requiredAnalysis: ["group-test"],
-                    analysisGroup: group
-                )
-            );
-
         await Process(first);
 
         Assert.Equal(
-            complete ? 2 : 1,
+            1,
             await _context.InspectionRecords.CountAsync(TestContext.Current.CancellationToken)
         );
         Assert.Equal(1, await _context.Analyses.CountAsync(TestContext.Current.CancellationToken));
-        Assert.Equal(complete ? 1 : 0, _factory.ArgoWorkflowClient.Requests.Count);
+        Assert.Empty(_factory.ArgoWorkflowClient.Requests);
         AssertLog(LogLevel.Information, "Ignoring duplicate");
-        AssertNoErrors();
-    }
-
-    [Theory]
-    [InlineData("full")]
-    [InlineData("expired")]
-    [InlineData("timed-out")]
-    public async Task GroupWithoutSubmissionWhenNoLongerWaiting_ReplayWarns(string state)
-    {
-        var group = _db.NewAnalysisGroupMessage(size: state == "full" ? 1 : 2);
-        var message = _db.NewIsarInspectionResultMessage(
-            requiredAnalysis: ["group-test"],
-            analysisGroup: group
+        AssertNoWarningsOrErrors();
+        _logger.Invocations.Clear();
+        await Create(
+            _db.NewIsarInspectionResultMessage(
+                inspectionId: "second",
+                requiredAnalysis: ["group-test"],
+                analysisGroup: group
+            )
         );
-        await Create(message);
-        var storedGroup = await _context.AnalysisGroups.SingleAsync(
-            TestContext.Current.CancellationToken
-        );
-        if (state == "expired")
-            storedGroup.TimeoutAt = DateTime.UtcNow.AddMinutes(-1);
-        if (state == "timed-out")
-            storedGroup.Status = AnalysisGroupStatus.TimedOut;
-        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        await Process(first);
 
-        await Process(message);
-
-        AssertLog(LogLevel.Warning, "no initial run");
+        AssertLog(LogLevel.Information, "Ignoring duplicate");
+        AssertNoWarningsOrErrors();
         Assert.Empty(_factory.ArgoWorkflowClient.Requests);
     }
 
-    [Fact]
-    public async Task AddedAnalysis_DoesNotMakeOriginalReplayConflictOrTriggerAgain()
-    {
-        var message = _db.NewIsarInspectionResultMessage(requiredAnalysis: ["per-record-test"]);
-        await Process(message);
-        var record = await _context.InspectionRecords.SingleAsync(
-            TestContext.Current.CancellationToken
-        );
-        await _db.NewAnalysis(type: "multi-step-test", inspectionRecords: [record]);
-
-        await Process(message);
-
-        AssertLog(LogLevel.Information, "Ignoring duplicate");
-        Assert.Single(_factory.ArgoWorkflowClient.Requests);
-        AssertNoErrors();
-    }
-
     [Theory]
-    [InlineData("none")]
-    [InlineData("new")]
-    [InlineData("existing")]
-    [InlineData("conflicting")]
-    public async Task ConcurrentInsert_UniqueConstraintRollsBackLosingSideEffects(string groupMode)
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ConcurrentInsert_UniqueConstraintRollsBackLosingSideEffects(bool grouped)
     {
-        if (groupMode == "existing")
-            await _db.NewAnalysisGroup();
         var first = _db.NewIsarInspectionResultMessage(
             requiredAnalysis: ["group-test"],
-            analysisGroup: groupMode == "none" ? null : _db.NewAnalysisGroupMessage()
+            analysisGroup: grouped ? _db.NewAnalysisGroupMessage() : null
         );
-        var second = _db.NewIsarInspectionResultMessage(
-            requiredAnalysis: ["group-test"],
-            blobName: first.InspectionDataPath.BlobName,
-            analysisGroup: groupMode == "none"
-                ? null
-                : _db.NewAnalysisGroupMessage(
-                    groupId: groupMode == "conflicting" ? "other-group" : "test-group"
-                )
-        );
-        second.Timestamp = first.Timestamp;
 
         var barrier = new ConcurrentSaveBarrier();
-        async Task<MqttInspectionRecordResult?> Insert(IsarInspectionResultMessage message)
+        async Task<MqttInspectionRecordResult> Insert()
         {
-            var options = new DbContextOptionsBuilder<SaraDbContext>()
-                .UseNpgsql(
-                    _container.GetConnectionString(),
-                    options => options.EnableRetryOnFailure()
-                )
-                .AddInterceptors(barrier)
-                .Options;
-            await using var context = new SaraDbContext(options);
-            var service = new InspectionRecordService(
-                context,
-                Mock.Of<IAnalysisTriggerService>(),
-                _factory.Services.GetRequiredService<IOptions<AnalysisOptions>>(),
-                NullLogger<InspectionRecordService>.Instance
-            );
-            try
-            {
-                var result = await service.CreateFromMqttMessage(message);
-                // A reused context must not re-save any rolled-back entities.
-                await context.SaveChangesAsync(TestContext.Current.CancellationToken);
-                return result;
-            }
-            catch (InvalidOperationException ex) when (groupMode == "conflicting")
-            {
-                Assert.Contains("Conflicting MQTT inspection result", ex.Message);
-                return null;
-            }
+            await using var context = ContextWith(barrier);
+            var result = await Service(context).CreateFromMqttMessage(first);
+            // A reused context must not re-save any rolled-back entities.
+            await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+            return result;
         }
 
-        var results = await Task.WhenAll(Insert(first), Insert(second));
+        var results = await Task.WhenAll(Insert(), Insert());
 
         Assert.Single(results, r => r is { IsDuplicate: false });
-        Assert.Single(
-            results,
-            r => groupMode == "conflicting" ? r is null : r is { IsDuplicate: true }
-        );
+        Assert.Single(results, r => r.IsDuplicate);
         Assert.Equal(1, barrier.UniqueViolations);
         Assert.Equal(
             1,
@@ -410,76 +260,47 @@ public class MqttDuplicateTests : IAsyncLifetime
         );
         Assert.Equal(1, await _context.Analyses.CountAsync(TestContext.Current.CancellationToken));
         Assert.Equal(
-            groupMode == "none" ? 0 : 1,
+            grouped ? 1 : 0,
             await _context.AnalysisGroups.CountAsync(TestContext.Current.CancellationToken)
         );
         Assert.False(await _context.AnalysisRuns.AnyAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
-    public async Task UncertainCommit_RetryRecognizesRecordButReportsMissingAnalysisRun()
+    public async Task GroupedCreation_SavesOncePerRecordAndReusesExistingAnalyses()
     {
-        var options = new DbContextOptionsBuilder<SaraDbContext>()
-            .UseNpgsql(
-                _container.GetConnectionString(),
-                o => o.EnableRetryOnFailure(1, TimeSpan.Zero, null)
+        var saves = new SaveCounter();
+        await using var context = ContextWith(saves);
+        var service = Service(context);
+        var group = _db.NewAnalysisGroupMessage();
+        var first = await service.CreateFromMqttMessage(
+            _db.NewIsarInspectionResultMessage(
+                requiredAnalysis: ["group-test", "group-test"],
+                analysisGroup: group
             )
-            .AddInterceptors(new FailFirstCommitAcknowledgement())
-            .Options;
-        await using var context = new SaraDbContext(options);
-        var service = new InspectionRecordService(
-            context,
-            Mock.Of<IAnalysisTriggerService>(),
-            _factory.Services.GetRequiredService<IOptions<AnalysisOptions>>(),
-            NullLogger<InspectionRecordService>.Instance
         );
-        var message = _db.NewIsarInspectionResultMessage(requiredAnalysis: ["per-record-test"]);
+        Assert.Equal(1, saves.Count);
 
-        var result = await service.CreateFromMqttMessage(message);
+        var second = await service.CreateFromMqttMessage(
+            _db.NewIsarInspectionResultMessage(
+                inspectionId: "second",
+                requiredAnalysis: ["group-test", "per-record-test"],
+                analysisGroup: group
+            )
+        );
 
-        Assert.True(result.IsDuplicate);
-        Assert.Contains(result.IncompleteAnalyses, a => a.Contains("no initial run"));
-        await Process(message);
-        AssertLog(LogLevel.Warning, "no initial run");
-        Assert.Empty(_factory.ArgoWorkflowClient.Requests);
+        Assert.Equal(2, saves.Count);
+        Assert.False(first.IsDuplicate);
+        Assert.False(second.IsDuplicate);
+        Assert.Single(first.Record.Analyses);
+        Assert.Equal(2, second.Record.Analyses.Count);
+        Assert.Contains(second.Record.Analyses, a => a.Id == first.Record.Analyses[0].Id);
+        Assert.Equal(2, second.Record.AnalysisGroup!.Analyses.Count);
         Assert.Equal(
-            1,
+            2,
             await _context.InspectionRecords.CountAsync(TestContext.Current.CancellationToken)
         );
-        Assert.Equal(1, await _context.Analyses.CountAsync(TestContext.Current.CancellationToken));
-        Assert.False(await _context.AnalysisRuns.AnyAsync(TestContext.Current.CancellationToken));
-    }
-
-    [Fact]
-    public async Task TransientFailure_RetriesWholeTransactionWithoutOrphanEntities()
-    {
-        var options = new DbContextOptionsBuilder<SaraDbContext>()
-            .UseNpgsql(
-                _container.GetConnectionString(),
-                o => o.EnableRetryOnFailure(1, TimeSpan.Zero, null)
-            )
-            .AddInterceptors(new FailFirstRecordSave())
-            .Options;
-        await using var context = new SaraDbContext(options);
-        var service = new InspectionRecordService(
-            context,
-            Mock.Of<IAnalysisTriggerService>(),
-            _factory.Services.GetRequiredService<IOptions<AnalysisOptions>>(),
-            NullLogger<InspectionRecordService>.Instance
-        );
-        var message = _db.NewIsarInspectionResultMessage(
-            requiredAnalysis: ["group-test"],
-            analysisGroup: _db.NewAnalysisGroupMessage()
-        );
-
-        var result = await service.CreateFromMqttMessage(message);
-
-        Assert.False(result.IsDuplicate);
-        Assert.Equal(
-            1,
-            await _context.InspectionRecords.CountAsync(TestContext.Current.CancellationToken)
-        );
-        Assert.Equal(1, await _context.Analyses.CountAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(2, await _context.Analyses.CountAsync(TestContext.Current.CancellationToken));
         Assert.Equal(
             1,
             await _context.AnalysisGroups.CountAsync(TestContext.Current.CancellationToken)
@@ -487,39 +308,33 @@ public class MqttDuplicateTests : IAsyncLifetime
     }
 
     [Theory]
-    [InlineData(AnalysisRunStatus.Pending, false)]
-    [InlineData(AnalysisRunStatus.InProgress, false)]
-    [InlineData(AnalysisRunStatus.InProgress, true)]
-    public async Task UnconfirmedInitialRun_ReplayWarns(
-        AnalysisRunStatus status,
-        bool includeWorkflow
-    )
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task TransactionRetry_PreservesOneRecordAndSkipsUncertainCommit(bool committed)
     {
-        var message = _db.NewIsarInspectionResultMessage(requiredAnalysis: ["per-record-test"]);
-        await Create(message);
-        var analysis = await _context.Analyses.SingleAsync(TestContext.Current.CancellationToken);
-        var run = await _db.NewAnalysisRun(analysis);
-        run.Status = status;
-        if (includeWorkflow)
-            run.Workflows.Add(
-                new Workflow
-                {
-                    AnalysisRun = run,
-                    StepNumber = 1,
-                    WorkflowType = "per-record-test",
-                    InputBlobStorageLocations = [],
-                    ArgoWorkflowName = "name-without-confirmed-uid",
-                }
-            );
-        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        await using var context = ContextWith(
+            committed ? new FailFirstCommitAcknowledgement() : new FailFirstRecordSave()
+        );
+        var message = _db.NewIsarInspectionResultMessage(
+            requiredAnalysis: ["group-test"],
+            analysisGroup: _db.NewAnalysisGroupMessage(size: 1)
+        );
+        var result = await Service(context).CreateFromMqttMessage(message);
 
+        Assert.Equal(committed, result.IsDuplicate);
         await Process(message);
-
-        AssertLog(LogLevel.Warning, "incomplete or unconfirmed");
+        AssertLog(LogLevel.Information, "Ignoring duplicate");
+        AssertNoWarningsOrErrors();
         Assert.Empty(_factory.ArgoWorkflowClient.Requests);
         Assert.Equal(
             1,
-            await _context.AnalysisRuns.CountAsync(TestContext.Current.CancellationToken)
+            await _context.InspectionRecords.CountAsync(TestContext.Current.CancellationToken)
+        );
+        Assert.Equal(1, await _context.Analyses.CountAsync(TestContext.Current.CancellationToken));
+        Assert.False(await _context.AnalysisRuns.AnyAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(
+            1,
+            await _context.AnalysisGroups.CountAsync(TestContext.Current.CancellationToken)
         );
     }
 
@@ -531,12 +346,7 @@ public class MqttDuplicateTests : IAsyncLifetime
         var options = new DbContextOptionsBuilder<SaraDbContext>().UseSqlite(connection).Options;
         await using var context = new SaraDbContext(options);
         await context.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
-        var service = new InspectionRecordService(
-            context,
-            Mock.Of<IAnalysisTriggerService>(),
-            Options.Create(new AnalysisOptions()),
-            NullLogger<InspectionRecordService>.Instance
-        );
+        var service = Service(context);
         var message = _db.NewIsarInspectionResultMessage();
 
         var first = await service.CreateFromMqttMessage(message);
@@ -545,7 +355,6 @@ public class MqttDuplicateTests : IAsyncLifetime
         Assert.False(first.IsDuplicate);
         Assert.True(replay.IsDuplicate);
         Assert.Equal(first.Record.Id, replay.Record.Id);
-        Assert.Empty(replay.IncompleteAnalyses);
         Assert.Equal(
             1,
             await context.InspectionRecords.CountAsync(TestContext.Current.CancellationToken)
@@ -628,6 +437,21 @@ public class MqttDuplicateTests : IAsyncLifetime
         }
     }
 
+    private sealed class SaveCounter : SaveChangesInterceptor
+    {
+        public int Count { get; private set; }
+
+        public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
+            DbContextEventData eventData,
+            InterceptionResult<int> result,
+            CancellationToken cancellationToken = default
+        )
+        {
+            Count++;
+            return ValueTask.FromResult(result);
+        }
+    }
+
     private sealed class FailFirstRecordSave : SaveChangesInterceptor
     {
         private bool _failed;
@@ -646,7 +470,7 @@ public class MqttDuplicateTests : IAsyncLifetime
             )
             {
                 _failed = true;
-                throw new TimeoutException("Transient failure after group and analysis saves");
+                throw new TimeoutException("Transient failure before saving the inspection graph");
             }
             return ValueTask.FromResult(result);
         }

@@ -89,6 +89,8 @@ public class InspectionRecordService(
         IsarInspectionResultMessage message
     )
     {
+        // Retry the duplicate lookup too: a lost commit acknowledgement must not
+        // retry insertion blindly or report the persisted record as newly created.
         var attempt = 0;
         return await context
             .Database.CreateExecutionStrategy()
@@ -109,17 +111,13 @@ public class InspectionRecordService(
         var existing = await ReadMqttDuplicate(inspectionId);
         if (existing is not null)
         {
-            return await ClassifyMqttDuplicate(existing, message);
+            return new MqttInspectionRecordResult(existing, true);
         }
 
-        // Group/analysis creation also saves changes. Roll all of it back if
-        // another delivery wins either unique insert.
-        await using var transaction = await context.Database.BeginTransactionAsync();
         try
         {
             var created = await CreateMqttRecord(message, inspectionId);
-            await transaction.CommitAsync();
-            return new MqttInspectionRecordResult(created, false, []);
+            return new MqttInspectionRecordResult(created, false);
         }
         catch (DbUpdateException ex)
             when (ex.InnerException
@@ -131,53 +129,19 @@ public class InspectionRecordService(
                     }
             )
         {
-            await transaction.RollbackAsync();
             context.ChangeTracker.Clear();
             existing = await ReadMqttDuplicate(inspectionId);
             if (existing is null)
                 throw;
 
-            return await ClassifyMqttDuplicate(existing, message);
+            return new MqttInspectionRecordResult(existing, true);
         }
     }
 
-    private async Task<InspectionRecord?> ReadMqttDuplicate(string inspectionId)
-    {
-        var stored = await context
+    private Task<InspectionRecord?> ReadMqttDuplicate(string inspectionId) =>
+        context
             .InspectionRecords.AsNoTracking()
-            .Include(r => r.AnalysisGroup)
-            .Include(r => r.Analyses)
-                .ThenInclude(a => a.Runs)
-                    .ThenInclude(r => r.Workflows)
-            .Where(r => r.InspectionId == inspectionId)
-            .Select(r => new { Record = r, r.Timestamp })
-            .FirstOrDefaultAsync();
-        // SQLite drops DateTime.Kind. Read the persisted UTC timestamp directly,
-        // avoiding the entity setter interpreting an unspecified value as local time.
-        if (stored?.Timestamp is DateTime timestamp)
-            stored.Record.Timestamp = DateTime.SpecifyKind(timestamp, DateTimeKind.Utc);
-        return stored?.Record;
-    }
-
-    private async Task<MqttInspectionRecordResult> ClassifyMqttDuplicate(
-        InspectionRecord existing,
-        IsarInspectionResultMessage message
-    )
-    {
-        MqttInspectionRecordResult.EnsureEquivalent(existing, message);
-        var group = existing.AnalysisGroup;
-        var awaitingGroup =
-            group is not null
-            && group.Status == AnalysisGroupStatus.Pending
-            && group.TimeoutAt > DateTime.UtcNow
-            && await context.InspectionRecords.CountAsync(r => r.AnalysisGroupId == group.Id)
-                < group.ExpectedSize;
-        return new MqttInspectionRecordResult(
-            existing,
-            true,
-            MqttInspectionRecordResult.FindIncompleteAnalyses(existing, message, awaitingGroup)
-        );
-    }
+            .FirstOrDefaultAsync(r => r.InspectionId == inspectionId);
 
     private async Task<InspectionRecord> CreateMqttRecord(
         IsarInspectionResultMessage message,
@@ -192,31 +156,13 @@ public class InspectionRecordService(
                 )
                 : null;
 
-        List<Analysis> analyses = [];
-
-        if (message.RequiredAnalysis != null)
-        {
-            var analysesInGroup =
-                analysisGroup
-                    ?.Analyses.Where((a) => message.RequiredAnalysis.Contains(a.AnalysisType))
-                    .ToList()
-                ?? [];
-
-            var newAnalyses = message
-                .RequiredAnalysis.Distinct()
-                .Where((r) => !analysesInGroup.Select((a) => a.AnalysisType).Contains(r))
-                .Select((r) => new Analysis { AnalysisType = r, AnalysisGroup = analysisGroup })
-                .ToList();
-
-            if (analysisGroup != null)
-                foreach (var analysis in newAnalyses)
-                    analysisGroup.Analyses.Add(analysis);
-
-            await context.SaveChangesAsync();
-
-            analyses.AddRange(analysesInGroup);
-            analyses.AddRange(newAnalyses);
-        }
+        var analyses = (message.RequiredAnalysis ?? [])
+            .Distinct()
+            .Select(type =>
+                analysisGroup?.Analyses.Find(a => a.AnalysisType == type)
+                ?? new Analysis { AnalysisType = type, AnalysisGroup = analysisGroup }
+            )
+            .ToList();
 
         var inspectionRecord = new InspectionRecord
         {
@@ -270,14 +216,6 @@ public class InspectionRecordService(
         };
 
         await context.AnalysisGroups.AddAsync(group);
-        await context.SaveChangesAsync();
-
-        logger.LogInformation(
-            "Created analysis group {GroupId} expecting {ExpectedSize} records, timeout at {TimeoutAt}",
-            Sanitize.SanitizeUserInput(group.Id.ToString()),
-            group.ExpectedSize,
-            group.TimeoutAt
-        );
 
         return group;
     }
@@ -285,7 +223,19 @@ public class InspectionRecordService(
     public async Task<InspectionRecord> Create(InspectionRecord inspectionRecord)
     {
         await context.InspectionRecords.AddAsync(inspectionRecord);
+        var newGroup = inspectionRecord.AnalysisGroup;
+        var isNewGroup = newGroup is not null && context.Entry(newGroup).State == EntityState.Added;
+
+        // Persist the entire graph in one implicit transaction.
         await context.SaveChangesAsync();
+
+        if (isNewGroup)
+            logger.LogInformation(
+                "Created analysis group {GroupId} expecting {ExpectedSize} records, timeout at {TimeoutAt}",
+                newGroup!.Id,
+                newGroup.ExpectedSize,
+                newGroup.TimeoutAt
+            );
 
         logger.LogInformation(
             "Created inspection record with InspectionId: {InspectionId}",

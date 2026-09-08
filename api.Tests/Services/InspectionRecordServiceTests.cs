@@ -44,6 +44,54 @@ public class InspectionRecordServiceTests : IAsyncLifetime
         return (await service.CreateFromMqttMessage(message)).Record;
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CreateAndTrigger_SavesGroupWithRecordAtomically(bool invalidBlob)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var service = scope.ServiceProvider.GetRequiredService<IInspectionRecordService>();
+        var request = new CreateInspectionRecordRequest
+        {
+            InspectionId = "manual-inspection",
+            InstallationCode = "test",
+            BlobStorageLocation = new BlobStorageLocation
+            {
+                StorageAccount = invalidBlob ? null! : "account",
+                BlobContainer = "container",
+                BlobName = "image.jpg",
+            },
+            AnalysisGroup = new CreateInspectionRecordAnalysisGroup
+            {
+                AnalysisGroupId = "manual-group",
+                AnalysisGroupSize = 2,
+                AnalysisGroupAnalyses = [],
+            },
+        };
+
+        if (invalidBlob)
+        {
+            await Assert.ThrowsAsync<DbUpdateException>(() => service.CreateAndTrigger(request));
+        }
+        else
+        {
+            var record = await service.CreateAndTrigger(request);
+            var group = await _context.AnalysisGroups.SingleAsync(
+                TestContext.Current.CancellationToken
+            );
+            Assert.Equal(group.Id, record.AnalysisGroupId);
+        }
+
+        Assert.Equal(
+            invalidBlob ? 0 : 1,
+            await _context.InspectionRecords.CountAsync(TestContext.Current.CancellationToken)
+        );
+        Assert.Equal(
+            invalidBlob ? 0 : 1,
+            await _context.AnalysisGroups.CountAsync(TestContext.Current.CancellationToken)
+        );
+    }
+
     [Fact]
     public async Task CreateFromMqttMessage_MessageWithoutPose_PersistsNullPoseFields()
     {
@@ -77,17 +125,6 @@ public class InspectionRecordServiceTests : IAsyncLifetime
         Assert.Equal(1.0f, created.RobotPose!.Position.X);
         Assert.Equal(0.4f, created.RobotPose.Orientation.W);
         Assert.Equal(8.0f, created.TargetPosition!.Y);
-    }
-
-    [Fact]
-    public async Task CreateFromMqttMessage_WithGroup_PersistsRecord()
-    {
-        var message = _db.NewIsarInspectionResultMessage(
-            requiredAnalysis: ["group-test"],
-            analysisGroup: _db.NewAnalysisGroupMessage()
-        );
-
-        await CreateInScope(message);
     }
 
     [Fact]

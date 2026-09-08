@@ -239,22 +239,11 @@ namespace api.MQTT
 
             if (result.IsDuplicate)
             {
-                if (result.IncompleteAnalyses.Count > 0)
-                    _logger.LogWarning(
-                        "Duplicate ISAR inspection result for InspectionId: {InspectionId}, RecordId: {RecordId}. "
-                            + "Initial analysis processing is incomplete or unconfirmed: {IncompleteAnalyses}. "
-                            + "Skipping automatic retrigger to avoid duplicate side effects; operator investigation is required.",
-                        result.Record.InspectionId,
-                        result.Record.Id,
-                        string.Join("; ", result.IncompleteAnalyses)
-                    );
-                else
-                    _logger.LogInformation(
-                        "Ignoring duplicate ISAR inspection result for InspectionId: {InspectionId}, RecordId: {RecordId}; "
-                            + "analyses are already handled or awaiting their group.",
-                        result.Record.InspectionId,
-                        result.Record.Id
-                    );
+                _logger.LogInformation(
+                    "Ignoring duplicate ISAR inspection result for InspectionId: {InspectionId}, RecordId: {RecordId}.",
+                    result.Record.InspectionId,
+                    result.Record.Id
+                );
                 return;
             }
 
