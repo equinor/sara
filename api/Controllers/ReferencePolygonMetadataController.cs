@@ -305,40 +305,6 @@ public class ReferencePolygonMetadataController(
         }
     }
 
-    [HttpGet("id/{id}/polygon")]
-    [Authorize(Roles = Role.Any)]
-    [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult> GetReferencePolygonPolygon([FromRoute] Guid id)
-    {
-        try
-        {
-            var metadata = await referencePolygonMetadataService.ReadById(id);
-            if (metadata is null)
-            {
-                return NotFound($"Could not find thermal reference metadata with id {id}");
-            }
-
-            return Content(
-                String.Join(", ", metadata.Polygon.Select((c) => c.ToString()).ToArray()),
-                "application/json"
-            );
-        }
-        catch (RequestFailedException ex) when (ex.Status == 404)
-        {
-            logger.LogWarning(ex, "Reference polygon blob not found for id {Id}", id);
-            return NotFound("The reference polygon blob could not be found in storage");
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error retrieving reference polygon for id {Id}", id);
-            return StatusCode(
-                StatusCodes.Status500InternalServerError,
-                "An error occurred while retrieving the reference polygon"
-            );
-        }
-    }
-
     private BlobStorageLocation BuildReferenceLocations(BlobDirectoryInput directoryInput)
     {
         var storageAccount =
