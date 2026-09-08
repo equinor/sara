@@ -83,10 +83,7 @@ public class DatabaseUtilities(SaraDbContext context)
                 blobContainer: "thermal-reference",
                 blobName: $"{Guid.NewGuid()}.jpg"
             ),
-            ReferencePolygonBlobStorageLocation = NewBlobStorageLocation(
-                blobContainer: "thermal-reference",
-                blobName: $"{Guid.NewGuid()}.json"
-            ),
+            Polygon = [new ImageCoordinate() { X = 0, Y = 0 }],
         };
 
         _context.ReferencePolygonMetadata.Add(metadata);

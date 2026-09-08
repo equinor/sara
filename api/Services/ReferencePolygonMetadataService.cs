@@ -22,6 +22,8 @@ public class ReferencePolygonMetadataInput
     public required string InspectionDescription { get; set; }
 
     public required BlobDirectoryInput ReferenceBlobStorageDirectory { get; set; }
+
+    public required List<ImageCoordinate> Polygon { get; set; }
 }
 
 public interface IReferencePolygonMetadataService
@@ -38,15 +40,13 @@ public interface IReferencePolygonMetadataService
 
     public Task<ReferencePolygonMetadata> CreateReferencePolygonMetadata(
         ReferencePolygonMetadataInput input,
-        BlobStorageLocation referenceImageLocation,
-        BlobStorageLocation referencePolygonLocation
+        BlobStorageLocation referenceImageLocation
     );
 
     public Task<ReferencePolygonMetadata> UpdateReferencePolygonMetadata(
         Guid id,
         ReferencePolygonMetadataInput input,
-        BlobStorageLocation referenceImageLocation,
-        BlobStorageLocation referencePolygonLocation
+        BlobStorageLocation referenceImageLocation
     );
 
     public Task RemoveReferencePolygonMetadata(Guid id);
@@ -56,7 +56,7 @@ public interface IReferencePolygonMetadataService
         string tagId,
         string installationCode,
         string inspectionDescription,
-        double[][] polygon
+        List<ImageCoordinate> polygon
     );
 }
 
@@ -99,8 +99,7 @@ public class ReferencePolygonMetadataService(
 
     public async Task<ReferencePolygonMetadata> CreateReferencePolygonMetadata(
         ReferencePolygonMetadataInput input,
-        BlobStorageLocation referenceImageLocation,
-        BlobStorageLocation referencePolygonLocation
+        BlobStorageLocation referenceImageLocation
     )
     {
         await ThrowIfDuplicateExists(input, null);
@@ -111,7 +110,7 @@ public class ReferencePolygonMetadataService(
             InstallationCode = input.InstallationCode,
             InspectionDescription = input.InspectionDescription,
             ReferenceImageBlobStorageLocation = referenceImageLocation,
-            ReferencePolygonBlobStorageLocation = referencePolygonLocation,
+            Polygon = input.Polygon,
         };
 
         context.ReferencePolygonMetadata.Add(referencePolygonMetadata);
@@ -122,8 +121,7 @@ public class ReferencePolygonMetadataService(
     public async Task<ReferencePolygonMetadata> UpdateReferencePolygonMetadata(
         Guid id,
         ReferencePolygonMetadataInput input,
-        BlobStorageLocation referenceImageLocation,
-        BlobStorageLocation referencePolygonLocation
+        BlobStorageLocation referenceImageLocation
     )
     {
         var referencePolygonMetadata =
@@ -138,7 +136,7 @@ public class ReferencePolygonMetadataService(
         referencePolygonMetadata.InstallationCode = input.InstallationCode;
         referencePolygonMetadata.InspectionDescription = input.InspectionDescription;
         referencePolygonMetadata.ReferenceImageBlobStorageLocation = referenceImageLocation;
-        referencePolygonMetadata.ReferencePolygonBlobStorageLocation = referencePolygonLocation;
+        referencePolygonMetadata.Polygon = input.Polygon;
 
         context.ReferencePolygonMetadata.Update(referencePolygonMetadata);
         await context.SaveChangesAsync();
@@ -162,11 +160,11 @@ public class ReferencePolygonMetadataService(
         string tagId,
         string installationCode,
         string inspectionDescription,
-        double[][] polygon
+        List<ImageCoordinate> polygon
     )
     {
         var preprocessedLocation = GetPreprocessedBlobLocation(record);
-        var (imageDestination, polygonDestination) = BuildReferenceLocations(
+        var imageDestination = BuildReferenceLocation(
             tagId,
             inspectionDescription,
             preprocessedLocation.BlobContainer
@@ -182,14 +180,14 @@ public class ReferencePolygonMetadataService(
                 BlobContainer = imageDestination.BlobContainer,
                 BlobName = $"{tagId}_{inspectionDescription}",
             },
+            Polygon = polygon,
         };
 
         await ThrowIfDuplicateExists(input, null);
 
         await blobStorageService.CopyBlobAsync(preprocessedLocation, imageDestination);
-        await UploadPolygonAsync(polygon, polygonDestination);
 
-        return await CreateReferencePolygonMetadata(input, imageDestination, polygonDestination);
+        return await CreateReferencePolygonMetadata(input, imageDestination);
     }
 
     private static BlobStorageLocation GetPreprocessedBlobLocation(InspectionRecord record)
@@ -218,10 +216,11 @@ public class ReferencePolygonMetadataService(
         return thermalReadingWorkflow.InputBlobStorageLocations[0];
     }
 
-    private (
-        BlobStorageLocation imageLocation,
-        BlobStorageLocation polygonLocation
-    ) BuildReferenceLocations(string tagId, string inspectionDescription, string blobContainer)
+    private BlobStorageLocation BuildReferenceLocation(
+        string tagId,
+        string inspectionDescription,
+        string blobContainer
+    )
     {
         var storageAccount =
             configuration["Storage:ThermalReferenceStorageAccount"]
@@ -238,21 +237,7 @@ public class ReferencePolygonMetadataService(
             BlobName = $"{directory}/reference_image.tiff",
         };
 
-        var polygonLocation = new BlobStorageLocation
-        {
-            StorageAccount = storageAccount,
-            BlobContainer = blobContainer,
-            BlobName = $"{directory}/reference_polygon.json",
-        };
-
-        return (imageLocation, polygonLocation);
-    }
-
-    private async Task UploadPolygonAsync(double[][] polygon, BlobStorageLocation destination)
-    {
-        var polygonJson = JsonSerializer.Serialize(polygon);
-        using var polygonStream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(polygonJson));
-        await blobStorageService.UploadBlobAsync(destination, polygonStream, "application/json");
+        return imageLocation;
     }
 
     private async Task ThrowIfDuplicateExists(ReferencePolygonMetadataInput input, Guid? existingId)

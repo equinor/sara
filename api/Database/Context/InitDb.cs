@@ -142,12 +142,7 @@ namespace Api.Database.Context
                     BlobContainer = "hua",
                     BlobName = "thermal_thermal/reference_image.tiff",
                 },
-                ReferencePolygonBlobStorageLocation = new BlobStorageLocation
-                {
-                    StorageAccount = storageAccount,
-                    BlobContainer = "hua",
-                    BlobName = "thermal_thermal/reference_polygon.json",
-                },
+                Polygon = [],
             };
 
             return [entry1];
