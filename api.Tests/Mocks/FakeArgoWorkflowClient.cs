@@ -29,6 +29,8 @@ public class FakeArgoWorkflowClient : IArgoWorkflowClient
     public List<ArgoCreateRequest> Requests { get; } = [];
     public Exception? CreateException { get; set; }
     public Func<ArgoCreateRequest, Task>? BeforeCreate { get; set; }
+    public List<ArgoObjectMetadata> ReconciledWorkflows { get; } = [];
+    public Exception? ReconcileException { get; set; }
 
     public async Task<CreatedArgoWorkflow> CreateWorkflowAsync(
         ArgoWorkflowResource workflow,
@@ -46,6 +48,19 @@ public class FakeArgoWorkflowClient : IArgoWorkflowClient
         }
         Requests.Add(request);
         return new CreatedArgoWorkflow(workflow.Metadata.Name!, Guid.NewGuid().ToString());
+    }
+
+    public Task MarkWorkflowReconciledAsync(
+        ArgoObjectMetadata metadata,
+        CancellationToken cancellationToken
+    )
+    {
+        if (ReconcileException is not null)
+        {
+            throw ReconcileException;
+        }
+        ReconciledWorkflows.Add(metadata);
+        return Task.CompletedTask;
     }
 
     public Task<ArgoWorkflowSnapshot> ListWorkflowsAsync(CancellationToken cancellationToken) =>

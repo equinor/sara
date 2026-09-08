@@ -63,6 +63,10 @@ public class ArgoWorkflowEventProcessorTests : IAsyncLifetime
         Assert.Equal("node-0", first.ArgoNodeId);
         Assert.Equal("node-1", second.ArgoNodeId);
         Assert.Equal(AnalysisRunStatus.Succeeded, run.Status);
+        var acknowledged = Assert.Single(_factory.ArgoWorkflowClient.ReconciledWorkflows);
+        Assert.Equal(first.ArgoWorkflowName, acknowledged.Name);
+        Assert.Equal("argo-uid", acknowledged.Uid);
+        Assert.Equal("10", acknowledged.ResourceVersion);
     }
 
     [Fact]
@@ -88,10 +92,13 @@ public class ArgoWorkflowEventProcessorTests : IAsyncLifetime
         Assert.Equal(WorkflowStatus.Skipped, downstream.Status);
         Assert.Equal(AnalysisRunStatus.Skipped, run.Status);
         Assert.Contains("test-gate gate matched", run.SkipReason);
+        Assert.Single(_factory.ArgoWorkflowClient.ReconciledWorkflows);
     }
 
-    [Fact]
-    public async Task DuplicateTerminalEvent_IsProcessedOnce()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DuplicateTerminalEvent_RetriesAcknowledgmentWithoutRedispatch(bool patchFails)
     {
         var record = await _db.NewInspectionRecord(inspectionId: "inspection-cloe");
         var analysis = await _db.NewAnalysis(inspectionRecords: [record]);
@@ -102,10 +109,27 @@ public class ArgoWorkflowEventProcessorTests : IAsyncLifetime
         await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
         var node = Node(workflow, "Succeeded", "{\"oilLevel\":0.42,\"confidence\":0.9}");
 
-        await Process(run, "Succeeded", node);
+        if (patchFails)
+        {
+            _factory.ArgoWorkflowClient.ReconcileException = new InvalidOperationException(
+                "Patch failed"
+            );
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                Process(run, "Succeeded", node)
+            );
+            Assert.Empty(_factory.ArgoWorkflowClient.ReconciledWorkflows);
+            await _context.Entry(run).ReloadAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(AnalysisRunStatus.Succeeded, run.Status);
+            _factory.ArgoWorkflowClient.ReconcileException = null;
+        }
+        else
+        {
+            await Process(run, "Succeeded", node);
+        }
         await Process(run, "Succeeded", node);
 
         Assert.Single(_factory.MqttPublisher.AnalysisResultMessages);
+        Assert.Equal(patchFails ? 1 : 2, _factory.ArgoWorkflowClient.ReconciledWorkflows.Count);
     }
 
     [Fact]
@@ -122,6 +146,81 @@ public class ArgoWorkflowEventProcessorTests : IAsyncLifetime
 
         await _context.Entry(workflow).ReloadAsync(TestContext.Current.CancellationToken);
         Assert.Equal(WorkflowStatus.Pending, workflow.Status);
+        Assert.Empty(_factory.ArgoWorkflowClient.ReconciledWorkflows);
+    }
+
+    [Theory]
+    [InlineData("Failed")]
+    [InlineData("Error")]
+    public async Task FailedWorkflow_IsAcknowledgedAfterEveryStepIsReconciled(string phase)
+    {
+        var analysis = await _db.NewAnalysis();
+        var run = await _db.NewAnalysisRun(analysis);
+        run.Status = AnalysisRunStatus.InProgress;
+        var first = await _db.NewWorkflow(run, workflowType: "test-workflow-1", stepNumber: 1);
+        var second = await _db.NewWorkflow(run, workflowType: "test-workflow-2", stepNumber: 2);
+        SetArgoIdentity(run, "argo-uid");
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        await Process(run, phase, Node(first, phase));
+
+        await _context.Entry(run).ReloadAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(AnalysisRunStatus.Failed, run.Status);
+        Assert.Empty(_factory.ArgoWorkflowClient.ReconciledWorkflows);
+
+        await Process(run, phase, Node(first, phase), Node(second, "Omitted"));
+
+        await _context.Entry(second).ReloadAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(WorkflowStatus.Skipped, second.Status);
+        Assert.Single(_factory.ArgoWorkflowClient.ReconciledWorkflows);
+    }
+
+    [Theory]
+    [InlineData("Running", "Succeeded")]
+    [InlineData("Succeeded", "Running")]
+    public async Task IncompleteReconciliation_IsNotAcknowledged(string phase, string nodePhase)
+    {
+        var analysis = await _db.NewAnalysis();
+        var run = await _db.NewAnalysisRun(analysis);
+        run.Status = AnalysisRunStatus.InProgress;
+        var workflow = await _db.NewWorkflow(run, workflowType: "test-workflow-1");
+        SetArgoIdentity(run, "argo-uid");
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        await Process(run, phase, Node(workflow, nodePhase, "{}"));
+
+        await _context.Entry(run).ReloadAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(AnalysisRunStatus.InProgress, run.Status);
+        Assert.Empty(_factory.ArgoWorkflowClient.ReconciledWorkflows);
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task AcknowledgedOrDeletedWorkflow_IsNotPatched(bool reconciled, bool deleted)
+    {
+        var analysis = await _db.NewAnalysis();
+        var run = await _db.NewAnalysisRun(analysis);
+        run.Status = AnalysisRunStatus.InProgress;
+        var workflow = await _db.NewWorkflow(run, workflowType: "test-workflow-1");
+        SetArgoIdentity(run, "argo-uid");
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        await Process(
+            run,
+            "Succeeded",
+            [Node(workflow, "Succeeded", "{}")],
+            "argo-uid",
+            reconciled,
+            deleted
+        );
+
+        await _context.Entry(workflow).ReloadAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(
+            reconciled ? WorkflowStatus.Pending : WorkflowStatus.Succeeded,
+            workflow.Status
+        );
+        Assert.Empty(_factory.ArgoWorkflowClient.ReconciledWorkflows);
     }
 
     private void SetArgoIdentity(AnalysisRun run, string uid)
@@ -156,13 +255,21 @@ public class ArgoWorkflowEventProcessorTests : IAsyncLifetime
     private async Task Process(AnalysisRun run, string phase, ArgoNodeStatus node, string uid) =>
         await Process(run, phase, [node], uid);
 
-    private async Task Process(AnalysisRun run, string phase, ArgoNodeStatus[] nodes, string uid)
+    private async Task Process(
+        AnalysisRun run,
+        string phase,
+        ArgoNodeStatus[] nodes,
+        string uid,
+        bool reconciled = false,
+        bool deleted = false
+    )
     {
         using var scope = _factory.Services.CreateScope();
         var processor = scope.ServiceProvider.GetRequiredService<IArgoWorkflowEventProcessor>();
         await processor.HandleWorkflowEventAsync(
             new ArgoWorkflowResource
             {
+                IsDeleted = deleted,
                 Metadata = new ArgoObjectMetadata
                 {
                     Name = AnalysisWorkflowGraphBuilder.GetArgoWorkflowName(
@@ -170,9 +277,11 @@ public class ArgoWorkflowEventProcessorTests : IAsyncLifetime
                         run.Id
                     ),
                     Uid = uid,
+                    ResourceVersion = "10",
                     Labels = new Dictionary<string, string>
                     {
                         [ArgoWorkflowClient.AnalysisRunIdLabel] = run.Id.ToString(),
+                        [ArgoWorkflowClient.ReconciledLabel] = reconciled ? "true" : "false",
                     },
                 },
                 Status = new ArgoWorkflowStatus
