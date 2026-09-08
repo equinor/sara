@@ -48,4 +48,17 @@ public class ReferencePolygonMetadata
 
     [Required]
     public required List<ImageCoordinate> Polygon { get; set; }
+
+    [Required]
+    public required AnalysisTypeEnum SourceAnalysisType { get; set; }
+
+    public static string GetReferenceImageFileExtension(AnalysisTypeEnum sourceAnalysisType) =>
+        sourceAnalysisType switch
+        {
+            AnalysisTypeEnum.ThermalReading => "tiff",
+            AnalysisTypeEnum.Fencilla => "jpg",
+            _ => throw new NotSupportedException(
+                $"No reference image file extension configured for analysis type '{sourceAnalysisType}'"
+            ),
+        };
 }

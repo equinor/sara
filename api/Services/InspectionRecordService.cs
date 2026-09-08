@@ -29,7 +29,8 @@ public interface IInspectionRecordService
         InspectionRecordParameters parameters
     );
 
-    public Task<PagedList<InspectionRecord>> GetThermalInspectionRecords(
+    public Task<PagedList<InspectionRecord>> GetInspectionRecordsBySourceAnalysisType(
+        AnalysisTypeEnum sourceAnalysisType,
         int pageNumber,
         int pageSize
     );
@@ -340,18 +341,20 @@ public class InspectionRecordService(
         return created;
     }
 
-    public async Task<PagedList<InspectionRecord>> GetThermalInspectionRecords(
+    public async Task<PagedList<InspectionRecord>> GetInspectionRecordsBySourceAnalysisType(
+        AnalysisTypeEnum sourceAnalysisType,
         int pageNumber,
         int pageSize
     )
     {
+        var workflowType = Analysis.GetAnalysisTypeFromAnalysisEnum(sourceAnalysisType);
         var query = context
             .InspectionRecords.Include(ir => ir.Analyses)
                 .ThenInclude(a => a.Runs)
                     .ThenInclude(r => r.Workflows)
             .Where(ir =>
                 ir.Analyses.Any(a =>
-                    a.Runs.Any(r => r.Workflows.Any(w => w.WorkflowType == "thermal-reading"))
+                    a.Runs.Any(r => r.Workflows.Any(w => w.WorkflowType == workflowType))
                 )
                 && ir.Analyses.Any(a =>
                     a.Runs.Any(r =>

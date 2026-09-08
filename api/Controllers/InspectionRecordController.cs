@@ -222,7 +222,8 @@ public class InspectionRecordController(
     {
         try
         {
-            var page = await inspectionRecordService.GetThermalInspectionRecords(
+            var page = await inspectionRecordService.GetInspectionRecordsBySourceAnalysisType(
+                AnalysisTypeEnum.ThermalReading,
                 pageNumber,
                 pageSize
             );
@@ -249,6 +250,44 @@ public class InspectionRecordController(
 
     [HttpGet]
     [Authorize(Roles = Role.Any)]
+    [Route("fencilla")]
+    [ProducesResponseType(typeof(PagedResponse<InspectionRecord>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<PagedResponse<InspectionRecord>>> GetFencillaInspectionRecords(
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 20
+    )
+    {
+        try
+        {
+            var page = await inspectionRecordService.GetInspectionRecordsBySourceAnalysisType(
+                AnalysisTypeEnum.Fencilla,
+                pageNumber,
+                pageSize
+            );
+            return Ok(
+                new PagedResponse<InspectionRecord>
+                {
+                    Items = page,
+                    PageNumber = page.CurrentPage,
+                    PageSize = page.PageSize,
+                    TotalCount = page.TotalCount,
+                    TotalPages = page.TotalPages,
+                }
+            );
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Error during GET of fencilla inspection records");
+            return StatusCode(
+                StatusCodes.Status500InternalServerError,
+                "An error occurred while retrieving fencilla inspection records"
+            );
+        }
+    }
+
+    [HttpGet]
+    [Authorize(Roles = Role.Any)]
     [Route("id/{id:guid}/thermal-image")]
     [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -263,31 +302,16 @@ public class InspectionRecordController(
                 return NotFound($"Could not find inspection record with id {id}");
             }
 
-            var thermalReadingWorkflow = record
-                .Analyses.SelectMany(a => a.Runs)
-                .SelectMany(r => r.Workflows)
-                .Where(w =>
-                    w.WorkflowType.Equals("thermal-reading", StringComparison.OrdinalIgnoreCase)
-                )
-                .OrderByDescending(w => w.CompletedAt ?? w.StartedAt ?? DateTime.MinValue)
-                .FirstOrDefault();
-
-            if (thermalReadingWorkflow is null)
+            var preprocessedLocation = FindLatestWorkflowInputBlobLocation(
+                record,
+                AnalysisTypeEnum.ThermalReading,
+                out var notFoundMessage
+            );
+            if (preprocessedLocation is null)
             {
-                return NotFound($"No thermal-reading workflow found for inspection record {id}");
+                return NotFound(notFoundMessage);
             }
 
-            if (
-                thermalReadingWorkflow.InputBlobStorageLocations is null
-                || thermalReadingWorkflow.InputBlobStorageLocations.Count == 0
-            )
-            {
-                return NotFound(
-                    $"Thermal-reading workflow has no input blob location for inspection record {id}"
-                );
-            }
-
-            var preprocessedLocation = thermalReadingWorkflow.InputBlobStorageLocations[0];
             var result = await thermalImageService.GetThermalImageDataAsync(preprocessedLocation);
 
             Response.Headers["X-Image-Width"] = result.Width.ToString();
@@ -324,6 +348,83 @@ public class InspectionRecordController(
                 "An error occurred while generating the thermal image"
             );
         }
+    }
+
+    [HttpGet]
+    [Authorize(Roles = Role.Any)]
+    [Route("id/{id:guid}/fencilla-image")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult> GetFencillaImage([FromRoute] Guid id)
+    {
+        try
+        {
+            var record = await inspectionRecordService.ReadById(id);
+            if (record is null)
+            {
+                return NotFound($"Could not find inspection record with id {id}");
+            }
+
+            var sourceLocation = FindLatestWorkflowInputBlobLocation(
+                record,
+                AnalysisTypeEnum.Fencilla,
+                out var notFoundMessage
+            );
+            if (sourceLocation is null)
+            {
+                return NotFound(notFoundMessage);
+            }
+
+            using var stream = await blobStorageService.DownloadBlobAsync(sourceLocation);
+            return File(stream.ToArray(), "image/jpeg");
+        }
+        catch (RequestFailedException ex) when (ex.Status == 404)
+        {
+            logger.LogWarning(
+                ex,
+                "Preprocessed fencilla image blob not found for inspection record {Id}",
+                id
+            );
+            return NotFound("The preprocessed fencilla image blob could not be found in storage");
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Error retrieving fencilla image for inspection record {Id}", id);
+            return StatusCode(
+                StatusCodes.Status500InternalServerError,
+                "An error occurred while retrieving the fencilla image"
+            );
+        }
+    }
+
+    private static BlobStorageLocation? FindLatestWorkflowInputBlobLocation(
+        InspectionRecord record,
+        AnalysisTypeEnum sourceAnalysisType,
+        out string? notFoundMessage
+    )
+    {
+        var workflowType = Analysis.GetAnalysisTypeFromAnalysisEnum(sourceAnalysisType);
+        var workflow = record.FindLatestWorkflow(sourceAnalysisType);
+
+        if (workflow is null)
+        {
+            notFoundMessage = $"No {workflowType} workflow found for inspection record {record.Id}";
+            return null;
+        }
+
+        if (
+            workflow.InputBlobStorageLocations is null
+            || workflow.InputBlobStorageLocations.Count == 0
+        )
+        {
+            notFoundMessage =
+                $"{workflowType} workflow has no input blob location for inspection record {record.Id}";
+            return null;
+        }
+
+        notFoundMessage = null;
+        return workflow.InputBlobStorageLocations[0];
     }
 
     [HttpPost]
