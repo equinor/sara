@@ -12,6 +12,33 @@ dotnet test --filter "FullyQualifiedName~MyTest"   # one test
 
 Docker must be running.
 
+## ISAR inspection-result replay contract
+
+`Integration/MqttDuplicateTests.cs` covers duplicate ingestion against PostgreSQL,
+including forced concurrent inserts, transaction retries and uncertain commit
+acknowledgements. It also covers the application's SQLite in-memory mode.
+
+Matching stored inspection IDs and metadata produce an explicit duplicate result;
+the MQTT handler never retriggers analyses for that result. Submitted or completed
+initial runs, no-analysis messages, and groups still waiting for members are logged
+informationally. Missing/pending/failed initial runs, unconfirmed Argo submissions,
+and groups no longer legitimately waiting produce an actionable warning instead.
+Later manually requested analyses and reruns do not redefine the original request.
+Conflicting stored metadata and unrelated database failures remain errors.
+
+Comparison uses ingestion's sanitization and database timestamp precision.
+Only persisted metadata can be compared: ISAR ID, file type, duration, acoustic
+metadata and `analysis_group_analyses` are not stored by ingestion. Because analysis
+associations can grow through manual additions and group completion, requested
+analysis types must be present, but exact original-set equality cannot be enforced.
+Nullable stored metadata must match the incoming value, including null.
+
+Record/group/analysis insertion is transactional; analysis submission is not part
+of that transaction. A crash or uncertain commit can therefore leave a record
+without submitted analyses. Replays report this state rather than attempting
+unsafe automatic recovery. Operators must investigate the reported record/run
+before manually retrying; this is not an outbox or exactly-once submission scheme.
+
 ## Writing a new test
 
 Copy an existing file in `Services/` as a template. Minimum skeleton:

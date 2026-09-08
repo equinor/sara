@@ -2,6 +2,7 @@
 using api.Database.Models;
 using api.Services;
 using api.Utilities;
+using Microsoft.EntityFrameworkCore;
 
 namespace api.MQTT
 {
@@ -23,18 +24,8 @@ namespace api.MQTT
             Subscribe();
         }
 
-        private IInspectionRecordService InspectionRecordService =>
-            _scopeFactory
-                .CreateScope()
-                .ServiceProvider.GetRequiredService<IInspectionRecordService>();
-        private IAnalysisTriggerService AnalysisTriggerService =>
-            _scopeFactory
-                .CreateScope()
-                .ServiceProvider.GetRequiredService<IAnalysisTriggerService>();
         private ITimeseriesService TimeseriesService =>
             _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<ITimeseriesService>();
-        private IBlobStorageService BlobStorageService =>
-            _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IBlobStorageService>();
 
         public override void Subscribe()
         {
@@ -174,6 +165,7 @@ namespace api.MQTT
             );
 
             var inspectionDataPath = isarInspectionResultMessage.InspectionDataPath;
+            using var scope = _scopeFactory.CreateScope();
             var blobStorageLocation = new BlobStorageLocation
             {
                 StorageAccount = inspectionDataPath.StorageAccount,
@@ -184,7 +176,9 @@ namespace api.MQTT
             bool blobExists;
             try
             {
-                blobExists = await BlobStorageService.ExistsAsync(blobStorageLocation);
+                blobExists = await scope
+                    .ServiceProvider.GetRequiredService<IBlobStorageService>()
+                    .ExistsAsync(blobStorageLocation);
             }
             catch (Exception ex)
             {
@@ -215,14 +209,14 @@ namespace api.MQTT
                 return;
             }
 
-            InspectionRecord? inspectionRecord;
+            MqttInspectionRecordResult result;
             try
             {
-                inspectionRecord = await InspectionRecordService.CreateFromMqttMessage(
-                    isarInspectionResultMessage
-                );
+                result = await scope
+                    .ServiceProvider.GetRequiredService<IInspectionRecordService>()
+                    .CreateFromMqttMessage(isarInspectionResultMessage);
             }
-            catch (InvalidOperationException ex)
+            catch (Exception ex) when (ex is InvalidOperationException or DbUpdateException)
             {
                 _logger.LogError(
                     ex,
@@ -243,9 +237,32 @@ namespace api.MQTT
                 return;
             }
 
+            if (result.IsDuplicate)
+            {
+                if (result.IncompleteAnalyses.Count > 0)
+                    _logger.LogWarning(
+                        "Duplicate ISAR inspection result for InspectionId: {InspectionId}, RecordId: {RecordId}. "
+                            + "Initial analysis processing is incomplete or unconfirmed: {IncompleteAnalyses}. "
+                            + "Skipping automatic retrigger to avoid duplicate side effects; operator investigation is required.",
+                        result.Record.InspectionId,
+                        result.Record.Id,
+                        string.Join("; ", result.IncompleteAnalyses)
+                    );
+                else
+                    _logger.LogInformation(
+                        "Ignoring duplicate ISAR inspection result for InspectionId: {InspectionId}, RecordId: {RecordId}; "
+                            + "analyses are already handled or awaiting their group.",
+                        result.Record.InspectionId,
+                        result.Record.Id
+                    );
+                return;
+            }
+
             try
             {
-                await AnalysisTriggerService.OnInspectionRecordCreated(inspectionRecord);
+                await scope
+                    .ServiceProvider.GetRequiredService<IAnalysisTriggerService>()
+                    .OnInspectionRecordCreated(result.Record);
             }
             catch (Exception ex)
             {
