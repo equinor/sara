@@ -14,30 +14,18 @@ Docker must be running.
 
 ## ISAR inspection-result replay contract
 
-`Integration/MqttDuplicateTests.cs` covers duplicate ingestion against PostgreSQL,
-including forced concurrent inserts, transaction retries and uncertain commit
-acknowledgements. It also covers the application's SQLite in-memory mode.
+`Integration/MqttDuplicateTests.cs` covers PostgreSQL concurrency/transaction retries,
+SQLite compatibility and duplicate handling. The sanitized `InspectionId` is the
+idempotency key: existing IDs are skipped at INFO without comparing message metadata,
+changing the stored record or inspecting analysis state. Only newly created records
+trigger analyses. Unrelated database failures remain errors.
 
-Matching stored inspection IDs and metadata produce an explicit duplicate result;
-the MQTT handler never retriggers analyses for that result. Submitted or completed
-initial runs, no-analysis messages, and groups still waiting for members are logged
-informationally. Missing/pending/failed initial runs, unconfirmed Argo submissions,
-and groups no longer legitimately waiting produce an actionable warning instead.
-Later manually requested analyses and reruns do not redefine the original request.
-Conflicting stored metadata and unrelated database failures remain errors.
-
-Comparison uses ingestion's sanitization and database timestamp precision.
-Only persisted metadata can be compared: ISAR ID, file type, duration, acoustic
-metadata and `analysis_group_analyses` are not stored by ingestion. Because analysis
-associations can grow through manual additions and group completion, requested
-analysis types must be present, but exact original-set equality cannot be enforced.
-Nullable stored metadata must match the incoming value, including null.
-
-Record/group/analysis insertion is transactional; analysis submission is not part
-of that transaction. A crash or uncertain commit can therefore leave a record
-without submitted analyses. Replays report this state rather than attempting
-unsafe automatic recovery. Operators must investigate the reported record/run
-before manually retrying; this is not an outbox or exactly-once submission scheme.
+The record, group and analyses are saved together with one `SaveChangesAsync`, using
+EF's implicit transaction. Execution-strategy retries repeat the duplicate lookup so
+a lost commit acknowledgement does not lead to analysis submission.
+Analysis submission is outside the insertion transaction. A crash or uncertain commit
+can leave a record without submitted analyses; duplicate delivery does not recover it.
+Recovery is outside this change's scope: this is not an exactly-once/outbox scheme.
 
 ## Writing a new test
 
