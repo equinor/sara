@@ -27,6 +27,11 @@ When running locally the endpoint is reachable at https://localhost:8100
   `inputBlobStorageLocations`, `outputBlobStorageLocation`) plus an `extras`
   object populated by `ITriggerPayloadEnricher` implementations matched on
   workflow type.
+- The trigger's `outputBlobStorageLocation` is a requested destination, not a
+  confirmed upload. Successful workflows report it in their JSON `result` only
+  after uploading, with nonblank `storageAccount`, `blobContainer`, and `blobName`
+  strings. SARA persists only valid reported locations; omission or `null` means
+  no output. Malformed locations are logged and withheld without discarding metrics.
 - Result handling is split: `WorkflowResultHandlers/` runs per step,
   `AnalysisResultHandlers/` runs once the whole Analysis is done.
 

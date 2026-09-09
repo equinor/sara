@@ -147,6 +147,7 @@ public class ArgoWorkflowEventProcessor(
     )
     {
         var completion = ReadCompletion(node);
+        var output = completion.OutputBlobStorageLocation;
         await context
             .Database.CreateExecutionStrategy()
             .ExecuteAsync(async () =>
@@ -173,6 +174,19 @@ public class ArgoWorkflowEventProcessor(
                                 .SetProperty(
                                     candidate => candidate.ErrorMessage,
                                     completion.ErrorMessage
+                                )
+                                .SetProperty(
+                                    candidate =>
+                                        candidate.OutputBlobStorageLocation!.StorageAccount,
+                                    output == null ? null! : output.StorageAccount
+                                )
+                                .SetProperty(
+                                    candidate => candidate.OutputBlobStorageLocation!.BlobContainer,
+                                    output == null ? null! : output.BlobContainer
+                                )
+                                .SetProperty(
+                                    candidate => candidate.OutputBlobStorageLocation!.BlobName,
+                                    output == null ? null! : output.BlobName
                                 )
                                 .SetProperty(
                                     candidate => candidate.StartedAt,
@@ -335,7 +349,7 @@ public class ArgoWorkflowEventProcessor(
                 cancellationToken
             );
 
-    private static WorkflowCompletion ReadCompletion(ArgoNodeStatus node)
+    private WorkflowCompletion ReadCompletion(ArgoNodeStatus node)
     {
         if (node.Phase is "Skipped" or "Omitted")
         {
@@ -355,8 +369,13 @@ public class ArgoWorkflowEventProcessor(
             {
                 throw new JsonException("Result parameter is missing");
             }
-            using var _ = JsonDocument.Parse(resultJson);
-            return new WorkflowCompletion(WorkflowStatus.Succeeded, resultJson, null);
+            using var result = JsonDocument.Parse(resultJson);
+            return new WorkflowCompletion(
+                WorkflowStatus.Succeeded,
+                resultJson,
+                null,
+                ReadOutputBlobStorageLocation(result.RootElement, node.DisplayName)
+            );
         }
         catch (JsonException ex)
         {
@@ -366,6 +385,39 @@ public class ArgoWorkflowEventProcessor(
                 $"Workflow succeeded without a valid JSON result: {ex.Message}"
             );
         }
+    }
+
+    private BlobStorageLocation? ReadOutputBlobStorageLocation(JsonElement result, string? nodeName)
+    {
+        if (
+            result.ValueKind != JsonValueKind.Object
+            || !result.TryGetProperty("outputBlobStorageLocation", out var output)
+            || output.ValueKind == JsonValueKind.Null
+        )
+        {
+            return null;
+        }
+
+        try
+        {
+            var location = output.Deserialize<BlobStorageLocation>(JsonSerializerOptions.Web);
+            if (
+                location is not null
+                && !string.IsNullOrWhiteSpace(location.StorageAccount)
+                && !string.IsNullOrWhiteSpace(location.BlobContainer)
+                && !string.IsNullOrWhiteSpace(location.BlobName)
+            )
+            {
+                return location;
+            }
+        }
+        catch (JsonException) { }
+
+        logger.LogError(
+            "Argo node {NodeName} reported an invalid outputBlobStorageLocation; expected nonblank storageAccount, blobContainer and blobName strings. Keeping the result without an output reference",
+            nodeName
+        );
+        return null;
     }
 
     private static WorkflowIdentity? ReadIdentity(ArgoWorkflowResource resource)
@@ -390,6 +442,7 @@ public class ArgoWorkflowEventProcessor(
     private readonly record struct WorkflowCompletion(
         WorkflowStatus Status,
         string? ResultJson,
-        string? ErrorMessage
+        string? ErrorMessage,
+        BlobStorageLocation? OutputBlobStorageLocation = null
     );
 }

@@ -15,7 +15,8 @@ public interface ITriggerPayloadEnricher
     /// </summary>
     public Task<Dictionary<string, object>> EnrichAsync(
         Workflow workflow,
-        IReadOnlyList<InspectionRecord> inspectionRecords
+        IReadOnlyList<InspectionRecord> inspectionRecords,
+        BlobStorageLocation requestedOutput
     );
 }
 
@@ -25,7 +26,8 @@ public class UtilitiesPayloadEnricher : ITriggerPayloadEnricher
 
     public Task<Dictionary<string, object>> EnrichAsync(
         Workflow workflow,
-        IReadOnlyList<InspectionRecord> inspectionRecords
+        IReadOnlyList<InspectionRecord> inspectionRecords,
+        BlobStorageLocation requestedOutput
     ) => Task.FromResult(new Dictionary<string, object> { ["operation"] = workflow.WorkflowType });
 }
 
@@ -38,7 +40,8 @@ public class ThermalReadingPayloadEnricher(
 
     public async Task<Dictionary<string, object>> EnrichAsync(
         Workflow workflow,
-        IReadOnlyList<InspectionRecord> inspectionRecords
+        IReadOnlyList<InspectionRecord> inspectionRecords,
+        BlobStorageLocation requestedOutput
     )
     {
         if (inspectionRecords.Count == 0)

@@ -6,7 +6,10 @@ namespace api.Services;
 
 public interface IAnalysisWorkflowService
 {
-    Task SubmitAsync(AnalysisRun run);
+    Task SubmitAsync(
+        AnalysisRun run,
+        IReadOnlyDictionary<int, BlobStorageLocation> requestedOutputs
+    );
 }
 
 /// <summary>Submits one generated Argo Workflow for an entire analysis run.</summary>
@@ -17,11 +20,14 @@ public class AnalysisWorkflowService(
     ILogger<AnalysisWorkflowService> logger
 ) : IAnalysisWorkflowService
 {
-    public async Task SubmitAsync(AnalysisRun run)
+    public async Task SubmitAsync(
+        AnalysisRun run,
+        IReadOnlyDictionary<int, BlobStorageLocation> requestedOutputs
+    )
     {
         try
         {
-            var resource = await graphBuilder.BuildArgoWorkflowAsync(run);
+            var resource = await graphBuilder.BuildArgoWorkflowAsync(run, requestedOutputs);
             var argoName = resource.Metadata.Name!;
             await context
                 .Workflows.Where(workflow => workflow.AnalysisRunId == run.Id)

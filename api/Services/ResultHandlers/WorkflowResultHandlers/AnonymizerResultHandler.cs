@@ -9,7 +9,6 @@ namespace api.Services.ResultHandlers.WorkflowResultHandlers;
 internal sealed class AnonymizerResult
 {
     public bool IsPersonInImage { get; set; }
-    public BlobStorageLocation? OutputBlobStorageLocation { get; set; }
     public BlobStorageLocation? PreProcessedBlobStorageLocation { get; set; }
 }
 
