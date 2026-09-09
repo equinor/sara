@@ -85,6 +85,13 @@ builder
                 .All(options.Workflows.ContainsKey),
         "Invalid Analysis configuration: every workflow in an analysis chain must exist in Analysis.Workflows."
     )
+    .Validate(
+        options =>
+            options
+                .DefaultAnalysisByInspectionType.Values.SelectMany(analyses => analyses)
+                .All(options.Analyses.ContainsKey),
+        "Invalid Analysis.DefaultAnalysisByInspectionType configuration: every default analysis must exist in Analysis.Analyses."
+    )
     .ValidateOnStart();
 
 builder.Services.AddScoped<IReferencePolygonMetadataService, ReferencePolygonMetadataService>();

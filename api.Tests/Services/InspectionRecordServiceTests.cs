@@ -44,6 +44,41 @@ public class InspectionRecordServiceTests : IAsyncLifetime
         return (await service.CreateFromMqttMessage(message)).Record;
     }
 
+    [Fact]
+    public async Task CreateFromMqttMessage_ImageWithoutRequiredAnalysis_UsesConfiguredDefault()
+    {
+        var message = _db.NewIsarInspectionResultMessage(inspectionType: "image");
+
+        var created = await CreateInScope(message);
+
+        var analysis = Assert.Single(created.Analyses);
+        Assert.Equal("anonymize", analysis.AnalysisType);
+    }
+
+    [Fact]
+    public async Task CreateFromMqttMessage_ExplicitRequiredAnalysis_OverridesConfiguredDefault()
+    {
+        var message = _db.NewIsarInspectionResultMessage(
+            inspectionType: "image",
+            requiredAnalysis: ["per-record-test"]
+        );
+
+        var created = await CreateInScope(message);
+
+        var analysis = Assert.Single(created.Analyses);
+        Assert.Equal("per-record-test", analysis.AnalysisType);
+    }
+
+    [Fact]
+    public async Task CreateFromMqttMessage_NonImageWithoutRequiredAnalysis_HasNoAnalysis()
+    {
+        var message = _db.NewIsarInspectionResultMessage(inspectionType: "Video");
+
+        var created = await CreateInScope(message);
+
+        Assert.Empty(created.Analyses);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

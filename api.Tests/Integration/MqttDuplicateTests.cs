@@ -142,7 +142,7 @@ public class MqttDuplicateTests : IAsyncLifetime
             1,
             await _context.InspectionRecords.CountAsync(TestContext.Current.CancellationToken)
         );
-        Assert.Empty(_factory.ArgoWorkflowClient.Requests);
+        Assert.Single(_factory.ArgoWorkflowClient.Requests);
         AssertLog(LogLevel.Information, "Ignoring duplicate");
         AssertNoWarningsOrErrors();
     }

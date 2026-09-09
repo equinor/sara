@@ -156,7 +156,9 @@ public class InspectionRecordService(
                 )
                 : null;
 
-        var analyses = (message.RequiredAnalysis ?? [])
+        var requiredAnalysis =
+            message.RequiredAnalysis ?? GetDefaultAnalysis(message.InspectionType);
+        var analyses = requiredAnalysis
             .Distinct()
             .Select(type =>
                 analysisGroup?.Analyses.Find(a => a.AnalysisType == type)
@@ -192,6 +194,14 @@ public class InspectionRecordService(
 
         return await Create(inspectionRecord);
     }
+
+    private IReadOnlyList<string> GetDefaultAnalysis(string inspectionType) =>
+        _analysisOptions
+            .DefaultAnalysisByInspectionType.FirstOrDefault(entry =>
+                string.Equals(entry.Key, inspectionType, StringComparison.OrdinalIgnoreCase)
+            )
+            .Value
+        ?? [];
 
     private async Task<AnalysisGroup> GetOrCreateAnalysisGroup(
         string analysisGroupId,
