@@ -22,6 +22,7 @@ import AnalysisRunsPage from "./pages/analysis-runs";
 import AnalysisRunDetailPage from "./pages/analysis-runs/detail";
 import WorkflowsPage from "./pages/workflows";
 import WorkflowDetailPage from "./pages/workflows/detail";
+import FeedbackPage from "./pages/feedback";
 import ReferencePolygonImagesPage from "./pages/reference-images";
 import CreateReferencePolygonMetadataPage from "./pages/reference-images/create";
 import ReferencePolygonMetadataDetailPage from "./pages/reference-images/detail";
@@ -43,6 +44,7 @@ const TABS = [
   { path: "/analysis-groups", label: "Analysis Groups" },
   { path: "/analysis-runs", label: "Analysis Runs" },
   { path: "/workflows", label: "Workflows" },
+  { path: "/feedback", label: "Analysis Feedback" },
   { path: "/reference-images", label: "Reference Images" },
 ];
 
@@ -135,6 +137,8 @@ function App() {
 
             <Route path="/workflows" element={tabbed(<WorkflowsPage />)} />
             <Route path="/workflows/:id" element={<WorkflowDetailPage />} />
+
+            <Route path="/feedback" element={tabbed(<FeedbackPage />)} />
 
             <Route
               path="/reference-images"

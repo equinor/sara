@@ -13,5 +13,5 @@ public class DashboardOptions
     /// Window sizes (in hours) the summary endpoint accepts. Requests outside
     /// this allow-list are rejected to keep trend bucketing bounded.
     /// </summary>
-    public int[] AllowedWindowHours { get; set; } = [24, 168, 720];
+    public int[] AllowedWindowHours { get; set; } = [24, 168, 720, 2160];
 }

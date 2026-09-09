@@ -172,6 +172,61 @@ export interface AnalysisRun {
   analysis?: Analysis;
 }
 
+export interface FeedbackHistory {
+  id: string;
+  analysisRunId: string;
+  analysisId: string;
+  analysisType: string;
+  runNumber: number;
+  runStatus: AnalysisRunStatus;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  isCorrect: boolean;
+}
+
+export interface FeedbackAnalysisTypeStat {
+  analysisType: string;
+  totalRuns: number;
+  reviewed: number;
+  correct: number;
+  incorrect: number;
+  correctnessRate: number;
+  reviewRate: number;
+}
+
+export interface FeedbackTrendBucket {
+  bucketStart: string;
+  bucketEnd: string;
+  correct: number;
+  incorrect: number;
+}
+
+export interface FeedbackTrendAnalysisTypeStat {
+  analysisType: string;
+  correct: number;
+  incorrect: number;
+}
+
+export interface FeedbackTrendBucketDetails {
+  bucketStart: string;
+  bucketEnd: string;
+  perAnalysisType: FeedbackTrendAnalysisTypeStat[];
+}
+
+export interface FeedbackSummary {
+  windowHours: number;
+  since: string;
+  generatedAt: string;
+  totalRuns: number;
+  reviewed: number;
+  correct: number;
+  incorrect: number;
+  correctnessRate: number;
+  reviewRate: number;
+  perAnalysisType: FeedbackAnalysisTypeStat[];
+  trend: FeedbackTrendBucket[];
+}
+
 export interface Analysis {
   id: string;
   analysisType: string;
@@ -393,6 +448,54 @@ export async function deleteAnalysisRun(id: string): Promise<void> {
   await apiFetch(apiUrl(`/api/analysis-run/id/${encodeURIComponent(id)}`), {
     method: "DELETE",
   });
+}
+
+// --- Feedback ---
+
+export interface FeedbackParams {
+  analysisType?: string;
+  isCorrect?: string;
+  startedSince?: string;
+  startedUntil?: string;
+}
+
+export async function getFeedbackHistory(
+  pageNumber = 1,
+  pageSize = 25,
+  filters: FeedbackParams = {}
+): Promise<PagedResponse<FeedbackHistory>> {
+  const q = pagedQuery(pageNumber, pageSize, {
+    AnalysisType: filters.analysisType,
+    IsCorrect: filters.isCorrect,
+    StartedSince: filters.startedSince,
+    StartedUntil: filters.startedUntil,
+  });
+  return apiFetch(apiUrl(`/api/feedback?${q}`));
+}
+
+export async function getFeedbackSummary(
+  sinceHours = 168,
+  analysisType?: string,
+  timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+): Promise<FeedbackSummary> {
+  const query = new URLSearchParams({ sinceHours: String(sinceHours), timeZone });
+  if (analysisType) query.set("analysisType", analysisType);
+  return apiFetch(apiUrl(`/api/feedback/summary?${query}`));
+}
+
+export async function getFeedbackTrendBucketDetails(
+  bucketStart: string,
+  windowHours: number,
+  analysisType?: string,
+  timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+): Promise<FeedbackTrendBucketDetails> {
+  const query = new URLSearchParams({
+    bucketStart,
+    windowHours: String(windowHours),
+    timeZone,
+  });
+  if (analysisType) query.set("analysisType", analysisType);
+  return apiFetch(apiUrl(`/api/feedback/trend-details?${query}`));
 }
 
 // --- Workflows ---
