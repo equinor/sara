@@ -101,6 +101,11 @@ namespace api.Database.Context
                 .Metadata.SetValueComparer(polygonPointsComparer);
 #pragma warning restore CS8603
 
+            modelBuilder
+                .Entity<ReferencePolygonMetadata>()
+                .Property(p => p.SourceAnalysisType)
+                .HasConversion<string>();
+
             modelBuilder.Entity<AnalysisRunFeedback>().HasIndex(f => f.AnalysisRunId).IsUnique();
         }
     }
