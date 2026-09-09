@@ -8,7 +8,7 @@ public class AnalysisOptions
 
     public Dictionary<string, WorkflowConfig> Workflows { get; set; } = [];
 
-    public Dictionary<string, List<string>> DefaultAnalysisByFileExtension { get; set; } = [];
+    public Dictionary<string, List<string>> DefaultAnalysisByInspectionType { get; set; } = [];
 
     public Dictionary<
         string,
