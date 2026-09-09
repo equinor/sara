@@ -22,9 +22,9 @@ import AnalysisRunsPage from "./pages/analysis-runs";
 import AnalysisRunDetailPage from "./pages/analysis-runs/detail";
 import WorkflowsPage from "./pages/workflows";
 import WorkflowDetailPage from "./pages/workflows/detail";
-import ReferencePolygonImagesPage from "./pages/thermal-reference-images";
-import CreateReferencePolygonMetadataPage from "./pages/thermal-reference-images/create";
-import ReferencePolygonMetadataDetailPage from "./pages/thermal-reference-images/detail";
+import ReferencePolygonImagesPage from "./pages/reference-images";
+import CreateReferencePolygonMetadataPage from "./pages/reference-images/create";
+import ReferencePolygonMetadataDetailPage from "./pages/reference-images/detail";
 import styled from "styled-components";
 
 const StyledSignInContainer = styled.div`
@@ -43,7 +43,7 @@ const TABS = [
   { path: "/analysis-groups", label: "Analysis Groups" },
   { path: "/analysis-runs", label: "Analysis Runs" },
   { path: "/workflows", label: "Workflows" },
-  { path: "/thermal-reference-images", label: "Thermal Reference Images" },
+  { path: "/reference-images", label: "Reference Images" },
 ];
 
 function App() {
@@ -137,15 +137,15 @@ function App() {
             <Route path="/workflows/:id" element={<WorkflowDetailPage />} />
 
             <Route
-              path="/thermal-reference-images"
+              path="/reference-images"
               element={tabbed(<ReferencePolygonImagesPage />)}
             />
             <Route
-              path="/thermal-reference-images/new"
+              path="/reference-images/new"
               element={<CreateReferencePolygonMetadataPage />}
             />
             <Route
-              path="/thermal-reference-images/:id"
+              path="/reference-images/:id"
               element={<ReferencePolygonMetadataDetailPage />}
             />
           </Routes>

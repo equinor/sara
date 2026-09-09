@@ -75,6 +75,13 @@ export type WorkflowStatus =
   | "Failed"
   | "Skipped";
 
+export enum AnalysisType {
+  Fencilla = "Fencilla",
+  CLOE = "CLOE",
+  ThermalReading = "ThermalReading",
+  CO2 = "CO2",
+}
+
 // --- Domain types ---
 
 export interface Position {
@@ -187,7 +194,7 @@ export interface AnalysisGroup {
   analyses?: Analysis[];
 }
 
-// --- Thermal Reference Metadata (unchanged) ---
+
 
 export interface ImageCoordinate {
   x: number;
@@ -202,6 +209,7 @@ export interface ReferencePolygonMetadata {
   dateCreated: string;
   referenceImageBlobStorageLocation: BlobStorageLocation;
   polygon: ImageCoordinate[];
+  sourceAnalysisType: AnalysisType;
 }
 
 export interface BlobDirectoryInput {
@@ -214,6 +222,8 @@ export interface ReferencePolygonMetadataInput {
   installationCode: string;
   inspectionDescription: string;
   referenceBlobStorageDirectory: BlobDirectoryInput;
+  polygon: ImageCoordinate[];
+  sourceAnalysisType: AnalysisType;
 }
 
 // --- Inspection Records ---
@@ -435,8 +445,6 @@ export async function getConfiguredAnalyses(): Promise<AnalysisConfigEntry[]> {
   return apiFetch(apiUrl("/api/config/analyses"));
 }
 
-// --- Thermal Reference Metadata ---
-
 export async function getReferencePolygonMetadata(): Promise<ReferencePolygonMetadata[]> {
   return apiFetch(apiUrl(`/api/ReferencePolygonMetadata`));
 }
@@ -511,6 +519,26 @@ export async function getReferencePolygonImageData(
   };
 }
 
+
+async function fetchAuthenticatedBlobUrl(url: string): Promise<string> {
+  const token = await getAccessToken();
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`${response.status}: ${text}`);
+  }
+  const blob = await response.blob();
+  return URL.createObjectURL(blob);
+}
+
+export async function getReferencePolygonImageUrl(id: string): Promise<string> {
+  return fetchAuthenticatedBlobUrl(
+    apiUrl(`/api/ReferencePolygonMetadata/id/${encodeURIComponent(id)}/image`)
+  );
+}
+
 // --- Thermal Inspection Records ---
 
 export async function getThermalInspectionRecords(
@@ -564,15 +592,37 @@ export interface CreateFromInspectionRecordInput {
   installationCode: string;
   inspectionDescription: string;
   polygon: number[][];
+  sourceAnalysisType: AnalysisType;
 }
 
 export async function createReferencePolygonFromInspectionRecord(
   input: CreateFromInspectionRecordInput
 ): Promise<ReferencePolygonMetadata> {
+  // Backend expects polygon vertices as {x, y} objects, not [x, y] tuples.
+  const body = {
+    ...input,
+    polygon: input.polygon.map(([x, y]) => ({ x, y })),
+  };
   return apiFetch(apiUrl("/api/ReferencePolygonMetadata/from-inspection-record"), {
     method: "POST",
-    body: JSON.stringify(input),
+    body: JSON.stringify(body),
   });
+}
+
+// --- Fencilla Inspection Records ---
+
+export async function getFencillaInspectionRecords(
+  pageNumber = 1,
+  pageSize = 20
+): Promise<PagedResponse<InspectionRecord>> {
+  const q = pagedQuery(pageNumber, pageSize);
+  return apiFetch(apiUrl(`/api/inspection-record/fencilla?${q}`));
+}
+
+export async function getInspectionRecordFencillaImageUrl(id: string): Promise<string> {
+  return fetchAuthenticatedBlobUrl(
+    apiUrl(`/api/inspection-record/id/${encodeURIComponent(id)}/fencilla-image`)
+  );
 }
 
 // --- Dashboard ---
