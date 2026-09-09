@@ -1,5 +1,5 @@
 # https://hub.docker.com/_/microsoft-dotnet
-FROM node:24-slim@sha256:3638d9a6fe4030bd716be989438248074489337ba3275657f93595428be4fc03 AS frontend-build
+FROM node:26-slim@sha256:c0753125a3789977aefe869cbebccf70e3cfd7ea84ca48547458f02e4f1d7146 AS frontend-build
 ENV CI=true
 RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app
@@ -8,7 +8,7 @@ RUN pnpm install --frozen-lockfile
 COPY frontend/ .
 RUN pnpm build --outDir /frontend-dist
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:e1ffd2a92ae84c1291bc1b6887501f8af98e6331e7af6d4c8d37168c5e87a64c AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:4ea6fe75dd36706bb6d8c3c293d4c4315840f5d76ea28ac97def77e3ec487fa5 AS build
 WORKDIR /source
 
 # copy everything
@@ -18,7 +18,7 @@ WORKDIR /source/api
 RUN dotnet publish -c release -o /app
 
 # final stage/image
-FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:a4556ed033fa96f984bb7a8d348851cb2d36b1281dd2420070045f664fbb5f94
+FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:1fe86375600b62e6566b465da9553eef0621f13c67f40fe764cd8dbb1dee1497
 WORKDIR /app
 COPY --from=build /app ./
 COPY --from=frontend-build /frontend-dist ./wwwroot
