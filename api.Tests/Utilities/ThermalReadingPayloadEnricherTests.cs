@@ -62,8 +62,9 @@ public class ThermalReadingPayloadEnricherTests : IAsyncLifetime
         using var scope = _factory.Services.CreateScope();
         var enricher = ResolveEnricher(scope);
 
-        var result = await enricher.EnrichAsync(workflow, [record]);
+        var result = await enricher.EnrichAsync(workflow, [record], _db.NewBlobStorageLocation());
 
+        Assert.Null(workflow.OutputBlobStorageLocation);
         Assert.Equal(2, result.Count);
         Assert.Equal(
             metadata.ReferenceImageBlobStorageLocation.ToString(),
@@ -91,7 +92,7 @@ public class ThermalReadingPayloadEnricherTests : IAsyncLifetime
         var enricher = ResolveEnricher(scope);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            enricher.EnrichAsync(workflow, [record])
+            enricher.EnrichAsync(workflow, [record], _db.NewBlobStorageLocation())
         );
     }
 
@@ -106,7 +107,7 @@ public class ThermalReadingPayloadEnricherTests : IAsyncLifetime
         var enricher = ResolveEnricher(scope);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            enricher.EnrichAsync(workflow, [])
+            enricher.EnrichAsync(workflow, [], _db.NewBlobStorageLocation())
         );
     }
 
@@ -126,7 +127,7 @@ public class ThermalReadingPayloadEnricherTests : IAsyncLifetime
         var enricher = ResolveEnricher(scope);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            enricher.EnrichAsync(workflow, [record])
+            enricher.EnrichAsync(workflow, [record], _db.NewBlobStorageLocation())
         );
     }
 }

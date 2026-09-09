@@ -87,15 +87,15 @@ public class AnalysisTriggerService(
             return;
         }
 
-        var run = await CreateAnalysisRun(analysis, inspectionRecords);
+        var (run, requestedOutputs) = await CreateAnalysisRun(analysis, inspectionRecords);
 
-        await analysisWorkflowService.SubmitAsync(run);
+        await analysisWorkflowService.SubmitAsync(run, requestedOutputs);
     }
 
-    private async Task<AnalysisRun> CreateAnalysisRun(
-        Analysis analysis,
-        IReadOnlyList<InspectionRecord> inspectionRecords
-    )
+    private async Task<(
+        AnalysisRun Run,
+        Dictionary<int, BlobStorageLocation> RequestedOutputs
+    )> CreateAnalysisRun(Analysis analysis, IReadOnlyList<InspectionRecord> inspectionRecords)
     {
         context.Entry(analysis).State = EntityState.Unchanged;
         foreach (var inspectionRecord in analysis.InspectionRecords)
@@ -128,21 +128,21 @@ public class AnalysisTriggerService(
         await context.AnalysisRuns.AddAsync(run);
         await context.SaveChangesAsync();
 
-        var workflows = CreateWorkflows(run, workflowChain, inspectionRecords);
+        var requestedOutputs = CreateWorkflows(run, workflowChain, inspectionRecords);
 
-        run.Workflows.AddRange(workflows);
         await context.SaveChangesAsync();
 
-        return run;
+        return (run, requestedOutputs);
     }
 
-    private List<Workflow> CreateWorkflows(
+    /// <summary>Adds the run's workflows and returns requested output destinations keyed by step number.</summary>
+    private Dictionary<int, BlobStorageLocation> CreateWorkflows(
         AnalysisRun run,
         List<string> workflowChain,
         IReadOnlyList<InspectionRecord> inspectionRecords
     )
     {
-        List<Workflow> worklows = [];
+        Dictionary<int, BlobStorageLocation> requestedOutputs = [];
         var currentInputs = inspectionRecords.Select(r => r.BlobStorageLocation).ToList();
 
         for (var i = 0; i < workflowChain.Count; i++)
@@ -166,15 +166,15 @@ public class AnalysisTriggerService(
                 run.StartedAt!.Value,
                 currentInputs[0]
             );
-            workflow.OutputBlobStorageLocation = outputLocation;
+            requestedOutputs.Add(stepNumber, outputLocation);
 
             if (!_options.Workflows[workflowType].IsGate)
             {
                 currentInputs = [outputLocation];
             }
-            worklows.Add(workflow);
+            run.Workflows.Add(workflow);
         }
-        return worklows;
+        return requestedOutputs;
     }
 
     private BlobStorageLocation ComputeOutputBlobStorageLocation(

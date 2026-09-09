@@ -10,7 +10,10 @@ namespace api.Services;
 
 public interface IAnalysisWorkflowGraphBuilder
 {
-    Task<ArgoWorkflowResource> BuildArgoWorkflowAsync(AnalysisRun run);
+    Task<ArgoWorkflowResource> BuildArgoWorkflowAsync(
+        AnalysisRun run,
+        IReadOnlyDictionary<int, BlobStorageLocation> requestedOutputs
+    );
 }
 
 /// <summary>Builds the complete Argo DAG for one analysis run.</summary>
@@ -33,14 +36,17 @@ public class AnalysisWorkflowGraphBuilder(
         );
 
     /// <summary>Builds the complete Argo Workflow resource for an analysis run.</summary>
-    public async Task<ArgoWorkflowResource> BuildArgoWorkflowAsync(AnalysisRun run)
+    public async Task<ArgoWorkflowResource> BuildArgoWorkflowAsync(
+        AnalysisRun run,
+        IReadOnlyDictionary<int, BlobStorageLocation> requestedOutputs
+    )
     {
         var workflows = GetOrderedWorkflows(run);
         var inspectionRecords = await InspectionRecordResolver.GetInspectionRecords(
             context,
             workflows[0]
         );
-        var tasks = await BuildDagTasksAsync(workflows, inspectionRecords);
+        var tasks = await BuildDagTasksAsync(workflows, inspectionRecords, requestedOutputs);
 
         return BuildArgoWorkflowResource(run, tasks);
     }
@@ -60,7 +66,8 @@ public class AnalysisWorkflowGraphBuilder(
     /// </summary>
     private async Task<List<ArgoDagTask>> BuildDagTasksAsync(
         IReadOnlyList<Workflow> workflows,
-        IReadOnlyList<InspectionRecord> inspectionRecords
+        IReadOnlyList<InspectionRecord> inspectionRecords,
+        IReadOnlyDictionary<int, BlobStorageLocation> requestedOutputs
     )
     {
         var gates = new List<(string TaskName, SkipRule Rule)>();
@@ -71,14 +78,16 @@ public class AnalysisWorkflowGraphBuilder(
         foreach (var workflow in workflows)
         {
             var config = GetWorkflowConfig(workflow);
+            var requestedOutput = requestedOutputs[workflow.StepNumber];
             UseAnonymizerOutputForThermalReading(workflow, previousWorkflow, previousExtras);
 
             var extras = _enrichersByType.TryGetValue(workflow.WorkflowType, out var enricher)
-                ? await enricher.EnrichAsync(workflow, inspectionRecords)
+                ? await enricher.EnrichAsync(workflow, inspectionRecords, requestedOutput)
                 : [];
             var task = BuildDagTask(
                 workflow,
                 config,
+                requestedOutput,
                 extras,
                 inspectionRecords,
                 tasks.LastOrDefault()?.Name,
@@ -103,12 +112,6 @@ public class AnalysisWorkflowGraphBuilder(
         {
             throw new InvalidOperationException(
                 $"Unknown workflow type '{workflow.WorkflowType}' - not found in configuration"
-            );
-        }
-        if (workflow.OutputBlobStorageLocation is null)
-        {
-            throw new InvalidOperationException(
-                $"Workflow {workflow.Id} ({workflow.WorkflowType}) has no output location"
             );
         }
         return config;
@@ -140,6 +143,7 @@ public class AnalysisWorkflowGraphBuilder(
     private static ArgoDagTask BuildDagTask(
         Workflow workflow,
         WorkflowConfig config,
+        BlobStorageLocation requestedOutput,
         Dictionary<string, object> extras,
         IReadOnlyList<InspectionRecord> inspectionRecords,
         string? previousTaskName,
@@ -157,7 +161,7 @@ public class AnalysisWorkflowGraphBuilder(
                 ? null
                 : $"{previousTaskName}.Succeeded || {previousTaskName}.Skipped || {previousTaskName}.Omitted",
             When = BuildGateExpression(gates),
-            Arguments = BuildArguments(workflow, extras, inspectionRecords),
+            Arguments = BuildArguments(workflow, requestedOutput, extras, inspectionRecords),
         };
 
     private static ArgoWorkflowResource BuildArgoWorkflowResource(
@@ -211,6 +215,7 @@ public class AnalysisWorkflowGraphBuilder(
 
     private static ArgoArguments BuildArguments(
         Workflow workflow,
+        BlobStorageLocation requestedOutput,
         Dictionary<string, object> extras,
         IReadOnlyList<InspectionRecord> inspectionRecords
     )
@@ -223,7 +228,7 @@ public class AnalysisWorkflowGraphBuilder(
             ),
             Parameter(
                 "outputBlobStorageLocation",
-                JsonSerializer.Serialize(workflow.OutputBlobStorageLocation, JsonOptions)
+                JsonSerializer.Serialize(requestedOutput, JsonOptions)
             ),
             Parameter("extras", JsonSerializer.Serialize(extras, JsonOptions)),
         };

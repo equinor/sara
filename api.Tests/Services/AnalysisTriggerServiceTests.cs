@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using api.Configurations;
 using api.Database.Context;
 using api.Database.Models;
 using api.MQTT;
@@ -9,6 +10,7 @@ using api.Services;
 using Api.Test.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Testcontainers.PostgreSql;
 using Xunit;
 
@@ -54,6 +56,12 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
             .Include(a => a.Runs)
                 .ThenInclude(r => r.Workflows)
             .SingleAsync(TestContext.Current.CancellationToken);
+
+    private static T ReadArgument<T>(ArgoDagTask task, string name) =>
+        JsonSerializer.Deserialize<T>(
+            task.Arguments.Parameters.Single(parameter => parameter.Name == name).Value!,
+            JsonSerializerOptions.Web
+        )!;
 
     private Task<Analysis> LoadAnalysisByNameAsync(string name) =>
         _context
@@ -126,6 +134,7 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
         var analysis = await LoadOnlyAnalysisAsync();
         var workflow = analysis.Runs.Single().Workflows.Single();
         Assert.Equal(workflowType, workflow.WorkflowType);
+        Assert.Null(workflow.OutputBlobStorageLocation);
 
         var request = Assert.Single(_factory.ArgoWorkflowClient.Requests);
         Assert.Equal(_factory.WorkflowTemplateNameFor(workflowType), request.WorkflowTemplateName);
@@ -148,13 +157,29 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
             [firstWorkflowType, secondWorkflowType],
             workflows.Select(w => w.WorkflowType)
         );
-        Assert.Equal(
-            workflows[0].OutputBlobStorageLocation?.ToString(),
-            workflows[1].InputBlobStorageLocations[0].ToString()
-        );
+        Assert.All(workflows, workflow => Assert.Null(workflow.OutputBlobStorageLocation));
 
         var request = Assert.Single(_factory.ArgoWorkflowClient.Requests);
         Assert.Equal(2, request.Tasks.Count);
+        var requestedOutput = ReadArgument<BlobStorageLocation>(
+            request.Tasks[0],
+            "outputBlobStorageLocation"
+        );
+        Assert.Equal(
+            requestedOutput.ToString(),
+            workflows[1].InputBlobStorageLocations[0].ToString()
+        );
+        Assert.Equal(
+            requestedOutput.ToString(),
+            Assert
+                .Single(
+                    ReadArgument<BlobStorageLocation[]>(
+                        request.Tasks[1],
+                        "inputBlobStorageLocations"
+                    )
+                )
+                .ToString()
+        );
         Assert.Equal(
             [
                 _factory.WorkflowTemplateNameFor(firstWorkflowType),
@@ -171,6 +196,67 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
             .Distinct()
             .ToListAsync(TestContext.Current.CancellationToken);
         Assert.Equal([request.WorkflowName], argoNames);
+    }
+
+    [Fact]
+    public async Task OnInspectionRecordCreated_AnonymizerThenThermal_RequestsOutputsAndUsesPreprocessedTiff()
+    {
+        var analysis = await _db.NewAnalysis(type: "thermal-reading");
+        var record = await _db.NewInspectionRecord(
+            analyses: [analysis],
+            blobName: "inspections/image.fff",
+            tag: "test-tag",
+            inspectionDescription: "test-description"
+        );
+        await _db.NewReferencePolygonMetadata();
+        using var scope = _factory.Services.CreateScope();
+        var options = scope.ServiceProvider.GetRequiredService<IOptions<AnalysisOptions>>().Value;
+        options.Analyses["thermal-reading"].Workflows = ["anonymizer", "thermal-reading"];
+        options.Workflows["anonymizer"].OutputStorageAccount = "anonstorage";
+
+        await scope
+            .ServiceProvider.GetRequiredService<IAnalysisTriggerService>()
+            .OnInspectionRecordCreated(record);
+
+        var run = Assert.Single((await LoadOnlyAnalysisAsync()).Runs);
+        Assert.Equal(2, run.Workflows.Count);
+        Assert.All(run.Workflows, workflow => Assert.Null(workflow.OutputBlobStorageLocation));
+        var tasks = Assert.Single(_factory.ArgoWorkflowClient.Requests).Tasks;
+        Assert.Equal(2, tasks.Count);
+        Assert.Equal(
+            options
+                .Analyses["thermal-reading"]
+                .Workflows.Select(type => options.Workflows[type].WorkflowTemplateName),
+            tasks.Select(task => task.TemplateRef.Name)
+        );
+        foreach (
+            var (task, workflowType) in tasks.Zip(options.Analyses["thermal-reading"].Workflows)
+        )
+        {
+            var output = ReadArgument<BlobStorageLocation>(task, "outputBlobStorageLocation");
+            Assert.Equal(
+                options.Workflows[workflowType].OutputStorageAccount,
+                output.StorageAccount
+            );
+            Assert.Equal(record.BlobStorageLocation.BlobContainer, output.BlobContainer);
+            Assert.Contains(
+                $"workflowtype__{workflowType}__analysisrunid__{run.Id}",
+                output.BlobName
+            );
+            Assert.EndsWith(options.Workflows[workflowType].OutputFileExtension!, output.BlobName);
+        }
+        var preprocessed = ReadArgument<JsonElement>(tasks[0], "extras")
+            .GetProperty("preProcessedBlobStorageLocation")
+            .Deserialize<BlobStorageLocation>(JsonSerializerOptions.Web)!;
+        Assert.Equal("anonstorage", preprocessed.StorageAccount);
+        Assert.Equal(record.BlobStorageLocation.BlobContainer, preprocessed.BlobContainer);
+        Assert.Equal("inspections/image.tiff", preprocessed.BlobName);
+        Assert.Equal(
+            preprocessed.ToString(),
+            Assert
+                .Single(ReadArgument<BlobStorageLocation[]>(tasks[1], "inputBlobStorageLocations"))
+                .ToString()
+        );
     }
 
     [Fact]
@@ -313,25 +399,40 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
         var workflows = run.Workflows.OrderBy(w => w.StepNumber).ToList();
         Assert.Equal(3, workflows.Count);
 
-        // Each Workflow's owned inputs/output must be distinct CLR instances so EF's
-        // OwnsMany / OwnsOne tracking assigns rows to a single owner.
-        var allOwnedBlobs = workflows
-            .SelectMany(w => w.InputBlobStorageLocations)
-            .Concat(workflows.Select(w => w.OutputBlobStorageLocation!))
-            .ToList();
+        Assert.All(workflows, workflow => Assert.Null(workflow.OutputBlobStorageLocation));
+        // Each workflow's owned inputs must be distinct CLR instances for EF tracking.
+        var allOwnedBlobs = workflows.SelectMany(w => w.InputBlobStorageLocations).ToList();
         Assert.Equal(allOwnedBlobs.Count, allOwnedBlobs.Distinct().Count());
 
         // Step 2 is the gate; step 3 must inherit step 2's input (the pre-gate output of step 1),
-        // not step 2's own output — and the blobs must be equal-by-value but distinct instances.
-        var preGateOutput = workflows[0].OutputBlobStorageLocation!;
+        // not step 2's own output, with equal-by-value but distinct input instances.
+        var tasks = Assert.Single(_factory.ArgoWorkflowClient.Requests).Tasks;
+        var preGateOutput = ReadArgument<BlobStorageLocation>(
+            tasks[0],
+            "outputBlobStorageLocation"
+        );
         var gateInput = Assert.Single(workflows[1].InputBlobStorageLocations);
         var postGateInput = Assert.Single(workflows[2].InputBlobStorageLocations);
-        Assert.Equal(preGateOutput.BlobName, gateInput.BlobName);
-        Assert.Equal(preGateOutput.BlobName, postGateInput.BlobName);
-        Assert.NotSame(preGateOutput, gateInput);
+        Assert.Equal(preGateOutput.ToString(), gateInput.ToString());
+        Assert.Equal(preGateOutput.ToString(), postGateInput.ToString());
         Assert.NotSame(gateInput, postGateInput);
+        Assert.NotEqual(
+            ReadArgument<BlobStorageLocation>(tasks[1], "outputBlobStorageLocation").ToString(),
+            postGateInput.ToString()
+        );
+        Assert.All(
+            tasks.Skip(1),
+            task =>
+                Assert.Equal(
+                    preGateOutput.ToString(),
+                    Assert
+                        .Single(
+                            ReadArgument<BlobStorageLocation[]>(task, "inputBlobStorageLocations")
+                        )
+                        .ToString()
+                )
+        );
 
-        var tasks = Assert.Single(_factory.ArgoWorkflowClient.Requests).Tasks;
         Assert.Null(tasks[1].When);
         Assert.Contains("jsonpath", tasks[2].When);
         Assert.Contains("$.skip", tasks[2].When);

@@ -2,12 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using api.Configurations;
+using api.Controllers.Models;
 using api.Database.Context;
 using api.Database.Models;
 using api.Services;
 using Api.Test.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Testcontainers.PostgreSql;
 using Xunit;
 
@@ -15,6 +18,8 @@ namespace Api.Test.Services;
 
 public class ArgoWorkflowEventProcessorTests : IAsyncLifetime
 {
+    private const string UploadedLocation =
+        """{"storageAccount":"uploadedstorage","blobContainer":"images","blobName":"result.jpg"}""";
     private PostgreSqlContainer _container = null!;
     private TestWebApplicationFactory<Program> _factory = null!;
     private SaraDbContext _context = null!;
@@ -35,6 +40,111 @@ public class ArgoWorkflowEventProcessorTests : IAsyncLifetime
         await _context.DisposeAsync();
         await _factory.DisposeAsync();
         await _container.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task UploadedOutput_IsPersistedBeforeResultHandlers()
+    {
+        var record = await _db.NewInspectionRecord();
+        var analysis = await _db.NewAnalysis(type: "fencilla", inspectionRecords: [record]);
+        var run = await _db.NewAnalysisRun(analysis);
+        var workflow = await _db.NewWorkflow(run, workflowType: "fencilla");
+        SetArgoIdentity(run, "argo-uid");
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var result =
+            $$"""{"isBreak":true,"confidence":0.9,"outputBlobStorageLocation":{{UploadedLocation}}}""";
+
+        await Process(run, "Succeeded", Node(workflow, "Succeeded", result));
+        await Process(run, "Succeeded", Node(workflow, "Succeeded", "{\"isBreak\":false}"));
+
+        var completed = await _context
+            .Workflows.AsNoTracking()
+            .Include(w => w.AnalysisRun)
+            .SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(
+            "uploadedstorage/images/result.jpg",
+            completed.OutputBlobStorageLocation?.ToString()
+        );
+        Assert.Equal(result, completed.ResultJson);
+        Assert.NotNull(new WorkflowDto(completed, _factory.BlobStorageService).OutputBlobSAS);
+        Assert.Single(_factory.EmailService.FencillaEmails);
+        Assert.Single(_factory.MqttPublisher.AnalysisResultMessages);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("null")]
+    [InlineData("{}")]
+    [InlineData("[]")]
+    [InlineData("42")]
+    [InlineData("\"invalid\"")]
+    [InlineData(
+        "{\"storageAccount\":\" \",\"blobContainer\":\"images\",\"blobName\":\"result.jpg\"}"
+    )]
+    [InlineData(
+        "{\"storageAccount\":\"account\",\"blobContainer\":null,\"blobName\":\"result.jpg\"}"
+    )]
+    [InlineData("{\"storageAccount\":\"account\",\"blobContainer\":\"images\",\"blobName\":42}")]
+    [InlineData("{\"storageAccount\":\"account\",\"blobContainer\":\"images\",\"blobName\":\"\"}")]
+    public async Task MissingOrMalformedOutput_PreservesSuccessfulMetrics(string? output)
+    {
+        var record = await _db.NewInspectionRecord();
+        var analysis = await _db.NewAnalysis(type: "fencilla", inspectionRecords: [record]);
+        var run = await _db.NewAnalysisRun(analysis);
+        var workflow = await _db.NewWorkflow(run, workflowType: "fencilla");
+        SetArgoIdentity(run, "argo-uid");
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var result = output is null
+            ? "{\"isBreak\":false,\"confidence\":0.9}"
+            : $$"""{"isBreak":false,"confidence":0.9,"outputBlobStorageLocation":{{output}}}""";
+
+        await Process(run, "Succeeded", Node(workflow, "Succeeded", result));
+
+        var completed = await _context
+            .Analyses.AsNoTracking()
+            .Include(a => a.Runs)
+                .ThenInclude(r => r.Workflows)
+            .SingleAsync(TestContext.Current.CancellationToken);
+        var step = Assert.Single(Assert.Single(completed.Runs).Workflows);
+        Assert.Equal(WorkflowStatus.Succeeded, step.Status);
+        Assert.Null(step.OutputBlobStorageLocation);
+        Assert.Equal(result, step.ResultJson);
+        var dto = new AnalysisDto(
+            completed,
+            _factory.BlobStorageService,
+            _factory.Services.GetRequiredService<IOptions<AnalysisOptions>>().Value
+        );
+        Assert.Equal("False", dto.Result?.Value);
+        Assert.Null(dto.VisualizedSAS);
+        Assert.Single(_factory.MqttPublisher.AnalysisResultMessages);
+        Assert.Empty(_factory.EmailService.FencillaEmails);
+    }
+
+    [Theory]
+    [InlineData("Failed", WorkflowStatus.Failed)]
+    [InlineData("Error", WorkflowStatus.Failed)]
+    [InlineData("Skipped", WorkflowStatus.Skipped)]
+    [InlineData("Omitted", WorkflowStatus.Skipped)]
+    public async Task UnsuccessfulNode_DoesNotAcquireOutput(string phase, WorkflowStatus status)
+    {
+        var analysis = await _db.NewAnalysis();
+        var run = await _db.NewAnalysisRun(analysis);
+        var workflow = await _db.NewWorkflow(run, workflowType: "fencilla");
+        SetArgoIdentity(run, "argo-uid");
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        await Process(
+            run,
+            "Running",
+            Node(workflow, phase, $$"""{"outputBlobStorageLocation":{{UploadedLocation}}}""")
+        );
+
+        var completed = await _context
+            .Workflows.AsNoTracking()
+            .SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(status, completed.Status);
+        Assert.Null(completed.OutputBlobStorageLocation);
+        Assert.Empty(_factory.MqttPublisher.AnalysisResultMessages);
     }
 
     [Fact]
