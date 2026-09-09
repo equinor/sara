@@ -22,16 +22,18 @@ public class AnalysisDto
         this.InspectionRecords = analysis.InspectionRecords;
 
         var workflows = analysis.Runs.SelectMany(r => r.Workflows);
+        var workflowDtos = Runs.SelectMany(r => r.Workflows).ToDictionary(w => w.Id);
 
         var anonymizedWorkflow = workflows
             .Where(w => w.WorkflowType.Equals("anonymizer", StringComparison.OrdinalIgnoreCase))
             .Where(w => w.Status == WorkflowStatus.Succeeded)
             .OrderByDescending(w => w.CompletedAt ?? w.StartedAt ?? DateTime.MinValue)
             .FirstOrDefault();
-        if (anonymizedWorkflow != null && anonymizedWorkflow.OutputBlobStorageLocation != null)
-            this.AnonymizedSAS = blobService
-                .CreateReadSasUri(anonymizedWorkflow.OutputBlobStorageLocation)
-                .Result;
+        var anonymizedWorkflowDto = anonymizedWorkflow is null
+            ? null
+            : workflowDtos.GetValueOrDefault(anonymizedWorkflow.Id);
+        if (anonymizedWorkflowDto is not null)
+            this.AnonymizedSAS = anonymizedWorkflowDto.OutputBlobSAS;
 
         var analysisConfig = analysisOptions.Analyses[analysis.AnalysisType];
         var workflowChain = analysisConfig.Workflows;
@@ -44,11 +46,13 @@ public class AnalysisDto
             .Where(w => w.Status == WorkflowStatus.Succeeded)
             .OrderByDescending(w => w.CompletedAt ?? w.StartedAt ?? DateTime.MinValue)
             .FirstOrDefault();
-        if (visualizedWorkflow != null)
+        var visualizedWorkflowDto = visualizedWorkflow is null
+            ? null
+            : workflowDtos.GetValueOrDefault(visualizedWorkflow.Id);
+        if (visualizedWorkflowDto is not null)
         {
-            var workflowDto = new WorkflowDto(visualizedWorkflow, blobService);
-            this.VisualizedSAS = workflowDto.OutputBlobSAS;
-            this.Result = workflowDto.Result;
+            this.VisualizedSAS = visualizedWorkflowDto.OutputBlobSAS;
+            this.Result = visualizedWorkflowDto.Result;
         }
     }
 
