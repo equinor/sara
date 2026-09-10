@@ -1,5 +1,6 @@
 using api.Database.Models;
 using api.Services;
+using Azure;
 
 namespace api.Controllers.Models;
 
@@ -14,7 +15,21 @@ public class AnalysisRunDto
         StartedAt = run.StartedAt;
         CompletedAt = run.CompletedAt;
         SkipReason = run.SkipReason;
-        Workflows = run.Workflows.Select(w => new WorkflowDto(w, blobService)).ToList();
+        foreach (var workflow in run.Workflows)
+        {
+            try
+            {
+                Workflows.Add(new WorkflowDto(workflow, blobService));
+            }
+            catch (Exception exception)
+                when (exception.GetBaseException()
+                        is RequestFailedException
+                        {
+                            Status: StatusCodes.Status403Forbidden,
+                            ErrorCode: "AuthorizationPermissionMismatch",
+                        }
+                ) { }
+        }
         Feedback = run.Feedback is { } f ? new FeedbackDto(f) : null;
     }
 

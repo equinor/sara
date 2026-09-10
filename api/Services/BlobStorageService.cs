@@ -1,4 +1,5 @@
 using api.Database.Models;
+using Azure;
 using Azure.Core;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
@@ -18,7 +19,8 @@ public interface IBlobStorageService
 public class BlobStorageService(
     TokenCredential credential,
     IConfiguration configuration,
-    IUserDelegationKeyProvider userDelegationKeyProvider
+    IUserDelegationKeyProvider userDelegationKeyProvider,
+    ILogger<BlobStorageService> logger
 ) : IBlobStorageService
 {
     /// How long a generated read SAS stays valid. The delegation key that signs
@@ -145,11 +147,34 @@ public class BlobStorageService(
 
         // The delegation key is account-wide, so it is cached and shared across
         // every blob rather than fetched per SAS.
-        var userDelegationKey = await userDelegationKeyProvider.GetAsync(
-            serviceClient,
-            location.StorageAccount,
-            SasLifetime
-        );
+        UserDelegationKey userDelegationKey;
+        try
+        {
+            userDelegationKey = await userDelegationKeyProvider.GetAsync(
+                serviceClient,
+                location.StorageAccount,
+                SasLifetime
+            );
+        }
+        catch (RequestFailedException exception)
+            when (exception
+                    is {
+                        Status: StatusCodes.Status403Forbidden,
+                        ErrorCode: "AuthorizationPermissionMismatch",
+                    }
+            )
+        {
+            logger.LogError(
+                exception,
+                "Failed to create a read SAS URI for {StorageAccount}/{BlobContainer}/{BlobName}. Azure status: {Status}; error code: {ErrorCode}",
+                location.StorageAccount,
+                location.BlobContainer,
+                location.BlobName,
+                exception.Status,
+                exception.ErrorCode
+            );
+            throw;
+        }
 
         BlobSasBuilder sasBuilder = new()
         {
