@@ -1,16 +1,19 @@
+using api.Configurations;
 using api.Database.Models;
+using Microsoft.Extensions.Options;
 
 namespace api.Utilities;
 
-public class AnonymizerPayloadEnricher(ILogger<AnonymizerPayloadEnricher> logger)
-    : ITriggerPayloadEnricher
+public class AnonymizerPayloadEnricher(
+    IOptions<AnalysisOptions> analysisOptions,
+    ILogger<AnonymizerPayloadEnricher> logger
+) : ITriggerPayloadEnricher
 {
     public string WorkflowType => "anonymizer";
 
     public Task<Dictionary<string, object>> EnrichAsync(
         Workflow workflow,
-        IReadOnlyList<InspectionRecord> inspectionRecords,
-        BlobStorageLocation requestedOutput
+        IReadOnlyList<InspectionRecord> inspectionRecords
     )
     {
         if (workflow.InputBlobStorageLocations.Count == 0)
@@ -34,7 +37,8 @@ public class AnonymizerPayloadEnricher(ILogger<AnonymizerPayloadEnricher> logger
 
         var preProcessedBlobStorageLocation = new BlobStorageLocation
         {
-            StorageAccount = requestedOutput.StorageAccount,
+            // Preprocessing uploads to the anonymizer destination, not the raw input account.
+            StorageAccount = analysisOptions.Value.Workflows[WorkflowType].OutputStorageAccount,
             BlobContainer = rawInput.BlobContainer,
             BlobName = ReplaceFileEnding(rawInput.BlobName, ".tiff"),
         };

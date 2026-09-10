@@ -3,17 +3,13 @@ using api.Configurations;
 using api.Database.Context;
 using api.Database.Models;
 using api.Utilities;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 namespace api.Services;
 
 public interface IAnalysisWorkflowGraphBuilder
 {
-    Task<ArgoWorkflowResource> BuildArgoWorkflowAsync(
-        AnalysisRun run,
-        IReadOnlyDictionary<int, BlobStorageLocation> requestedOutputs
-    );
+    Task<ArgoWorkflowResource> BuildArgoWorkflowAsync(AnalysisRun run);
 }
 
 /// <summary>Builds the complete Argo DAG for one analysis run.</summary>
@@ -35,17 +31,15 @@ public class AnalysisWorkflowGraphBuilder(
             StringComparer.OrdinalIgnoreCase
         );
 
-    /// <summary>Builds the complete Argo Workflow resource for an analysis run.</summary>
-    public async Task<ArgoWorkflowResource> BuildArgoWorkflowAsync(
-        AnalysisRun run,
-        IReadOnlyDictionary<int, BlobStorageLocation> requestedOutputs
-    )
+    /// <summary>Builds the Argo resource and updates workflow inputs for the caller to persist.</summary>
+    public async Task<ArgoWorkflowResource> BuildArgoWorkflowAsync(AnalysisRun run)
     {
         var workflows = GetOrderedWorkflows(run);
         var inspectionRecords = await InspectionRecordResolver.GetInspectionRecords(
             context,
             workflows[0]
         );
+        var requestedOutputs = BuildRequestedOutputs(run, workflows, inspectionRecords);
         var tasks = await BuildDagTasksAsync(workflows, inspectionRecords, requestedOutputs);
 
         return BuildArgoWorkflowResource(run, tasks);
@@ -59,6 +53,49 @@ public class AnalysisWorkflowGraphBuilder(
             throw new InvalidOperationException($"Analysis run {run.Id} has no workflows");
         }
         return workflows;
+    }
+
+    private Dictionary<int, BlobStorageLocation> BuildRequestedOutputs(
+        AnalysisRun run,
+        IReadOnlyList<Workflow> workflows,
+        IReadOnlyList<InspectionRecord> inspectionRecords
+    )
+    {
+        Dictionary<int, BlobStorageLocation> requestedOutputs = [];
+        var currentInputs = workflows[0].InputBlobStorageLocations.ToList();
+        var tag = inspectionRecords[0].Tag ?? "no-tag"; // Assumes all records are for the same tag.
+        var date = run.StartedAt!.Value.ToString("yyyy-MM-dd");
+        var time = run.StartedAt.Value.ToString("HH-mm-ss");
+
+        foreach (var workflow in workflows)
+        {
+            var config = GetWorkflowConfig(workflow);
+            if (workflow != workflows[0])
+            {
+                workflow.InputBlobStorageLocations.Clear();
+                workflow.InputBlobStorageLocations.AddRange(
+                    currentInputs.Select(input => input.Clone())
+                );
+            }
+
+            var input = currentInputs[0];
+            var extension = config.OutputFileExtension ?? Path.GetExtension(input.BlobName);
+            var output = new BlobStorageLocation
+            {
+                StorageAccount = config.OutputStorageAccount,
+                BlobContainer = input.BlobContainer,
+                BlobName =
+                    $"{date}/{time}/tag__{tag}__workflowtype__{workflow.WorkflowType}__analysisrunid__{run.Id}{extension}",
+            };
+            requestedOutputs.Add(workflow.StepNumber, output);
+
+            if (!config.IsGate)
+            {
+                currentInputs = [output];
+            }
+        }
+
+        return requestedOutputs;
     }
 
     /// <summary>
@@ -82,7 +119,7 @@ public class AnalysisWorkflowGraphBuilder(
             UseAnonymizerOutputForThermalReading(workflow, previousWorkflow, previousExtras);
 
             var extras = _enrichersByType.TryGetValue(workflow.WorkflowType, out var enricher)
-                ? await enricher.EnrichAsync(workflow, inspectionRecords, requestedOutput)
+                ? await enricher.EnrichAsync(workflow, inspectionRecords)
                 : [];
             var task = BuildDagTask(
                 workflow,
