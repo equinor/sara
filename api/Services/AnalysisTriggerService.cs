@@ -87,15 +87,15 @@ public class AnalysisTriggerService(
             return;
         }
 
-        var (run, requestedOutputs) = await CreateAnalysisRun(analysis, inspectionRecords);
+        var run = await CreateAnalysisRun(analysis, inspectionRecords);
 
-        await analysisWorkflowService.SubmitAsync(run, requestedOutputs);
+        await analysisWorkflowService.BuildAndSubmitAsync(run.Id);
     }
 
-    private async Task<(
-        AnalysisRun Run,
-        Dictionary<int, BlobStorageLocation> RequestedOutputs
-    )> CreateAnalysisRun(Analysis analysis, IReadOnlyList<InspectionRecord> inspectionRecords)
+    private async Task<AnalysisRun> CreateAnalysisRun(
+        Analysis analysis,
+        IReadOnlyList<InspectionRecord> inspectionRecords
+    )
     {
         context.Entry(analysis).State = EntityState.Unchanged;
         foreach (var inspectionRecord in analysis.InspectionRecords)
@@ -122,92 +122,43 @@ public class AnalysisTriggerService(
             StartedAt = DateTime.UtcNow,
         };
 
-        // Save first so the DB assigns a real GUID to run.Id before it is
-        // embedded in workflow blob names via ComputeOutputBlobStorageLocation.
         context.Entry(run.Analysis).State = EntityState.Modified;
         await context.AnalysisRuns.AddAsync(run);
         await context.SaveChangesAsync();
 
-        var requestedOutputs = CreateWorkflows(run, workflowChain, inspectionRecords);
+        CreateWorkflows(run, workflowChain, inspectionRecords);
 
         await context.SaveChangesAsync();
 
-        return (run, requestedOutputs);
+        return run;
     }
 
-    /// <summary>Adds the run's workflows and returns requested output destinations keyed by step number.</summary>
-    private Dictionary<int, BlobStorageLocation> CreateWorkflows(
+    private static void CreateWorkflows(
         AnalysisRun run,
         List<string> workflowChain,
         IReadOnlyList<InspectionRecord> inspectionRecords
     )
     {
-        Dictionary<int, BlobStorageLocation> requestedOutputs = [];
-        var currentInputs = inspectionRecords.Select(r => r.BlobStorageLocation).ToList();
-
         for (var i = 0; i < workflowChain.Count; i++)
         {
-            var workflowType = workflowChain[i];
-            var stepNumber = i + 1;
-
             var workflow = new Workflow
             {
                 AnalysisRun = run,
-                StepNumber = stepNumber,
-                WorkflowType = workflowType,
-                InputBlobStorageLocations = [.. currentInputs.Select(b => b.Clone())],
+                StepNumber = i + 1,
+                WorkflowType = workflowChain[i],
+                InputBlobStorageLocations =
+                    i == 0
+                        ?
+                        [
+                            .. inspectionRecords.Select(record =>
+                                record.BlobStorageLocation.Clone()
+                            ),
+                        ]
+                        : [],
             };
 
-            var tag = inspectionRecords[0].Tag ?? "no-tag"; // Assumes all records are for the same tag.
-            var outputLocation = ComputeOutputBlobStorageLocation(
-                workflowType,
-                run.Id,
-                tag,
-                run.StartedAt!.Value,
-                currentInputs[0]
-            );
-            requestedOutputs.Add(stepNumber, outputLocation);
-
-            if (!_options.Workflows[workflowType].IsGate)
-            {
-                currentInputs = [outputLocation];
-            }
             run.Workflows.Add(workflow);
         }
-        return requestedOutputs;
-    }
-
-    private BlobStorageLocation ComputeOutputBlobStorageLocation(
-        string workflowType,
-        Guid analysisRunId,
-        string tag,
-        DateTime analysisRunStartedAt,
-        BlobStorageLocation fallbackInputLocation
-    )
-    {
-        if (!_options.Workflows.TryGetValue(workflowType, out var workflowConfig))
-        {
-            throw new InvalidOperationException(
-                $"Unknown workflow type '{workflowType}' — not found in configuration"
-            );
-        }
-
-        var extension =
-            workflowConfig.OutputFileExtension ?? Path.GetExtension(fallbackInputLocation.BlobName);
-
-        var date = analysisRunStartedAt.ToString("yyyy-MM-dd");
-        var time = analysisRunStartedAt.ToString("HH-mm-ss");
-        var blobName =
-            $"{date}/{time}/tag__{tag}__workflowtype__{workflowType}__analysisrunid__{analysisRunId}{extension}";
-
-        var blobContainer = fallbackInputLocation.BlobContainer;
-
-        return new BlobStorageLocation
-        {
-            StorageAccount = workflowConfig.OutputStorageAccount,
-            BlobContainer = blobContainer,
-            BlobName = blobName,
-        };
     }
 
     private async Task CheckAndCompleteGroup(AnalysisGroup group, List<string> groupedAnalyses)
