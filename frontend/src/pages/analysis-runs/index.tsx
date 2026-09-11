@@ -1,14 +1,14 @@
 import { useNavigate } from "react-router";
-import { useEffect, useState, type MouseEvent } from "react";
+import type { MouseEvent } from "react";
 import { Button, Search, Table, Typography } from "@equinor/eds-core-react";
 import {
   deleteAnalysisRun,
-  getConfiguredAnalyses,
   getAnalysisRuns,
   type AnalysisRun,
   type AnalysisRunParams,
   type AnalysisRunStatus,
 } from "../../api/client";
+import { useConfiguredAnalyses, useResourceMutation } from "../../api/queries";
 import IdCell from "../../components/IdCell";
 import PageHeader from "../../components/PageHeader";
 import PaginationFooter from "../../components/PaginationFooter";
@@ -135,10 +135,15 @@ function formatAnalysisType(analysisType: string): string {
 
 export default function AnalysisRunsPage() {
   const navigate = useNavigate();
-  const [analysisTypes, setAnalysisTypes] = useState<string[]>([]);
+  const deleteMutation = useResourceMutation(deleteAnalysisRun, "delete");
+  const configuredAnalyses = useConfiguredAnalyses();
+  const analysisTypes = (configuredAnalyses.data ?? [])
+    .map((analysis) => analysis.name)
+    .sort((a, b) => a.localeCompare(b));
   const {
     response,
     loading,
+    initialLoading,
     error,
     pageNumber,
     pageSize,
@@ -148,13 +153,13 @@ export default function AnalysisRunsPage() {
     setFilters,
     refetch,
   } = usePagedList<AnalysisRun, AnalysisRunParams>(
+    "analysis-runs",
     "analysisRuns.pageSize",
     FILTER_KEYS,
     getAnalysisRuns
   );
 
   const items = response?.items ?? [];
-  const showSkeleton = loading || (response === null && error === null);
   const parseFilterDate = (value: string | undefined): Date | null => {
     if (!value) return null;
     const date = new Date(value);
@@ -174,19 +179,11 @@ export default function AnalysisRunsPage() {
     setFilters({ [key]: value ? new Date(value).toISOString() : undefined });
   };
 
-  useEffect(() => {
-    getConfiguredAnalyses()
-      .then((analyses) =>
-        setAnalysisTypes(analyses.map((analysis) => analysis.name).sort((a, b) => a.localeCompare(b)))
-      )
-      .catch(() => setAnalysisTypes([]));
-  }, []);
-
   const handleDelete = async (id: string) => {
+    if (deleteMutation.isPending) return;
     if (!window.confirm("Delete this run and its workflows?")) return;
     try {
-      await deleteAnalysisRun(id);
-      await refetch();
+      await deleteMutation.mutateAsync(id);
     } catch (e) {
       alert(e instanceof Error ? e.message : "Delete failed");
     }
@@ -280,6 +277,11 @@ export default function AnalysisRunsPage() {
             <ValidationMessage>Started until must not be earlier than started since.</ValidationMessage>
           )}
         </FilterGrid>
+        {configuredAnalyses.error && (
+          <Typography variant="body_short" role="alert" style={{ color: "#eb0000" }}>
+            Failed to load configured analyses: {configuredAnalyses.error.message}
+          </Typography>
+        )}
       </FilterPanel>
 
       {error && (
@@ -304,7 +306,7 @@ export default function AnalysisRunsPage() {
           </Table.Row>
         </Table.Head>
         <Table.Body>
-          {showSkeleton ? (
+          {initialLoading ? (
             <TableSkeleton columns={10} rows={pageSize} />
           ) : items.length === 0 ? (
             <Table.Row>
@@ -364,6 +366,7 @@ export default function AnalysisRunsPage() {
                   <Button
                     variant="ghost"
                     color="danger"
+                    disabled={deleteMutation.isPending}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleDelete(r.id);

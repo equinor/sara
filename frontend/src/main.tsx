@@ -5,9 +5,11 @@ import { MsalProvider } from "@azure/msal-react";
 import { BrowserRouter } from "react-router";
 import { loadAppConfig, createMsalConfig } from "./authConfig";
 import App from "./App";
+import { setMsalInstance } from "./api/client";
 
 loadAppConfig().then((config) => {
   const msalInstance = new PublicClientApplication(createMsalConfig(config));
+  setMsalInstance(msalInstance);
 
   createRoot(document.getElementById("root")!).render(
     <StrictMode>

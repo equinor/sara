@@ -16,7 +16,7 @@ async function getAccessToken(): Promise<string> {
 
   const response = await msalInstance.acquireTokenSilent({
     ...createLoginRequest(getAppConfig()),
-    account: accounts[0],
+    account: msalInstance.getActiveAccount() ?? accounts[0],
   });
   return response.accessToken;
 }
@@ -307,18 +307,19 @@ function pagedQuery(
 export async function getInspectionRecords(
   pageNumber = 1,
   pageSize = 25,
-  filters: InspectionRecordParams = {}
+  filters: InspectionRecordParams = {},
+  signal?: AbortSignal
 ): Promise<PagedResponse<InspectionRecord>> {
   const q = pagedQuery(pageNumber, pageSize, {
     InspectionId: filters.inspectionId,
     Tag: filters.tag,
     InstallationCode: filters.installationCode,
   });
-  return apiFetch(apiUrl(`/api/inspection-record?${q}`));
+  return apiFetch(apiUrl(`/api/inspection-record?${q}`), { signal });
 }
 
-export async function getInspectionRecord(id: string): Promise<InspectionRecord> {
-  return apiFetch(apiUrl(`/api/inspection-record/id/${encodeURIComponent(id)}`));
+export async function getInspectionRecord(id: string, signal?: AbortSignal): Promise<InspectionRecord> {
+  return apiFetch(apiUrl(`/api/inspection-record/id/${encodeURIComponent(id)}`), { signal });
 }
 
 export interface CreateInspectionRecordRequest {
@@ -360,18 +361,19 @@ export interface AnalysisParams {
 export async function getAnalyses(
   pageNumber = 1,
   pageSize = 25,
-  filters: AnalysisParams = {}
+  filters: AnalysisParams = {},
+  signal?: AbortSignal
 ): Promise<PagedResponse<Analysis>> {
   const q = pagedQuery(pageNumber, pageSize, {
     Name: filters.name,
     AnalysisGroupId: filters.analysisGroupId,
     InspectionRecordId: filters.inspectionRecordId,
   });
-  return apiFetch(apiUrl(`/api/analysis?${q}`));
+  return apiFetch(apiUrl(`/api/analysis?${q}`), { signal });
 }
 
-export async function getAnalysis(id: string): Promise<Analysis> {
-  return apiFetch(apiUrl(`/api/analysis/id/${encodeURIComponent(id)}`));
+export async function getAnalysis(id: string, signal?: AbortSignal): Promise<Analysis> {
+  return apiFetch(apiUrl(`/api/analysis/id/${encodeURIComponent(id)}`), { signal });
 }
 
 export async function rerunAnalysis(id: string): Promise<void> {
@@ -396,17 +398,18 @@ export interface AnalysisGroupParams {
 export async function getAnalysisGroups(
   pageNumber = 1,
   pageSize = 25,
-  filters: AnalysisGroupParams = {}
+  filters: AnalysisGroupParams = {},
+  signal?: AbortSignal
 ): Promise<PagedResponse<AnalysisGroup>> {
   const q = pagedQuery(pageNumber, pageSize, {
     GroupId: filters.groupId,
     Status: filters.status,
   });
-  return apiFetch(apiUrl(`/api/analysis-group?${q}`));
+  return apiFetch(apiUrl(`/api/analysis-group?${q}`), { signal });
 }
 
-export async function getAnalysisGroup(id: string): Promise<AnalysisGroup> {
-  return apiFetch(apiUrl(`/api/analysis-group/id/${encodeURIComponent(id)}`));
+export async function getAnalysisGroup(id: string, signal?: AbortSignal): Promise<AnalysisGroup> {
+  return apiFetch(apiUrl(`/api/analysis-group/id/${encodeURIComponent(id)}`), { signal });
 }
 
 export async function deleteAnalysisGroup(id: string): Promise<void> {
@@ -428,7 +431,8 @@ export interface AnalysisRunParams {
 export async function getAnalysisRuns(
   pageNumber = 1,
   pageSize = 25,
-  filters: AnalysisRunParams = {}
+  filters: AnalysisRunParams = {},
+  signal?: AbortSignal
 ): Promise<PagedResponse<AnalysisRun>> {
   const q = pagedQuery(pageNumber, pageSize, {
     AnalysisId: filters.analysisId,
@@ -437,11 +441,11 @@ export async function getAnalysisRuns(
     StartedSince: filters.startedSince,
     StartedUntil: filters.startedUntil,
   });
-  return apiFetch(apiUrl(`/api/analysis-run?${q}`));
+  return apiFetch(apiUrl(`/api/analysis-run?${q}`), { signal });
 }
 
-export async function getAnalysisRun(id: string): Promise<AnalysisRun> {
-  return apiFetch(apiUrl(`/api/analysis-run/id/${encodeURIComponent(id)}`));
+export async function getAnalysisRun(id: string, signal?: AbortSignal): Promise<AnalysisRun> {
+  return apiFetch(apiUrl(`/api/analysis-run/id/${encodeURIComponent(id)}`), { signal });
 }
 
 export async function deleteAnalysisRun(id: string): Promise<void> {
@@ -462,7 +466,8 @@ export interface FeedbackParams {
 export async function getFeedbackHistory(
   pageNumber = 1,
   pageSize = 25,
-  filters: FeedbackParams = {}
+  filters: FeedbackParams = {},
+  signal?: AbortSignal
 ): Promise<PagedResponse<FeedbackHistory>> {
   const q = pagedQuery(pageNumber, pageSize, {
     AnalysisType: filters.analysisType,
@@ -470,24 +475,26 @@ export async function getFeedbackHistory(
     StartedSince: filters.startedSince,
     StartedUntil: filters.startedUntil,
   });
-  return apiFetch(apiUrl(`/api/feedback?${q}`));
+  return apiFetch(apiUrl(`/api/feedback?${q}`), { signal });
 }
 
 export async function getFeedbackSummary(
   sinceHours = 168,
   analysisType?: string,
-  timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+  timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone,
+  signal?: AbortSignal
 ): Promise<FeedbackSummary> {
   const query = new URLSearchParams({ sinceHours: String(sinceHours), timeZone });
   if (analysisType) query.set("analysisType", analysisType);
-  return apiFetch(apiUrl(`/api/feedback/summary?${query}`));
+  return apiFetch(apiUrl(`/api/feedback/summary?${query}`), { signal });
 }
 
 export async function getFeedbackTrendBucketDetails(
   bucketStart: string,
   windowHours: number,
   analysisType?: string,
-  timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+  timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone,
+  signal?: AbortSignal
 ): Promise<FeedbackTrendBucketDetails> {
   const query = new URLSearchParams({
     bucketStart,
@@ -495,7 +502,7 @@ export async function getFeedbackTrendBucketDetails(
     timeZone,
   });
   if (analysisType) query.set("analysisType", analysisType);
-  return apiFetch(apiUrl(`/api/feedback/trend-details?${query}`));
+  return apiFetch(apiUrl(`/api/feedback/trend-details?${query}`), { signal });
 }
 
 // --- Workflows ---
@@ -510,7 +517,8 @@ export interface WorkflowParams {
 export async function getWorkflows(
   pageNumber = 1,
   pageSize = 25,
-  filters: WorkflowParams = {}
+  filters: WorkflowParams = {},
+  signal?: AbortSignal
 ): Promise<PagedResponse<Workflow>> {
   const q = pagedQuery(pageNumber, pageSize, {
     WorkflowType: filters.workflowType,
@@ -518,11 +526,11 @@ export async function getWorkflows(
     AnalysisRunId: filters.analysisRunId,
     StartedSince: filters.startedSince,
   });
-  return apiFetch(apiUrl(`/api/workflow?${q}`));
+  return apiFetch(apiUrl(`/api/workflow?${q}`), { signal });
 }
 
-export async function getWorkflow(id: string): Promise<Workflow> {
-  return apiFetch(apiUrl(`/api/workflow/id/${encodeURIComponent(id)}`));
+export async function getWorkflow(id: string, signal?: AbortSignal): Promise<Workflow> {
+  return apiFetch(apiUrl(`/api/workflow/id/${encodeURIComponent(id)}`), { signal });
 }
 
 export async function retryWorkflow(id: string): Promise<void> {
@@ -544,18 +552,19 @@ export interface AnalysisConfigEntry {
   workflows: string[];
 }
 
-export async function getConfiguredAnalyses(): Promise<AnalysisConfigEntry[]> {
-  return apiFetch(apiUrl("/api/config/analyses"));
+export async function getConfiguredAnalyses(signal?: AbortSignal): Promise<AnalysisConfigEntry[]> {
+  return apiFetch(apiUrl("/api/config/analyses"), { signal });
 }
 
-export async function getReferencePolygonMetadata(): Promise<ReferencePolygonMetadata[]> {
-  return apiFetch(apiUrl(`/api/ReferencePolygonMetadata`));
+export async function getReferencePolygonMetadata(signal?: AbortSignal): Promise<ReferencePolygonMetadata[]> {
+  return apiFetch(apiUrl(`/api/ReferencePolygonMetadata`), { signal });
 }
 
 export async function getReferencePolygonMetadataById(
-  id: string
+  id: string,
+  signal?: AbortSignal
 ): Promise<ReferencePolygonMetadata> {
-  return apiFetch(apiUrl(`/api/ReferencePolygonMetadata/id/${encodeURIComponent(id)}`));
+  return apiFetch(apiUrl(`/api/ReferencePolygonMetadata/id/${encodeURIComponent(id)}`), { signal });
 }
 
 export async function createReferencePolygonMetadata(
@@ -646,10 +655,11 @@ export async function getReferencePolygonImageUrl(id: string): Promise<string> {
 
 export async function getThermalInspectionRecords(
   pageNumber = 1,
-  pageSize = 20
+  pageSize = 20,
+  signal?: AbortSignal
 ): Promise<PagedResponse<InspectionRecord>> {
   const q = pagedQuery(pageNumber, pageSize);
-  return apiFetch(apiUrl(`/api/inspection-record/thermal?${q}`));
+  return apiFetch(apiUrl(`/api/inspection-record/thermal?${q}`), { signal });
 }
 
 export async function getInspectionRecordThermalImage(
@@ -716,10 +726,11 @@ export async function createReferencePolygonFromInspectionRecord(
 
 export async function getFencillaInspectionRecords(
   pageNumber = 1,
-  pageSize = 20
+  pageSize = 20,
+  signal?: AbortSignal
 ): Promise<PagedResponse<InspectionRecord>> {
   const q = pagedQuery(pageNumber, pageSize);
-  return apiFetch(apiUrl(`/api/inspection-record/fencilla?${q}`));
+  return apiFetch(apiUrl(`/api/inspection-record/fencilla?${q}`), { signal });
 }
 
 export async function getInspectionRecordFencillaImageUrl(id: string): Promise<string> {
@@ -816,17 +827,19 @@ export const DASHBOARD_WINDOWS = [
 
 export async function getDashboardSummary(
   sinceHours = 168,
-  timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+  timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone,
+  signal?: AbortSignal
 ): Promise<DashboardSummary> {
   const query = new URLSearchParams({ sinceHours: String(sinceHours), timeZone });
-  return apiFetch(apiUrl(`/api/dashboard/summary?${query}`));
+  return apiFetch(apiUrl(`/api/dashboard/summary?${query}`), { signal });
 }
 
 export async function getTrendBucketDetails(
   bucketStart: string,
   windowHours: number,
-  timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+  timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone,
+  signal?: AbortSignal
 ): Promise<TrendBucketDetails> {
   const query = new URLSearchParams({ bucketStart, windowHours: String(windowHours), timeZone });
-  return apiFetch(apiUrl(`/api/dashboard/trend-details?${query}`));
+  return apiFetch(apiUrl(`/api/dashboard/trend-details?${query}`), { signal });
 }

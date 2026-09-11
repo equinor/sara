@@ -11,6 +11,7 @@ import {
   type InspectionRecord,
   type InspectionRecordParams,
 } from "../../api/client";
+import { useResourceMutation } from "../../api/queries";
 import IdCell from "../../components/IdCell";
 import PageHeader from "../../components/PageHeader";
 import PaginationFooter from "../../components/PaginationFooter";
@@ -36,9 +37,11 @@ function latestRunStatus(record: InspectionRecord): string | null {
 
 export default function InspectionRecordsPage() {
   const navigate = useNavigate();
+  const deleteMutation = useResourceMutation(deleteInspectionRecord, "delete");
   const {
     response,
     loading,
+    initialLoading,
     error,
     pageNumber,
     pageSize,
@@ -48,19 +51,19 @@ export default function InspectionRecordsPage() {
     setFilters,
     refetch,
   } = usePagedList<InspectionRecord, InspectionRecordParams>(
+    "inspection-records",
     "inspectionRecords.pageSize",
     FILTER_KEYS,
     getInspectionRecords
   );
 
   const items = response?.items ?? [];
-  const showSkeleton = loading || (response === null && error === null);
 
   const handleDelete = async (id: string) => {
+    if (deleteMutation.isPending) return;
     if (!window.confirm("Delete this inspection record and its analyses?")) return;
     try {
-      await deleteInspectionRecord(id);
-      await refetch();
+      await deleteMutation.mutateAsync(id);
     } catch (e) {
       alert(e instanceof Error ? e.message : "Delete failed");
     }
@@ -127,7 +130,7 @@ export default function InspectionRecordsPage() {
           </Table.Row>
         </Table.Head>
         <Table.Body>
-          {showSkeleton ? (
+          {initialLoading ? (
             <TableSkeleton columns={10} rows={pageSize} />
           ) : items.length === 0 ? (
             <Table.Row>
@@ -173,6 +176,7 @@ export default function InspectionRecordsPage() {
                     <Button
                       variant="ghost"
                       color="danger"
+                      disabled={deleteMutation.isPending}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDelete(rec.id);

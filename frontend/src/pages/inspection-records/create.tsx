@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router";
 import {
   Button,
@@ -10,10 +10,9 @@ import {
 import { arrow_back } from "@equinor/eds-icons";
 import {
   createInspectionRecord,
-  getConfiguredAnalyses,
-  type AnalysisConfigEntry,
   type CreateInspectionRecordRequest,
 } from "../../api/client";
+import { useConfiguredAnalyses, useResourceMutation } from "../../api/queries";
 
 Icon.add({ arrow_back });
 
@@ -21,9 +20,11 @@ const STORAGE_ACCOUNT_DEFAULT = "";
 
 export default function CreateInspectionRecordPage() {
   const navigate = useNavigate();
-  const [submitting, setSubmitting] = useState(false);
+  const createMutation = useResourceMutation(createInspectionRecord);
+  const configuredAnalyses = useConfiguredAnalyses();
+  const submitting = createMutation.isPending;
   const [error, setError] = useState<string | null>(null);
-  const [configured, setConfigured] = useState<AnalysisConfigEntry[]>([]);
+  const configured = configuredAnalyses.data ?? [];
 
   const [form, setForm] = useState({
     inspectionId: "",
@@ -42,14 +43,6 @@ export default function CreateInspectionRecordPage() {
   });
   const [selectedAnalyses, setSelectedAnalyses] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    getConfiguredAnalyses()
-      .then(setConfigured)
-      .catch((e) =>
-        setError(e instanceof Error ? e.message : "Failed to load configured analyses")
-      );
-  }, []);
-
   const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
@@ -62,7 +55,7 @@ export default function CreateInspectionRecordPage() {
     });
 
   const handleSubmit = async () => {
-    setSubmitting(true);
+    if (submitting) return;
     setError(null);
     try {
       const req: CreateInspectionRecordRequest = {
@@ -91,12 +84,10 @@ export default function CreateInspectionRecordPage() {
             .filter(Boolean),
         };
       }
-      const created = await createInspectionRecord(req);
+      const created = await createMutation.mutateAsync(req);
       navigate(`/inspection-records/${created.id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Create failed");
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -197,7 +188,13 @@ export default function CreateInspectionRecordPage() {
           marginBottom: "1.5rem",
         }}
       >
-        {configured.length === 0 ? (
+        {configuredAnalyses.isPending ? (
+          <Typography variant="body_short">Loading configured analyses...</Typography>
+        ) : configuredAnalyses.error ? (
+          <Typography variant="body_short" role="alert" style={{ color: "#eb0000" }}>
+            Failed to load configured analyses: {configuredAnalyses.error.message}
+          </Typography>
+        ) : configured.length === 0 ? (
           <Typography variant="body_short">No configured analyses found.</Typography>
         ) : (
           configured.map((entry) => (

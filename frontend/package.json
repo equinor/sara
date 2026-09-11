@@ -15,6 +15,7 @@
     "@equinor/eds-core-react": "^2.6.1",
     "@equinor/eds-icons": "^1.5.1",
     "@equinor/eds-tokens": "^2.3.2",
+    "@tanstack/react-query": "^5.101.4",
     "d3-scale-chromatic": "^3.1.0",
     "konva": "^10.3.0",
     "react": "^19.2.8",

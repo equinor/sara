@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import {
     Button,
     ButtonGroup,
@@ -13,8 +14,8 @@ import {
     deleteReferencePolygonMetadata,
     getReferencePolygonMetadata,
     AnalysisType,
-    type ReferencePolygonMetadata,
 } from "../../api/client"
+import { useResourceMutation } from "../../api/queries"
 import IdCell from "../../components/IdCell"
 import SegmentedToggle from "../../components/SegmentedToggle"
 
@@ -63,31 +64,16 @@ const SOURCE_TYPE_FILTERS: { value: SourceTypeFilter; label: string }[] = [
 
 export default function ReferencePolygonImagesPage() {
     const navigate = useNavigate()
-    const [data, setData] = useState<ReferencePolygonMetadata[]>([])
-    const [loading, setLoading] = useState(false)
-    const [error, setError] = useState<string | null>(null)
+    const { data = [], isPending: loading, isFetching, error: queryError, refetch } = useQuery({
+        queryKey: ["sara", "reference-images", "list"],
+        queryFn: ({ signal }) => getReferencePolygonMetadata(signal),
+    })
+    const deleteMutation = useResourceMutation(deleteReferencePolygonMetadata, "delete")
+    const [mutationError, setError] = useState<string | null>(null)
+    const error = mutationError ?? (queryError
+        ? queryError instanceof Error ? queryError.message : "Failed to fetch reference metadata"
+        : null)
     const [sourceTypeFilter, setSourceTypeFilter] = useState<SourceTypeFilter>("All")
-
-    const fetchData = useCallback(async () => {
-        setLoading(true)
-        setError(null)
-        try {
-            const result = await getReferencePolygonMetadata()
-            setData(result)
-        } catch (e) {
-            setError(
-                e instanceof Error
-                    ? e.message
-                    : "Failed to fetch reference metadata"
-            )
-        } finally {
-            setLoading(false)
-        }
-    }, [])
-
-    useEffect(() => {
-        fetchData()
-    }, [fetchData])
 
     const sortedData = useMemo(
         () =>
@@ -105,9 +91,10 @@ export default function ReferencePolygonImagesPage() {
     )
 
     const handleDelete = async (id: string) => {
+        if (deleteMutation.isPending) return
+        setError(null)
         try {
-            await deleteReferencePolygonMetadata(id)
-            await fetchData()
+            await deleteMutation.mutateAsync(id)
         } catch (e) {
             setError(
                 e instanceof Error
@@ -141,9 +128,12 @@ export default function ReferencePolygonImagesPage() {
                 <ButtonGroup>
                     <Button
                         variant="ghost_icon"
-                        onClick={fetchData}
+                        onClick={() => {
+                            setError(null)
+                            void refetch()
+                        }}
                         aria-label="Refresh"
-                        disabled={loading}
+                        disabled={isFetching}
                     >
                         <Icon name="refresh" />
                     </Button>
@@ -189,6 +179,7 @@ export default function ReferencePolygonImagesPage() {
                                         <Button
                                             variant="ghost"
                                             color="danger"
+                                            disabled={deleteMutation.isPending}
                                             onClick={(event) => {
                                                 event.stopPropagation()
                                                 handleDelete(metadata.id)

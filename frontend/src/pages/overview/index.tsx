@@ -1,4 +1,5 @@
-import { useCallback, type MouseEvent, type ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router";
 import {
   Button,
@@ -8,25 +9,17 @@ import {
 } from "@equinor/eds-core-react";
 import {
   DASHBOARD_WINDOWS,
-  getAnalysisRuns,
-  getDashboardSummary,
-  getTrendBucketDetails,
-  getWorkflows,
   retryWorkflow,
-  type AnalysisRun,
-  type DashboardSummary,
-  type Workflow,
 } from "../../api/client";
+import { useResourceMutation } from "../../api/queries";
+import { dashboardTrendDetailsKey, useOverview } from "../../api/dashboardQueries";
 import IdCell from "../../components/IdCell";
 import PageHeader from "../../components/PageHeader";
 import StatCard from "../../components/StatCard";
 import StatusChip from "../../components/StatusChip";
 import TrendChart from "../../components/TrendChart";
-import { useAutoRefresh } from "../../utils/useAutoRefresh";
 import styled from "styled-components";
 import { argoWorkflowUrl } from "../../utils/argo";
-
-const REFRESH_MS = 60000;
 
 const CardRow = styled.div`
   display: flex;
@@ -93,13 +86,6 @@ function Block({
   );
 }
 
-
-interface OverviewData {
-  summary: DashboardSummary;
-  latestRuns: AnalysisRun[];
-  failures: Workflow[];
-}
-
 function fmtDuration(seconds: number | null): string {
   if (seconds == null) return "–";
   if (seconds < 60) return `${Math.round(seconds)}s`;
@@ -128,6 +114,8 @@ function formatAnalysisType(analysisType: string | undefined): string {
 
 export default function OverviewPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const retryMutation = useResourceMutation(retryWorkflow);
   const [searchParams, setSearchParams] = useSearchParams();
 
   const windowHours = (() => {
@@ -137,25 +125,14 @@ export default function OverviewPage() {
     return DASHBOARD_WINDOWS.some((w) => w.hours === stored) ? stored : 168;
   })();
 
-  const fetcher = useCallback(async (): Promise<OverviewData> => {
-    const startedSince = new Date(Date.now() - windowHours * 60 * 60 * 1000).toISOString();
-    const [summary, latestRuns, failures] = await Promise.all([
-      getDashboardSummary(windowHours),
-      getAnalysisRuns(1, 5, {}),
-      getWorkflows(1, 5, { status: "Failed", startedSince }),
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const { data, isFetching, isPending, error, dataUpdatedAt, refetch } = useOverview(windowHours, timeZone);
+  const refresh = async () => {
+    await Promise.all([
+      refetch(),
+      queryClient.invalidateQueries({ queryKey: dashboardTrendDetailsKey }),
     ]);
-    return {
-      summary,
-      latestRuns: latestRuns.items,
-      failures: failures.items,
-    };
-  }, [windowHours]);
-
-  const { data, loading, error, lastUpdated, refetch } = useAutoRefresh<OverviewData>(
-    fetcher,
-    REFRESH_MS,
-    [windowHours]
-  );
+  };
 
   const setWindow = (hours: number) => {
     try {
@@ -171,8 +148,7 @@ export default function OverviewPage() {
   const handleRetry = async (id: string) => {
     if (!window.confirm("Retry this workflow?")) return;
     try {
-      await retryWorkflow(id);
-      await refetch();
+      await retryMutation.mutateAsync(id);
     } catch (e) {
       alert(e instanceof Error ? e.message : "Retry failed");
     }
@@ -189,7 +165,7 @@ export default function OverviewPage() {
     : [];
 
   return (
-    <PageHeader title="Overview" loading={loading} onRefresh={refetch}>
+    <PageHeader title="Overview" loading={isFetching} onRefresh={refresh}>
       <div
         style={{
           display: "flex",
@@ -212,9 +188,9 @@ export default function OverviewPage() {
             </Chip>
           ))}
         </WindowToggle>
-        {lastUpdated && (
+        {dataUpdatedAt > 0 && (
           <Typography variant="caption" style={{ color: "#6f6f6f" }}>
-            Updated {lastUpdated.toLocaleTimeString()} · auto-refresh 60s
+            Updated {new Date(dataUpdatedAt).toLocaleTimeString()} · auto-refresh 60s
           </Typography>
         )}
       </div>
@@ -222,15 +198,15 @@ export default function OverviewPage() {
       {error && (
         <Typography
           variant="body_short"
+          role="alert"
           style={{ color: "#eb0000", marginBottom: "1rem" }}
         >
-          {error}
+          {error.message}
         </Typography>
       )}
 
-      {!summary ? (
-        <Typography variant="body_short">Loading dashboard…</Typography>
-      ) : (
+      {isPending && <Typography variant="body_short">Loading dashboard…</Typography>}
+      {summary && (
         <>
           {/* Headline metrics + analysis-group health in one strip */}
           <CardRow>
@@ -290,7 +266,8 @@ export default function OverviewPage() {
               key={windowHours}
               data={summary.trend}
               hourly={hourly}
-              loadDetails={(bucketStart) => getTrendBucketDetails(bucketStart, windowHours)}
+              windowHours={windowHours}
+              timeZone={timeZone}
               formatAnalysisType={formatAnalysisType}
               onBucketClick={(bucket) => {
                 const inclusiveEnd = new Date(
@@ -344,6 +321,7 @@ export default function OverviewPage() {
                         <Table.Cell>
                           <Button
                             variant="ghost"
+                            disabled={retryMutation.isPending}
                             onClick={(e) => {
                               e.stopPropagation();
                               handleRetry(w.id);

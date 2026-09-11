@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Popover, PopoverContent, Typography } from "@equinor/eds-core-react";
 import styled from "styled-components";
-import type { FeedbackTrendBucket, FeedbackTrendBucketDetails } from "../api/client";
+import type { FeedbackTrendBucket } from "../api/client";
+import { useFeedbackTrendBucketDetails } from "../api/dashboardQueries";
 
 const CORRECT_COLOR = "#4bb748";
 const INCORRECT_COLOR = "#eb0000";
@@ -140,23 +141,31 @@ const Swatch = styled.span<{ $color: string; $dashed?: boolean }>`
 
 interface Props {
   data: FeedbackTrendBucket[];
-  loadDetails: (bucketStart: string) => Promise<FeedbackTrendBucketDetails>;
+  windowHours: number;
+  analysisType?: string;
+  timeZone: string;
   formatAnalysisType: (analysisType: string) => string;
 }
 
-export default function FeedbackTrendChart({ data, loadDetails, formatAnalysisType }: Props) {
+export default function FeedbackTrendChart({ data, windowHours, analysisType, timeZone, formatAnalysisType }: Props) {
   const [selectedBucket, setSelectedBucket] = useState<string | null>(null);
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-  const [details, setDetails] = useState<Record<string, FeedbackTrendBucketDetails>>({});
-  const [errors, setErrors] = useState<Record<string, string>>({});
   const [viewport, setViewport] = useState(() => ({
     width: window.visualViewport?.width ?? window.innerWidth,
     height: window.visualViewport?.height ?? window.innerHeight,
     left: window.visualViewport?.offsetLeft ?? 0,
     top: window.visualViewport?.offsetTop ?? 0,
   }));
-  const loading = useRef(new Set<string>());
   const hoverTimer = useRef<number | null>(null);
+  const hasReviewedRuns = data.some((bucket) => bucket.correct + bucket.incorrect > 0);
+  const selected = data.find((bucket) => bucket.bucketStart === selectedBucket);
+  const open = hasReviewedRuns && selected !== undefined && anchorEl !== null;
+  const { data: selectedDetails, error, isPending } = useFeedbackTrendBucketDetails(
+    open ? selected.bucketStart : null,
+    windowHours,
+    analysisType,
+    timeZone
+  );
   const width = 800;
   const height = 190;
   const margin = { top: 10, right: 12, bottom: 30, left: 34 };
@@ -204,18 +213,6 @@ export default function FeedbackTrendChart({ data, loadDetails, formatAnalysisTy
   const activateBucket = (bucketStart: string, anchor: HTMLElement) => {
     setSelectedBucket(bucketStart);
     setAnchorEl(anchor);
-    if (details[bucketStart] || loading.current.has(bucketStart)) return;
-
-    loading.current.add(bucketStart);
-    loadDetails(bucketStart)
-      .then((result) => setDetails((current) => ({ ...current, [bucketStart]: result })))
-      .catch((error) =>
-        setErrors((current) => ({
-          ...current,
-          [bucketStart]: error instanceof Error ? error.message : "Failed to load details",
-        }))
-      )
-      .finally(() => loading.current.delete(bucketStart));
   };
 
   const activateBucketAfterDelay = (bucketStart: string, anchor: HTMLElement) => {
@@ -230,12 +227,10 @@ export default function FeedbackTrendChart({ data, loadDetails, formatAnalysisTy
     setSelectedBucket(null);
   };
 
-  const selected = data.find((bucket) => bucket.bucketStart === selectedBucket);
-  const selectedDetails = selectedBucket ? details[selectedBucket] : undefined;
   const formatDate = (iso: string) =>
-    new Date(iso).toLocaleDateString([], { dateStyle: "medium" });
+    new Date(iso).toLocaleDateString([], { dateStyle: "medium", timeZone });
 
-  if (data.every((bucket) => bucket.correct + bucket.incorrect === 0)) {
+  if (!hasReviewedRuns) {
     return <Typography variant="body_short">No reviewed runs in this window.</Typography>;
   }
 
@@ -260,7 +255,7 @@ export default function FeedbackTrendChart({ data, loadDetails, formatAnalysisTy
         />
         {data.map((bucket, index) => (
           <g key={bucket.bucketStart}>
-            <title>{`${new Date(bucket.bucketStart).toLocaleDateString()}: ${bucket.correct} correct, ${bucket.incorrect} incorrect`}</title>
+            <title>{`${formatDate(bucket.bucketStart)}: ${bucket.correct} correct, ${bucket.incorrect} incorrect`}</title>
             <CorrectPoint cx={x(index)} cy={y(bucket.correct)} r={3.5} />
             <IncorrectPoint
               x1={x(index) - 3.5}
@@ -276,7 +271,7 @@ export default function FeedbackTrendChart({ data, loadDetails, formatAnalysisTy
             />
             {labelIndexes.has(index) && (
               <AxisLabel x={x(index)} y={height - 7} textAnchor="middle">
-                {new Date(bucket.bucketStart).toLocaleDateString([], { month: "short", day: "numeric" })}
+                {new Date(bucket.bucketStart).toLocaleDateString([], { month: "short", day: "numeric", timeZone })}
               </AxisLabel>
             )}
           </g>
@@ -303,7 +298,7 @@ export default function FeedbackTrendChart({ data, loadDetails, formatAnalysisTy
         $viewportHeight={viewport.height}
         $viewportLeft={viewport.left}
         $viewportTop={viewport.top}
-        open={selected !== undefined && anchorEl !== null}
+        open={open}
         anchorEl={anchorEl}
         placement="bottom"
         onClose={closePopover}
@@ -324,13 +319,14 @@ export default function FeedbackTrendChart({ data, loadDetails, formatAnalysisTy
                   {selected.correct} correct · {selected.incorrect} incorrect
                 </Typography>
               </PopoverHeading>
-              {selectedBucket && errors[selectedBucket] ? (
-                <Typography variant="caption" style={{ color: INCORRECT_COLOR }}>
-                  {errors[selectedBucket]}
+              {error && (
+                <Typography variant="caption" role="alert" style={{ color: INCORRECT_COLOR }}>
+                  {error.message}
                 </Typography>
-              ) : !selectedDetails ? (
+              )}
+              {isPending ? (
                 <Typography variant="caption">Loading analysis breakdown…</Typography>
-              ) : selectedDetails.perAnalysisType.length === 0 ? (
+              ) : !selectedDetails ? null : selectedDetails.perAnalysisType.length === 0 ? (
                 <Typography variant="caption">No reviewed analyses in this bucket.</Typography>
               ) : (
                 <DetailTable>

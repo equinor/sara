@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Popover, PopoverContent, Typography } from "@equinor/eds-core-react";
 import styled from "styled-components";
-import type { TrendBucket, TrendBucketDetails } from "../api/client";
+import type { TrendBucket } from "../api/client";
+import { useTrendBucketDetails } from "../api/dashboardQueries";
 
 const SUCCEEDED_COLOR = "#4bb748";
 const FAILED_COLOR = "#eb0000";
@@ -184,7 +185,8 @@ const Swatch = styled.span<{ $color: string }>`
 interface Props {
   data: TrendBucket[];
   hourly: boolean;
-  loadDetails: (bucketStart: string) => Promise<TrendBucketDetails>;
+  windowHours: number;
+  timeZone: string;
   formatAnalysisType: (analysisType: string) => string;
   onBucketClick: (bucket: TrendBucket) => void;
   height?: number;
@@ -193,50 +195,48 @@ interface Props {
 export default function TrendChart({
   data,
   hourly,
-  loadDetails,
+  windowHours,
+  timeZone,
   formatAnalysisType,
   onBucketClick,
   height = 110,
 }: Props) {
   const [selectedBucket, setSelectedBucket] = useState<string | null>(null);
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-  const [details, setDetails] = useState<Record<string, TrendBucketDetails>>({});
-  const [errors, setErrors] = useState<Record<string, string>>({});
   const [viewport, setViewport] = useState(() => ({
     width: window.visualViewport?.width ?? window.innerWidth,
     height: window.visualViewport?.height ?? window.innerHeight,
     left: window.visualViewport?.offsetLeft ?? 0,
     top: window.visualViewport?.offsetTop ?? 0,
   }));
-  const loading = useRef(new Set<string>());
   const hoverTimer = useRef<number | null>(null);
   const max = Math.max(1, ...data.map((bucket) => bucket.succeeded + bucket.failed));
-
-  if (data.length === 0) {
-    return (
-      <Typography variant="body_short" style={{ color: "#6f6f6f" }}>
-        No data in this window.
-      </Typography>
-    );
-  }
+  const selected = data.find((bucket) => bucket.bucketStart === selectedBucket);
+  const open = selected !== undefined && anchorEl !== null;
+  const { data: selectedDetails, error, isPending } = useTrendBucketDetails(
+    open ? selected.bucketStart : null,
+    windowHours,
+    timeZone
+  );
 
   const formatLabel = (iso: string) => {
     const date = new Date(iso);
     return hourly
-      ? date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-      : date.toLocaleDateString([], { month: "short", day: "numeric" });
+      ? date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", timeZone })
+      : date.toLocaleDateString([], { month: "short", day: "numeric", timeZone });
   };
 
   const formatRange = (start: string, end: string) => {
     const startDate = new Date(start);
     const endDate = new Date(end);
     if (hourly) {
-      return `${startDate.toLocaleDateString()} ${startDate.toLocaleTimeString([], {
+      return `${startDate.toLocaleDateString([], { timeZone })} ${startDate.toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
-      })} – ${endDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+        timeZone,
+      })} – ${endDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", timeZone })}`;
     }
-    return startDate.toLocaleDateString([], { dateStyle: "medium" });
+    return startDate.toLocaleDateString([], { dateStyle: "medium", timeZone });
   };
 
   useEffect(
@@ -268,18 +268,6 @@ export default function TrendChart({
   const activateBucket = (bucketStart: string, anchor: HTMLElement) => {
     setSelectedBucket(bucketStart);
     setAnchorEl(anchor);
-    if (details[bucketStart] || loading.current.has(bucketStart)) return;
-
-    loading.current.add(bucketStart);
-    loadDetails(bucketStart)
-      .then((result) => setDetails((current) => ({ ...current, [bucketStart]: result })))
-      .catch((error) =>
-        setErrors((current) => ({
-          ...current,
-          [bucketStart]: error instanceof Error ? error.message : "Failed to load details",
-        }))
-      )
-      .finally(() => loading.current.delete(bucketStart));
   };
 
   const activateBucketAfterDelay = (bucketStart: string, anchor: HTMLElement) => {
@@ -294,8 +282,13 @@ export default function TrendChart({
     setSelectedBucket(null);
   };
 
-  const selected = data.find((bucket) => bucket.bucketStart === selectedBucket);
-  const selectedDetails = selectedBucket ? details[selectedBucket] : undefined;
+  if (data.length === 0) {
+    return (
+      <Typography variant="body_short" style={{ color: "#6f6f6f" }}>
+        No data in this window.
+      </Typography>
+    );
+  }
 
   return (
     <Wrapper>
@@ -334,7 +327,7 @@ export default function TrendChart({
           $viewportHeight={viewport.height}
           $viewportLeft={viewport.left}
           $viewportTop={viewport.top}
-          open={selected !== undefined && anchorEl !== null}
+          open={open}
           anchorEl={anchorEl}
           placement="bottom"
           onClose={closePopover}
@@ -355,15 +348,16 @@ export default function TrendChart({
                 {selected.succeeded} succeeded · {selected.failed} failed
               </Typography>
             </PopoverHeading>
-            {selectedBucket && errors[selectedBucket] ? (
-              <Typography variant="caption" style={{ color: FAILED_COLOR, display: "block" }}>
-                {errors[selectedBucket]}
+            {error && (
+              <Typography variant="caption" role="alert" style={{ color: FAILED_COLOR, display: "block" }}>
+                {error.message}
               </Typography>
-            ) : !selectedDetails ? (
+            )}
+            {isPending ? (
               <Typography variant="caption" style={{ display: "block" }}>
                 Loading analysis breakdown…
               </Typography>
-            ) : selectedDetails.perAnalysisType.length === 0 ? (
+            ) : !selectedDetails ? null : selectedDetails.perAnalysisType.length === 0 ? (
               <Typography variant="caption" style={{ display: "block" }}>
                 No completed analyses in this bucket.
               </Typography>

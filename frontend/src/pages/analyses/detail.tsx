@@ -1,12 +1,11 @@
-import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { Button, Icon, Table, Typography } from "@equinor/eds-core-react";
 import { arrow_back } from "@equinor/eds-icons";
 import {
   getAnalysis,
   rerunAnalysis,
-  type Analysis,
 } from "../../api/client";
+import { useResourceDetail, useResourceMutation } from "../../api/queries";
 import StatusChip from "../../components/StatusChip";
 
 Icon.add({ arrow_back });
@@ -14,39 +13,25 @@ Icon.add({ arrow_back });
 export default function AnalysisDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [analysis, setAnalysis] = useState<Analysis | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  const load = () => {
-    if (!id) return;
-    getAnalysis(id).then(setAnalysis).catch((e) =>
-      setError(e instanceof Error ? e.message : "Failed to load")
-    );
-  };
-
-  useEffect(load, [id]);
+  const { data: analysis, error, isPending } = useResourceDetail("analyses", id, getAnalysis);
+  const rerunMutation = useResourceMutation(rerunAnalysis);
 
   const handleRerun = async () => {
-    if (!id) return;
-    setBusy(true);
+    if (!id || rerunMutation.isPending) return;
     try {
-      await rerunAnalysis(id);
-      load();
+      await rerunMutation.mutateAsync(id);
     } catch (e) {
       alert(e instanceof Error ? e.message : "Rerun failed");
-    } finally {
-      setBusy(false);
     }
   };
 
-  if (error)
+  if (!id || (error && !analysis))
     return (
       <Typography variant="body_short" style={{ color: "#eb0000" }}>
-        {error}
+        {!id ? "Missing analysis ID" : error?.message ?? "Failed to load"}
       </Typography>
     );
-  if (!analysis) return <Typography variant="body_short">Loading…</Typography>;
+  if (isPending || !analysis) return <Typography variant="body_short">Loading…</Typography>;
 
   const runs = (analysis.runs ?? []).slice().sort(
     (a, b) => (b.runNumber ?? 0) - (a.runNumber ?? 0)
@@ -54,6 +39,11 @@ export default function AnalysisDetailPage() {
 
   return (
     <div style={{ paddingTop: "1rem" }}>
+      {error && (
+        <Typography variant="body_short" role="alert" style={{ color: "#eb0000" }}>
+          {error.message}
+        </Typography>
+      )}
       <Button variant="ghost" onClick={() => navigate(-1)}>
         <Icon name="arrow_back" /> Back
       </Button>
@@ -61,8 +51,8 @@ export default function AnalysisDetailPage() {
         <Typography variant="h3" style={{ margin: "0.5rem 0" }}>
           Analysis: {analysis.analysisType}
         </Typography>
-        <Button onClick={handleRerun} disabled={busy}>
-          {busy ? "Triggering…" : "Rerun"}
+        <Button onClick={handleRerun} disabled={rerunMutation.isPending}>
+          {rerunMutation.isPending ? "Triggering…" : "Rerun"}
         </Button>
       </div>
 

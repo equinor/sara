@@ -7,6 +7,7 @@ import {
   type Analysis,
   type AnalysisParams,
 } from "../../api/client";
+import { useResourceMutation } from "../../api/queries";
 import IdCell from "../../components/IdCell";
 import PageHeader from "../../components/PageHeader";
 import PaginationFooter from "../../components/PaginationFooter";
@@ -22,9 +23,13 @@ const FILTER_KEYS: (keyof AnalysisParams & string)[] = [
 
 export default function AnalysesPage() {
   const navigate = useNavigate();
+  const rerunMutation = useResourceMutation(rerunAnalysis);
+  const deleteMutation = useResourceMutation(deleteAnalysis, "delete");
+  const busy = rerunMutation.isPending || deleteMutation.isPending;
   const {
     response,
     loading,
+    initialLoading,
     error,
     pageNumber,
     pageSize,
@@ -34,29 +39,29 @@ export default function AnalysesPage() {
     setFilters,
     refetch,
   } = usePagedList<Analysis, AnalysisParams>(
+    "analyses",
     "analyses.pageSize",
     FILTER_KEYS,
     getAnalyses
   );
 
   const items = response?.items ?? [];
-  const showSkeleton = loading || (response === null && error === null);
 
   const handleRerun = async (id: string) => {
+    if (busy) return;
     if (!window.confirm("Trigger a new run of this analysis?")) return;
     try {
-      await rerunAnalysis(id);
-      await refetch();
+      await rerunMutation.mutateAsync(id);
     } catch (e) {
       alert(e instanceof Error ? e.message : "Rerun failed");
     }
   };
 
   const handleDelete = async (id: string) => {
+    if (busy) return;
     if (!window.confirm("Delete this analysis and its runs?")) return;
     try {
-      await deleteAnalysis(id);
-      await refetch();
+      await deleteMutation.mutateAsync(id);
     } catch (e) {
       alert(e instanceof Error ? e.message : "Delete failed");
     }
@@ -106,7 +111,7 @@ export default function AnalysesPage() {
           </Table.Row>
         </Table.Head>
         <Table.Body>
-          {showSkeleton ? (
+          {initialLoading ? (
             <TableSkeleton columns={8} rows={pageSize} />
           ) : items.length === 0 ? (
             <Table.Row>
@@ -148,6 +153,7 @@ export default function AnalysesPage() {
                   <Table.Cell>
                     <Button
                       variant="ghost"
+                      disabled={busy}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleRerun(a.id);
@@ -158,6 +164,7 @@ export default function AnalysesPage() {
                     <Button
                       variant="ghost"
                       color="danger"
+                      disabled={busy}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDelete(a.id);

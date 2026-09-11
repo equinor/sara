@@ -3,12 +3,11 @@ import {
   UnauthenticatedTemplate,
   useMsal,
 } from "@azure/msal-react";
-import { useEffect } from "react";
 import { Routes, Route, useNavigate, useLocation } from "react-router";
 import { Tabs, Typography, Button, TopBar, Icon } from "@equinor/eds-core-react";
 import { code } from "@equinor/eds-icons";
 import { getAppConfig, createLoginRequest } from "./authConfig";
-import { setMsalInstance } from "./api/client";
+import AuthenticatedQueryProvider from "./components/AuthenticatedQueryProvider";
 import { apiUrl } from "./utils/routing";
 import OverviewPage from "./pages/overview";
 import InspectionRecordsPage from "./pages/inspection-records";
@@ -52,10 +51,6 @@ function App() {
   const { instance } = useMsal();
   const navigate = useNavigate();
   const location = useLocation();
-
-  useEffect(() => {
-    setMsalInstance(instance);
-  }, [instance]);
 
   const activeTab = TABS.findIndex((t) => location.pathname.startsWith(t.path));
   const tabIndex = activeTab >= 0 ? activeTab : 0;
@@ -116,44 +111,46 @@ function App() {
       </UnauthenticatedTemplate>
 
       <AuthenticatedTemplate>
-        <div style={{ padding: "1rem" }}>
-          <Routes>
-            <Route index element={tabbed(<OverviewPage />)} />
+        <AuthenticatedQueryProvider>
+          <div style={{ padding: "1rem" }}>
+            <Routes>
+              <Route index element={tabbed(<OverviewPage />)} />
 
-            <Route path="/overview" element={tabbed(<OverviewPage />)} />
+              <Route path="/overview" element={tabbed(<OverviewPage />)} />
 
-            <Route path="/inspection-records" element={tabbed(<InspectionRecordsPage />)} />
-            <Route path="/inspection-records/new" element={<CreateInspectionRecordPage />} />
-            <Route path="/inspection-records/:id" element={<InspectionRecordDetailPage />} />
+              <Route path="/inspection-records" element={tabbed(<InspectionRecordsPage />)} />
+              <Route path="/inspection-records/new" element={<CreateInspectionRecordPage />} />
+              <Route path="/inspection-records/:id" element={<InspectionRecordDetailPage />} />
 
-            <Route path="/analyses" element={tabbed(<AnalysesPage />)} />
-            <Route path="/analyses/:id" element={<AnalysisDetailPage />} />
+              <Route path="/analyses" element={tabbed(<AnalysesPage />)} />
+              <Route path="/analyses/:id" element={<AnalysisDetailPage />} />
 
-            <Route path="/analysis-groups" element={tabbed(<AnalysisGroupsPage />)} />
-            <Route path="/analysis-groups/:id" element={<AnalysisGroupDetailPage />} />
+              <Route path="/analysis-groups" element={tabbed(<AnalysisGroupsPage />)} />
+              <Route path="/analysis-groups/:id" element={<AnalysisGroupDetailPage />} />
 
-            <Route path="/analysis-runs" element={tabbed(<AnalysisRunsPage />)} />
-            <Route path="/analysis-runs/:id" element={<AnalysisRunDetailPage />} />
+              <Route path="/analysis-runs" element={tabbed(<AnalysisRunsPage />)} />
+              <Route path="/analysis-runs/:id" element={<AnalysisRunDetailPage />} />
 
-            <Route path="/workflows" element={tabbed(<WorkflowsPage />)} />
-            <Route path="/workflows/:id" element={<WorkflowDetailPage />} />
+              <Route path="/workflows" element={tabbed(<WorkflowsPage />)} />
+              <Route path="/workflows/:id" element={<WorkflowDetailPage />} />
 
-            <Route path="/feedback" element={tabbed(<FeedbackPage />)} />
+              <Route path="/feedback" element={tabbed(<FeedbackPage />)} />
 
-            <Route
-              path="/reference-images"
-              element={tabbed(<ReferencePolygonImagesPage />)}
-            />
-            <Route
-              path="/reference-images/new"
-              element={<CreateReferencePolygonMetadataPage />}
-            />
-            <Route
-              path="/reference-images/:id"
-              element={<ReferencePolygonMetadataDetailPage />}
-            />
-          </Routes>
-        </div>
+              <Route
+                path="/reference-images"
+                element={tabbed(<ReferencePolygonImagesPage />)}
+              />
+              <Route
+                path="/reference-images/new"
+                element={<CreateReferencePolygonMetadataPage />}
+              />
+              <Route
+                path="/reference-images/:id"
+                element={<ReferencePolygonMetadataDetailPage />}
+              />
+            </Routes>
+          </div>
+        </AuthenticatedQueryProvider>
       </AuthenticatedTemplate>
     </>
   );
