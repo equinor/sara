@@ -80,6 +80,13 @@ builder
     )
     .Validate(
         options =>
+            options.Workflows.Values.All(workflow =>
+                !string.IsNullOrWhiteSpace(workflow.OutputStorageAccount)
+            ),
+        "Invalid Analysis.Workflows configuration: OutputStorageAccount is required and must be set per environment."
+    )
+    .Validate(
+        options =>
             options
                 .Analyses.Values.SelectMany(analysis => analysis.Workflows)
                 .All(options.Workflows.ContainsKey),

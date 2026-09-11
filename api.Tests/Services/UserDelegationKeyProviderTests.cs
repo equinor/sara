@@ -345,4 +345,122 @@ public class UserDelegationKeyProviderTests
         Assert.Equal(2, logger.Messages.Count);
         Assert.Contains("min ago", logger.Messages[1]);
     }
+
+    private static Mock<BlobServiceClient> MockFailingClient()
+    {
+        var mock = new Mock<BlobServiceClient>();
+        mock.Setup(c =>
+                c.GetUserDelegationKeyAsync(
+                    It.IsAny<DateTimeOffset?>(),
+                    It.IsAny<DateTimeOffset>(),
+                    It.IsAny<CancellationToken>()
+                )
+            )
+            .ThrowsAsync(new RequestFailedException(403, "AuthorizationPermissionMismatch"));
+        return mock;
+    }
+
+    private static UserDelegationKeyProvider CreateProvider(TimeProvider clock) =>
+        new(NullLogger<UserDelegationKeyProvider>.Instance, clock);
+
+    [Fact]
+    public async Task AFailingAccountIsNotRetriedUntilTheCooldownHasPassed()
+    {
+        var client = MockFailingClient();
+        var provider = CreateProvider(new FakeTimeProvider(DateTimeOffset.UtcNow));
+
+        await Assert.ThrowsAsync<RequestFailedException>(() =>
+            provider.GetAsync(
+                client.Object,
+                "acct",
+                SasLifetime,
+                TestContext.Current.CancellationToken
+            )
+        );
+
+        // Without the cooldown a page of records makes one call per blob.
+        for (var i = 0; i < 5; i++)
+            await Assert.ThrowsAsync<UserDelegationKeyUnavailableException>(() =>
+                provider.GetAsync(
+                    client.Object,
+                    "acct",
+                    SasLifetime,
+                    TestContext.Current.CancellationToken
+                )
+            );
+
+        client.Verify(
+            c =>
+                c.GetUserDelegationKeyAsync(
+                    It.IsAny<DateTimeOffset?>(),
+                    It.IsAny<DateTimeOffset>(),
+                    It.IsAny<CancellationToken>()
+                ),
+            Times.Once
+        );
+    }
+
+    [Fact]
+    public async Task AFailingAccountIsRetriedOnceTheCooldownHasPassed()
+    {
+        var client = MockFailingClient();
+        var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+        var provider = CreateProvider(clock);
+
+        await Assert.ThrowsAsync<RequestFailedException>(() =>
+            provider.GetAsync(
+                client.Object,
+                "acct",
+                SasLifetime,
+                TestContext.Current.CancellationToken
+            )
+        );
+
+        clock.Advance(TimeSpan.FromSeconds(31));
+
+        await Assert.ThrowsAsync<RequestFailedException>(() =>
+            provider.GetAsync(
+                client.Object,
+                "acct",
+                SasLifetime,
+                TestContext.Current.CancellationToken
+            )
+        );
+
+        client.Verify(
+            c =>
+                c.GetUserDelegationKeyAsync(
+                    It.IsAny<DateTimeOffset?>(),
+                    It.IsAny<DateTimeOffset>(),
+                    It.IsAny<CancellationToken>()
+                ),
+            Times.Exactly(2)
+        );
+    }
+
+    [Fact]
+    public async Task OneFailingAccountDoesNotAffectAHealthyOne()
+    {
+        var failing = MockFailingClient();
+        var healthy = MockClient();
+        var provider = CreateProvider(new FakeTimeProvider(DateTimeOffset.UtcNow));
+
+        await Assert.ThrowsAsync<RequestFailedException>(() =>
+            provider.GetAsync(
+                failing.Object,
+                "bad-acct",
+                SasLifetime,
+                TestContext.Current.CancellationToken
+            )
+        );
+
+        var key = await provider.GetAsync(
+            healthy.Object,
+            "good-acct",
+            SasLifetime,
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.NotNull(key);
+    }
 }

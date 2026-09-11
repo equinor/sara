@@ -1,8 +1,15 @@
 using System.Collections.Concurrent;
+using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 
 namespace api.Services;
+
+public class UserDelegationKeyUnavailableException(string storageAccount)
+    : Exception(
+        $"Skipped fetching a user delegation key for storage account '{storageAccount}': "
+            + "a recent attempt failed."
+    ) { }
 
 public interface IUserDelegationKeyProvider
 {
@@ -33,7 +40,11 @@ public class UserDelegationKeyProvider : IUserDelegationKeyProvider
     /// backdating the key start and when deciding a cached key is still usable.
     private static readonly TimeSpan ClockSkewBuffer = TimeSpan.FromMinutes(5);
 
+    /// Stops one unreachable account costing a doomed call per blob.
+    private static readonly TimeSpan FailureCooldown = TimeSpan.FromSeconds(30);
+
     private readonly ConcurrentDictionary<string, CacheEntry> _cache = new();
+    private readonly ConcurrentDictionary<string, DateTimeOffset> _failedUntil = new();
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _locks = new();
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<UserDelegationKeyProvider> _logger;
@@ -59,6 +70,9 @@ public class UserDelegationKeyProvider : IUserDelegationKeyProvider
         if (_cache.TryGetValue(storageAccount, out var cached) && cached.IsUsableAt(now))
             return cached.Key;
 
+        if (_failedUntil.TryGetValue(storageAccount, out var until) && now < until)
+            throw new UserDelegationKeyUnavailableException(storageAccount);
+
         // Serialise refreshes per account so an expiry does not send every
         // in-flight request to Azure Storage at once.
         var gate = _locks.GetOrAdd(storageAccount, _ => new SemaphoreSlim(1, 1));
@@ -69,14 +83,28 @@ public class UserDelegationKeyProvider : IUserDelegationKeyProvider
             if (_cache.TryGetValue(storageAccount, out cached) && cached.IsUsableAt(now))
                 return cached.Key;
 
+            if (_failedUntil.TryGetValue(storageAccount, out until) && now < until)
+                throw new UserDelegationKeyUnavailableException(storageAccount);
+
             var startsOn = now - ClockSkewBuffer;
             var expiresOn = now + KeyLifetime;
 
-            var key = await serviceClient.GetUserDelegationKeyAsync(
-                startsOn,
-                expiresOn,
-                cancellationToken
-            );
+            Response<UserDelegationKey> key;
+            try
+            {
+                key = await serviceClient.GetUserDelegationKeyAsync(
+                    startsOn,
+                    expiresOn,
+                    cancellationToken
+                );
+            }
+            catch (Exception e) when (e is RequestFailedException or HttpRequestException)
+            {
+                _failedUntil[storageAccount] = now + FailureCooldown;
+                throw;
+            }
+
+            _failedUntil.TryRemove(storageAccount, out _);
 
             // A SAS signed at time t expires at t + sasLifetime, which must stay
             // inside the key's window. Stop reusing the key early enough that
