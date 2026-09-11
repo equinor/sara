@@ -1,10 +1,5 @@
 import { useNavigate } from "react-router";
-import {
-  Button,
-  Table,
-  Typography,
-} from "@equinor/eds-core-react";
-import { ErrorText, FilterBar, FilterSearch, TableScroller } from "../../components/Styles";
+import { ErrorText } from "../../components/Styles";
 import {
   deleteInspectionRecord,
   getInspectionRecords,
@@ -12,28 +7,17 @@ import {
   type InspectionRecordParams,
 } from "../../api/client";
 import { useResourceMutation } from "../../api/queries";
-import IdCell from "../../components/IdCell";
 import PageHeader from "../../components/PageHeader";
 import PaginationFooter from "../../components/PaginationFooter";
-import StatusChip from "../../components/StatusChip";
-import TableSkeleton from "../../components/TableSkeleton";
 import { PAGE_SIZE_OPTIONS, usePagedList } from "../../utils/usePagedList";
+import InspectionRecordFilters from "./inspection-records-components/InspectionRecordFilters";
+import InspectionRecordsTable from "./inspection-records-components/InspectionRecordsTable";
 
 const FILTER_KEYS: (keyof InspectionRecordParams & string)[] = [
   "inspectionId",
   "tag",
   "installationCode",
 ];
-
-function latestRunStatus(record: InspectionRecord): string | null {
-  const runs = (record.analyses ?? []).flatMap((a) => a.runs ?? []);
-  if (runs.length === 0) return null;
-  runs.sort(
-    (a, b) =>
-      new Date(b.startedAt ?? 0).getTime() - new Date(a.startedAt ?? 0).getTime()
-  );
-  return runs[0].status;
-}
 
 export default function InspectionRecordsPage() {
   const navigate = useNavigate();
@@ -79,33 +63,7 @@ export default function InspectionRecordsPage() {
         onClick: () => navigate("/inspection-records/new"),
       }}
     >
-      <FilterBar>
-        <FilterSearch
-          id="inspection-records-inspection-id"
-          label="Inspection ID"
-          placeholder="Inspection ID"
-          value={filters.inspectionId ?? ""}
-          onChange={(e) =>
-            setFilters({ inspectionId: (e.target as HTMLInputElement).value })
-          }
-        />
-        <FilterSearch
-          id="inspection-records-tag"
-          label="Tag"
-          placeholder="Tag"
-          value={filters.tag ?? ""}
-          onChange={(e) => setFilters({ tag: (e.target as HTMLInputElement).value })}
-        />
-        <FilterSearch
-          id="inspection-records-installation"
-          label="Installation"
-          placeholder="Installation"
-          value={filters.installationCode ?? ""}
-          onChange={(e) =>
-            setFilters({ installationCode: (e.target as HTMLInputElement).value })
-          }
-        />
-      </FilterBar>
+      <InspectionRecordFilters filters={filters} setFilters={setFilters} />
 
       {error && (
         <ErrorText variant="body_short" style={{ marginBottom: "1rem" }}>
@@ -113,85 +71,14 @@ export default function InspectionRecordsPage() {
         </ErrorText>
       )}
 
-      <TableScroller>
-        <Table style={{ width: "100%" }}>
-          <Table.Head>
-            <Table.Row>
-              <Table.Cell>ID</Table.Cell>
-              <Table.Cell>Inspection ID</Table.Cell>
-              <Table.Cell>Installation</Table.Cell>
-              <Table.Cell>Tag</Table.Cell>
-              <Table.Cell>Type</Table.Cell>
-              <Table.Cell>Created</Table.Cell>
-              <Table.Cell>Group</Table.Cell>
-              <Table.Cell>Analyses</Table.Cell>
-              <Table.Cell>Latest Run</Table.Cell>
-              <Table.Cell>Actions</Table.Cell>
-            </Table.Row>
-          </Table.Head>
-          <Table.Body>
-            {initialLoading ? (
-              <TableSkeleton columns={10} rows={pageSize} />
-            ) : items.length === 0 ? (
-              <Table.Row>
-                <Table.Cell colSpan={10}>
-                  <Typography variant="body_short">No inspection records.</Typography>
-                </Table.Cell>
-              </Table.Row>
-            ) : (
-              items.map((rec) => {
-                const status = latestRunStatus(rec);
-                return (
-                  <Table.Row
-                    key={rec.id}
-                    onClick={() => navigate(`/inspection-records/${rec.id}`)}
-                    style={{ cursor: "pointer" }}
-                  >
-                    <Table.Cell>
-                      <IdCell id={rec.id} />
-                    </Table.Cell>
-                    <Table.Cell>{rec.inspectionId}</Table.Cell>
-                    <Table.Cell>{rec.installationCode}</Table.Cell>
-                    <Table.Cell>{rec.tag ?? "–"}</Table.Cell>
-                    <Table.Cell>{rec.inspectionType ?? "–"}</Table.Cell>
-                    <Table.Cell>{new Date(rec.createdAt).toLocaleString()}</Table.Cell>
-                    <Table.Cell>
-                      {rec.analysisGroupId ? (
-                        <Button
-                          variant="ghost"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/analysis-groups/${rec.analysisGroupId}`);
-                          }}
-                        >
-                          View
-                        </Button>
-                      ) : (
-                        "–"
-                      )}
-                    </Table.Cell>
-                    <Table.Cell>{(rec.analyses ?? []).length}</Table.Cell>
-                    <Table.Cell>{status ? <StatusChip status={status} /> : "–"}</Table.Cell>
-                    <Table.Cell>
-                      <Button
-                        variant="ghost"
-                        color="danger"
-                        disabled={deleteMutation.isPending}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(rec.id);
-                        }}
-                      >
-                        Delete
-                      </Button>
-                    </Table.Cell>
-                  </Table.Row>
-                );
-              })
-            )}
-          </Table.Body>
-        </Table>
-      </TableScroller>
+      <InspectionRecordsTable
+        items={items}
+        initialLoading={initialLoading}
+        pageSize={pageSize}
+        deleting={deleteMutation.isPending}
+        navigate={navigate}
+        onDelete={handleDelete}
+      />
 
       <PaginationFooter
         hasResponse={response !== null}

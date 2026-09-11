@@ -1,34 +1,25 @@
-import { useNavigate } from "react-router";
-import type { MouseEvent } from "react";
-import { Button, Table, Typography } from "@equinor/eds-core-react";
-import { ErrorText, FilterBar, FilterSearch, FilterSelect, TableScroller } from "../../components/Styles";
+import { ErrorText } from "../../components/Styles";
 import {
   deleteWorkflow,
   getWorkflows,
   retryWorkflow,
   type Workflow,
   type WorkflowParams,
-  type WorkflowStatus,
 } from "../../api/client";
 import { useResourceMutation } from "../../api/queries";
-import IdCell from "../../components/IdCell";
 import PageHeader from "../../components/PageHeader";
 import PaginationFooter from "../../components/PaginationFooter";
-import StatusChip from "../../components/StatusChip";
-import TableSkeleton from "../../components/TableSkeleton";
 import { PAGE_SIZE_OPTIONS, usePagedList } from "../../utils/usePagedList";
-import { argoWorkflowStepUrl } from "../../utils/argo";
-import { formatElapsedDuration } from "../../utils/duration";
+import WorkflowsFilters from "./workflows-components/WorkflowsFilters";
+import WorkflowsTable from "./workflows-components/WorkflowsTable";
 
 const FILTER_KEYS: (keyof WorkflowParams & string)[] = [
   "workflowType",
   "status",
   "analysisRunId",
 ];
-const STATUSES: WorkflowStatus[] = ["Pending", "InProgress", "Succeeded", "Failed"];
 
 export default function WorkflowsPage() {
-  const navigate = useNavigate();
   const retryMutation = useResourceMutation(retryWorkflow);
   const deleteMutation = useResourceMutation(deleteWorkflow, "delete");
   const busy = retryMutation.isPending || deleteMutation.isPending;
@@ -75,37 +66,7 @@ export default function WorkflowsPage() {
 
   return (
     <PageHeader title="Workflows" loading={loading} onRefresh={refetch}>
-      <FilterBar>
-        <FilterSearch
-          id="workflows-type"
-          label="Workflow Type"
-          placeholder="Workflow Type"
-          value={filters.workflowType ?? ""}
-          onChange={(e) => setFilters({ workflowType: (e.target as HTMLInputElement).value })}
-        />
-        <FilterSearch
-          id="workflows-analysis-run-id"
-          label="Analysis Run ID"
-          placeholder="Analysis Run ID (uuid)"
-          value={filters.analysisRunId ?? ""}
-          onChange={(e) => setFilters({ analysisRunId: (e.target as HTMLInputElement).value })}
-        />
-        <FilterSelect
-          id="workflows-status"
-          label="Status"
-          value={filters.status ?? ""}
-          onChange={(e) =>
-            setFilters({ status: (e.target.value || undefined) as WorkflowStatus | undefined })
-          }
-        >
-          <option value="">All statuses</option>
-          {STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </FilterSelect>
-      </FilterBar>
+      <WorkflowsFilters filters={filters} setFilters={setFilters} />
 
       {error && (
         <ErrorText variant="body_short" style={{ marginBottom: "1rem" }}>
@@ -113,110 +74,14 @@ export default function WorkflowsPage() {
         </ErrorText>
       )}
 
-      <TableScroller>
-        <Table style={{ width: "100%" }}>
-          <Table.Head>
-            <Table.Row>
-              <Table.Cell>ID</Table.Cell>
-              <Table.Cell>Type</Table.Cell>
-              <Table.Cell>Step</Table.Cell>
-              <Table.Cell>Status</Table.Cell>
-              <Table.Cell>Started</Table.Cell>
-              <Table.Cell>Completed</Table.Cell>
-              <Table.Cell>Duration</Table.Cell>
-              <Table.Cell>Run</Table.Cell>
-              <Table.Cell>Actions</Table.Cell>
-            </Table.Row>
-          </Table.Head>
-          <Table.Body>
-            {initialLoading ? (
-              <TableSkeleton columns={9} rows={pageSize} />
-            ) : items.length === 0 ? (
-              <Table.Row>
-                <Table.Cell colSpan={9}>No workflows.</Table.Cell>
-              </Table.Row>
-            ) : (
-              items.map((w) => (
-                <Table.Row
-                  key={w.id}
-                  onClick={() => navigate(`/workflows/${w.id}`)}
-                  style={{ cursor: "pointer" }}
-                >
-                  <Table.Cell>
-                    <IdCell id={w.id} />
-                  </Table.Cell>
-                  <Table.Cell>{w.workflowType}</Table.Cell>
-                  <Table.Cell>{w.stepNumber}</Table.Cell>
-                  <Table.Cell>
-                    <StatusChip status={w.status} />
-                  </Table.Cell>
-                  <Table.Cell>
-                    {w.startedAt ? new Date(w.startedAt).toLocaleString() : "–"}
-                  </Table.Cell>
-                  <Table.Cell>
-                    {w.completedAt ? new Date(w.completedAt).toLocaleString() : "–"}
-                  </Table.Cell>
-                  <Table.Cell>{formatElapsedDuration(w.startedAt, w.completedAt)}</Table.Cell>
-                  <Table.Cell>
-                    {w.analysisRunId && (
-                      <Button
-                        variant="ghost"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/analysis-runs/${w.analysisRunId}`);
-                        }}
-                      >
-                        View
-                      </Button>
-                    )}
-                  </Table.Cell>
-                  <Table.Cell>
-                    {w.status === "Failed" && (
-                      <Button
-                        variant="ghost"
-                        disabled={busy}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRetry(w.id);
-                        }}
-                      >
-                        Retry
-                      </Button>
-                    )}
-                    {argoWorkflowStepUrl(w.argoWorkflowName, w.argoNodeId, w.argoWorkflowUid) && (
-                      <Typography
-                        link
-                        href={argoWorkflowStepUrl(
-                          w.argoWorkflowName,
-                          w.argoNodeId,
-                          w.argoWorkflowUid
-                        )!}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e: MouseEvent) => e.stopPropagation()}
-                        style={{ marginRight: "0.75rem" }}
-                      >
-                        Argo
-                      </Typography>
-                    )}
-                    <Button
-                      variant="ghost"
-                      color="danger"
-                      disabled={busy}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(w.id);
-                      }}
-                    >
-                      Delete
-                    </Button>
-                  </Table.Cell>
-                </Table.Row>
-              ))
-            )}
-          </Table.Body>
-        </Table>
-      </TableScroller>
+      <WorkflowsTable
+        items={items}
+        initialLoading={initialLoading}
+        pageSize={pageSize}
+        busy={busy}
+        onRetry={handleRetry}
+        onDelete={handleDelete}
+      />
 
       <PaginationFooter
         hasResponse={response !== null}

@@ -1,6 +1,4 @@
-import { useNavigate } from "react-router";
-import { Button, Table } from "@equinor/eds-core-react";
-import { ErrorText, FilterBar, FilterSearch, TableScroller } from "../../components/Styles";
+import { ErrorText } from "../../components/Styles";
 import {
   deleteAnalysis,
   getAnalyses,
@@ -9,12 +7,11 @@ import {
   type AnalysisParams,
 } from "../../api/client";
 import { useResourceMutation } from "../../api/queries";
-import IdCell from "../../components/IdCell";
 import PageHeader from "../../components/PageHeader";
 import PaginationFooter from "../../components/PaginationFooter";
-import StatusChip from "../../components/StatusChip";
-import TableSkeleton from "../../components/TableSkeleton";
 import { PAGE_SIZE_OPTIONS, usePagedList } from "../../utils/usePagedList";
+import AnalysesFilters from "./analyses-components/AnalysesFilters";
+import AnalysesTable from "./analyses-components/AnalysesTable";
 
 const FILTER_KEYS: (keyof AnalysisParams & string)[] = [
   "name",
@@ -23,7 +20,6 @@ const FILTER_KEYS: (keyof AnalysisParams & string)[] = [
 ];
 
 export default function AnalysesPage() {
-  const navigate = useNavigate();
   const rerunMutation = useResourceMutation(rerunAnalysis);
   const deleteMutation = useResourceMutation(deleteAnalysis, "delete");
   const busy = rerunMutation.isPending || deleteMutation.isPending;
@@ -70,33 +66,7 @@ export default function AnalysesPage() {
 
   return (
     <PageHeader title="Analyses" loading={loading} onRefresh={refetch}>
-      <FilterBar>
-        <FilterSearch
-          id="analyses-name"
-          label="Name"
-          placeholder="Name"
-          value={filters.name ?? ""}
-          onChange={(e) => setFilters({ name: (e.target as HTMLInputElement).value })}
-        />
-        <FilterSearch
-          id="analyses-group-id"
-          label="Group ID"
-          placeholder="Group ID (uuid)"
-          value={filters.analysisGroupId ?? ""}
-          onChange={(e) =>
-            setFilters({ analysisGroupId: (e.target as HTMLInputElement).value })
-          }
-        />
-        <FilterSearch
-          id="analyses-inspection-record-id"
-          label="Inspection Record ID"
-          placeholder="Inspection Record ID (uuid)"
-          value={filters.inspectionRecordId ?? ""}
-          onChange={(e) =>
-            setFilters({ inspectionRecordId: (e.target as HTMLInputElement).value })
-          }
-        />
-      </FilterBar>
+      <AnalysesFilters filters={filters} setFilters={setFilters} />
 
       {error && (
         <ErrorText variant="body_short" style={{ marginBottom: "1rem" }}>
@@ -104,90 +74,14 @@ export default function AnalysesPage() {
         </ErrorText>
       )}
 
-      <TableScroller>
-        <Table style={{ width: "100%" }}>
-          <Table.Head>
-            <Table.Row>
-              <Table.Cell>ID</Table.Cell>
-              <Table.Cell>Name</Table.Cell>
-              <Table.Cell>Created</Table.Cell>
-              <Table.Cell>Group</Table.Cell>
-              <Table.Cell>#Records</Table.Cell>
-              <Table.Cell>#Runs</Table.Cell>
-              <Table.Cell>Latest Run</Table.Cell>
-              <Table.Cell>Actions</Table.Cell>
-            </Table.Row>
-          </Table.Head>
-          <Table.Body>
-            {initialLoading ? (
-              <TableSkeleton columns={8} rows={pageSize} />
-            ) : items.length === 0 ? (
-              <Table.Row>
-                <Table.Cell colSpan={8}>No analyses.</Table.Cell>
-              </Table.Row>
-            ) : (
-              items.map((a) => {
-                const runs = a.runs ?? [];
-                const latest = runs[runs.length - 1];
-                return (
-                  <Table.Row
-                    key={a.id}
-                    onClick={() => navigate(`/analyses/${a.id}`)}
-                    style={{ cursor: "pointer" }}
-                  >
-                    <Table.Cell>
-                      <IdCell id={a.id} />
-                    </Table.Cell>
-                    <Table.Cell>{a.analysisType}</Table.Cell>
-                    <Table.Cell>{new Date(a.createdAt).toLocaleString()}</Table.Cell>
-                    <Table.Cell>
-                      {a.analysisGroupId ? (
-                        <Button
-                          variant="ghost"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/analysis-groups/${a.analysisGroupId}`);
-                          }}
-                        >
-                          View
-                        </Button>
-                      ) : (
-                        "–"
-                      )}
-                    </Table.Cell>
-                    <Table.Cell>{(a.inspectionRecords ?? []).length}</Table.Cell>
-                    <Table.Cell>{runs.length}</Table.Cell>
-                    <Table.Cell>{latest ? <StatusChip status={latest.status} /> : "–"}</Table.Cell>
-                    <Table.Cell>
-                      <Button
-                        variant="ghost"
-                        disabled={busy}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRerun(a.id);
-                        }}
-                      >
-                        Rerun
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        color="danger"
-                        disabled={busy}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(a.id);
-                        }}
-                      >
-                        Delete
-                      </Button>
-                    </Table.Cell>
-                  </Table.Row>
-                );
-              })
-            )}
-          </Table.Body>
-        </Table>
-      </TableScroller>
+      <AnalysesTable
+        items={items}
+        initialLoading={initialLoading}
+        pageSize={pageSize}
+        busy={busy}
+        onRerun={handleRerun}
+        onDelete={handleDelete}
+      />
 
       <PaginationFooter
         hasResponse={response !== null}

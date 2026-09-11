@@ -2,9 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import {
   Button,
-  Checkbox,
   Icon,
-  TextField,
   Typography,
 } from "@equinor/eds-core-react";
 import { arrow_back } from "@equinor/eds-icons";
@@ -14,6 +12,11 @@ import {
 } from "../../api/client";
 import { useConfiguredAnalyses, useResourceMutation } from "../../api/queries";
 import { ErrorText } from "../../components/Styles";
+import InspectionRecordIdentificationFields from "./inspection-records-components/InspectionRecordIdentificationFields";
+import InspectionRecordBlobStorageFields from "./inspection-records-components/InspectionRecordBlobStorageFields";
+import InspectionRecordAnalysisSelection from "./inspection-records-components/InspectionRecordAnalysisSelection";
+import InspectionRecordAnalysisGroupFields from "./inspection-records-components/InspectionRecordAnalysisGroupFields";
+import type { InspectionRecordForm } from "./inspection-records-components/inspectionRecordForm";
 
 Icon.add({ arrow_back });
 
@@ -27,7 +30,7 @@ export default function CreateInspectionRecordPage() {
   const [error, setError] = useState<string | null>(null);
   const configured = configuredAnalyses.data ?? [];
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<InspectionRecordForm>({
     inspectionId: "",
     installationCode: "",
     tag: "",
@@ -92,13 +95,6 @@ export default function CreateInspectionRecordPage() {
     }
   };
 
-  const sectionStyle: React.CSSProperties = {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "0.75rem",
-    marginBottom: "1.5rem",
-  };
-
   return (
     <div style={{ paddingTop: "1rem", maxWidth: "900px" }}>
       <Button variant="ghost" onClick={() => navigate(-1)}>
@@ -108,139 +104,16 @@ export default function CreateInspectionRecordPage() {
         New Inspection Record
       </Typography>
 
-      <Typography variant="h5" style={{ marginBottom: "0.5rem" }}>
-        Identification
-      </Typography>
-      <div style={sectionStyle}>
-        <TextField
-          id="inspectionId"
-          label="Inspection ID *"
-          value={form.inspectionId}
-          onChange={(e: any) => set("inspectionId", e.target.value)}
-        />
-        <TextField
-          id="installationCode"
-          label="Installation Code *"
-          value={form.installationCode}
-          onChange={(e: any) => set("installationCode", e.target.value)}
-        />
-        <TextField
-          id="tag"
-          label="Tag"
-          value={form.tag}
-          onChange={(e: any) => set("tag", e.target.value)}
-        />
-        <TextField
-          id="inspectionType"
-          label="Inspection Type"
-          value={form.inspectionType}
-          onChange={(e: any) => set("inspectionType", e.target.value)}
-        />
-        <TextField
-          id="robotName"
-          label="Robot Name"
-          value={form.robotName}
-          onChange={(e: any) => set("robotName", e.target.value)}
-        />
-        <TextField
-          id="inspectionDescription"
-          label="Inspection Description"
-          value={form.inspectionDescription}
-          onChange={(e: any) => set("inspectionDescription", e.target.value)}
-        />
-      </div>
-
-      <Typography variant="h5" style={{ marginBottom: "0.5rem" }}>
-        Blob Storage Location *
-      </Typography>
-      <div style={sectionStyle}>
-        <TextField
-          id="storageAccount"
-          label="Storage Account"
-          value={form.storageAccount}
-          onChange={(e: any) => set("storageAccount", e.target.value)}
-        />
-        <TextField
-          id="blobContainer"
-          label="Container"
-          value={form.blobContainer}
-          onChange={(e: any) => set("blobContainer", e.target.value)}
-        />
-        <TextField
-          id="blobName"
-          label="Blob Name (e.g. path/to/file.png)"
-          value={form.blobName}
-          onChange={(e: any) => set("blobName", e.target.value)}
-          style={{ gridColumn: "1 / -1" }}
-        />
-      </div>
-
-      <Typography variant="h5" style={{ marginBottom: "0.5rem" }}>
-        Analyses to Run
-      </Typography>
-      <Typography variant="body_short" style={{ marginBottom: "0.5rem", color: "#666" }}>
-        Leave all unchecked to use file-extension defaults.
-      </Typography>
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: "0.5rem 1.25rem",
-          marginBottom: "1.5rem",
-        }}
-      >
-        {configuredAnalyses.isPending ? (
-          <Typography variant="body_short">Loading configured analyses...</Typography>
-        ) : configuredAnalyses.error ? (
-          <ErrorText variant="body_short" role="alert">
-            Failed to load configured analyses: {configuredAnalyses.error.message}
-          </ErrorText>
-        ) : configured.length === 0 ? (
-          <Typography variant="body_short">No configured analyses found.</Typography>
-        ) : (
-          configured.map((entry) => (
-            <Checkbox
-              key={entry.name}
-              label={`${entry.name} (${entry.workflows.join(" → ") || "no workflows"})`}
-              checked={selectedAnalyses.has(entry.name)}
-              onChange={() => toggleAnalysis(entry.name)}
-            />
-          ))
-        )}
-      </div>
-
-      <Typography variant="h5" style={{ marginBottom: "0.5rem" }}>
-        Analysis Group (optional)
-      </Typography>
-      <Checkbox
-        label="Attach to an analysis group"
-        checked={form.useGroup}
-        onChange={(e: any) => set("useGroup", e.target.checked)}
+      <InspectionRecordIdentificationFields form={form} set={set} />
+      <InspectionRecordBlobStorageFields form={form} set={set} />
+      <InspectionRecordAnalysisSelection
+        configured={configured}
+        isPending={configuredAnalyses.isPending}
+        error={configuredAnalyses.error}
+        selectedAnalyses={selectedAnalyses}
+        toggleAnalysis={toggleAnalysis}
       />
-      {form.useGroup && (
-        <div style={sectionStyle}>
-          <TextField
-            id="groupId"
-            label="Group ID"
-            value={form.groupId}
-            onChange={(e: any) => set("groupId", e.target.value)}
-          />
-          <TextField
-            id="groupSize"
-            label="Expected Size"
-            type="number"
-            value={String(form.groupSize)}
-            onChange={(e: any) => set("groupSize", Number(e.target.value))}
-          />
-          <TextField
-            id="groupAnalyses"
-            label="Grouped analyses (comma-separated)"
-            value={form.groupAnalyses}
-            onChange={(e: any) => set("groupAnalyses", e.target.value)}
-            style={{ gridColumn: "1 / -1" }}
-          />
-        </div>
-      )}
+      <InspectionRecordAnalysisGroupFields form={form} set={set} />
 
       {error && (
         <ErrorText variant="body_short" style={{ marginBottom: "1rem" }}>
