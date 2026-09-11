@@ -2,6 +2,7 @@ import { useState, useEffect } from "react"
 import { Stage, Layer, Image as KonvaImage } from "react-konva"
 import { Typography } from "@equinor/eds-core-react"
 import { usePolygonEditor, EditorContainer, PolygonEditorControls, createStageClickHandler, PolygonOverlay } from "./PolygonEditor"
+import { ErrorText } from "./Styles"
 
 function useHtmlImage(url: string) {
     const [image, setImage] = useState<HTMLImageElement | null>(null)
@@ -46,9 +47,9 @@ function FencillaImageStage({
 
     if (error) {
         return (
-            <Typography variant="body_short" style={{ color: "#eb0000" }}>
+            <ErrorText variant="body_short">
                 Failed to load image.
-            </Typography>
+            </ErrorText>
         )
     }
 

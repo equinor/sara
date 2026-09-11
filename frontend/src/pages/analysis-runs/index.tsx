@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router";
 import type { MouseEvent } from "react";
-import { Button, Search, Table, Typography } from "@equinor/eds-core-react";
+import { Button, Table, Typography } from "@equinor/eds-core-react";
+import { tokens } from "@equinor/eds-tokens";
 import {
   deleteAnalysisRun,
   getAnalysisRuns,
@@ -14,6 +15,7 @@ import PageHeader from "../../components/PageHeader";
 import PaginationFooter from "../../components/PaginationFooter";
 import StatusChip from "../../components/StatusChip";
 import TableSkeleton from "../../components/TableSkeleton";
+import { ClearFiltersButton, DateTimeInput, ErrorText, FilterSearch, FilterSelect, TableScroller } from "../../components/Styles";
 import { PAGE_SIZE_OPTIONS, usePagedList } from "../../utils/usePagedList";
 import { argoWorkflowUrl } from "../../utils/argo";
 import { formatElapsedDuration } from "../../utils/duration";
@@ -39,54 +41,10 @@ const FilterGrid = styled.div`
   }
 `;
 
-const FilterField = styled.label`
-  display: grid;
-  gap: 0.3rem;
-  min-width: 0;
-  color: #3d3d3d;
-  font-size: 0.75rem;
-  font-weight: 600;
-`;
-
-const FilterSelect = styled.select`
-  width: 100%;
-  min-height: 42px;
-  padding: 0.5rem 2rem 0.5rem 0.65rem;
-  border: 1px solid #6f6f6f;
-  border-radius: 2px;
-  background: #ffffff;
-  color: #3d3d3d;
-  font: inherit;
-  font-size: 0.875rem;
-
-  &:focus-visible {
-    outline: 2px solid #007079;
-    outline-offset: 1px;
-  }
-`;
-
-const DateTimeInput = styled.input<{ $invalid?: boolean }>`
-  width: 100%;
-  min-height: 42px;
-  box-sizing: border-box;
-  padding: 0.5rem 0.65rem;
-  border: 1px solid ${(p) => (p.$invalid ? "#eb0000" : "#6f6f6f")};
-  border-radius: 2px;
-  background: #ffffff;
-  color: #3d3d3d;
-  font: inherit;
-  font-size: 0.875rem;
-
-  &:focus-visible {
-    outline: 2px solid ${(p) => (p.$invalid ? "#eb0000" : "#007079")};
-    outline-offset: 1px;
-  }
-`;
-
 const RangeSeparator = styled.span`
   align-self: end;
   padding-bottom: 0.65rem;
-  color: #6f6f6f;
+  color: ${tokens.colors.text.static_icons__tertiary.hex};
   font-size: 0.8rem;
 
   @media (max-width: 1100px) {
@@ -96,17 +54,12 @@ const RangeSeparator = styled.span`
 
 const ValidationMessage = styled.span`
   grid-column: 4 / 7;
-  color: #eb0000;
+  color: ${tokens.colors.interactive.danger__text.hex};
   font-size: 0.75rem;
 
   @media (max-width: 1100px) {
     grid-column: 1 / -1;
   }
-`;
-
-const ClearButton = styled(Button)`
-  min-height: 42px;
-  white-space: nowrap;
 `;
 
 const FILTER_KEYS: (keyof AnalysisRunParams & string)[] = [
@@ -196,69 +149,63 @@ export default function AnalysisRunsPage() {
           Filters
         </Typography>
         <FilterGrid>
-          <FilterField>
-            Analysis ID
-            <Search
-              placeholder="UUID"
-              value={filters.analysisId ?? ""}
-              onChange={(e) => setFilters({ analysisId: (e.target as HTMLInputElement).value })}
-            />
-          </FilterField>
-          <FilterField>
-            Analysis name
-            <FilterSelect
-              value={filters.analysisType ?? ""}
-              onChange={(event) =>
-                setFilters({ analysisType: event.target.value || undefined })
-              }
-            >
-              <option value="">All analyses</option>
-              {analysisTypes.map((analysisType) => (
-                <option key={analysisType} value={analysisType}>
-                  {formatAnalysisType(analysisType)}
-                </option>
-              ))}
-            </FilterSelect>
-          </FilterField>
-          <FilterField>
-            Status
-            <FilterSelect
-              value={filters.status ?? ""}
-              onChange={(e) =>
-                setFilters({
-                  status: (e.target.value || undefined) as AnalysisRunStatus | undefined,
-                })
-              }
-            >
-              <option value="">All statuses</option>
-              {STATUSES.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </FilterSelect>
-          </FilterField>
-          <FilterField>
-            Started since
-            <DateTimeInput
-              type="datetime-local"
-              value={formatDateTimeLocal(startedSince)}
-              onChange={(event) => updateDateFilter("startedSince", event.target.value)}
-            />
-          </FilterField>
+          <FilterSearch
+            id="analysis-runs-analysis-id"
+            label="Analysis ID"
+            placeholder="UUID"
+            value={filters.analysisId ?? ""}
+            onChange={(e) => setFilters({ analysisId: (e.target as HTMLInputElement).value })}
+          />
+          <FilterSelect
+            id="analysis-runs-analysis-type"
+            label="Analysis name"
+            value={filters.analysisType ?? ""}
+            onChange={(event) =>
+              setFilters({ analysisType: event.target.value || undefined })
+            }
+          >
+            <option value="">All analyses</option>
+            {analysisTypes.map((analysisType) => (
+              <option key={analysisType} value={analysisType}>
+                {formatAnalysisType(analysisType)}
+              </option>
+            ))}
+          </FilterSelect>
+          <FilterSelect
+            id="analysis-runs-status"
+            label="Status"
+            value={filters.status ?? ""}
+            onChange={(e) =>
+              setFilters({
+                status: (e.target.value || undefined) as AnalysisRunStatus | undefined,
+              })
+            }
+          >
+            <option value="">All statuses</option>
+            {STATUSES.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </FilterSelect>
+          <DateTimeInput
+            id="analysis-runs-started-since"
+            label="Started since"
+            value={formatDateTimeLocal(startedSince)}
+            onChange={(event) => updateDateFilter("startedSince", event.target.value)}
+          />
           <RangeSeparator>to</RangeSeparator>
-          <FilterField>
-            Started until
-            <DateTimeInput
-              type="datetime-local"
-              value={formatDateTimeLocal(startedUntil)}
-              onChange={(event) => updateDateFilter("startedUntil", event.target.value)}
-              aria-invalid={invalidRange}
-              $invalid={invalidRange}
-            />
-          </FilterField>
+          <DateTimeInput
+            id="analysis-runs-started-until"
+            label="Started until"
+            value={formatDateTimeLocal(startedUntil)}
+            onChange={(event) => updateDateFilter("startedUntil", event.target.value)}
+            aria-invalid={invalidRange}
+            variant={invalidRange ? "error" : undefined}
+            aria-describedby={invalidRange ? "analysis-runs-date-error" : undefined}
+          />
           {hasFilters && (
-            <ClearButton
+            <ClearFiltersButton
               variant="ghost"
               onClick={() =>
                 setFilters({
@@ -271,115 +218,117 @@ export default function AnalysisRunsPage() {
               }
             >
               Clear filters
-            </ClearButton>
+            </ClearFiltersButton>
           )}
           {invalidRange && (
-            <ValidationMessage>Started until must not be earlier than started since.</ValidationMessage>
+            <ValidationMessage id="analysis-runs-date-error" role="alert">Started until must not be earlier than started since.</ValidationMessage>
           )}
         </FilterGrid>
         {configuredAnalyses.error && (
-          <Typography variant="body_short" role="alert" style={{ color: "#eb0000" }}>
+          <ErrorText variant="body_short" role="alert">
             Failed to load configured analyses: {configuredAnalyses.error.message}
-          </Typography>
+          </ErrorText>
         )}
       </FilterPanel>
 
       {error && (
-        <Typography variant="body_short" style={{ color: "#eb0000", marginBottom: "1rem" }}>
+        <ErrorText variant="body_short" style={{ marginBottom: "1rem" }}>
           {error}
-        </Typography>
+        </ErrorText>
       )}
 
-      <Table style={{ width: "100%" }}>
-        <Table.Head>
-          <Table.Row>
-            <Table.Cell>ID</Table.Cell>
-            <Table.Cell>Analysis</Table.Cell>
-            <Table.Cell>Run #</Table.Cell>
-            <Table.Cell>Status</Table.Cell>
-            <Table.Cell>Started</Table.Cell>
-            <Table.Cell>Completed</Table.Cell>
-            <Table.Cell>Duration</Table.Cell>
-            <Table.Cell>#Workflows</Table.Cell>
-            <Table.Cell>Argo</Table.Cell>
-            <Table.Cell>Actions</Table.Cell>
-          </Table.Row>
-        </Table.Head>
-        <Table.Body>
-          {initialLoading ? (
-            <TableSkeleton columns={10} rows={pageSize} />
-          ) : items.length === 0 ? (
+      <TableScroller>
+        <Table style={{ width: "100%" }}>
+          <Table.Head>
             <Table.Row>
-              <Table.Cell colSpan={10}>No runs.</Table.Cell>
+              <Table.Cell>ID</Table.Cell>
+              <Table.Cell>Analysis</Table.Cell>
+              <Table.Cell>Run #</Table.Cell>
+              <Table.Cell>Status</Table.Cell>
+              <Table.Cell>Started</Table.Cell>
+              <Table.Cell>Completed</Table.Cell>
+              <Table.Cell>Duration</Table.Cell>
+              <Table.Cell>#Workflows</Table.Cell>
+              <Table.Cell>Argo</Table.Cell>
+              <Table.Cell>Actions</Table.Cell>
             </Table.Row>
-          ) : (
-            items.map((r) => (
-              <Table.Row
-                key={r.id}
-                onClick={() => navigate(`/analysis-runs/${r.id}`)}
-                style={{ cursor: "pointer" }}
-              >
-                <Table.Cell>
-                  <IdCell id={r.id} />
-                </Table.Cell>
-                <Table.Cell>
-                  {r.analysis ? (
+          </Table.Head>
+          <Table.Body>
+            {initialLoading ? (
+              <TableSkeleton columns={10} rows={pageSize} />
+            ) : items.length === 0 ? (
+              <Table.Row>
+                <Table.Cell colSpan={10}>No runs.</Table.Cell>
+              </Table.Row>
+            ) : (
+              items.map((r) => (
+                <Table.Row
+                  key={r.id}
+                  onClick={() => navigate(`/analysis-runs/${r.id}`)}
+                  style={{ cursor: "pointer" }}
+                >
+                  <Table.Cell>
+                    <IdCell id={r.id} />
+                  </Table.Cell>
+                  <Table.Cell>
+                    {r.analysis ? (
+                      <Button
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/analyses/${r.analysisId}`);
+                        }}
+                      >
+                        {r.analysis.analysisType}
+                      </Button>
+                    ) : (
+                      r.analysisId
+                    )}
+                  </Table.Cell>
+                  <Table.Cell>{r.runNumber}</Table.Cell>
+                  <Table.Cell>
+                    <StatusChip status={r.status} />
+                  </Table.Cell>
+                  <Table.Cell>
+                    {r.startedAt ? new Date(r.startedAt).toLocaleString() : "–"}
+                  </Table.Cell>
+                  <Table.Cell>
+                    {r.completedAt ? new Date(r.completedAt).toLocaleString() : "–"}
+                  </Table.Cell>
+                  <Table.Cell>{formatElapsedDuration(r.startedAt, r.completedAt)}</Table.Cell>
+                  <Table.Cell>{(r.workflows ?? []).length}</Table.Cell>
+                  <Table.Cell>
+                    {argoWorkflowUrl(r.workflows?.[0]?.argoWorkflowName) && (
+                      <Typography
+                        link
+                        href={argoWorkflowUrl(r.workflows?.[0]?.argoWorkflowName)!}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e: MouseEvent) => e.stopPropagation()}
+                      >
+                        View
+                      </Typography>
+                    )}
+                  </Table.Cell>
+                  <Table.Cell>
                     <Button
                       variant="ghost"
+                      color="danger"
+                      disabled={deleteMutation.isPending}
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigate(`/analyses/${r.analysisId}`);
+                        handleDelete(r.id);
                       }}
                     >
-                      {r.analysis.analysisType}
+                      Delete
                     </Button>
-                  ) : (
-                    r.analysisId
-                  )}
-                </Table.Cell>
-                <Table.Cell>{r.runNumber}</Table.Cell>
-                <Table.Cell>
-                  <StatusChip status={r.status} />
-                </Table.Cell>
-                <Table.Cell>
-                  {r.startedAt ? new Date(r.startedAt).toLocaleString() : "–"}
-                </Table.Cell>
-                <Table.Cell>
-                  {r.completedAt ? new Date(r.completedAt).toLocaleString() : "–"}
-                </Table.Cell>
-                <Table.Cell>{formatElapsedDuration(r.startedAt, r.completedAt)}</Table.Cell>
-                <Table.Cell>{(r.workflows ?? []).length}</Table.Cell>
-                <Table.Cell>
-                  {argoWorkflowUrl(r.workflows?.[0]?.argoWorkflowName) && (
-                    <Typography
-                      link
-                      href={argoWorkflowUrl(r.workflows?.[0]?.argoWorkflowName)!}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e: MouseEvent) => e.stopPropagation()}
-                    >
-                      View
-                    </Typography>
-                  )}
-                </Table.Cell>
-                <Table.Cell>
-                  <Button
-                    variant="ghost"
-                    color="danger"
-                    disabled={deleteMutation.isPending}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(r.id);
-                    }}
-                  >
-                    Delete
-                  </Button>
-                </Table.Cell>
-              </Table.Row>
-            ))
-          )}
-        </Table.Body>
-      </Table>
+                  </Table.Cell>
+                </Table.Row>
+              ))
+            )}
+          </Table.Body>
+        </Table>
+      </TableScroller>
 
       <PaginationFooter
         hasResponse={response !== null}

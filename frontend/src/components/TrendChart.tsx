@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Popover, PopoverContent, Typography } from "@equinor/eds-core-react";
+import { tokens } from "@equinor/eds-tokens";
 import styled from "styled-components";
 import type { TrendBucket } from "../api/client";
 import { useTrendBucketDetails } from "../api/dashboardQueries";
+import { ErrorText, statusColors } from "./Styles";
 
-const SUCCEEDED_COLOR = "#4bb748";
-const FAILED_COLOR = "#eb0000";
+const SUCCEEDED_COLOR = statusColors.success.accent;
+const FAILED_COLOR = statusColors.error.accent;
 
 const Wrapper = styled.div`
   width: 100%;
@@ -28,14 +30,14 @@ const BucketButton = styled.button<{ $selected: boolean; $empty: boolean }>`
   padding: 0 2px;
   border: 0;
   border-radius: 2px;
-  background: ${(p) => (p.$selected ? "#e6f3f3" : "transparent")};
+  background: ${(p) => (p.$selected ? tokens.colors.interactive.primary__selected_highlight.hex : "transparent")};
   color: inherit;
   cursor: ${(p) => (p.$empty ? "default" : "pointer")};
 
   &:hover,
   &:focus-visible {
-    background: #e6f3f3;
-    outline: 2px solid #007079;
+    background: ${tokens.colors.interactive.primary__hover_alt.hex};
+    outline: 2px solid ${tokens.colors.interactive.focus.hex};
     outline-offset: -2px;
   }
 `;
@@ -45,7 +47,7 @@ const BarArea = styled.span<{ $height: number }>`
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  background: linear-gradient(to top, #e8e8e8 1px, transparent 1px);
+  background: linear-gradient(to top, ${tokens.colors.ui.background__medium.hex} 1px, transparent 1px);
 `;
 
 const Bar = styled.span<{ $height: number; $color: string }>`
@@ -60,7 +62,7 @@ const BucketLabel = styled.span`
   margin-top: 0.35rem;
   font-size: clamp(0.5rem, 0.7vw, 0.68rem);
   line-height: 1.1;
-  color: #565656;
+  color: ${tokens.colors.text.static_icons__secondary.hex};
   overflow: hidden;
   text-overflow: clip;
   white-space: nowrap;
@@ -118,7 +120,7 @@ const DetailTable = styled.table`
   th,
   td {
     padding: 0.4rem 0.5rem;
-    border-top: 1px solid #dcdcdc;
+    border-top: 1px solid ${tokens.colors.ui.background__medium.hex};
     text-align: right;
     white-space: nowrap;
   }
@@ -132,7 +134,7 @@ const DetailTable = styled.table`
   }
 
   th {
-    color: #565656;
+    color: ${tokens.colors.text.static_icons__secondary.hex};
     font-weight: 600;
   }
 
@@ -168,6 +170,7 @@ const MobileHeader = styled.span`
 
 const Legend = styled.div`
   display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
   margin-top: 0.5rem;
   align-items: center;
@@ -284,7 +287,7 @@ export default function TrendChart({
 
   if (data.length === 0) {
     return (
-      <Typography variant="body_short" style={{ color: "#6f6f6f" }}>
+      <Typography variant="body_short" style={{ color: tokens.colors.text.static_icons__tertiary.hex }}>
         No data in this window.
       </Typography>
     );
@@ -349,9 +352,9 @@ export default function TrendChart({
               </Typography>
             </PopoverHeading>
             {error && (
-              <Typography variant="caption" role="alert" style={{ color: FAILED_COLOR, display: "block" }}>
+              <ErrorText variant="caption" role="alert" style={{ display: "block" }}>
                 {error.message}
-              </Typography>
+              </ErrorText>
             )}
             {isPending ? (
               <Typography variant="caption" style={{ display: "block" }}>

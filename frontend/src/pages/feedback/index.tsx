@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { Button, Chip, Table, Typography } from "@equinor/eds-core-react";
+import { tokens } from "@equinor/eds-tokens";
 import styled from "styled-components";
 import {
   getFeedbackHistory,
@@ -16,6 +17,7 @@ import PageHeader from "../../components/PageHeader";
 import PaginationFooter from "../../components/PaginationFooter";
 import StatCard from "../../components/StatCard";
 import TableSkeleton from "../../components/TableSkeleton";
+import { ClearFiltersButton, DateTimeInput, ErrorText, FilterSelect, Surface, TableScroller } from "../../components/Styles";
 import { PAGE_SIZE_OPTIONS, usePagedList } from "../../utils/usePagedList";
 
 const FILTER_KEYS: (keyof FeedbackParams & string)[] = [
@@ -65,18 +67,15 @@ const DashboardGrid = styled.div`
   }
 `;
 
-const Panel = styled.section`
-  min-width: 0;
+const Panel = styled(Surface).attrs({ as: "section" })`
   padding: 0.75rem;
-  border: 1px solid #dcdcdc;
-  border-radius: 4px;
-  background: #ffffff;
+  overflow-x: auto;
 `;
 
 const SectionTitle = styled(Typography).attrs({ variant: "caption" })`
   display: block;
   margin-bottom: 0.5rem;
-  color: #565656;
+  color: ${tokens.colors.text.static_icons__secondary.hex};
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -96,42 +95,6 @@ const FilterGrid = styled.div`
   @media (max-width: 560px) {
     grid-template-columns: 1fr;
   }
-`;
-
-const FilterField = styled.label`
-  display: grid;
-  gap: 0.3rem;
-  min-width: 0;
-  color: #3d3d3d;
-  font-size: 0.75rem;
-  font-weight: 600;
-`;
-
-const Control = styled.select`
-  width: 100%;
-  min-height: 42px;
-  padding: 0.5rem 0.65rem;
-  border: 1px solid #6f6f6f;
-  border-radius: 2px;
-  background: #ffffff;
-  color: #3d3d3d;
-  font: inherit;
-`;
-
-const DateInput = styled.input<{ $invalid?: boolean }>`
-  width: 100%;
-  min-height: 42px;
-  box-sizing: border-box;
-  padding: 0.5rem 0.65rem;
-  border: 1px solid ${(p) => (p.$invalid ? "#eb0000" : "#6f6f6f")};
-  border-radius: 2px;
-  background: #ffffff;
-  color: #3d3d3d;
-  font: inherit;
-`;
-
-const TableScroller = styled.div`
-  overflow-x: auto;
 `;
 
 function formatAnalysisType(analysisType: string): string {
@@ -217,12 +180,12 @@ export default function FeedbackPage() {
             </Chip>
           ))}
         </WindowToggle>
-        <Typography variant="caption" style={{ color: "#6f6f6f" }}>
+        <Typography variant="caption" style={{ color: tokens.colors.text.static_icons__tertiary.hex }}>
           Trends use analysis run start dates
         </Typography>
       </Toolbar>
 
-      {summaryError && <Typography role="alert" style={{ color: "#eb0000" }}>{summaryError.message}</Typography>}
+      {summaryError && <ErrorText role="alert">{summaryError.message}</ErrorText>}
 
       <CardRow>
         <StatCard
@@ -295,65 +258,60 @@ export default function FeedbackPage() {
       </DashboardGrid>
 
       <Typography variant="h4">Feedback history</Typography>
-      <Typography variant="caption" style={{ color: "#6f6f6f" }}>
+      <Typography variant="caption" style={{ color: tokens.colors.text.static_icons__tertiary.hex }}>
         Submitted verdicts only. Date filters use the analysis run start date.
       </Typography>
       <FilterGrid>
-        <FilterField>
-          Analysis
-          <Control
-            value={filters.analysisType ?? ""}
-            onChange={(event) => setFilters({ analysisType: event.target.value || undefined })}
-          >
-            <option value="">All analyses</option>
-            {analysisTypes.map((type) => <option key={type} value={type}>{formatAnalysisType(type)}</option>)}
-          </Control>
-        </FilterField>
-        <FilterField>
-          Result
-          <Control
-            value={filters.isCorrect ?? ""}
-            onChange={(event) => setFilters({ isCorrect: event.target.value || undefined })}
-          >
-            <option value="">All results</option>
-            <option value="true">Correct</option>
-            <option value="false">Incorrect</option>
-          </Control>
-        </FilterField>
-        <FilterField>
-          Started since
-          <DateInput
-            type="datetime-local"
-            value={formatDateInput(startedSince)}
-            onChange={(event) => setFilters({ startedSince: event.target.value ? new Date(event.target.value).toISOString() : undefined })}
-          />
-        </FilterField>
-        <FilterField>
-          Started until
-          <DateInput
-            type="datetime-local"
-            value={formatDateInput(startedUntil)}
-            $invalid={invalidRange}
-            aria-invalid={invalidRange}
-            onChange={(event) => setFilters({ startedUntil: event.target.value ? new Date(event.target.value).toISOString() : undefined })}
-          />
-        </FilterField>
+        <FilterSelect
+          id="feedback-analysis-type"
+          label="Analysis"
+          value={filters.analysisType ?? ""}
+          onChange={(event) => setFilters({ analysisType: event.target.value || undefined })}
+        >
+          <option value="">All analyses</option>
+          {analysisTypes.map((type) => <option key={type} value={type}>{formatAnalysisType(type)}</option>)}
+        </FilterSelect>
+        <FilterSelect
+          id="feedback-result"
+          label="Result"
+          value={filters.isCorrect ?? ""}
+          onChange={(event) => setFilters({ isCorrect: event.target.value || undefined })}
+        >
+          <option value="">All results</option>
+          <option value="true">Correct</option>
+          <option value="false">Incorrect</option>
+        </FilterSelect>
+        <DateTimeInput
+          id="feedback-started-since"
+          label="Started since"
+          value={formatDateInput(startedSince)}
+          onChange={(event) => setFilters({ startedSince: event.target.value ? new Date(event.target.value).toISOString() : undefined })}
+        />
+        <DateTimeInput
+          id="feedback-started-until"
+          label="Started until"
+          value={formatDateInput(startedUntil)}
+          variant={invalidRange ? "error" : undefined}
+          aria-invalid={invalidRange}
+          aria-describedby={invalidRange ? "feedback-date-error" : undefined}
+          onChange={(event) => setFilters({ startedUntil: event.target.value ? new Date(event.target.value).toISOString() : undefined })}
+        />
         {hasFilters && (
-          <Button
+          <ClearFiltersButton
             variant="ghost"
             onClick={() => setFilters({ analysisType: undefined, isCorrect: undefined, startedSince: undefined, startedUntil: undefined })}
           >
             Clear filters
-          </Button>
+          </ClearFiltersButton>
         )}
       </FilterGrid>
       {configuredAnalyses.error && (
-        <Typography variant="body_short" role="alert" style={{ color: "#eb0000" }}>
+        <ErrorText variant="body_short" role="alert">
           Failed to load configured analyses: {configuredAnalyses.error.message}
-        </Typography>
+        </ErrorText>
       )}
-      {invalidRange && <Typography style={{ color: "#eb0000" }}>Started until must not be earlier than started since.</Typography>}
-      {error && <Typography style={{ color: "#eb0000" }}>{error}</Typography>}
+      {invalidRange && <ErrorText id="feedback-date-error" role="alert">Started until must not be earlier than started since.</ErrorText>}
+      {error && <ErrorText>{error}</ErrorText>}
 
       <TableScroller>
         <Table style={{ width: "100%", minWidth: "850px" }}>

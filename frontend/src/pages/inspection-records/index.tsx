@@ -1,10 +1,10 @@
 import { useNavigate } from "react-router";
 import {
   Button,
-  Search,
   Table,
   Typography,
 } from "@equinor/eds-core-react";
+import { ErrorText, FilterBar, FilterSearch, TableScroller } from "../../components/Styles";
 import {
   deleteInspectionRecord,
   getInspectionRecords,
@@ -79,118 +79,119 @@ export default function InspectionRecordsPage() {
         onClick: () => navigate("/inspection-records/new"),
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          gap: "0.75rem",
-          marginBottom: "1rem",
-          flexWrap: "wrap",
-        }}
-      >
-        <Search
+      <FilterBar>
+        <FilterSearch
+          id="inspection-records-inspection-id"
+          label="Inspection ID"
           placeholder="Inspection ID"
           value={filters.inspectionId ?? ""}
           onChange={(e) =>
             setFilters({ inspectionId: (e.target as HTMLInputElement).value })
           }
         />
-        <Search
+        <FilterSearch
+          id="inspection-records-tag"
+          label="Tag"
           placeholder="Tag"
           value={filters.tag ?? ""}
           onChange={(e) => setFilters({ tag: (e.target as HTMLInputElement).value })}
         />
-        <Search
+        <FilterSearch
+          id="inspection-records-installation"
+          label="Installation"
           placeholder="Installation"
           value={filters.installationCode ?? ""}
           onChange={(e) =>
             setFilters({ installationCode: (e.target as HTMLInputElement).value })
           }
         />
-      </div>
+      </FilterBar>
 
       {error && (
-        <Typography variant="body_short" style={{ color: "#eb0000", marginBottom: "1rem" }}>
+        <ErrorText variant="body_short" style={{ marginBottom: "1rem" }}>
           {error}
-        </Typography>
+        </ErrorText>
       )}
 
-      <Table style={{ width: "100%" }}>
-        <Table.Head>
-          <Table.Row>
-            <Table.Cell>ID</Table.Cell>
-            <Table.Cell>Inspection ID</Table.Cell>
-            <Table.Cell>Installation</Table.Cell>
-            <Table.Cell>Tag</Table.Cell>
-            <Table.Cell>Type</Table.Cell>
-            <Table.Cell>Created</Table.Cell>
-            <Table.Cell>Group</Table.Cell>
-            <Table.Cell>Analyses</Table.Cell>
-            <Table.Cell>Latest Run</Table.Cell>
-            <Table.Cell>Actions</Table.Cell>
-          </Table.Row>
-        </Table.Head>
-        <Table.Body>
-          {initialLoading ? (
-            <TableSkeleton columns={10} rows={pageSize} />
-          ) : items.length === 0 ? (
+      <TableScroller>
+        <Table style={{ width: "100%" }}>
+          <Table.Head>
             <Table.Row>
-              <Table.Cell colSpan={10}>
-                <Typography variant="body_short">No inspection records.</Typography>
-              </Table.Cell>
+              <Table.Cell>ID</Table.Cell>
+              <Table.Cell>Inspection ID</Table.Cell>
+              <Table.Cell>Installation</Table.Cell>
+              <Table.Cell>Tag</Table.Cell>
+              <Table.Cell>Type</Table.Cell>
+              <Table.Cell>Created</Table.Cell>
+              <Table.Cell>Group</Table.Cell>
+              <Table.Cell>Analyses</Table.Cell>
+              <Table.Cell>Latest Run</Table.Cell>
+              <Table.Cell>Actions</Table.Cell>
             </Table.Row>
-          ) : (
-            items.map((rec) => {
-              const status = latestRunStatus(rec);
-              return (
-                <Table.Row
-                  key={rec.id}
-                  onClick={() => navigate(`/inspection-records/${rec.id}`)}
-                  style={{ cursor: "pointer" }}
-                >
-                  <Table.Cell>
-                    <IdCell id={rec.id} />
-                  </Table.Cell>
-                  <Table.Cell>{rec.inspectionId}</Table.Cell>
-                  <Table.Cell>{rec.installationCode}</Table.Cell>
-                  <Table.Cell>{rec.tag ?? "–"}</Table.Cell>
-                  <Table.Cell>{rec.inspectionType ?? "–"}</Table.Cell>
-                  <Table.Cell>{new Date(rec.createdAt).toLocaleString()}</Table.Cell>
-                  <Table.Cell>
-                    {rec.analysisGroupId ? (
+          </Table.Head>
+          <Table.Body>
+            {initialLoading ? (
+              <TableSkeleton columns={10} rows={pageSize} />
+            ) : items.length === 0 ? (
+              <Table.Row>
+                <Table.Cell colSpan={10}>
+                  <Typography variant="body_short">No inspection records.</Typography>
+                </Table.Cell>
+              </Table.Row>
+            ) : (
+              items.map((rec) => {
+                const status = latestRunStatus(rec);
+                return (
+                  <Table.Row
+                    key={rec.id}
+                    onClick={() => navigate(`/inspection-records/${rec.id}`)}
+                    style={{ cursor: "pointer" }}
+                  >
+                    <Table.Cell>
+                      <IdCell id={rec.id} />
+                    </Table.Cell>
+                    <Table.Cell>{rec.inspectionId}</Table.Cell>
+                    <Table.Cell>{rec.installationCode}</Table.Cell>
+                    <Table.Cell>{rec.tag ?? "–"}</Table.Cell>
+                    <Table.Cell>{rec.inspectionType ?? "–"}</Table.Cell>
+                    <Table.Cell>{new Date(rec.createdAt).toLocaleString()}</Table.Cell>
+                    <Table.Cell>
+                      {rec.analysisGroupId ? (
+                        <Button
+                          variant="ghost"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/analysis-groups/${rec.analysisGroupId}`);
+                          }}
+                        >
+                          View
+                        </Button>
+                      ) : (
+                        "–"
+                      )}
+                    </Table.Cell>
+                    <Table.Cell>{(rec.analyses ?? []).length}</Table.Cell>
+                    <Table.Cell>{status ? <StatusChip status={status} /> : "–"}</Table.Cell>
+                    <Table.Cell>
                       <Button
                         variant="ghost"
+                        color="danger"
+                        disabled={deleteMutation.isPending}
                         onClick={(e) => {
                           e.stopPropagation();
-                          navigate(`/analysis-groups/${rec.analysisGroupId}`);
+                          handleDelete(rec.id);
                         }}
                       >
-                        View
+                        Delete
                       </Button>
-                    ) : (
-                      "–"
-                    )}
-                  </Table.Cell>
-                  <Table.Cell>{(rec.analyses ?? []).length}</Table.Cell>
-                  <Table.Cell>{status ? <StatusChip status={status} /> : "–"}</Table.Cell>
-                  <Table.Cell>
-                    <Button
-                      variant="ghost"
-                      color="danger"
-                      disabled={deleteMutation.isPending}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(rec.id);
-                      }}
-                    >
-                      Delete
-                    </Button>
-                  </Table.Cell>
-                </Table.Row>
-              );
-            })
-          )}
-        </Table.Body>
-      </Table>
+                    </Table.Cell>
+                  </Table.Row>
+                );
+              })
+            )}
+          </Table.Body>
+        </Table>
+      </TableScroller>
 
       <PaginationFooter
         hasResponse={response !== null}

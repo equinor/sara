@@ -1,4 +1,5 @@
 import type { MouseEvent, ReactNode } from "react";
+import { tokens } from "@equinor/eds-tokens";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router";
 import {
@@ -18,6 +19,7 @@ import PageHeader from "../../components/PageHeader";
 import StatCard from "../../components/StatCard";
 import StatusChip from "../../components/StatusChip";
 import TrendChart from "../../components/TrendChart";
+import { ErrorText, statusColors, Surface } from "../../components/Styles";
 import styled from "styled-components";
 import { argoWorkflowUrl } from "../../utils/argo";
 
@@ -30,7 +32,7 @@ const CardRow = styled.div`
 
 const Grid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr));
   gap: 1rem;
   margin-bottom: 1rem;
   align-items: start;
@@ -40,7 +42,7 @@ const SectionTitle = styled(Typography).attrs({ variant: "caption" })`
   display: block;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #6f6f6f;
+  color: ${tokens.colors.text.static_icons__tertiary.hex};
   margin-bottom: 0.4rem;
 `;
 
@@ -50,12 +52,9 @@ const WindowToggle = styled.div`
   align-items: center;
 `;
 
-const Panel = styled.div<{ $accent?: string }>`
-  border: 1px solid #dcdcdc;
-  ${(p) => (p.$accent ? `border-left: 3px solid ${p.$accent};` : "")}
-  border-radius: 4px;
+const Panel = styled(Surface)`
   padding: 0.6rem 0.8rem;
-  background: #ffffff;
+  overflow-x: auto;
 `;
 
 const DenseTable = styled(Table)`
@@ -189,20 +188,20 @@ export default function OverviewPage() {
           ))}
         </WindowToggle>
         {dataUpdatedAt > 0 && (
-          <Typography variant="caption" style={{ color: "#6f6f6f" }}>
+          <Typography variant="caption" style={{ color: tokens.colors.text.static_icons__tertiary.hex }}>
             Updated {new Date(dataUpdatedAt).toLocaleTimeString()} · auto-refresh 60s
           </Typography>
         )}
       </div>
 
       {error && (
-        <Typography
+        <ErrorText
           variant="body_short"
           role="alert"
-          style={{ color: "#eb0000", marginBottom: "1rem" }}
+          style={{ marginBottom: "1rem" }}
         >
           {error.message}
-        </Typography>
+        </ErrorText>
       )}
 
       {isPending && <Typography variant="body_short">Loading dashboard…</Typography>}
@@ -287,7 +286,7 @@ export default function OverviewPage() {
           <Grid>
             {/* Recent failures */}
             {data!.failures.length > 0 && (
-              <Block title="Recent failures" accent="#eb0000">
+              <Block title="Recent failures" accent={statusColors.error.accent}>
                 <DenseTable>
                   <Table.Head>
                     <Table.Row>
@@ -413,7 +412,7 @@ export default function OverviewPage() {
                         <Table.Cell>{s.succeeded}</Table.Cell>
                         <Table.Cell>{s.failed}</Table.Cell>
                         <Table.Cell
-                          style={{ color: s.failureRate > 0 ? "#eb0000" : undefined }}
+                          style={{ color: s.failureRate > 0 ? statusColors.error.text : undefined }}
                         >
                           {Math.round(s.failureRate * 100)}%
                         </Table.Cell>
@@ -450,7 +449,7 @@ export default function OverviewPage() {
                         <Table.Cell>{stat.succeeded}</Table.Cell>
                         <Table.Cell>{stat.failed}</Table.Cell>
                         <Table.Cell
-                          style={{ color: stat.failureRate > 0 ? "#eb0000" : undefined }}
+                          style={{ color: stat.failureRate > 0 ? statusColors.error.text : undefined }}
                         >
                           {Math.round(stat.failureRate * 100)}%
                         </Table.Cell>
@@ -466,7 +465,7 @@ export default function OverviewPage() {
             {summary.stuck.length > 0 && (
               <Block
                 title={`Possibly stuck workflows (${summary.stuck.length})`}
-                accent="#ff9200"
+                accent={statusColors.warning.accent}
               >
                 <DenseTable>
                   <Table.Head>

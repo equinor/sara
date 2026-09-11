@@ -5,6 +5,7 @@ import { getWorkflow, retryWorkflow } from "../../api/client";
 import { useResourceDetail, useResourceMutation } from "../../api/queries";
 import { argoWorkflowStepUrl } from "../../utils/argo";
 import StatusChip from "../../components/StatusChip";
+import { ErrorText, TableScroller } from "../../components/Styles";
 
 Icon.add({ arrow_back });
 
@@ -33,9 +34,9 @@ export default function WorkflowDetailPage() {
 
   if (!id || (error && !workflow))
     return (
-      <Typography variant="body_short" style={{ color: "#eb0000" }}>
+      <ErrorText variant="body_short">
         {!id ? "Missing workflow ID" : error?.message ?? "Failed to load"}
-      </Typography>
+      </ErrorText>
     );
   if (isPending || !workflow) return <Typography variant="body_short">Loading…</Typography>;
 
@@ -48,9 +49,9 @@ export default function WorkflowDetailPage() {
   return (
     <div style={{ paddingTop: "1rem" }}>
       {error && (
-        <Typography variant="body_short" role="alert" style={{ color: "#eb0000" }}>
+        <ErrorText variant="body_short" role="alert">
           {error.message}
-        </Typography>
+        </ErrorText>
       )}
       <Button variant="ghost" onClick={() => navigate(-1)}>
         <Icon name="arrow_back" /> Back
@@ -66,57 +67,59 @@ export default function WorkflowDetailPage() {
         )}
       </div>
 
-      <Table style={{ marginBottom: "1.5rem" }}>
-        <Table.Body>
-          <Table.Row>
-            <Table.Cell>ID</Table.Cell>
-            <Table.Cell>{workflow.id}</Table.Cell>
-          </Table.Row>
-          <Table.Row>
-            <Table.Cell>Status</Table.Cell>
-            <Table.Cell>
-              <StatusChip status={workflow.status} />
-            </Table.Cell>
-          </Table.Row>
-          <Table.Row>
-            <Table.Cell>Analysis Run</Table.Cell>
-            <Table.Cell>
-              {workflow.analysisRunId ? (
-                <Button
-                  variant="ghost"
-                  onClick={() => navigate(`/analysis-runs/${workflow.analysisRunId}`)}
-                >
-                  {workflow.analysisRunId}
-                </Button>
-              ) : (
-                "–"
-              )}
-            </Table.Cell>
-          </Table.Row>
-          <Table.Row>
-            <Table.Cell>Started</Table.Cell>
-            <Table.Cell>
-              {workflow.startedAt ? new Date(workflow.startedAt).toLocaleString() : "–"}
-            </Table.Cell>
-          </Table.Row>
-          <Table.Row>
-            <Table.Cell>Completed</Table.Cell>
-            <Table.Cell>
-              {workflow.completedAt ? new Date(workflow.completedAt).toLocaleString() : "–"}
-            </Table.Cell>
-          </Table.Row>
-          {argoUrl && (
+      <TableScroller>
+        <Table style={{ marginBottom: "1.5rem" }}>
+          <Table.Body>
             <Table.Row>
-              <Table.Cell>Argo Workflow</Table.Cell>
+              <Table.Cell>ID</Table.Cell>
+              <Table.Cell>{workflow.id}</Table.Cell>
+            </Table.Row>
+            <Table.Row>
+              <Table.Cell>Status</Table.Cell>
               <Table.Cell>
-                <Typography link href={argoUrl} target="_blank" rel="noopener noreferrer">
-                  {workflow.argoWorkflowName}
-                </Typography>
+                <StatusChip status={workflow.status} />
               </Table.Cell>
             </Table.Row>
-          )}
-        </Table.Body>
-      </Table>
+            <Table.Row>
+              <Table.Cell>Analysis Run</Table.Cell>
+              <Table.Cell>
+                {workflow.analysisRunId ? (
+                  <Button
+                    variant="ghost"
+                    onClick={() => navigate(`/analysis-runs/${workflow.analysisRunId}`)}
+                  >
+                    {workflow.analysisRunId}
+                  </Button>
+                ) : (
+                  "–"
+                )}
+              </Table.Cell>
+            </Table.Row>
+            <Table.Row>
+              <Table.Cell>Started</Table.Cell>
+              <Table.Cell>
+                {workflow.startedAt ? new Date(workflow.startedAt).toLocaleString() : "–"}
+              </Table.Cell>
+            </Table.Row>
+            <Table.Row>
+              <Table.Cell>Completed</Table.Cell>
+              <Table.Cell>
+                {workflow.completedAt ? new Date(workflow.completedAt).toLocaleString() : "–"}
+              </Table.Cell>
+            </Table.Row>
+            {argoUrl && (
+              <Table.Row>
+                <Table.Cell>Argo Workflow</Table.Cell>
+                <Table.Cell>
+                  <Typography link href={argoUrl} target="_blank" rel="noopener noreferrer">
+                    {workflow.argoWorkflowName}
+                  </Typography>
+                </Table.Cell>
+              </Table.Row>
+            )}
+          </Table.Body>
+        </Table>
+      </TableScroller>
 
       <Typography variant="h5" style={{ marginBottom: "0.5rem" }}>
         Output
@@ -133,9 +136,9 @@ export default function WorkflowDetailPage() {
 
       {workflow.errorMessage && (
         <>
-          <Typography variant="h5" style={{ marginBottom: "0.5rem", color: "#eb0000" }}>
+          <ErrorText variant="h5" style={{ marginBottom: "0.5rem" }}>
             Error
-          </Typography>
+          </ErrorText>
           <pre
             style={{
               background: "#fff4f4",

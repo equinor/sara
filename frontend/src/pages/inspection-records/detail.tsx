@@ -11,6 +11,7 @@ import { useResourceDetail } from "../../api/queries";
 import { getAppConfig } from "../../authConfig";
 import StatusChip from "../../components/StatusChip";
 import BlobLocation from "../../components/BlobLocation";
+import { ErrorText, TableScroller } from "../../components/Styles";
 
 Icon.add({ arrow_back, external_link });
 
@@ -53,9 +54,9 @@ export default function InspectionRecordDetailPage() {
 
   if (!id || (error && !record))
     return (
-      <Typography variant="body_short" style={{ color: "#eb0000" }}>
+      <ErrorText variant="body_short">
         {!id ? "Missing inspection record ID" : error?.message ?? "Failed to load"}
-      </Typography>
+      </ErrorText>
     );
   if (isPending || !record) return <Typography variant="body_short">Loading…</Typography>;
 
@@ -64,9 +65,9 @@ export default function InspectionRecordDetailPage() {
   return (
     <div style={{ paddingTop: "1rem" }}>
       {error && (
-        <Typography variant="body_short" role="alert" style={{ color: "#eb0000" }}>
+        <ErrorText variant="body_short" role="alert">
           {error.message}
-        </Typography>
+        </ErrorText>
       )}
       <Button variant="ghost" onClick={() => navigate(-1)}>
         <Icon name="arrow_back" /> Back
@@ -75,140 +76,144 @@ export default function InspectionRecordDetailPage() {
         Inspection Record: {record.inspectionId}
       </Typography>
 
-      <Table style={{ marginBottom: "1.5rem" }}>
-        <Table.Body>
-          <Table.Row>
-            <Table.Cell>ID</Table.Cell>
-            <Table.Cell>{record.id}</Table.Cell>
-          </Table.Row>
-          <Table.Row>
-            <Table.Cell>Installation</Table.Cell>
-            <Table.Cell>{record.installationCode}</Table.Cell>
-          </Table.Row>
-          {flotillaUrl && (
+      <TableScroller>
+        <Table style={{ marginBottom: "1.5rem" }}>
+          <Table.Body>
             <Table.Row>
-              <Table.Cell>Flotilla</Table.Cell>
+              <Table.Cell>ID</Table.Cell>
+              <Table.Cell>{record.id}</Table.Cell>
+            </Table.Row>
+            <Table.Row>
+              <Table.Cell>Installation</Table.Cell>
+              <Table.Cell>{record.installationCode}</Table.Cell>
+            </Table.Row>
+            {flotillaUrl && (
+              <Table.Row>
+                <Table.Cell>Flotilla</Table.Cell>
+                <Table.Cell>
+                  <Button
+                    variant="ghost"
+                    href={flotillaUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    View mission in Flotilla
+                    <Icon name="external_link" />
+                  </Button>
+                </Table.Cell>
+              </Table.Row>
+            )}
+            <Table.Row>
+              <Table.Cell>Tag</Table.Cell>
+              <Table.Cell>{record.tag ?? "–"}</Table.Cell>
+            </Table.Row>
+            <Table.Row>
+              <Table.Cell>Type</Table.Cell>
+              <Table.Cell>{record.inspectionType ?? "–"}</Table.Cell>
+            </Table.Row>
+            <Table.Row>
+              <Table.Cell>Description</Table.Cell>
+              <Table.Cell>{record.inspectionDescription ?? "–"}</Table.Cell>
+            </Table.Row>
+            <Table.Row>
+              <Table.Cell>Robot</Table.Cell>
+              <Table.Cell>{record.robotName ?? "–"}</Table.Cell>
+            </Table.Row>
+            <Table.Row>
+              <Table.Cell>Created</Table.Cell>
+              <Table.Cell>{new Date(record.createdAt).toLocaleString()}</Table.Cell>
+            </Table.Row>
+            <Table.Row>
+              <Table.Cell>Timestamp</Table.Cell>
               <Table.Cell>
-                <Button
-                  variant="ghost"
-                  href={flotillaUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  View mission in Flotilla
-                  <Icon name="external_link" />
-                </Button>
+                {record.timestamp ? new Date(record.timestamp).toLocaleString() : "–"}
               </Table.Cell>
             </Table.Row>
-          )}
-          <Table.Row>
-            <Table.Cell>Tag</Table.Cell>
-            <Table.Cell>{record.tag ?? "–"}</Table.Cell>
-          </Table.Row>
-          <Table.Row>
-            <Table.Cell>Type</Table.Cell>
-            <Table.Cell>{record.inspectionType ?? "–"}</Table.Cell>
-          </Table.Row>
-          <Table.Row>
-            <Table.Cell>Description</Table.Cell>
-            <Table.Cell>{record.inspectionDescription ?? "–"}</Table.Cell>
-          </Table.Row>
-          <Table.Row>
-            <Table.Cell>Robot</Table.Cell>
-            <Table.Cell>{record.robotName ?? "–"}</Table.Cell>
-          </Table.Row>
-          <Table.Row>
-            <Table.Cell>Created</Table.Cell>
-            <Table.Cell>{new Date(record.createdAt).toLocaleString()}</Table.Cell>
-          </Table.Row>
-          <Table.Row>
-            <Table.Cell>Timestamp</Table.Cell>
-            <Table.Cell>
-              {record.timestamp ? new Date(record.timestamp).toLocaleString() : "–"}
-            </Table.Cell>
-          </Table.Row>
-          <Table.Row>
-            <Table.Cell>Blob</Table.Cell>
-            <Table.Cell>
-              <BlobLocation loc={record.blobStorageLocation} />
-            </Table.Cell>
-          </Table.Row>
-          <Table.Row>
-            <Table.Cell>Target Position</Table.Cell>
-            <Table.Cell>{formatPosition(record.targetPosition)}</Table.Cell>
-          </Table.Row>
-          <Table.Row>
-            <Table.Cell>Robot Pose</Table.Cell>
-            <Table.Cell>
-              {record.robotPose ? (
-                <>
-                  <div>pos: {formatPosition(record.robotPose.position)}</div>
-                  <div>orient: {formatOrientation(record.robotPose.orientation)}</div>
-                </>
-              ) : (
-                "–"
-              )}
-            </Table.Cell>
-          </Table.Row>
-          <Table.Row>
-            <Table.Cell>Analysis Group</Table.Cell>
-            <Table.Cell>
-              {record.analysisGroupId ? (
-                <Button
-                  variant="ghost"
-                  onClick={() => navigate(`/analysis-groups/${record.analysisGroupId}`)}
-                >
-                  {record.analysisGroupId}
-                </Button>
-              ) : (
-                "–"
-              )}
-            </Table.Cell>
-          </Table.Row>
-        </Table.Body>
-      </Table>
+            <Table.Row>
+              <Table.Cell>Blob</Table.Cell>
+              <Table.Cell>
+                <BlobLocation loc={record.blobStorageLocation} />
+              </Table.Cell>
+            </Table.Row>
+            <Table.Row>
+              <Table.Cell>Target Position</Table.Cell>
+              <Table.Cell>{formatPosition(record.targetPosition)}</Table.Cell>
+            </Table.Row>
+            <Table.Row>
+              <Table.Cell>Robot Pose</Table.Cell>
+              <Table.Cell>
+                {record.robotPose ? (
+                  <>
+                    <div>pos: {formatPosition(record.robotPose.position)}</div>
+                    <div>orient: {formatOrientation(record.robotPose.orientation)}</div>
+                  </>
+                ) : (
+                  "–"
+                )}
+              </Table.Cell>
+            </Table.Row>
+            <Table.Row>
+              <Table.Cell>Analysis Group</Table.Cell>
+              <Table.Cell>
+                {record.analysisGroupId ? (
+                  <Button
+                    variant="ghost"
+                    onClick={() => navigate(`/analysis-groups/${record.analysisGroupId}`)}
+                  >
+                    {record.analysisGroupId}
+                  </Button>
+                ) : (
+                  "–"
+                )}
+              </Table.Cell>
+            </Table.Row>
+          </Table.Body>
+        </Table>
+      </TableScroller>
 
       <Typography variant="h5" style={{ marginBottom: "0.5rem" }}>
         Analyses
       </Typography>
-      <Table>
-        <Table.Head>
-          <Table.Row>
-            <Table.Cell>Type</Table.Cell>
-            <Table.Cell>Created</Table.Cell>
-            <Table.Cell>#Runs</Table.Cell>
-            <Table.Cell>Latest Run</Table.Cell>
-            <Table.Cell></Table.Cell>
-          </Table.Row>
-        </Table.Head>
-        <Table.Body>
-          {(record.analyses ?? []).length === 0 ? (
+      <TableScroller>
+        <Table>
+          <Table.Head>
             <Table.Row>
-              <Table.Cell colSpan={5}>No analyses.</Table.Cell>
+              <Table.Cell>Type</Table.Cell>
+              <Table.Cell>Created</Table.Cell>
+              <Table.Cell>#Runs</Table.Cell>
+              <Table.Cell>Latest Run</Table.Cell>
+              <Table.Cell></Table.Cell>
             </Table.Row>
-          ) : (
-            (record.analyses ?? []).map((a) => {
-              const runs = a.runs ?? [];
-              const latest = runs[runs.length - 1];
-              return (
-                <Table.Row key={a.id}>
-                  <Table.Cell>{a.analysisType}</Table.Cell>
-                  <Table.Cell>{new Date(a.createdAt).toLocaleString()}</Table.Cell>
-                  <Table.Cell>{runs.length}</Table.Cell>
-                  <Table.Cell>
-                    {latest ? <StatusChip status={latest.status} /> : "–"}
-                  </Table.Cell>
-                  <Table.Cell>
-                    <Button variant="ghost" onClick={() => navigate(`/analyses/${a.id}`)}>
-                      View
-                    </Button>
-                  </Table.Cell>
-                </Table.Row>
-              );
-            })
-          )}
-        </Table.Body>
-      </Table>
+          </Table.Head>
+          <Table.Body>
+            {(record.analyses ?? []).length === 0 ? (
+              <Table.Row>
+                <Table.Cell colSpan={5}>No analyses.</Table.Cell>
+              </Table.Row>
+            ) : (
+              (record.analyses ?? []).map((a) => {
+                const runs = a.runs ?? [];
+                const latest = runs[runs.length - 1];
+                return (
+                  <Table.Row key={a.id}>
+                    <Table.Cell>{a.analysisType}</Table.Cell>
+                    <Table.Cell>{new Date(a.createdAt).toLocaleString()}</Table.Cell>
+                    <Table.Cell>{runs.length}</Table.Cell>
+                    <Table.Cell>
+                      {latest ? <StatusChip status={latest.status} /> : "–"}
+                    </Table.Cell>
+                    <Table.Cell>
+                      <Button variant="ghost" onClick={() => navigate(`/analyses/${a.id}`)}>
+                        View
+                      </Button>
+                    </Table.Cell>
+                  </Table.Row>
+                );
+              })
+            )}
+          </Table.Body>
+        </Table>
+      </TableScroller>
     </div>
   );
 }

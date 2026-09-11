@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router";
-import { Button, Search, Table, Typography } from "@equinor/eds-core-react";
+import { Button, Table } from "@equinor/eds-core-react";
+import { ErrorText, FilterBar, FilterSearch, TableScroller } from "../../components/Styles";
 import {
   deleteAnalysis,
   getAnalyses,
@@ -69,116 +70,124 @@ export default function AnalysesPage() {
 
   return (
     <PageHeader title="Analyses" loading={loading} onRefresh={refetch}>
-      <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1rem", flexWrap: "wrap" }}>
-        <Search
+      <FilterBar>
+        <FilterSearch
+          id="analyses-name"
+          label="Name"
           placeholder="Name"
           value={filters.name ?? ""}
           onChange={(e) => setFilters({ name: (e.target as HTMLInputElement).value })}
         />
-        <Search
+        <FilterSearch
+          id="analyses-group-id"
+          label="Group ID"
           placeholder="Group ID (uuid)"
           value={filters.analysisGroupId ?? ""}
           onChange={(e) =>
             setFilters({ analysisGroupId: (e.target as HTMLInputElement).value })
           }
         />
-        <Search
+        <FilterSearch
+          id="analyses-inspection-record-id"
+          label="Inspection Record ID"
           placeholder="Inspection Record ID (uuid)"
           value={filters.inspectionRecordId ?? ""}
           onChange={(e) =>
             setFilters({ inspectionRecordId: (e.target as HTMLInputElement).value })
           }
         />
-      </div>
+      </FilterBar>
 
       {error && (
-        <Typography variant="body_short" style={{ color: "#eb0000", marginBottom: "1rem" }}>
+        <ErrorText variant="body_short" style={{ marginBottom: "1rem" }}>
           {error}
-        </Typography>
+        </ErrorText>
       )}
 
-      <Table style={{ width: "100%" }}>
-        <Table.Head>
-          <Table.Row>
-            <Table.Cell>ID</Table.Cell>
-            <Table.Cell>Name</Table.Cell>
-            <Table.Cell>Created</Table.Cell>
-            <Table.Cell>Group</Table.Cell>
-            <Table.Cell>#Records</Table.Cell>
-            <Table.Cell>#Runs</Table.Cell>
-            <Table.Cell>Latest Run</Table.Cell>
-            <Table.Cell>Actions</Table.Cell>
-          </Table.Row>
-        </Table.Head>
-        <Table.Body>
-          {initialLoading ? (
-            <TableSkeleton columns={8} rows={pageSize} />
-          ) : items.length === 0 ? (
+      <TableScroller>
+        <Table style={{ width: "100%" }}>
+          <Table.Head>
             <Table.Row>
-              <Table.Cell colSpan={8}>No analyses.</Table.Cell>
+              <Table.Cell>ID</Table.Cell>
+              <Table.Cell>Name</Table.Cell>
+              <Table.Cell>Created</Table.Cell>
+              <Table.Cell>Group</Table.Cell>
+              <Table.Cell>#Records</Table.Cell>
+              <Table.Cell>#Runs</Table.Cell>
+              <Table.Cell>Latest Run</Table.Cell>
+              <Table.Cell>Actions</Table.Cell>
             </Table.Row>
-          ) : (
-            items.map((a) => {
-              const runs = a.runs ?? [];
-              const latest = runs[runs.length - 1];
-              return (
-                <Table.Row
-                  key={a.id}
-                  onClick={() => navigate(`/analyses/${a.id}`)}
-                  style={{ cursor: "pointer" }}
-                >
-                  <Table.Cell>
-                    <IdCell id={a.id} />
-                  </Table.Cell>
-                  <Table.Cell>{a.analysisType}</Table.Cell>
-                  <Table.Cell>{new Date(a.createdAt).toLocaleString()}</Table.Cell>
-                  <Table.Cell>
-                    {a.analysisGroupId ? (
+          </Table.Head>
+          <Table.Body>
+            {initialLoading ? (
+              <TableSkeleton columns={8} rows={pageSize} />
+            ) : items.length === 0 ? (
+              <Table.Row>
+                <Table.Cell colSpan={8}>No analyses.</Table.Cell>
+              </Table.Row>
+            ) : (
+              items.map((a) => {
+                const runs = a.runs ?? [];
+                const latest = runs[runs.length - 1];
+                return (
+                  <Table.Row
+                    key={a.id}
+                    onClick={() => navigate(`/analyses/${a.id}`)}
+                    style={{ cursor: "pointer" }}
+                  >
+                    <Table.Cell>
+                      <IdCell id={a.id} />
+                    </Table.Cell>
+                    <Table.Cell>{a.analysisType}</Table.Cell>
+                    <Table.Cell>{new Date(a.createdAt).toLocaleString()}</Table.Cell>
+                    <Table.Cell>
+                      {a.analysisGroupId ? (
+                        <Button
+                          variant="ghost"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/analysis-groups/${a.analysisGroupId}`);
+                          }}
+                        >
+                          View
+                        </Button>
+                      ) : (
+                        "–"
+                      )}
+                    </Table.Cell>
+                    <Table.Cell>{(a.inspectionRecords ?? []).length}</Table.Cell>
+                    <Table.Cell>{runs.length}</Table.Cell>
+                    <Table.Cell>{latest ? <StatusChip status={latest.status} /> : "–"}</Table.Cell>
+                    <Table.Cell>
                       <Button
                         variant="ghost"
+                        disabled={busy}
                         onClick={(e) => {
                           e.stopPropagation();
-                          navigate(`/analysis-groups/${a.analysisGroupId}`);
+                          handleRerun(a.id);
                         }}
                       >
-                        View
+                        Rerun
                       </Button>
-                    ) : (
-                      "–"
-                    )}
-                  </Table.Cell>
-                  <Table.Cell>{(a.inspectionRecords ?? []).length}</Table.Cell>
-                  <Table.Cell>{runs.length}</Table.Cell>
-                  <Table.Cell>{latest ? <StatusChip status={latest.status} /> : "–"}</Table.Cell>
-                  <Table.Cell>
-                    <Button
-                      variant="ghost"
-                      disabled={busy}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRerun(a.id);
-                      }}
-                    >
-                      Rerun
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      color="danger"
-                      disabled={busy}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(a.id);
-                      }}
-                    >
-                      Delete
-                    </Button>
-                  </Table.Cell>
-                </Table.Row>
-              );
-            })
-          )}
-        </Table.Body>
-      </Table>
+                      <Button
+                        variant="ghost"
+                        color="danger"
+                        disabled={busy}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(a.id);
+                        }}
+                      >
+                        Delete
+                      </Button>
+                    </Table.Cell>
+                  </Table.Row>
+                );
+              })
+            )}
+          </Table.Body>
+        </Table>
+      </TableScroller>
 
       <PaginationFooter
         hasResponse={response !== null}

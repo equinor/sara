@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Popover, PopoverContent, Typography } from "@equinor/eds-core-react";
+import { tokens } from "@equinor/eds-tokens";
 import styled from "styled-components";
 import type { FeedbackTrendBucket } from "../api/client";
 import { useFeedbackTrendBucketDetails } from "../api/dashboardQueries";
+import { ErrorText, statusColors } from "./Styles";
 
-const CORRECT_COLOR = "#4bb748";
-const INCORRECT_COLOR = "#eb0000";
+const CORRECT_COLOR = statusColors.success.accent;
+const INCORRECT_COLOR = statusColors.error.accent;
 
 const Wrapper = styled.div`
   width: 100%;
@@ -23,19 +25,18 @@ const Chart = styled.svg`
 `;
 
 const GridLine = styled.line`
-  stroke: #e8e8e8;
+  stroke: ${tokens.colors.ui.background__medium.hex};
   stroke-width: 1;
 `;
 
 const AxisLabel = styled.text`
-  fill: #565656;
+  fill: ${tokens.colors.text.static_icons__secondary.hex};
   font-size: 11px;
 `;
 
 const TrendLine = styled.polyline<{ $color: string; $dashed?: boolean }>`
   fill: none;
   stroke: ${(p) => p.$color};
-  stroke-opacity: 0.7;
   stroke-width: 2.5;
   stroke-dasharray: ${(p) => (p.$dashed ? "7 5" : "none")};
   stroke-linecap: round;
@@ -43,7 +44,7 @@ const TrendLine = styled.polyline<{ $color: string; $dashed?: boolean }>`
 `;
 
 const CorrectPoint = styled.circle`
-  fill: #ffffff;
+  fill: ${tokens.colors.ui.background__default.hex};
   stroke: ${CORRECT_COLOR};
   stroke-width: 2;
 `;
@@ -63,14 +64,20 @@ const HitTarget = styled.button<{ $left: number; $width: number; $selected: bool
   min-width: 4px;
   padding: 0;
   border: 0;
-  background: ${(p) => (p.$selected ? "rgba(0, 112, 121, 0.08)" : "transparent")};
+  background: ${(p) => (p.$selected ? tokens.colors.interactive.primary__selected_highlight.hex : "transparent")};
+  opacity: 0.25;
   cursor: pointer;
   transform: translateX(-50%);
 
   &:hover,
   &:focus-visible {
-    background: rgba(0, 112, 121, 0.08);
-    outline: 2px solid #007079;
+    background: ${tokens.colors.interactive.primary__hover_alt.hex};
+  }
+
+  &:focus-visible {
+    opacity: 1;
+    background: transparent;
+    outline: 2px solid ${tokens.colors.interactive.focus.hex};
     outline-offset: -2px;
   }
 `;
@@ -110,7 +117,7 @@ const DetailTable = styled.table`
   th,
   td {
     padding: 0.4rem 0.5rem;
-    border-top: 1px solid #dcdcdc;
+    border-top: 1px solid ${tokens.colors.ui.background__medium.hex};
     text-align: right;
     white-space: nowrap;
   }
@@ -126,6 +133,7 @@ const DetailTable = styled.table`
 
 const Legend = styled.div`
   display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
   margin-top: 0.75rem;
 `;
@@ -320,9 +328,9 @@ export default function FeedbackTrendChart({ data, windowHours, analysisType, ti
                 </Typography>
               </PopoverHeading>
               {error && (
-                <Typography variant="caption" role="alert" style={{ color: INCORRECT_COLOR }}>
+                <ErrorText variant="caption" role="alert">
                   {error.message}
-                </Typography>
+                </ErrorText>
               )}
               {isPending ? (
                 <Typography variant="caption">Loading analysis breakdown…</Typography>
