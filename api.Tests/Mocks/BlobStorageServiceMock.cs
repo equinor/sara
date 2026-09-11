@@ -31,7 +31,7 @@ public class BlobStorageServiceMock : IBlobStorageService
         await UploadBlobAsync(destination, sourceStream, "application/octet-stream");
     }
 
-    public async Task<Uri> CreateReadSasUri(BlobStorageLocation location)
+    public async Task<Uri?> TryCreateReadSasUriAsync(BlobStorageLocation location)
     {
         var mockSAS = "blablablablablabla";
         return new Uri(

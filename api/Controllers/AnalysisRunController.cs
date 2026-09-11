@@ -10,8 +10,7 @@ namespace api.Controllers;
 [Route("analysis-run")]
 public class AnalysisRunController(
     ILogger<AnalysisRunController> logger,
-    IAnalysisRunService service,
-    IBlobStorageService blobService
+    IAnalysisRunService service
 ) : ControllerBase
 {
     [HttpGet]
@@ -68,7 +67,7 @@ public class AnalysisRunController(
             {
                 return NotFound($"Could not find analysis run with id {id}");
             }
-            return Ok(new AnalysisRunDto(run, blobService));
+            return Ok(new AnalysisRunDto(run));
         }
         catch (Exception e)
         {

@@ -16,7 +16,7 @@ public class AnalysisDto
         this.Id = analysis.Id;
         this.AnalysisType = analysis.AnalysisType;
         this.CreatedAt = analysis.CreatedAt;
-        this.Runs = [.. analysis.Runs.Select(r => new AnalysisRunDto(r, blobService))];
+        this.Runs = [.. analysis.Runs.Select(r => new AnalysisRunDto(r))];
         this.AnalysisGroup = analysis.AnalysisGroup;
         this.AnalysisGroupId = analysis.AnalysisGroupId;
         this.InspectionRecords = analysis.InspectionRecords;
@@ -30,7 +30,7 @@ public class AnalysisDto
             .FirstOrDefault();
         if (anonymizedWorkflow != null && anonymizedWorkflow.OutputBlobStorageLocation != null)
             this.AnonymizedSAS = blobService
-                .CreateReadSasUri(anonymizedWorkflow.OutputBlobStorageLocation)
+                .TryCreateReadSasUriAsync(anonymizedWorkflow.OutputBlobStorageLocation)
                 .Result;
 
         var analysisConfig = analysisOptions.Analyses[analysis.AnalysisType];

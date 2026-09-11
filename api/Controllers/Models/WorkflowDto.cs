@@ -30,7 +30,8 @@ public class WorkflowDto
 
 #nullable enable
 
-    public WorkflowDto(Workflow workflow, IBlobStorageService blobService)
+    // A null blobService skips OutputBlobSAS, which only the workflow endpoints expose.
+    public WorkflowDto(Workflow workflow, IBlobStorageService? blobService)
     {
         this.Id = workflow.Id;
         this.AnalysisRunId = workflow.AnalysisRunId;
@@ -41,8 +42,8 @@ public class WorkflowDto
         this.ArgoWorkflowUid = workflow.ArgoWorkflowUid;
         this.ArgoNodeId = workflow.ArgoNodeId;
         this.OutputBlobSAS =
-            workflow.OutputBlobStorageLocation != null
-                ? blobService.CreateReadSasUri(workflow.OutputBlobStorageLocation).Result
+            blobService != null && workflow.OutputBlobStorageLocation != null
+                ? blobService.TryCreateReadSasUriAsync(workflow.OutputBlobStorageLocation).Result
                 : null;
         this.Result = GetAnalysisResultDtoFromResultJson(
             workflow.ResultJson,
