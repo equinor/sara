@@ -120,6 +120,7 @@ builder.Services.AddSingleton<IArgoWorkflowClient, ArgoWorkflowClient>();
 builder.Services.AddScoped<IArgoWorkflowEventProcessor, ArgoWorkflowEventProcessor>();
 builder.Services.AddScoped<ITriggerPayloadEnricher, AnonymizerPayloadEnricher>();
 builder.Services.AddScoped<ITriggerPayloadEnricher, ThermalReadingPayloadEnricher>();
+builder.Services.AddScoped<ITriggerPayloadEnricher, FencillaPayloadEnricher>();
 builder.Services.AddScoped<ITriggerPayloadEnricher, UtilitiesPayloadEnricher>();
 
 // Per-workflow result handlers — fire on each successful Workflow step.

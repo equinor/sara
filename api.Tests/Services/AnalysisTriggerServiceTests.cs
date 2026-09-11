@@ -203,6 +203,7 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
         var analysis = await _db.NewAnalysis(type: "fencilla");
         var record = await _db.NewInspectionRecord(
             analyses: [analysis],
+            tag: "test-tag",
             missionName: "Perimeterrunde - Nordsiden",
             inspectionDescription: "Perimeter 1"
         );
