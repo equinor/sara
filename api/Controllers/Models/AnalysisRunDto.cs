@@ -5,7 +5,7 @@ namespace api.Controllers.Models;
 
 public class AnalysisRunDto
 {
-    public AnalysisRunDto(AnalysisRun run, IBlobStorageService blobService)
+    public AnalysisRunDto(AnalysisRun run)
     {
         Id = run.Id;
         AnalysisId = run.AnalysisId;
@@ -14,7 +14,7 @@ public class AnalysisRunDto
         StartedAt = run.StartedAt;
         CompletedAt = run.CompletedAt;
         SkipReason = run.SkipReason;
-        Workflows = run.Workflows.Select(w => new WorkflowDto(w, blobService)).ToList();
+        Workflows = run.Workflows.Select(w => new WorkflowDto(w, blobService: null)).ToList();
         Feedback = run.Feedback is { } f ? new FeedbackDto(f) : null;
     }
 

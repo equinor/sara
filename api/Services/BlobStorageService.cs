@@ -1,4 +1,5 @@
 using api.Database.Models;
+using Azure;
 using Azure.Core;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
@@ -11,14 +12,15 @@ public interface IBlobStorageService
     Task<MemoryStream> DownloadBlobAsync(BlobStorageLocation location);
     Task UploadBlobAsync(BlobStorageLocation destination, Stream content, string contentType);
     Task CopyBlobAsync(BlobStorageLocation source, BlobStorageLocation destination);
-    Task<Uri> CreateReadSasUri(BlobStorageLocation location);
+    Task<Uri?> TryCreateReadSasUriAsync(BlobStorageLocation location);
     Task<bool> ExistsAsync(BlobStorageLocation location);
 }
 
 public class BlobStorageService(
     TokenCredential credential,
     IConfiguration configuration,
-    IUserDelegationKeyProvider userDelegationKeyProvider
+    IUserDelegationKeyProvider userDelegationKeyProvider,
+    ILogger<BlobStorageService> logger
 ) : IBlobStorageService
 {
     /// How long a generated read SAS stays valid. The delegation key that signs
@@ -125,7 +127,36 @@ public class BlobStorageService(
         );
     }
 
-    public async Task<Uri> CreateReadSasUri(BlobStorageLocation location)
+    /// Returns null when no SAS can be produced. Historical records can point at
+    /// storage accounts that were renamed, deleted, or belong to another environment.
+    public async Task<Uri?> TryCreateReadSasUriAsync(BlobStorageLocation location)
+    {
+        try
+        {
+            return await CreateReadSasUriAsync(location);
+        }
+        // AggregateException because the SDK's retry policy wraps the others.
+        catch (Exception e)
+            when (e
+                    is RequestFailedException
+                        or UserDelegationKeyUnavailableException
+                        or HttpRequestException
+                        or AggregateException
+            )
+        {
+            logger.LogWarning(
+                e,
+                "Could not create read SAS for blob {StorageAccount}/{BlobContainer}/{BlobName}; "
+                    + "returning no download link for it.",
+                location.StorageAccount,
+                location.BlobContainer,
+                location.BlobName
+            );
+            return null;
+        }
+    }
+
+    private async Task<Uri> CreateReadSasUriAsync(BlobStorageLocation location)
     {
         var serviceClient = CreateBlobServiceClient(location.StorageAccount);
 
