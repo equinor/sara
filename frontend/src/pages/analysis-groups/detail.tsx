@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { Button, Icon, Table, Typography } from "@equinor/eds-core-react";
 import { arrow_back } from "@equinor/eds-icons";
-import { getAnalysisGroup, type AnalysisGroup } from "../../api/client";
+import { getAnalysisGroup } from "../../api/client";
+import { useResourceDetail } from "../../api/queries";
 import StatusChip from "../../components/StatusChip";
 
 Icon.add({ arrow_back });
@@ -10,26 +10,23 @@ Icon.add({ arrow_back });
 export default function AnalysisGroupDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [group, setGroup] = useState<AnalysisGroup | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { data: group, error, isPending } = useResourceDetail("analysis-groups", id, getAnalysisGroup);
 
-  useEffect(() => {
-    if (!id) return;
-    getAnalysisGroup(id).then(setGroup).catch((e) =>
-      setError(e instanceof Error ? e.message : "Failed to load")
-    );
-  }, [id]);
-
-  if (error)
+  if (!id || (error && !group))
     return (
       <Typography variant="body_short" style={{ color: "#eb0000" }}>
-        {error}
+        {!id ? "Missing analysis group ID" : error?.message ?? "Failed to load"}
       </Typography>
     );
-  if (!group) return <Typography variant="body_short">Loading…</Typography>;
+  if (isPending || !group) return <Typography variant="body_short">Loading…</Typography>;
 
   return (
     <div style={{ paddingTop: "1rem" }}>
+      {error && (
+        <Typography variant="body_short" role="alert" style={{ color: "#eb0000" }}>
+          {error.message}
+        </Typography>
+      )}
       <Button variant="ghost" onClick={() => navigate(-1)}>
         <Icon name="arrow_back" /> Back
       </Button>

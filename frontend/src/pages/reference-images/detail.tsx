@@ -15,11 +15,11 @@ import {
     getReferencePolygonImageData,
     getReferencePolygonImageUrl,
     AnalysisType,
-    type ReferencePolygonMetadata,
     type ReferencePolygonMetadataInput,
     type ThermalImageData,
     type BlobStorageLocation,
 } from "../../api/client"
+import { useResourceDetail, useResourceMutation } from "../../api/queries"
 import ThermalImageViewer from "../../components/ThermalImageViewer"
 import { FencillaImageViewer, FencillaPolygonDrawingEditor } from "../../components/FencillaImagePolygon"
 
@@ -113,20 +113,27 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 
 export default function ReferencePolygonMetadataDetailPage() {
     const { id } = useParams<{ id: string }>()
+    return <ReferencePolygonMetadataDetail key={id} id={id} />
+}
+
+function ReferencePolygonMetadataDetail({ id }: { id: string | undefined }) {
     const navigate = useNavigate()
-    const [data, setData] = useState<ReferencePolygonMetadata | null>(null)
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
-    const [editing, setEditing] = useState(false)
-    const [saving, setSaving] = useState(false)
-    const [form, setForm] = useState<ReferencePolygonMetadataInput>({
-        tagId: "",
-        installationCode: "",
-        inspectionDescription: "",
-        referenceBlobStorageDirectory: { blobContainer: "", blobName: "" },
-        polygon: [],
-        sourceAnalysisType: AnalysisType.ThermalReading,
-    })
+    const { data, isLoading: loading, error: queryError, dataUpdatedAt } = useResourceDetail(
+        "reference-images", id, getReferencePolygonMetadataById
+    )
+    const updateMutation = useResourceMutation(
+        ({ id, request }: { id: string; request: ReferencePolygonMetadataInput }) =>
+            updateReferencePolygonMetadata(id, request)
+    )
+    const deleteMutation = useResourceMutation(deleteReferencePolygonMetadata, "delete")
+    const saving = updateMutation.isPending
+    const pending = saving || deleteMutation.isPending
+    const [mutationError, setError] = useState<string | null>(null)
+    const error = mutationError ?? (queryError
+        ? getErrorMessage(queryError, "Failed to fetch reference metadata")
+        : null)
+    const [form, setForm] = useState<ReferencePolygonMetadataInput | null>(null)
+    const editing = form !== null
     const [thermalImage, setThermalImage] = useState<ThermalImageData | null>(
         null
     )
@@ -134,26 +141,9 @@ export default function ReferencePolygonMetadataDetailPage() {
     const [imageLoading, setImageLoading] = useState(false)
     const [imageError, setImageError] = useState<string | null>(null)
 
-    const fetchData = useCallback(async () => {
-        if (!id) return
-        setLoading(true)
-        setError(null)
-        try {
-            const result = await getReferencePolygonMetadataById(id)
-            setData(result)
-        } catch (e) {
-            setError(getErrorMessage(e, "Failed to fetch reference metadata"))
-        } finally {
-            setLoading(false)
-        }
-    }, [id])
-
     useEffect(() => {
-        fetchData()
-    }, [fetchData])
-
-    useEffect(() => {
-        if (!id || !data) return
+        // Defer refreshes while editing so the polygon editor keeps its local draft.
+        if (!id || !data || editing) return
         let cancelled = false
         setImageLoading(true)
         setImageError(null)
@@ -181,12 +171,12 @@ export default function ReferencePolygonMetadataDetailPage() {
         return () => {
             cancelled = true
         }
-    }, [id, data])
+    }, [id, data, dataUpdatedAt, editing])
 
     const navigateBack = () => navigate("/reference-images")
 
     const startEditing = () => {
-        if (!data) return
+        if (!data || pending || imageLoading) return
         setForm({
             tagId: data.tagId,
             installationCode: data.installationCode,
@@ -195,14 +185,13 @@ export default function ReferencePolygonMetadataDetailPage() {
                 blobContainer: data.referenceImageBlobStorageLocation.blobContainer,
                 blobName: getBlobDirectory(data.referenceImageBlobStorageLocation),
             },
-            polygon: data.polygon,
+            polygon: data.polygon.map((point) => ({ ...point })),
             sourceAnalysisType: data.sourceAnalysisType,
         })
-        setEditing(true)
     }
 
     const handleSave = async () => {
-        if (!id) return
+        if (!id || !form || pending) return
         if (
             form.sourceAnalysisType === AnalysisType.Fencilla &&
             form.polygon.length < 3
@@ -210,23 +199,20 @@ export default function ReferencePolygonMetadataDetailPage() {
             setError("Please draw a polygon with at least 3 vertices before saving.")
             return
         }
-        setSaving(true)
         setError(null)
         try {
-            await updateReferencePolygonMetadata(id, form)
-            setEditing(false)
-            await fetchData()
+            await updateMutation.mutateAsync({ id, request: form })
+            setForm(null)
         } catch (e) {
             setError(getErrorMessage(e, "Failed to update reference metadata"))
-        } finally {
-            setSaving(false)
         }
     }
 
     const handleDelete = async () => {
-        if (!id) return
+        if (!id || pending) return
+        setError(null)
         try {
-            await deleteReferencePolygonMetadata(id)
+            await deleteMutation.mutateAsync(id)
             navigateBack()
         } catch (e) {
             setError(getErrorMessage(e, "Failed to delete reference metadata"))
@@ -234,7 +220,7 @@ export default function ReferencePolygonMetadataDetailPage() {
     }
 
     const handlePolygonChange = useCallback((polygon: number[][]) => {
-        setForm((prev) => ({
+        setForm((prev) => prev && ({
             ...prev,
             polygon: polygon.map(([x, y]) => ({ x, y })),
         }))
@@ -252,7 +238,7 @@ export default function ReferencePolygonMetadataDetailPage() {
         return (
             <div style={{ paddingTop: "1rem" }}>
                 <StyledBackNavRowLg>
-                    <Button variant="ghost_icon" onClick={navigateBack} aria-label="Back">
+                    <Button variant="ghost_icon" onClick={navigateBack} aria-label="Back" disabled={pending}>
                         <Icon name="arrow_back" />
                     </Button>
                     <Typography variant="h3">Not Found</Typography>
@@ -269,13 +255,13 @@ export default function ReferencePolygonMetadataDetailPage() {
         )
     }
 
-    const polygon = data.polygon.map((c) => [c.x, c.y])
+    const polygon = (form ?? data).polygon.map((c) => [c.x, c.y])
 
     return (
         <div style={{ paddingTop: "1rem" }}>
             <StyledHeaderRow>
                 <StyledHeaderTitleRow>
-                    <Button variant="ghost_icon" onClick={navigateBack} aria-label="Back">
+                    <Button variant="ghost_icon" onClick={navigateBack} aria-label="Back" disabled={pending}>
                         <Icon name="arrow_back" />
                     </Button>
                     <Typography variant="h3">Reference Metadata</Typography>
@@ -292,13 +278,13 @@ export default function ReferencePolygonMetadataDetailPage() {
                     </Typography>
                 )}
 
-                <StyledImageSection>
+                <StyledImageSection inert={pending}>
                     <StyledHeaderRow style={{ marginBottom: "0.75rem" }}>
                         <Typography variant="h5">Reference Image</Typography>
                         {!editing && (
                             <StyledActionRow style={{ marginTop: 0 }}>
-                                <Button onClick={startEditing}>Edit</Button>
-                                <Button variant="outlined" color="danger" onClick={handleDelete}>
+                                <Button onClick={startEditing} disabled={pending || imageLoading}>Edit</Button>
+                                <Button variant="outlined" color="danger" onClick={handleDelete} disabled={pending}>
                                     Delete
                                 </Button>
                             </StyledActionRow>
@@ -323,7 +309,7 @@ export default function ReferencePolygonMetadataDetailPage() {
                         />
                     )}
                     {image && (
-                        editing && data.sourceAnalysisType === AnalysisType.Fencilla ? (
+                        editing && form.sourceAnalysisType === AnalysisType.Fencilla ? (
                             <FencillaPolygonDrawingEditor
                                 imageUrl={image}
                                 initialPolygon={polygon}
@@ -336,7 +322,7 @@ export default function ReferencePolygonMetadataDetailPage() {
                 </StyledImageSection>
 
                 {editing ? (
-                    <StyledFormContainer>
+                    <StyledFormContainer inert={pending}>
                         <TextField
                             id="tagId"
                             label="Tag ID"
@@ -395,10 +381,10 @@ export default function ReferencePolygonMetadataDetailPage() {
                         </StyledBlobSection>
 
                         <StyledActionRow>
-                            <Button onClick={handleSave} disabled={saving}>
+                            <Button onClick={handleSave} disabled={pending}>
                                 {saving ? "Saving..." : "Save"}
                             </Button>
-                            <Button variant="ghost" onClick={() => setEditing(false)}>
+                            <Button variant="ghost" onClick={() => setForm(null)} disabled={pending}>
                                 Cancel
                             </Button>
                         </StyledActionRow>

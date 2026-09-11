@@ -20,6 +20,7 @@ import {
     type InspectionRecord,
     type ThermalImageData,
 } from "../../api/client";
+import { useResourceMutation } from "../../api/queries";
 import InspectionRecordSelector from "../../components/InspectionRecordSelector";
 import ThermalPolygonDrawingEditor from "../../components/ThermalPolygonDrawingEditor";
 import { FencillaPolygonDrawingEditor } from "../../components/FencillaImagePolygon";
@@ -99,7 +100,9 @@ export default function CreateReferencePolygonMetadataPage() {
     const [searchParams, setSearchParams] = useSearchParams();
     const fromInspection = searchParams.get("mode") === "inspection";
     const [form, setForm] = useState<ReferencePolygonMetadataInput>(emptyForm);
-    const [creating, setCreating] = useState(false);
+    const createMutation = useResourceMutation(createReferencePolygonMetadata);
+    const createFromInspectionMutation = useResourceMutation(createReferencePolygonFromInspectionRecord);
+    const creating = createMutation.isPending || createFromInspectionMutation.isPending;
     const [error, setError] = useState<string | null>(null);
 
     // Inspection record selection state
@@ -125,13 +128,14 @@ export default function CreateReferencePolygonMetadataPage() {
     };
 
     const handleSourceAnalysisTypeChange = (sourceAnalysisType: AnalysisType) => {
-        if (sourceAnalysisType === form.sourceAnalysisType) return;
+        if (creating || sourceAnalysisType === form.sourceAnalysisType) return;
         setForm((prev) => ({ ...prev, sourceAnalysisType }));
         resetInspectionSelection();
     };
 
     const handleRecordSelect = useCallback(
         async (record: InspectionRecord) => {
+            if (creating) return;
             setSelectedRecord(record);
             setPolygon([]);
             setThermalImageData(null);
@@ -164,14 +168,14 @@ export default function CreateReferencePolygonMetadataPage() {
                 setLoadingImage(false);
             }
         },
-        [isThermal]
+        [isThermal, creating]
     );
 
     const handleCreateManual = async () => {
-        setCreating(true);
+        if (creating) return;
         setError(null);
         try {
-            await createReferencePolygonMetadata(form);
+            await createMutation.mutateAsync(form);
             navigateBack();
         } catch (e) {
             setError(
@@ -179,22 +183,19 @@ export default function CreateReferencePolygonMetadataPage() {
                     ? e.message
                     : "Failed to create reference metadata"
             );
-        } finally {
-            setCreating(false);
         }
     };
 
     const handleCreateFromInspection = async () => {
-        if (!selectedRecord) return;
+        if (creating || !selectedRecord) return;
         if (polygon.length < 3) {
             setError("Please draw a polygon on the source image before submitting.");
             return;
         }
 
-        setCreating(true);
         setError(null);
         try {
-            const result = await createReferencePolygonFromInspectionRecord({
+            const result = await createFromInspectionMutation.mutateAsync({
                 inspectionRecordId: selectedRecord.id,
                 tagId: form.tagId,
                 installationCode: form.installationCode,
@@ -209,8 +210,6 @@ export default function CreateReferencePolygonMetadataPage() {
                     ? e.message
                     : "Failed to create reference metadata from inspection record"
             );
-        } finally {
-            setCreating(false);
         }
     };
 
@@ -224,7 +223,7 @@ export default function CreateReferencePolygonMetadataPage() {
     return (
         <div style={{ paddingTop: "1rem" }}>
             <StyledBackNavRowLg>
-                <Button variant="ghost_icon" onClick={navigateBack} aria-label="Back">
+                <Button variant="ghost_icon" onClick={navigateBack} aria-label="Back" disabled={creating}>
                     <Icon name="arrow_back" />
                 </Button>
                 <Typography variant="h3">Create Reference Metadata</Typography>
@@ -239,7 +238,7 @@ export default function CreateReferencePolygonMetadataPage() {
                 </Typography>
             )}
 
-            <StyledFormContainer>
+            <StyledFormContainer inert={creating}>
                 <div>
                     <Typography variant="body_short_bold" style={{ marginBottom: "0.5rem" }}>
                         Source Analysis Type
@@ -280,6 +279,7 @@ export default function CreateReferencePolygonMetadataPage() {
                     options={CREATE_MODES}
                     value={fromInspection ? "inspection" : "manual"}
                     onChange={(mode) => {
+                        if (creating) return;
                         if (mode === "inspection" && !fromInspection) {
                             setSearchParams({ mode: "inspection" });
                             setError(null);
@@ -330,7 +330,7 @@ export default function CreateReferencePolygonMetadataPage() {
                             <Button onClick={handleCreateManual} disabled={creating}>
                                 {creating ? "Creating..." : "Create"}
                             </Button>
-                            <Button variant="ghost" onClick={navigateBack}>
+                            <Button variant="ghost" onClick={navigateBack} disabled={creating}>
                                 Cancel
                             </Button>
                         </StyledActionRow>
@@ -342,6 +342,7 @@ export default function CreateReferencePolygonMetadataPage() {
                         {isThermal ? (
                             <InspectionRecordSelector
                                 title="Select a thermal inspection record"
+                                analysisType={AnalysisType.ThermalReading}
                                 fetchRecords={getThermalInspectionRecords}
                                 onSelect={handleRecordSelect}
                                 selectedId={selectedRecord?.id}
@@ -349,6 +350,7 @@ export default function CreateReferencePolygonMetadataPage() {
                         ) : (
                             <InspectionRecordSelector
                                 title="Select a fencilla inspection record"
+                                analysisType={AnalysisType.Fencilla}
                                 fetchRecords={getFencillaInspectionRecords}
                                 onSelect={handleRecordSelect}
                                 selectedId={selectedRecord?.id}
@@ -399,7 +401,7 @@ export default function CreateReferencePolygonMetadataPage() {
                             >
                                 {creating ? "Creating..." : "Create"}
                             </Button>
-                            <Button variant="ghost" onClick={navigateBack}>
+                            <Button variant="ghost" onClick={navigateBack} disabled={creating}>
                                 Cancel
                             </Button>
                         </StyledActionRow>

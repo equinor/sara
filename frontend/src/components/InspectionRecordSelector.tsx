@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Pagination, Table, Typography } from "@equinor/eds-core-react";
 import styled from "styled-components";
-import type { InspectionRecord, PagedResponse } from "../api/client";
+import type { AnalysisType, InspectionRecord, PagedResponse } from "../api/client";
 
 export interface InspectionRecordSelectorProps {
     title: string;
-    fetchRecords: (pageNumber: number) => Promise<PagedResponse<InspectionRecord>>;
+    analysisType: AnalysisType;
+    fetchRecords: (pageNumber: number, pageSize: number, signal?: AbortSignal) => Promise<PagedResponse<InspectionRecord>>;
     onSelect: (record: InspectionRecord) => void;
     selectedId?: string;
 }
@@ -18,38 +20,17 @@ const SelectorContainer = styled.div`
 
 export default function InspectionRecordSelector({
     title,
+    analysisType,
     fetchRecords,
     onSelect,
     selectedId,
 }: InspectionRecordSelectorProps) {
     const [page, setPage] = useState(1);
-    const [data, setData] = useState<PagedResponse<InspectionRecord> | null>(
-        null
-    );
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-
-    const load = useCallback(
-        async (pageNumber: number) => {
-            setLoading(true);
-            setError(null);
-            try {
-                const result = await fetchRecords(pageNumber);
-                setData(result);
-            } catch (e) {
-                setError(
-                    e instanceof Error ? e.message : "Failed to fetch inspection records"
-                );
-            } finally {
-                setLoading(false);
-            }
-        },
-        [fetchRecords]
-    );
-
-    useEffect(() => {
-        load(page);
-    }, [load, page]);
+    const pageSize = 20;
+    const { data, isPending: loading, error } = useQuery({
+        queryKey: ["sara", "inspection-selector", { analysisType, pageNumber: page, pageSize }],
+        queryFn: ({ signal }) => fetchRecords(page, pageSize, signal),
+    });
 
     return (
         <SelectorContainer>
@@ -57,7 +38,7 @@ export default function InspectionRecordSelector({
 
             {error && (
                 <Typography variant="body_short" style={{ color: "#eb0000" }}>
-                    {error}
+                    {error instanceof Error ? error.message : "Failed to fetch inspection records"}
                 </Typography>
             )}
 

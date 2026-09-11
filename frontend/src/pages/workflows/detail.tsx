@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { Button, Icon, Table, Typography } from "@equinor/eds-core-react";
 import { arrow_back } from "@equinor/eds-icons";
-import { getWorkflow, retryWorkflow, type Workflow } from "../../api/client";
+import { getWorkflow, retryWorkflow } from "../../api/client";
+import { useResourceDetail, useResourceMutation } from "../../api/queries";
 import { argoWorkflowStepUrl } from "../../utils/argo";
 import StatusChip from "../../components/StatusChip";
 
@@ -19,39 +19,25 @@ function formatJson(raw: string): string {
 export default function WorkflowDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [workflow, setWorkflow] = useState<Workflow | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  const load = () => {
-    if (!id) return;
-    getWorkflow(id).then(setWorkflow).catch((e) =>
-      setError(e instanceof Error ? e.message : "Failed to load")
-    );
-  };
-
-  useEffect(load, [id]);
+  const { data: workflow, error, isPending } = useResourceDetail("workflows", id, getWorkflow);
+  const retryMutation = useResourceMutation(retryWorkflow);
 
   const handleRetry = async () => {
-    if (!id) return;
-    setBusy(true);
+    if (!id || retryMutation.isPending) return;
     try {
-      await retryWorkflow(id);
-      load();
+      await retryMutation.mutateAsync(id);
     } catch (e) {
       alert(e instanceof Error ? e.message : "Retry failed");
-    } finally {
-      setBusy(false);
     }
   };
 
-  if (error)
+  if (!id || (error && !workflow))
     return (
       <Typography variant="body_short" style={{ color: "#eb0000" }}>
-        {error}
+        {!id ? "Missing workflow ID" : error?.message ?? "Failed to load"}
       </Typography>
     );
-  if (!workflow) return <Typography variant="body_short">Loading…</Typography>;
+  if (isPending || !workflow) return <Typography variant="body_short">Loading…</Typography>;
 
   const argoUrl = argoWorkflowStepUrl(
     workflow.argoWorkflowName,
@@ -61,6 +47,11 @@ export default function WorkflowDetailPage() {
 
   return (
     <div style={{ paddingTop: "1rem" }}>
+      {error && (
+        <Typography variant="body_short" role="alert" style={{ color: "#eb0000" }}>
+          {error.message}
+        </Typography>
+      )}
       <Button variant="ghost" onClick={() => navigate(-1)}>
         <Icon name="arrow_back" /> Back
       </Button>
@@ -69,8 +60,8 @@ export default function WorkflowDetailPage() {
           Workflow: {workflow.workflowType} (step {workflow.stepNumber})
         </Typography>
         {workflow.status === "Failed" && (
-          <Button onClick={handleRetry} disabled={busy}>
-            {busy ? "Retrying…" : "Retry"}
+          <Button onClick={handleRetry} disabled={retryMutation.isPending}>
+            {retryMutation.isPending ? "Retrying…" : "Retry"}
           </Button>
         )}
       </div>

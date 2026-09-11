@@ -7,6 +7,7 @@ import {
   type AnalysisGroupParams,
   type AnalysisGroupStatus,
 } from "../../api/client";
+import { useResourceMutation } from "../../api/queries";
 import IdCell from "../../components/IdCell";
 import PageHeader from "../../components/PageHeader";
 import PaginationFooter from "../../components/PaginationFooter";
@@ -19,9 +20,11 @@ const STATUSES: AnalysisGroupStatus[] = ["Pending", "Complete", "TimedOut"];
 
 export default function AnalysisGroupsPage() {
   const navigate = useNavigate();
+  const deleteMutation = useResourceMutation(deleteAnalysisGroup, "delete");
   const {
     response,
     loading,
+    initialLoading,
     error,
     pageNumber,
     pageSize,
@@ -31,19 +34,19 @@ export default function AnalysisGroupsPage() {
     setFilters,
     refetch,
   } = usePagedList<AnalysisGroup, AnalysisGroupParams>(
+    "analysis-groups",
     "analysisGroups.pageSize",
     FILTER_KEYS,
     getAnalysisGroups
   );
 
   const items = response?.items ?? [];
-  const showSkeleton = loading || (response === null && error === null);
 
   const handleDelete = async (id: string) => {
+    if (deleteMutation.isPending) return;
     if (!window.confirm("Delete this analysis group? Linked records will be unlinked.")) return;
     try {
-      await deleteAnalysisGroup(id);
-      await refetch();
+      await deleteMutation.mutateAsync(id);
     } catch (e) {
       alert(e instanceof Error ? e.message : "Delete failed");
     }
@@ -93,7 +96,7 @@ export default function AnalysisGroupsPage() {
           </Table.Row>
         </Table.Head>
         <Table.Body>
-          {showSkeleton ? (
+          {initialLoading ? (
             <TableSkeleton columns={8} rows={pageSize} />
           ) : items.length === 0 ? (
             <Table.Row>
@@ -123,6 +126,7 @@ export default function AnalysisGroupsPage() {
                   <Button
                     variant="ghost"
                     color="danger"
+                    disabled={deleteMutation.isPending}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleDelete(g.id);

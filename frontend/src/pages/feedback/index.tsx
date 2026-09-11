@@ -1,16 +1,15 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { Button, Chip, Table, Typography } from "@equinor/eds-core-react";
 import styled from "styled-components";
 import {
-  getConfiguredAnalyses,
   getFeedbackHistory,
-  getFeedbackSummary,
-  getFeedbackTrendBucketDetails,
   type FeedbackHistory,
   type FeedbackParams,
-  type FeedbackSummary,
 } from "../../api/client";
+import { useConfiguredAnalyses } from "../../api/queries";
+import { feedbackTrendDetailsKey, useFeedbackSummary } from "../../api/dashboardQueries";
 import FeedbackChip from "../../components/FeedbackChip";
 import FeedbackTrendChart from "../../components/FeedbackTrendChart";
 import PageHeader from "../../components/PageHeader";
@@ -163,14 +162,14 @@ function formatDateInput(value: Date | null): string {
 
 export default function FeedbackPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [windowHours, setWindowHours] = useState(720);
-  const [analysisTypes, setAnalysisTypes] = useState<string[]>([]);
-  const [summary, setSummary] = useState<FeedbackSummary | null>(null);
-  const [summaryLoading, setSummaryLoading] = useState(true);
-  const [summaryError, setSummaryError] = useState<string | null>(null);
+  const configuredAnalyses = useConfiguredAnalyses();
+  const analysisTypes = (configuredAnalyses.data ?? []).map((item) => item.name).sort();
   const {
     response,
     loading,
+    initialLoading,
     error,
     pageNumber,
     pageSize,
@@ -180,43 +179,31 @@ export default function FeedbackPage() {
     setFilters,
     refetch,
   } = usePagedList<FeedbackHistory, FeedbackParams>(
+    "feedback",
     "feedback.pageSize",
     FILTER_KEYS,
     getFeedbackHistory
   );
 
-  const loadSummary = useCallback(async () => {
-    setSummaryLoading(true);
-    setSummaryError(null);
-    try {
-      setSummary(await getFeedbackSummary(windowHours, filters.analysisType));
-    } catch (caught) {
-      setSummaryError(caught instanceof Error ? caught.message : "Failed to fetch feedback summary");
-    } finally {
-      setSummaryLoading(false);
-    }
-  }, [windowHours, filters.analysisType]);
-
-  useEffect(() => {
-    loadSummary();
-  }, [loadSummary]);
-
-  useEffect(() => {
-    getConfiguredAnalyses()
-      .then((items) => setAnalysisTypes(items.map((item) => item.name).sort()))
-      .catch(() => setAnalysisTypes([]));
-  }, []);
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const summaryQuery = useFeedbackSummary(windowHours, filters.analysisType, timeZone);
+  const { data: summary, isPending: summaryLoading, error: summaryError } = summaryQuery;
 
   const startedSince = parseDate(filters.startedSince);
   const startedUntil = parseDate(filters.startedUntil);
   const invalidRange = startedSince !== null && startedUntil !== null && startedSince > startedUntil;
   const hasFilters = Object.values(filters).some(Boolean);
   const items = response?.items ?? [];
-  const showSkeleton = loading || (response === null && error === null);
-  const refresh = async () => Promise.all([loadSummary(), refetch()]).then(() => undefined);
+  const refresh = async () => {
+    await Promise.all([
+      summaryQuery.refetch(),
+      refetch(),
+      queryClient.invalidateQueries({ queryKey: feedbackTrendDetailsKey }),
+    ]);
+  };
 
   return (
-    <PageHeader title="Feedback" loading={loading || summaryLoading} onRefresh={refresh}>
+    <PageHeader title="Feedback" loading={loading || summaryQuery.isFetching} onRefresh={refresh}>
       <Toolbar>
         <WindowToggle aria-label="Dashboard time window">
           {FEEDBACK_WINDOWS.map((item) => (
@@ -235,7 +222,7 @@ export default function FeedbackPage() {
         </Typography>
       </Toolbar>
 
-      {summaryError && <Typography style={{ color: "#eb0000" }}>{summaryError}</Typography>}
+      {summaryError && <Typography role="alert" style={{ color: "#eb0000" }}>{summaryError.message}</Typography>}
 
       <CardRow>
         <StatCard
@@ -252,12 +239,12 @@ export default function FeedbackPage() {
         />
         <StatCard
           title="Reviewed"
-          value={summaryLoading ? "…" : (summary?.reviewed ?? 0).toLocaleString()}
+          value={summaryLoading ? "…" : summary?.reviewed.toLocaleString() ?? "–"}
           tone="info"
-          subtitle={`${formatPercent(summary?.reviewRate ?? 0)} review coverage`}
+          subtitle={summary ? `${formatPercent(summary.reviewRate)} review coverage` : undefined}
         />
-        <StatCard title="Correct" value={summaryLoading ? "…" : summary?.correct ?? 0} tone="success" />
-        <StatCard title="Incorrect" value={summaryLoading ? "…" : summary?.incorrect ?? 0} tone="error" />
+        <StatCard title="Correct" value={summaryLoading ? "…" : summary?.correct ?? "–"} tone="success" />
+        <StatCard title="Incorrect" value={summaryLoading ? "…" : summary?.incorrect ?? "–"} tone="error" />
       </CardRow>
 
       <DashboardGrid>
@@ -265,20 +252,16 @@ export default function FeedbackPage() {
           <SectionTitle>Correctness trend</SectionTitle>
           {summaryLoading ? (
             <Typography variant="body_short">Loading trend…</Typography>
-          ) : (
+          ) : summary ? (
             <FeedbackTrendChart
               key={`${windowHours}-${filters.analysisType ?? ""}`}
-              data={summary?.trend ?? []}
-              loadDetails={(bucketStart) =>
-                getFeedbackTrendBucketDetails(
-                  bucketStart,
-                  windowHours,
-                  filters.analysisType
-                )
-              }
+              data={summary.trend}
+              windowHours={windowHours}
+              analysisType={filters.analysisType}
+              timeZone={timeZone}
               formatAnalysisType={formatAnalysisType}
             />
-          )}
+          ) : null}
         </Panel>
         <Panel>
           <SectionTitle>Breakdown by analysis type</SectionTitle>
@@ -294,7 +277,9 @@ export default function FeedbackPage() {
             <Table.Body>
               {summaryLoading ? (
                 <TableSkeleton columns={4} rows={3} />
-              ) : (summary?.perAnalysisType ?? []).length === 0 ? (
+              ) : !summary ? (
+                <Table.Row><Table.Cell colSpan={4}>Summary unavailable.</Table.Cell></Table.Row>
+              ) : summary.perAnalysisType.length === 0 ? (
                 <Table.Row><Table.Cell colSpan={4}>No runs in this window.</Table.Cell></Table.Row>
               ) : summary?.perAnalysisType.map((stat) => (
                 <Table.Row key={stat.analysisType}>
@@ -362,6 +347,11 @@ export default function FeedbackPage() {
           </Button>
         )}
       </FilterGrid>
+      {configuredAnalyses.error && (
+        <Typography variant="body_short" role="alert" style={{ color: "#eb0000" }}>
+          Failed to load configured analyses: {configuredAnalyses.error.message}
+        </Typography>
+      )}
       {invalidRange && <Typography style={{ color: "#eb0000" }}>Started until must not be earlier than started since.</Typography>}
       {error && <Typography style={{ color: "#eb0000" }}>{error}</Typography>}
 
@@ -377,7 +367,7 @@ export default function FeedbackPage() {
             </Table.Row>
           </Table.Head>
           <Table.Body>
-            {showSkeleton ? (
+            {initialLoading ? (
               <TableSkeleton columns={5} rows={pageSize} />
             ) : items.length === 0 ? (
               <Table.Row><Table.Cell colSpan={5}>No submitted feedback matches these filters.</Table.Cell></Table.Row>

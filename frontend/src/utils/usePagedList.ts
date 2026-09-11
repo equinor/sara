@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
 import type { PagedResponse } from "../api/client";
+import { pagedListsKey, type PagedResource } from "../api/queries";
 
 export const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 const DEFAULT_PAGE_SIZE = 25;
@@ -21,12 +23,14 @@ function readStoredPageSize(key: string): number {
  * `filterKeys` are the URL query params that count as filters.
  */
 export function usePagedList<T, F extends object>(
+  resource: PagedResource,
   storageKey: string,
   filterKeys: (keyof F & string)[],
   fetcher: (
     pageNumber: number,
     pageSize: number,
-    filters: F
+    filters: F,
+    signal?: AbortSignal
   ) => Promise<PagedResponse<T>>
 ) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -45,30 +49,15 @@ export function usePagedList<T, F extends object>(
   const filters = useMemo<F>(() => {
     const obj = {} as Record<string, string | undefined>;
     for (const key of filterKeys) {
-      obj[key] = searchParams.get(key) ?? undefined;
+      obj[key] = searchParams.get(key) || undefined;
     }
     return obj as F;
   }, [searchParams, filterKeys]);
 
-  const [response, setResponse] = useState<PagedResponse<T> | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setResponse(await fetcher(pageNumber, pageSize, filters));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to fetch");
-    } finally {
-      setLoading(false);
-    }
-  }, [pageNumber, pageSize, filters, fetcher]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const query = useQuery({
+    queryKey: [...pagedListsKey, resource, { pageNumber, pageSize, filters }],
+    queryFn: ({ signal }) => fetcher(pageNumber, pageSize, filters, signal),
+  });
 
   useEffect(() => {
     if (searchParams.get("pageSize") !== String(pageSize)) {
@@ -125,15 +114,18 @@ export function usePagedList<T, F extends object>(
   );
 
   return {
-    response,
-    loading,
-    error,
+    response: query.data ?? null,
+    loading: query.isFetching,
+    initialLoading: query.isPending,
+    error: query.error?.message ?? null,
     pageNumber,
     pageSize,
     filters,
     setPage,
     setPageSize,
     setFilters,
-    refetch: fetchData,
+    refetch: async () => {
+      await query.refetch();
+    },
   };
 }

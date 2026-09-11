@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { Button, Icon, Table, Typography } from "@equinor/eds-core-react";
 import { arrow_back } from "@equinor/eds-icons";
-import { getAnalysisRun, type AnalysisRun } from "../../api/client";
+import { getAnalysisRun } from "../../api/client";
+import { useResourceDetail } from "../../api/queries";
 import { argoWorkflowStepUrl, argoWorkflowUrl } from "../../utils/argo";
 import { formatElapsedDuration } from "../../utils/duration";
 import StatusChip from "../../components/StatusChip";
@@ -12,23 +12,15 @@ Icon.add({ arrow_back });
 export default function AnalysisRunDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [run, setRun] = useState<AnalysisRun | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { data: run, error, isPending } = useResourceDetail("analysis-runs", id, getAnalysisRun);
 
-  useEffect(() => {
-    if (!id) return;
-    getAnalysisRun(id).then(setRun).catch((e) =>
-      setError(e instanceof Error ? e.message : "Failed to load")
-    );
-  }, [id]);
-
-  if (error)
+  if (!id || (error && !run))
     return (
       <Typography variant="body_short" style={{ color: "#eb0000" }}>
-        {error}
+        {!id ? "Missing analysis run ID" : error?.message ?? "Failed to load"}
       </Typography>
     );
-  if (!run) return <Typography variant="body_short">Loading…</Typography>;
+  if (isPending || !run) return <Typography variant="body_short">Loading…</Typography>;
 
   const workflows = (run.workflows ?? [])
     .slice()
@@ -37,6 +29,11 @@ export default function AnalysisRunDetailPage() {
 
   return (
     <div style={{ paddingTop: "1rem" }}>
+      {error && (
+        <Typography variant="body_short" role="alert" style={{ color: "#eb0000" }}>
+          {error.message}
+        </Typography>
+      )}
       <Button variant="ghost" onClick={() => navigate(-1)}>
         <Icon name="arrow_back" /> Back
       </Button>

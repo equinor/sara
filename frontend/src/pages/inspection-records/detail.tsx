@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import {
   Button,
@@ -7,7 +6,8 @@ import {
   Typography,
 } from "@equinor/eds-core-react";
 import { arrow_back, external_link } from "@equinor/eds-icons";
-import { getInspectionRecord, type InspectionRecord, type Orientation, type Position } from "../../api/client";
+import { getInspectionRecord, type Orientation, type Position } from "../../api/client";
+import { useResourceDetail } from "../../api/queries";
 import { getAppConfig } from "../../authConfig";
 import StatusChip from "../../components/StatusChip";
 import BlobLocation from "../../components/BlobLocation";
@@ -49,28 +49,25 @@ function formatOrientation(o: Orientation | null | undefined): string {
 export default function InspectionRecordDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [record, setRecord] = useState<InspectionRecord | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { data: record, error, isPending } = useResourceDetail("inspection-records", id, getInspectionRecord);
 
-  useEffect(() => {
-    if (!id) return;
-    getInspectionRecord(id).then(setRecord).catch((e) =>
-      setError(e instanceof Error ? e.message : "Failed to load")
-    );
-  }, [id]);
-
-  if (error)
+  if (!id || (error && !record))
     return (
       <Typography variant="body_short" style={{ color: "#eb0000" }}>
-        {error}
+        {!id ? "Missing inspection record ID" : error?.message ?? "Failed to load"}
       </Typography>
     );
-  if (!record) return <Typography variant="body_short">Loading…</Typography>;
+  if (isPending || !record) return <Typography variant="body_short">Loading…</Typography>;
 
   const flotillaUrl = flotillaMissionUrl(record.installationCode, record.inspectionId, record.flotillaMissionId);
 
   return (
     <div style={{ paddingTop: "1rem" }}>
+      {error && (
+        <Typography variant="body_short" role="alert" style={{ color: "#eb0000" }}>
+          {error.message}
+        </Typography>
+      )}
       <Button variant="ghost" onClick={() => navigate(-1)}>
         <Icon name="arrow_back" /> Back
       </Button>

@@ -9,6 +9,7 @@ import {
   type WorkflowParams,
   type WorkflowStatus,
 } from "../../api/client";
+import { useResourceMutation } from "../../api/queries";
 import IdCell from "../../components/IdCell";
 import PageHeader from "../../components/PageHeader";
 import PaginationFooter from "../../components/PaginationFooter";
@@ -27,9 +28,13 @@ const STATUSES: WorkflowStatus[] = ["Pending", "InProgress", "Succeeded", "Faile
 
 export default function WorkflowsPage() {
   const navigate = useNavigate();
+  const retryMutation = useResourceMutation(retryWorkflow);
+  const deleteMutation = useResourceMutation(deleteWorkflow, "delete");
+  const busy = retryMutation.isPending || deleteMutation.isPending;
   const {
     response,
     loading,
+    initialLoading,
     error,
     pageNumber,
     pageSize,
@@ -39,29 +44,29 @@ export default function WorkflowsPage() {
     setFilters,
     refetch,
   } = usePagedList<Workflow, WorkflowParams>(
+    "workflows",
     "workflows.pageSize",
     FILTER_KEYS,
     getWorkflows
   );
 
   const items = response?.items ?? [];
-  const showSkeleton = loading || (response === null && error === null);
 
   const handleRetry = async (id: string) => {
+    if (busy) return;
     if (!window.confirm("Retry this workflow?")) return;
     try {
-      await retryWorkflow(id);
-      await refetch();
+      await retryMutation.mutateAsync(id);
     } catch (e) {
       alert(e instanceof Error ? e.message : "Retry failed");
     }
   };
 
   const handleDelete = async (id: string) => {
+    if (busy) return;
     if (!window.confirm("Delete this workflow?")) return;
     try {
-      await deleteWorkflow(id);
-      await refetch();
+      await deleteMutation.mutateAsync(id);
     } catch (e) {
       alert(e instanceof Error ? e.message : "Delete failed");
     }
@@ -117,7 +122,7 @@ export default function WorkflowsPage() {
           </Table.Row>
         </Table.Head>
         <Table.Body>
-          {showSkeleton ? (
+          {initialLoading ? (
             <TableSkeleton columns={9} rows={pageSize} />
           ) : items.length === 0 ? (
             <Table.Row>
@@ -162,6 +167,7 @@ export default function WorkflowsPage() {
                   {w.status === "Failed" && (
                     <Button
                       variant="ghost"
+                      disabled={busy}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleRetry(w.id);
@@ -189,6 +195,7 @@ export default function WorkflowsPage() {
                   <Button
                     variant="ghost"
                     color="danger"
+                    disabled={busy}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleDelete(w.id);
