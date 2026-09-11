@@ -13,6 +13,7 @@ import {
   type CreateInspectionRecordRequest,
 } from "../../api/client";
 import { useConfiguredAnalyses, useResourceMutation } from "../../api/queries";
+import { ErrorText } from "../../components/Styles";
 
 Icon.add({ arrow_back });
 
@@ -191,9 +192,9 @@ export default function CreateInspectionRecordPage() {
         {configuredAnalyses.isPending ? (
           <Typography variant="body_short">Loading configured analyses...</Typography>
         ) : configuredAnalyses.error ? (
-          <Typography variant="body_short" role="alert" style={{ color: "#eb0000" }}>
+          <ErrorText variant="body_short" role="alert">
             Failed to load configured analyses: {configuredAnalyses.error.message}
-          </Typography>
+          </ErrorText>
         ) : configured.length === 0 ? (
           <Typography variant="body_short">No configured analyses found.</Typography>
         ) : (
@@ -242,9 +243,9 @@ export default function CreateInspectionRecordPage() {
       )}
 
       {error && (
-        <Typography variant="body_short" style={{ color: "#eb0000", marginBottom: "1rem" }}>
+        <ErrorText variant="body_short" style={{ marginBottom: "1rem" }}>
           {error}
-        </Typography>
+        </ErrorText>
       )}
 
       <div style={{ display: "flex", gap: "0.5rem" }}>

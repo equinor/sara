@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router";
-import { Button, Search, Table, Typography } from "@equinor/eds-core-react";
+import { Button, Table } from "@equinor/eds-core-react";
+import { ErrorText, FilterBar, FilterSearch, FilterSelect, TableScroller } from "../../components/Styles";
 import {
   deleteAnalysisGroup,
   getAnalysisGroups,
@@ -54,18 +55,21 @@ export default function AnalysisGroupsPage() {
 
   return (
     <PageHeader title="Analysis Groups" loading={loading} onRefresh={refetch}>
-      <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1rem", flexWrap: "wrap" }}>
-        <Search
+      <FilterBar>
+        <FilterSearch
+          id="analysis-groups-group-id"
+          label="Group ID"
           placeholder="Group ID"
           value={filters.groupId ?? ""}
           onChange={(e) => setFilters({ groupId: (e.target as HTMLInputElement).value })}
         />
-        <select
+        <FilterSelect
+          id="analysis-groups-status"
+          label="Status"
           value={filters.status ?? ""}
           onChange={(e) =>
             setFilters({ status: (e.target.value || undefined) as AnalysisGroupStatus | undefined })
           }
-          style={{ padding: "0.4rem" }}
         >
           <option value="">All statuses</option>
           {STATUSES.map((s) => (
@@ -73,73 +77,75 @@ export default function AnalysisGroupsPage() {
               {s}
             </option>
           ))}
-        </select>
-      </div>
+        </FilterSelect>
+      </FilterBar>
 
       {error && (
-        <Typography variant="body_short" style={{ color: "#eb0000", marginBottom: "1rem" }}>
+        <ErrorText variant="body_short" style={{ marginBottom: "1rem" }}>
           {error}
-        </Typography>
+        </ErrorText>
       )}
 
-      <Table style={{ width: "100%" }}>
-        <Table.Head>
-          <Table.Row>
-            <Table.Cell>ID</Table.Cell>
-            <Table.Cell>Group ID</Table.Cell>
-            <Table.Cell>Status</Table.Cell>
-            <Table.Cell>Expected</Table.Cell>
-            <Table.Cell>#Records</Table.Cell>
-            <Table.Cell>#Analyses</Table.Cell>
-            <Table.Cell>Timeout</Table.Cell>
-            <Table.Cell>Actions</Table.Cell>
-          </Table.Row>
-        </Table.Head>
-        <Table.Body>
-          {initialLoading ? (
-            <TableSkeleton columns={8} rows={pageSize} />
-          ) : items.length === 0 ? (
+      <TableScroller>
+        <Table style={{ width: "100%" }}>
+          <Table.Head>
             <Table.Row>
-              <Table.Cell colSpan={8}>No analysis groups.</Table.Cell>
+              <Table.Cell>ID</Table.Cell>
+              <Table.Cell>Group ID</Table.Cell>
+              <Table.Cell>Status</Table.Cell>
+              <Table.Cell>Expected</Table.Cell>
+              <Table.Cell>#Records</Table.Cell>
+              <Table.Cell>#Analyses</Table.Cell>
+              <Table.Cell>Timeout</Table.Cell>
+              <Table.Cell>Actions</Table.Cell>
             </Table.Row>
-          ) : (
-            items.map((g) => (
-              <Table.Row
-                key={g.id}
-                onClick={() => navigate(`/analysis-groups/${g.id}`)}
-                style={{ cursor: "pointer" }}
-              >
-                <Table.Cell>
-                  <IdCell id={g.id} />
-                </Table.Cell>
-                <Table.Cell>{g.groupId}</Table.Cell>
-                <Table.Cell>
-                  <StatusChip status={g.status} />
-                </Table.Cell>
-                <Table.Cell>{g.expectedSize}</Table.Cell>
-                <Table.Cell>{(g.inspectionRecords ?? []).length}</Table.Cell>
-                <Table.Cell>{(g.analyses ?? []).length}</Table.Cell>
-                <Table.Cell>
-                  {g.timeoutAt ? new Date(g.timeoutAt).toLocaleString() : "–"}
-                </Table.Cell>
-                <Table.Cell>
-                  <Button
-                    variant="ghost"
-                    color="danger"
-                    disabled={deleteMutation.isPending}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(g.id);
-                    }}
-                  >
-                    Delete
-                  </Button>
-                </Table.Cell>
+          </Table.Head>
+          <Table.Body>
+            {initialLoading ? (
+              <TableSkeleton columns={8} rows={pageSize} />
+            ) : items.length === 0 ? (
+              <Table.Row>
+                <Table.Cell colSpan={8}>No analysis groups.</Table.Cell>
               </Table.Row>
-            ))
-          )}
-        </Table.Body>
-      </Table>
+            ) : (
+              items.map((g) => (
+                <Table.Row
+                  key={g.id}
+                  onClick={() => navigate(`/analysis-groups/${g.id}`)}
+                  style={{ cursor: "pointer" }}
+                >
+                  <Table.Cell>
+                    <IdCell id={g.id} />
+                  </Table.Cell>
+                  <Table.Cell>{g.groupId}</Table.Cell>
+                  <Table.Cell>
+                    <StatusChip status={g.status} />
+                  </Table.Cell>
+                  <Table.Cell>{g.expectedSize}</Table.Cell>
+                  <Table.Cell>{(g.inspectionRecords ?? []).length}</Table.Cell>
+                  <Table.Cell>{(g.analyses ?? []).length}</Table.Cell>
+                  <Table.Cell>
+                    {g.timeoutAt ? new Date(g.timeoutAt).toLocaleString() : "–"}
+                  </Table.Cell>
+                  <Table.Cell>
+                    <Button
+                      variant="ghost"
+                      color="danger"
+                      disabled={deleteMutation.isPending}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(g.id);
+                      }}
+                    >
+                      Delete
+                    </Button>
+                  </Table.Cell>
+                </Table.Row>
+              ))
+            )}
+          </Table.Body>
+        </Table>
+      </TableScroller>
 
       <PaginationFooter
         hasResponse={response !== null}

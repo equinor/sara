@@ -25,6 +25,7 @@ import InspectionRecordSelector from "../../components/InspectionRecordSelector"
 import ThermalPolygonDrawingEditor from "../../components/ThermalPolygonDrawingEditor";
 import { FencillaPolygonDrawingEditor } from "../../components/FencillaImagePolygon";
 import SegmentedToggle from "../../components/SegmentedToggle";
+import { ErrorText } from "../../components/Styles";
 
 const StyledBackNavRowLg = styled.div`
   display: flex;
@@ -230,12 +231,12 @@ export default function CreateReferencePolygonMetadataPage() {
             </StyledBackNavRowLg>
 
             {error && (
-                <Typography
+                <ErrorText
                     variant="body_short"
-                    style={{ marginBottom: "1rem", color: "#eb0000" }}
+                    style={{ marginBottom: "1rem" }}
                 >
                     {error}
-                </Typography>
+                </ErrorText>
             )}
 
             <StyledFormContainer inert={creating}>

@@ -22,6 +22,7 @@ import {
 import { useResourceDetail, useResourceMutation } from "../../api/queries"
 import ThermalImageViewer from "../../components/ThermalImageViewer"
 import { FencillaImageViewer, FencillaPolygonDrawingEditor } from "../../components/FencillaImagePolygon"
+import { ErrorText } from "../../components/Styles"
 
 const StyledBackNavRowLg = styled.div`
   display: flex;
@@ -244,12 +245,11 @@ function ReferencePolygonMetadataDetail({ id }: { id: string | undefined }) {
                     <Typography variant="h3">Not Found</Typography>
                 </StyledBackNavRowLg>
                 {error && (
-                    <Typography
+                    <ErrorText
                         variant="body_short"
-                        style={{ color: "#eb0000" }}
                     >
                         {error}
-                    </Typography>
+                    </ErrorText>
                 )}
             </div>
         )
@@ -270,12 +270,12 @@ function ReferencePolygonMetadataDetail({ id }: { id: string | undefined }) {
 
             <StyledContent>
                 {error && (
-                    <Typography
+                    <ErrorText
                         variant="body_short"
-                        style={{ marginBottom: "1rem", color: "#eb0000" }}
+                        style={{ marginBottom: "1rem" }}
                     >
                         {error}
-                    </Typography>
+                    </ErrorText>
                 )}
 
                 <StyledImageSection inert={pending}>
@@ -294,9 +294,9 @@ function ReferencePolygonMetadataDetail({ id }: { id: string | undefined }) {
                         <Typography variant="body_short">Loading image...</Typography>
                     )}
                     {imageError && (
-                        <Typography variant="body_short" style={{ color: "#eb0000" }}>
+                        <ErrorText variant="body_short">
                             {imageError}
-                        </Typography>
+                        </ErrorText>
                     )}
                     {thermalImage && (
                         <ThermalImageViewer

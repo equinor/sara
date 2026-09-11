@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Pagination, Table, Typography } from "@equinor/eds-core-react";
 import styled from "styled-components";
 import type { AnalysisType, InspectionRecord, PagedResponse } from "../api/client";
+import { ErrorText, TableScroller } from "./Styles";
 
 export interface InspectionRecordSelectorProps {
     title: string;
@@ -37,51 +38,53 @@ export default function InspectionRecordSelector({
             <Typography variant="h6">{title}</Typography>
 
             {error && (
-                <Typography variant="body_short" style={{ color: "#eb0000" }}>
+                <ErrorText variant="body_short">
                     {error instanceof Error ? error.message : "Failed to fetch inspection records"}
-                </Typography>
+                </ErrorText>
             )}
 
             {loading ? (
                 <Typography variant="body_short">Loading...</Typography>
             ) : data && data.items.length > 0 ? (
                 <>
-                    <Table>
-                        <Table.Head>
-                            <Table.Row>
-                                <Table.Cell>Tag</Table.Cell>
-                                <Table.Cell>Installation</Table.Cell>
-                                <Table.Cell>Description</Table.Cell>
-                                <Table.Cell>Timestamp</Table.Cell>
-                            </Table.Row>
-                        </Table.Head>
-                        <Table.Body>
-                            {data.items.map((record) => (
-                                <Table.Row
-                                    key={record.id}
-                                    onClick={() => onSelect(record)}
-                                    style={{
-                                        cursor: "pointer",
-                                        backgroundColor:
-                                            selectedId === record.id ? "#e6faec" : undefined,
-                                    }}
-                                >
-                                    <Table.Cell>{record.tag ?? "-"}</Table.Cell>
-                                    <Table.Cell>{record.installationCode}</Table.Cell>
-                                    <Table.Cell>
-                                        {record.inspectionDescription ?? "-"}
-                                    </Table.Cell>
-                                    <Table.Cell>
-                                        {record.timestamp
-                                            ? new Date(record.timestamp).toLocaleString()
-                                            : record.createdAt
-                                                ? new Date(record.createdAt).toLocaleString()
-                                                : "-"}
-                                    </Table.Cell>
+                    <TableScroller>
+                        <Table>
+                            <Table.Head>
+                                <Table.Row>
+                                    <Table.Cell>Tag</Table.Cell>
+                                    <Table.Cell>Installation</Table.Cell>
+                                    <Table.Cell>Description</Table.Cell>
+                                    <Table.Cell>Timestamp</Table.Cell>
                                 </Table.Row>
-                            ))}
-                        </Table.Body>
-                    </Table>
+                            </Table.Head>
+                            <Table.Body>
+                                {data.items.map((record) => (
+                                    <Table.Row
+                                        key={record.id}
+                                        onClick={() => onSelect(record)}
+                                        style={{
+                                            cursor: "pointer",
+                                            backgroundColor:
+                                                selectedId === record.id ? "#e6faec" : undefined,
+                                        }}
+                                    >
+                                        <Table.Cell>{record.tag ?? "-"}</Table.Cell>
+                                        <Table.Cell>{record.installationCode}</Table.Cell>
+                                        <Table.Cell>
+                                            {record.inspectionDescription ?? "-"}
+                                        </Table.Cell>
+                                        <Table.Cell>
+                                            {record.timestamp
+                                                ? new Date(record.timestamp).toLocaleString()
+                                                : record.createdAt
+                                                    ? new Date(record.createdAt).toLocaleString()
+                                                    : "-"}
+                                        </Table.Cell>
+                                    </Table.Row>
+                                ))}
+                            </Table.Body>
+                        </Table>
+                    </TableScroller>
 
                     <Pagination
                         totalItems={data.totalCount}

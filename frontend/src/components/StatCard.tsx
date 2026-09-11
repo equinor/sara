@@ -1,23 +1,13 @@
 import { ReactNode } from "react";
 import { Typography } from "@equinor/eds-core-react";
+import { tokens } from "@equinor/eds-tokens";
 import styled from "styled-components";
+import { statusColors, Surface } from "./Styles";
 
-type Tone = "default" | "success" | "error" | "warning" | "info";
+type Tone = keyof typeof statusColors;
 
-const TONE_COLORS: Record<Tone, string> = {
-  default: "#6f6f6f",
-  success: "#4bb748",
-  error: "#eb0000",
-  warning: "#ff9200",
-  info: "#0084c4",
-};
-
-const Card = styled.div<{ $accent: string }>`
-  border: 1px solid #dcdcdc;
-  border-left: 3px solid ${(p) => p.$accent};
-  border-radius: 4px;
+const Card = styled(Surface)`
   padding: 0.5rem 0.75rem;
-  background: #ffffff;
   min-width: 120px;
   flex: 1 1 120px;
 `;
@@ -36,20 +26,20 @@ interface Props {
 }
 
 export default function StatCard({ title, value, tone = "default", subtitle }: Props) {
-  const accent = TONE_COLORS[tone];
+  const { accent, text } = statusColors[tone];
   return (
     <Card $accent={accent}>
       <Typography
         variant="caption"
-        style={{ color: "#6f6f6f", textTransform: "uppercase", letterSpacing: "0.04em" }}
+        style={{ color: tokens.colors.text.static_icons__tertiary.hex, textTransform: "uppercase", letterSpacing: "0.04em" }}
       >
         {title}
       </Typography>
-      <Value variant="h4" style={{ color: tone === "default" ? undefined : accent }}>
+      <Value variant="h4" style={{ color: text }}>
         {value}
       </Value>
       {subtitle && (
-        <Typography variant="caption" style={{ color: "#6f6f6f", fontSize: "0.7rem" }}>
+        <Typography variant="caption" style={{ color: tokens.colors.text.static_icons__tertiary.hex, fontSize: "0.7rem" }}>
           {subtitle}
         </Typography>
       )}

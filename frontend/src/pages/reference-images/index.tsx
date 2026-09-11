@@ -18,6 +18,7 @@ import {
 import { useResourceMutation } from "../../api/queries"
 import IdCell from "../../components/IdCell"
 import SegmentedToggle from "../../components/SegmentedToggle"
+import { ErrorText, TableScroller } from "../../components/Styles"
 
 Icon.add({ add, refresh })
 
@@ -33,6 +34,8 @@ const StyledPage = styled.div`
 
 const StyledTableToolbar = styled.div`
   display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
   justify-content: space-between;
   max-width: 1200px;
   margin-bottom: 1rem;
@@ -111,12 +114,12 @@ export default function ReferencePolygonImagesPage() {
             </StyledPageHeader>
 
             {error && (
-                <Typography
+                <ErrorText
                     variant="body_short"
-                    style={{ marginBottom: "1rem", color: "#eb0000" }}
+                    style={{ marginBottom: "1rem" }}
                 >
                     {error}
-                </Typography>
+                </ErrorText>
             )}
 
             <StyledTableToolbar>
@@ -147,61 +150,63 @@ export default function ReferencePolygonImagesPage() {
             {loading ? (
                 <Typography variant="body_short">Loading...</Typography>
             ) : (
-                <StyledTable>
-                    <Table.Head>
-                        <Table.Row>
-                            <Table.Cell>ID</Table.Cell>
-                            <Table.Cell>Installation</Table.Cell>
-                            <Table.Cell>Tag</Table.Cell>
-                            <Table.Cell>Inspection Description</Table.Cell>
-                            <Table.Cell>Source Type</Table.Cell>
-                            <Table.Cell>Actions</Table.Cell>
-                        </Table.Row>
-                    </Table.Head>
-                    <Table.Body>
-                        {sortedData.map((metadata) => (
-                            <Table.Row
-                                key={metadata.id}
-                                onClick={() => navigate(`/reference-images/${metadata.id}`)}
-                                style={{ cursor: "pointer" }}
-                            >
-                                <Table.Cell>
-                                    <IdCell id={metadata.id} />
-                                </Table.Cell>
-                                <Table.Cell>{metadata.installationCode.toUpperCase()}</Table.Cell>
-                                <Table.Cell>{metadata.tagId}</Table.Cell>
-                                <Table.Cell>{metadata.inspectionDescription}</Table.Cell>
-                                <Table.Cell>
-                                    {SOURCE_ANALYSIS_TYPE_LABELS[metadata.sourceAnalysisType]}
-                                </Table.Cell>
-                                <Table.Cell>
-                                    <StyledActions>
-                                        <Button
-                                            variant="ghost"
-                                            color="danger"
-                                            disabled={deleteMutation.isPending}
-                                            onClick={(event) => {
-                                                event.stopPropagation()
-                                                handleDelete(metadata.id)
-                                            }}
-                                        >
-                                            Delete
-                                        </Button>
-                                    </StyledActions>
-                                </Table.Cell>
-                            </Table.Row>
-                        ))}
-                        {sortedData.length === 0 && (
+                <TableScroller>
+                    <StyledTable>
+                        <Table.Head>
                             <Table.Row>
-                                <Table.Cell colSpan={6}>
-                                    <Typography variant="body_short">
-                                        No reference metadata found.
-                                    </Typography>
-                                </Table.Cell>
+                                <Table.Cell>ID</Table.Cell>
+                                <Table.Cell>Installation</Table.Cell>
+                                <Table.Cell>Tag</Table.Cell>
+                                <Table.Cell>Inspection Description</Table.Cell>
+                                <Table.Cell>Source Type</Table.Cell>
+                                <Table.Cell>Actions</Table.Cell>
                             </Table.Row>
-                        )}
-                    </Table.Body>
-                </StyledTable>
+                        </Table.Head>
+                        <Table.Body>
+                            {sortedData.map((metadata) => (
+                                <Table.Row
+                                    key={metadata.id}
+                                    onClick={() => navigate(`/reference-images/${metadata.id}`)}
+                                    style={{ cursor: "pointer" }}
+                                >
+                                    <Table.Cell>
+                                        <IdCell id={metadata.id} />
+                                    </Table.Cell>
+                                    <Table.Cell>{metadata.installationCode.toUpperCase()}</Table.Cell>
+                                    <Table.Cell>{metadata.tagId}</Table.Cell>
+                                    <Table.Cell>{metadata.inspectionDescription}</Table.Cell>
+                                    <Table.Cell>
+                                        {SOURCE_ANALYSIS_TYPE_LABELS[metadata.sourceAnalysisType]}
+                                    </Table.Cell>
+                                    <Table.Cell>
+                                        <StyledActions>
+                                            <Button
+                                                variant="ghost"
+                                                color="danger"
+                                                disabled={deleteMutation.isPending}
+                                                onClick={(event) => {
+                                                    event.stopPropagation()
+                                                    handleDelete(metadata.id)
+                                                }}
+                                            >
+                                                Delete
+                                            </Button>
+                                        </StyledActions>
+                                    </Table.Cell>
+                                </Table.Row>
+                            ))}
+                            {sortedData.length === 0 && (
+                                <Table.Row>
+                                    <Table.Cell colSpan={6}>
+                                        <Typography variant="body_short">
+                                            No reference metadata found.
+                                        </Typography>
+                                    </Table.Cell>
+                                </Table.Row>
+                            )}
+                        </Table.Body>
+                    </StyledTable>
+                </TableScroller>
             )}
         </StyledPage>
     )
