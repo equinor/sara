@@ -103,3 +103,83 @@ public class ThermalReadingPayloadEnricher(
         };
     }
 }
+
+public class FencillaPayloadEnricher(
+    IReferencePolygonMetadataService referencePolygonMetadataService,
+    ILogger<FencillaPayloadEnricher> logger
+) : ITriggerPayloadEnricher
+{
+    public string WorkflowType => "fencilla";
+
+    public async Task<Dictionary<string, object>> EnrichAsync(
+        Workflow workflow,
+        IReadOnlyList<InspectionRecord> inspectionRecords
+    )
+    {
+        if (inspectionRecords.Count == 0)
+        {
+            throw new InvalidOperationException(
+                $"FencillaPayloadEnricher invoked for workflow {workflow.Id} with no InspectionRecords"
+            );
+        }
+
+        if (inspectionRecords.Count > 1)
+        {
+            logger.LogWarning(
+                "FencillaPayloadEnricher invoked with {Count} records for workflow {WorkflowId} — "
+                    + "this enricher only handles single records, using the first.",
+                inspectionRecords.Count,
+                workflow.Id
+            );
+        }
+
+        var inspectionRecord = inspectionRecords[0];
+
+        if (string.IsNullOrWhiteSpace(inspectionRecord.InstallationCode))
+        {
+            throw new InvalidOperationException(
+                $"InspectionRecord {inspectionRecord.InspectionId} is missing InstallationCode — required for fencilla enrichment"
+            );
+        }
+
+        if (string.IsNullOrWhiteSpace(inspectionRecord.Tag))
+        {
+            throw new InvalidOperationException(
+                $"InspectionRecord {inspectionRecord.InspectionId} is missing Tag — required for fencilla enrichment"
+            );
+        }
+
+        if (string.IsNullOrWhiteSpace(inspectionRecord.InspectionDescription))
+        {
+            throw new InvalidOperationException(
+                $"InspectionRecord {inspectionRecord.InspectionId} is missing InspectionDescription — required for fencilla enrichment"
+            );
+        }
+
+        var metadata = await referencePolygonMetadataService.ReadByUniqueKey(
+            inspectionRecord.InstallationCode,
+            inspectionRecord.Tag,
+            inspectionRecord.InspectionDescription
+        );
+
+        if (metadata is null)
+        {
+            // Not every fencilla tag has a reference polygon set up
+            logger.LogInformation(
+                "No fencilla reference metadata for installationCode '{InstallationCode}', "
+                    + "tagId '{Tag}', inspectionDescription '{InspectionDescription}'; "
+                    + "continuing without ignore-polygon extras",
+                inspectionRecord.InstallationCode,
+                inspectionRecord.Tag,
+                inspectionRecord.InspectionDescription
+            );
+            return [];
+        }
+
+        return new Dictionary<string, object>
+        {
+            ["referenceImageBlobStorageLocation"] = metadata.ReferenceImageBlobStorageLocation,
+            ["referencePolygon"] = metadata.Polygon,
+        };
+    }
+}
