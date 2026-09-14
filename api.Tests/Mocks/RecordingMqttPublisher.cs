@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,6 +13,8 @@ namespace Api.Test.Mocks;
 /// </summary>
 public class RecordingMqttPublisher : IMqttPublisherService
 {
+    public Func<Guid, Task>? BeforePublish { get; set; }
+
     private readonly ConcurrentQueue<SaraVisualizationAvailableMessage> _visualizationMessages =
         new();
     private readonly ConcurrentQueue<SaraAnalysisResultMessage> _analysisResultMessages = new();
@@ -22,20 +25,22 @@ public class RecordingMqttPublisher : IMqttPublisherService
     public IReadOnlyCollection<SaraAnalysisResultMessage> AnalysisResultMessages =>
         _analysisResultMessages.ToArray();
 
-    public Task PublishSaraVisualizationAvailable(
+    public async Task PublishSaraVisualizationAvailable(
         SaraVisualizationAvailableMessage visualizationAvailableMessage
     )
     {
+        if (BeforePublish is not null)
+            await BeforePublish(visualizationAvailableMessage.WorkflowId);
         _visualizationMessages.Enqueue(visualizationAvailableMessage);
-        return Task.CompletedTask;
     }
 
-    public Task PublishSaraAnalysisResultAvailable(
+    public async Task PublishSaraAnalysisResultAvailable(
         SaraAnalysisResultMessage saraAnalysisResultMessage
     )
     {
+        if (BeforePublish is not null)
+            await BeforePublish(saraAnalysisResultMessage.WorkflowId);
         _analysisResultMessages.Enqueue(saraAnalysisResultMessage);
-        return Task.CompletedTask;
     }
 
     public void Reset()
