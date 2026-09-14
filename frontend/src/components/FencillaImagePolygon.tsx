@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { Stage, Layer, Image as KonvaImage } from "react-konva"
 import { Typography } from "@equinor/eds-core-react"
-import { usePolygonEditor, EditorContainer, PolygonEditorControls, createStageClickHandler, PolygonOverlay } from "./PolygonEditor"
+import { PolygonDrawingEditor, createStageClickHandler, PolygonOverlay } from "./PolygonEditor"
 import { ErrorText } from "./Styles"
 
 function useHtmlImage(url: string) {
@@ -30,7 +30,9 @@ interface FencillaImageStageProps {
     vertices: number[][]
     isClosed: boolean
     editable: boolean
+    selectedVertexIndex?: number | null
     onStageClick?: (pointerX: number, pointerY: number, scale: number) => void
+    onVertexSelect?: (index: number) => void
     onVertexDragEnd?: (index: number, imageX: number, imageY: number) => void
 }
 
@@ -40,7 +42,9 @@ function FencillaImageStage({
     vertices,
     isClosed,
     editable,
+    selectedVertexIndex,
     onStageClick,
+    onVertexSelect,
     onVertexDragEnd,
 }: FencillaImageStageProps) {
     const { image, error } = useHtmlImage(imageUrl)
@@ -77,6 +81,8 @@ function FencillaImageStage({
                     scale={scale}
                     isClosed={isClosed}
                     editable={editable}
+                    selectedVertexIndex={selectedVertexIndex}
+                    onVertexSelect={onVertexSelect}
                     onVertexDragEnd={onVertexDragEnd}
                 />
             </Layer>
@@ -119,29 +125,23 @@ export function FencillaPolygonDrawingEditor({
     initialPolygon,
     onPolygonChange,
 }: FencillaPolygonDrawingEditorProps) {
-    const editor = usePolygonEditor(onPolygonChange, initialPolygon)
-
     return (
-        <EditorContainer>
-            <Typography variant="body_short">{editor.instructions}</Typography>
-
-            <FencillaImageStage
-                imageUrl={imageUrl}
-                maxDisplayWidth={maxDisplayWidth}
-                vertices={editor.vertices}
-                isClosed={editor.isClosed}
-                editable
-                onStageClick={editor.handleStageClick}
-                onVertexDragEnd={editor.handleVertexDragEnd}
-            />
-
-            <PolygonEditorControls
-                vertices={editor.vertices}
-                isClosed={editor.isClosed}
-                onClosePolygon={editor.handleClosePolygon}
-                onUndoLastPoint={editor.handleUndoLastPoint}
-                onClear={editor.handleClear}
-            />
-        </EditorContainer>
+        <PolygonDrawingEditor
+            initialPolygon={initialPolygon}
+            onPolygonChange={onPolygonChange}
+            renderStage={(editor) => (
+                <FencillaImageStage
+                    imageUrl={imageUrl}
+                    maxDisplayWidth={maxDisplayWidth}
+                    vertices={editor.vertices}
+                    isClosed={editor.isClosed}
+                    editable
+                    selectedVertexIndex={editor.selectedVertexIndex}
+                    onStageClick={editor.handleStageClick}
+                    onVertexSelect={editor.setSelectedVertexIndex}
+                    onVertexDragEnd={editor.handleVertexDragEnd}
+                />
+            )}
+        />
     )
 }

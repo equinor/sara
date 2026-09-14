@@ -2,6 +2,7 @@ import { Button, Typography } from "@equinor/eds-core-react"
 import styled from "styled-components"
 import { AnalysisType, type ReferencePolygonMetadataInput, type ThermalImageData } from "../../../api/client"
 import ThermalImageViewer from "../../../components/ThermalImageViewer"
+import ThermalPolygonDrawingEditor from "../../../components/ThermalPolygonDrawingEditor"
 import { FencillaImageViewer, FencillaPolygonDrawingEditor } from "../../../components/FencillaImagePolygon"
 import { ErrorText } from "../../../components/Styles"
 
@@ -62,14 +63,26 @@ export default function ReferenceImageSection({
                 <ErrorText variant="body_short">{imageError}</ErrorText>
             )}
             {thermalImage && (
-                <ThermalImageViewer
-                    temperatures={thermalImage.temperatures}
-                    width={thermalImage.width}
-                    height={thermalImage.height}
-                    minTemperature={thermalImage.minTemperature}
-                    maxTemperature={thermalImage.maxTemperature}
-                    polygon={polygon}
-                />
+                editing && form.sourceAnalysisType === AnalysisType.ThermalReading ? (
+                    <ThermalPolygonDrawingEditor
+                        temperatures={thermalImage.temperatures}
+                        width={thermalImage.width}
+                        height={thermalImage.height}
+                        minTemperature={thermalImage.minTemperature}
+                        maxTemperature={thermalImage.maxTemperature}
+                        initialPolygon={polygon}
+                        onPolygonChange={onPolygonChange}
+                    />
+                ) : (
+                    <ThermalImageViewer
+                        temperatures={thermalImage.temperatures}
+                        width={thermalImage.width}
+                        height={thermalImage.height}
+                        minTemperature={thermalImage.minTemperature}
+                        maxTemperature={thermalImage.maxTemperature}
+                        polygon={polygon}
+                    />
+                )
             )}
             {image && (
                 editing && form.sourceAnalysisType === AnalysisType.Fencilla ? (
