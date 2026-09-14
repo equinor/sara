@@ -64,7 +64,9 @@ export interface ThermalImageStageProps {
     vertices: number[][]
     isClosed: boolean
     editable: boolean
+    selectedVertexIndex?: number | null
     onStageClick?: (pointerX: number, pointerY: number, scale: number) => void
+    onVertexSelect?: (index: number) => void
     onVertexDragEnd?: (index: number, imageX: number, imageY: number) => void
 }
 
@@ -79,7 +81,9 @@ export default function ThermalImageStage({
     vertices,
     isClosed,
     editable,
+    selectedVertexIndex,
     onStageClick,
+    onVertexSelect,
     onVertexDragEnd,
 }: ThermalImageStageProps) {
     const thermalCanvas = useMemo(
@@ -125,6 +129,8 @@ export default function ThermalImageStage({
                         scale={scale}
                         isClosed={isClosed}
                         editable={editable}
+                        selectedVertexIndex={selectedVertexIndex}
+                        onVertexSelect={onVertexSelect}
                         onVertexDragEnd={onVertexDragEnd}
                     />
                 </Layer>

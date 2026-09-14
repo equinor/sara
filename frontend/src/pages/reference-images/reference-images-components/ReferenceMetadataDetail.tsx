@@ -131,10 +131,7 @@ export default function ReferenceMetadataDetail({ id }: { id: string | undefined
 
     const handleSave = async () => {
         if (!id || !form || pending) return
-        if (
-            form.sourceAnalysisType === AnalysisType.Fencilla &&
-            form.polygon.length < 3
-        ) {
+        if (form.polygon.length < 3) {
             setError("Please draw a polygon with at least 3 vertices before saving.")
             return
         }
