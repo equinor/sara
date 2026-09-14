@@ -148,7 +148,7 @@ public class ArgoWorkflowEventProcessor(
     {
         var completion = ReadCompletion(node);
         var output = completion.OutputBlobStorageLocation;
-        await context
+        var completed = await context
             .Database.CreateExecutionStrategy()
             .ExecuteAsync(async () =>
             {
@@ -201,19 +201,27 @@ public class ArgoWorkflowEventProcessor(
                     );
                 if (updated == 0)
                 {
-                    return;
+                    return null;
                 }
 
+                Workflow? completedWorkflow = null;
                 if (completion.Status == WorkflowStatus.Succeeded)
                 {
-                    var completed = await context
+                    completedWorkflow = await context
                         .Workflows.AsNoTracking()
                         .Include(candidate => candidate.AnalysisRun)
                         .SingleAsync(candidate => candidate.Id == workflow.Id, cancellationToken);
-                    await workflowService.OnWorkflowCompleted(completed);
                 }
                 await transaction.CommitAsync(cancellationToken);
+                return completedWorkflow;
             });
+
+        // Readiness consumers must see committed results. Keep external side effects outside
+        // the execution strategy so a transaction retry cannot publish or upload twice.
+        if (completed is not null)
+        {
+            await workflowService.OnWorkflowCompleted(completed);
+        }
     }
 
     private async Task MarkInProgressAsync(

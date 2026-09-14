@@ -132,6 +132,67 @@ public class ArgoWorkflowEventProcessorTests : IAsyncLifetime
         Assert.Equal(patchFails ? 1 : 2, _factory.ArgoWorkflowClient.ReconciledWorkflows.Count);
     }
 
+    private const string ReadyResult = """
+        {"oilLevel":0.42,"confidence":1.0,"temperature":21,"isBreak":true,
+         "outputBlobStorageLocation":{"storageAccount":"outstorage","blobContainer":"output","blobName":"visualized.jpg"},
+         "preProcessedBlobStorageLocation":{"storageAccount":"outstorage","blobContainer":"output","blobName":"thermal.tiff"}}
+        """;
+
+    [Theory]
+    [InlineData("cloe", false)]
+    [InlineData("thermal-reading", false)]
+    [InlineData("fencilla", false)]
+    [InlineData("anonymizer", true)]
+    [InlineData("copy-raw-to-visualized", true)]
+    public async Task ReadinessNotification_SeesCommittedResult(
+        string workflowType,
+        bool visualization
+    )
+    {
+        var record = await _db.NewInspectionRecord();
+        var analysis = await _db.NewAnalysis(inspectionRecords: [record]);
+        var run = await _db.NewAnalysisRun(analysis);
+        run.Status = AnalysisRunStatus.InProgress;
+        var workflow = await _db.NewWorkflow(run, workflowType: workflowType);
+        Workflow? downstream = null;
+        if (workflowType == "anonymizer")
+        {
+            downstream = await _db.NewWorkflow(run, workflowType: "thermal-reading", stepNumber: 2);
+        }
+        SetArgoIdentity(run, "argo-uid");
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        Workflow? snapshot = null;
+        string? downstreamInput = null;
+        _factory.MqttPublisher.BeforePublish = async id =>
+        {
+            snapshot = await _context
+                .Workflows.AsNoTracking()
+                .SingleAsync(w => w.Id == id, TestContext.Current.CancellationToken);
+            if (downstream is not null)
+            {
+                var next = await _context
+                    .Workflows.AsNoTracking()
+                    .SingleAsync(w => w.Id == downstream.Id, TestContext.Current.CancellationToken);
+                downstreamInput = Assert.Single(next.InputBlobStorageLocations).BlobName;
+            }
+        };
+
+        await Process(run, "Running", Node(workflow, "Succeeded", ReadyResult));
+
+        Assert.NotNull(snapshot);
+        Assert.Equal(WorkflowStatus.Succeeded, snapshot.Status);
+        Assert.Equal(ReadyResult, snapshot.ResultJson);
+        Assert.NotNull(snapshot.CompletedAt);
+        Assert.Equal("visualized.jpg", snapshot.OutputBlobStorageLocation?.BlobName);
+        Assert.Equal(visualization ? 1 : 0, _factory.MqttPublisher.VisualizationMessages.Count);
+        Assert.Equal(visualization ? 0 : 1, _factory.MqttPublisher.AnalysisResultMessages.Count);
+        if (downstream is not null)
+            Assert.Equal("thermal.tiff", downstreamInput);
+        await _context.Entry(run).ReloadAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(AnalysisRunStatus.InProgress, run.Status);
+    }
+
     [Fact]
     public async Task StaleUid_IsIgnored()
     {

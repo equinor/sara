@@ -27,6 +27,16 @@ Analysis submission is outside the insertion transaction. A crash or uncertain c
 can leave a record without submitted analyses; duplicate delivery does not recover it.
 Recovery is outside this change's scope: this is not an exactly-once/outbox scheme.
 
+## Workflow readiness notification ordering
+
+`Services/ArgoWorkflowEventProcessorTests.cs` verifies that all five readiness handlers
+publish only after workflow results are visible through a separate PostgreSQL context,
+including anonymizer thermal-input rewiring. Handlers run outside transaction retries.
+
+Delivery remains best-effort: enqueue failures, a crash after commit but before dispatch,
+or a lost commit acknowledgement can leave handler side effects undelivered. Duplicate
+events skip terminal workflows rather than replaying those side effects; there is no outbox.
+
 ## Writing a new test
 
 Copy an existing file in `Services/` as a template. Minimum skeleton:
