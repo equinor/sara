@@ -3,10 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using api.Database.Context;
-using api.Database.Models;
 using api.Services.ResultHandlers.WorkflowResultHandlers;
 using Api.Test.Database;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
 using Xunit;
@@ -133,45 +131,5 @@ public class AnonymizerResultHandlerTests : IAsyncLifetime
         await handler.OnWorkflowCompleted(workflow);
 
         Assert.Empty(_factory.MqttPublisher.VisualizationMessages);
-    }
-
-    [Fact]
-    public async Task OnWorkflowCompleted_ResultWithPreProcessed_NextIsThermalReading_RewiresInputs()
-    {
-        var record = await _db.NewInspectionRecord(inspectionId: "insp-1");
-        var analysis = await _db.NewAnalysis(inspectionRecords: [record]);
-        var run = await _db.NewAnalysisRun(analysis);
-        var output = _db.NewBlobStorageLocation(blobName: "anonymized.jpg");
-        var anonymizer = await _db.NewWorkflow(
-            run,
-            workflowType: "anonymizer",
-            stepNumber: 1,
-            outputBlobStorageLocation: output
-        );
-        var rawThermalInput = _db.NewBlobStorageLocation(blobName: "raw.jpg");
-        var thermalReading = await _db.NewWorkflow(
-            run,
-            workflowType: "thermal-reading",
-            stepNumber: 2,
-            inputBlobStorageLocations: [rawThermalInput]
-        );
-        anonymizer.ResultJson =
-            "{\"isPersonInImage\":false,"
-            + "\"outputBlobStorageLocation\":{\"storageAccount\":\"anonstorage\",\"blobContainer\":\"anon-container\",\"blobName\":\"anonymized.jpg\"},"
-            + "\"preProcessedBlobStorageLocation\":{\"storageAccount\":\"anonstorage\",\"blobContainer\":\"raw-container\",\"blobName\":\"raw.tiff\"}}";
-        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
-
-        using var scope = _factory.Services.CreateScope();
-        var handler = ResolveHandler(scope);
-
-        await handler.OnWorkflowCompleted(anonymizer);
-
-        var reloaded = await _context
-            .Workflows.AsNoTracking()
-            .FirstAsync(w => w.Id == thermalReading.Id, TestContext.Current.CancellationToken);
-        var input = Assert.Single(reloaded.InputBlobStorageLocations);
-        Assert.Equal("anonstorage", input.StorageAccount);
-        Assert.Equal("raw-container", input.BlobContainer);
-        Assert.Equal("raw.tiff", input.BlobName);
     }
 }

@@ -20,9 +20,9 @@ When running locally the endpoint is reachable at https://localhost:8100
 - `AnalysisGroup` -- lets a single Analysis span multiple InspectionRecords. 
   The group is buffered until all expected records arrive or 
   `AnalysisGroupTimeoutMinutes` elapses.
-- Workflow chains run sequentially. By default each step's output blob
-  becomes the next step's input; per-workflow rewiring lives in the matching
-  `IWorkflowResultHandler`.
+- Workflow chains are submitted upfront as one Argo DAG and run sequentially.
+  `AnalysisWorkflowGraphBuilder` wires and persists step inputs before submission,
+  including the anonymizer's preprocessed TIFF as the thermal-reading input.
 - The Argo trigger payload has a stable core (`workflowId`,
   `inputBlobStorageLocations`, `outputBlobStorageLocation`) plus an `extras`
   object populated by `ITriggerPayloadEnricher` implementations matched on
