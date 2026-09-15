@@ -8,6 +8,16 @@ to create a new
 [migration](https://docs.microsoft.com/en-us/ef/core/managing-schemas/migrations/)
 and apply it to our databases.
 
+For PostgreSQL at runtime, Staging and Production (case-insensitive) require
+`AppRegIdentity`: `ConnectionString` is excluded after all configuration providers
+have been applied, regardless of its position in `Database:AllowedAuthMethods`.
+Missing identity configuration or token acquisition failure stops startup without
+password fallback. Development/local connection strings (including pgAdmin), Test
+and in-memory databases are unchanged. EF Core's separate design-time factory
+still honors the configured method order, including CI's `ConnectionString`
+override for admin-owned migrations and development migration fallback. The
+runtime restriction does not remove or change the underlying credentials.
+
 ### Installing EF Core
 
 ```bash
