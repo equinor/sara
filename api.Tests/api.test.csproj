@@ -32,6 +32,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="..\api\appsettings*.json" Link="DatabaseSettings\%(Filename)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="appsettings.Test.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

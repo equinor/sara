@@ -35,6 +35,11 @@ namespace api.Database.Context
                 .AddEnvironmentVariables()
                 .Build();
 
+            return CreateDbContext(config);
+        }
+
+        internal static SaraDbContext CreateDbContext(IConfiguration config)
+        {
             string[] allowedDbAuthMethods =
                 config.GetSection("Database:AllowedAuthMethods").Get<string[]>() ?? [];
             if (allowedDbAuthMethods.Length == 0)

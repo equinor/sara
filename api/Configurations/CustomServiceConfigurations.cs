@@ -286,6 +286,27 @@ public static class CustomServiceConfigurations
                 allowedDbAuthMethods = ["ConnectionString"];
             }
 
+            bool requireAppRegIdentity =
+                environmentName.Equals("Staging", StringComparison.OrdinalIgnoreCase)
+                || environmentName.Equals("Production", StringComparison.OrdinalIgnoreCase);
+            if (requireAppRegIdentity)
+            {
+                allowedDbAuthMethods = allowedDbAuthMethods
+                    .Where(method =>
+                        !string.Equals(
+                            method,
+                            "ConnectionString",
+                            StringComparison.OrdinalIgnoreCase
+                        )
+                    )
+                    .ToArray();
+                Console.WriteLine(
+                    $"Database authentication in '{environmentName}' requires AppRegIdentity; "
+                        + "ConnectionString is disabled with no password fallback. "
+                        + $"Effective methods: [{string.Join(", ", allowedDbAuthMethods)}]."
+                );
+            }
+
             Console.WriteLine(
                 $"Database auth methods to try (in order): {string.Join(", ", allowedDbAuthMethods)}"
             );
@@ -316,7 +337,9 @@ public static class CustomServiceConfigurations
                     catch (Exception ex)
                     {
                         Console.WriteLine(
-                            $"AppRegIdentity failed: {ex.GetType().Name}: {ex.Message}"
+                            requireAppRegIdentity
+                                ? $"AppRegIdentity failed: {ex.GetType().Name}. No password fallback is permitted."
+                                : $"AppRegIdentity failed: {ex.GetType().Name}: {ex.Message}"
                         );
                         errors.Add(("AppRegIdentity", ex));
                     }
@@ -351,6 +374,16 @@ public static class CustomServiceConfigurations
 
             if (!configured)
             {
+                if (requireAppRegIdentity)
+                {
+                    throw new InvalidOperationException(
+                        $"Database authentication failed in '{environmentName}'. "
+                            + $"Effective methods: [{string.Join(", ", allowedDbAuthMethods)}]. "
+                            + "AppRegIdentity is required; ConnectionString is disabled with no password fallback.",
+                        errors.Count > 0 ? new AggregateException(errors.Select(e => e.ex)) : null
+                    );
+                }
+
                 var summary = string.Join(
                     "; ",
                     errors.Select(e => $"{e.method}: {e.ex.GetType().Name}: {e.ex.Message}")
