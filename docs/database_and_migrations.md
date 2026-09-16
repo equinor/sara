@@ -20,37 +20,29 @@ runtime restriction does not remove or change the underlying credentials.
 
 ### Design-time migration authentication
 
-Leaving `Migrations:AuthenticationMode` unset (or setting it to `Legacy`) preserves
-the existing ordered authentication, Key Vault/password fallback and local/temporary
-database behavior. Mode names are case-insensitive; explicit empty, padded or
-unknown modes fail.
+Unset or `Legacy` `Migrations:AuthenticationMode` preserves existing local/CI
+authentication and password fallback. Modes are case-insensitive; empty, padded
+or unknown values fail.
 
-The opt-in `AzureCli` mode uses only the Azure CLI session established by
-`azure/login`, not runtime credentials, IMDS, Key Vault or stored passwords. Set
-`Migrations__AuthenticationMode=AzureCli`, `Migrations__Postgres__Host` (full DNS
-hostname/IP, no port), `Migrations__Postgres__Database`,
-`Migrations__Postgres__Username` (the dedicated migration role), and
-`AZURE_TENANT_ID` (tenant GUID). All are required; runtime `Database`/`AzureAd`
-settings are ignored. The factory reads JSON and environment variables, not
-Program's Key Vault or `.env` configuration.
+For CLI authentication, set `Migrations__AuthenticationMode=AzureCli`,
+`Migrations__Postgres__Host` (DNS hostname/IP, no port),
+`Migrations__Postgres__Database`, `Migrations__Postgres__Username` and
+`AZURE_TENANT_ID` (tenant GUID). It uses only the `azure/login` or local `az login`
+session, with no runtime identity, Key Vault or password fallback. The factory
+reads JSON/environment variables, not `.env`; local login still needs database
+permissions and network access.
 
-Connections require `VerifyFull` TLS. Npgsql's synchronous/asynchronous password
-providers request the PostgreSQL scope from `AzureCliCredential` when physical
-connections authenticate; no token is embedded in the connection string for the
-whole migration run. Acquisition and CLI execution are bounded to 30 seconds,
-async cancellation is propagated, and context disposal releases the data source.
-Token failures stop the migration without credential/password fallback. Expected
-Azure CLI authentication/cancellation errors omit sensitive provider diagnostics.
-EF's short-lived admin connection clones snapshot a fresh token; the main
-migration connection retains the provider. Databases must already be provisioned
-before opt-in; this mode does not provision identities or grant database creation.
+Connections use `VerifyFull` TLS and acquire PostgreSQL tokens as physical
+connections authenticate, with a 30-second timeout and async cancellation.
+Context disposal releases the data source. Expected CLI errors omit sensitive
+diagnostics. EF's short-lived admin clones snapshot a fresh token; the main
+migration connection retains the token provider.
 
-`api/.migration-auth-contract` contains exactly `azure-cli-postgresql-v1` plus one
-LF. It is a reviewed source attestation checked by the shared workflow before
-login/build/EF, not a compiled preflight.
-No caller opts in yet. Activation requires a later change with a dedicated
-migration identity, catalog ownership/bootstrap and network checks, then explicit
-development caller opt-in. Runtime authentication and release gates are unchanged.
+The shared workflow checks `api/.migration-auth-contract` (exactly
+`azure-cli-postgresql-v1` plus one LF) before login/build/EF. No caller opts in yet:
+activation requires a provisioned database, dedicated migration identity,
+catalog ownership/bootstrap and network checks, then a separate development
+opt-in. Runtime authentication and release gates are unchanged.
 
 ### Installing EF Core
 

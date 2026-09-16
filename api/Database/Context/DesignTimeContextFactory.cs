@@ -39,14 +39,11 @@ namespace api.Database.Context
             return CreateDbContext(config);
         }
 
-        internal static SaraDbContext CreateDbContext(
-            IConfiguration config,
-            Func<AzureCliCredentialOptions, TokenCredential>? migrationCredentialFactory = null
-        )
+        internal static SaraDbContext CreateDbContext(IConfiguration config)
         {
             var migrationMode = config["Migrations:AuthenticationMode"];
             if (string.Equals(migrationMode, "AzureCli", StringComparison.OrdinalIgnoreCase))
-                return CreateAzureCliContext(config, migrationCredentialFactory);
+                return CreateAzureCliContext(config);
             if (
                 migrationMode is not null
                 && !string.Equals(migrationMode, "Legacy", StringComparison.OrdinalIgnoreCase)
@@ -144,10 +141,7 @@ namespace api.Database.Context
             return new SaraDbContext(optionsBuilder.Options);
         }
 
-        private static SaraDbContext CreateAzureCliContext(
-            IConfiguration config,
-            Func<AzureCliCredentialOptions, TokenCredential>? credentialFactory
-        )
+        private static SaraDbContext CreateAzureCliContext(IConfiguration config)
         {
             var host = RequiredMigrationSetting(config, "Migrations:Postgres:Host");
             var database = RequiredMigrationSetting(config, "Migrations:Postgres:Database");
@@ -168,9 +162,7 @@ namespace api.Database.Context
                 ProcessTimeout = AzureCliMigrationAuthentication.TokenTimeout,
             };
             var authentication = new AzureCliMigrationAuthentication(
-                credentialFactory is null
-                    ? new AzureCliCredential(credentialOptions)
-                    : credentialFactory(credentialOptions)
+                new AzureCliCredential(credentialOptions)
             );
             var dataSourceBuilder = new NpgsqlDataSourceBuilder(
                 new NpgsqlConnectionStringBuilder
