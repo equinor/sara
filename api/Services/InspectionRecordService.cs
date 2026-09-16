@@ -181,7 +181,7 @@ public class InspectionRecordService(
                 BlobName = message.InspectionDataPath.BlobName,
             },
             InspectionType = message.InspectionType,
-            Tag = Sanitize.SanitizeUserInput(message.TagId),
+            Tag = message.TagId is null ? null : Sanitize.SanitizeUserInput(message.TagId),
             InspectionDescription = Sanitize.SanitizeUserInput(message.InspectionDescription),
             MissionName = Sanitize.SanitizeUserInput(message.MissionName),
             RobotName = message.RobotName,

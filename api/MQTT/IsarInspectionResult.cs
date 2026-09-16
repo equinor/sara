@@ -50,8 +50,7 @@ public class IsarInspectionResultMessage : MqttMessage
     public required string InstallationCode { get; set; }
 
     [JsonPropertyName("tag_id")]
-    [Required]
-    public required string TagId { get; set; }
+    public string? TagId { get; set; }
 
     [JsonPropertyName("inspection_type")]
     [Required]
