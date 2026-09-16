@@ -13,24 +13,28 @@ For PostgreSQL at runtime, Staging and Production (case-insensitive) require
 have been applied, regardless of its position in `Database:AllowedAuthMethods`.
 Missing identity configuration or token acquisition failure stops startup without
 password fallback. Development/local connection strings (including pgAdmin), Test
-and in-memory databases are unchanged. EF Core's separate design-time factory
-still honors the configured method order, including CI's `ConnectionString`
-override for admin-owned migrations and development migration fallback. The
-runtime restriction does not remove or change the underlying credentials.
+and in-memory databases are unchanged. EF Core migrations use the separate
+design-time authentication below; runtime credentials and method arrays are
+unchanged.
 
 ### Design-time migration authentication
 
-Unset or `Legacy` `Migrations:AuthenticationMode` preserves existing local/CI
-authentication and password fallback. Modes are case-insensitive; empty, padded
-or unknown values fail.
+Migrations default to `AzureCli`. The legacy authentication chain, Key Vault
+lookup and automatic password fallback are removed. Mode names are
+case-insensitive; `Legacy`, empty, padded or unknown values fail.
 
-For CLI authentication, set `Migrations__AuthenticationMode=AzureCli`,
-`Migrations__Postgres__Host` (DNS hostname/IP, no port),
+Set `Migrations__Postgres__Host` (DNS hostname/IP, no port),
 `Migrations__Postgres__Database`, `Migrations__Postgres__Username` and
 `AZURE_TENANT_ID` (tenant GUID). It uses only the `azure/login` or local `az login`
 session, with no runtime identity, Key Vault or password fallback. The factory
 reads JSON/environment variables, not `.env`; local login still needs database
 permissions and network access.
+
+For local PostgreSQL or disposable CI databases only, explicitly set
+`Migrations__AuthenticationMode=LocalConnectionString` and
+`Database__postgresConnectionString`. This requires `ASPNETCORE_ENVIRONMENT`
+to be `Local`, `Development` or `IntegrationTest`; it never reads Key Vault.
+Deployed CI migrations always force `AzureCli`, including Development.
 
 Connections use `VerifyFull` TLS and acquire PostgreSQL tokens as physical
 connections authenticate, with a 30-second timeout and async cancellation.
@@ -39,10 +43,12 @@ diagnostics. EF's short-lived admin clones snapshot a fresh token; the main
 migration connection retains the token provider.
 
 The shared workflow checks `api/.migration-auth-contract` (exactly
-`azure-cli-postgresql-v1` plus one LF) before login/build/EF. No caller opts in yet:
-activation requires a provisioned database, dedicated migration identity,
-catalog ownership/bootstrap and network checks, then a separate development
-opt-in. Runtime authentication and release gates are unchanged.
+`azure-cli-postgresql-v1` plus one LF) before login/build/EF; unsupported release
+tags fail at this gate. **This is a breaking cutover**, not an opt-in prerequisite:
+coordinate the shared workflow and supported app releases, provision the
+dedicated migration identity, database roles/catalog ownership and required
+environment variables, and confirm network access before merging/running.
+Runtime authentication and release gates are unchanged.
 
 ### Installing EF Core
 
@@ -55,7 +61,9 @@ dotnet tool install --global dotnet-ef
 **NB: Make sure you have have fetched the newest code from main and that no-one else
 is making migrations at the same time as you!**
 
-1. Set the environment variable `ASPNETCORE_ENVIRONMENT` to `Development`:
+1. Configure one of the migration authentication paths above. For Azure
+   PostgreSQL, sign in using `az login --tenant <tenant-id>` and set the dedicated
+   database/tenant variables. Set `ASPNETCORE_ENVIRONMENT` to `Development`:
 
    ```bash
     export ASPNETCORE_ENVIRONMENT=Development
@@ -71,7 +79,6 @@ is making migrations at the same time as you!**
 ### Notes
 
 - The `your-migration-name-here` is basically a database commit message.
-- `Database__ConnectionString` will be fetched from the keyvault when running the `add` command.
 - `add` will _not_ update or alter the connected database in any way, but will add a
   description of the changes that will be applied later
 - If you for some reason are unhappy with your migration, you can delete it with:

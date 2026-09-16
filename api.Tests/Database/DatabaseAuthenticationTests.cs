@@ -346,7 +346,9 @@ public class DatabaseAuthenticationTests
     [Theory]
     [InlineData("Staging")]
     [InlineData("Production")]
-    public void DesignTimePreservesCiConnectionStringOverride(string environment)
+    public void DesignTimeDefaultsToAzureCliDespiteLegacyConnectionStringOverride(
+        string environment
+    )
     {
         var config = RealSettings(environment)
             .AddInMemoryCollection(
@@ -356,16 +358,23 @@ public class DatabaseAuthenticationTests
                 }
             )
             .Build();
-        using var context = DesignTimeContextFactory.CreateDbContext(config);
-        Assert.Equal("Npgsql.EntityFrameworkCore.PostgreSQL", context.Database.ProviderName);
-        Assert.Equal(DirectConnection, context.Database.GetConnectionString());
+        var error = Assert.Throws<InvalidOperationException>(() =>
+            DesignTimeContextFactory.CreateDbContext(config)
+        );
+        Assert.Contains("Migrations:Postgres:Host", error.Message);
     }
 
     [Fact]
-    public void DesignTimeDevelopmentPreservesTemporaryMigrationFallback()
+    public void DesignTimeDevelopmentSupportsExplicitTemporaryConnectionString()
     {
         var config = RealSettings("Development")
-            .AddInMemoryCollection(new Dictionary<string, string?> { ["Database:Server"] = "" })
+            .AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["Migrations:AuthenticationMode"] = "LocalConnectionString",
+                    ["ASPNETCORE_ENVIRONMENT"] = "Development",
+                }
+            )
             .Build();
         using var context = DesignTimeContextFactory.CreateDbContext(config);
         Assert.Equal(DirectConnection, context.Database.GetConnectionString());
