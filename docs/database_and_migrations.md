@@ -33,7 +33,7 @@ permissions and network access.
 For local PostgreSQL or disposable CI databases only, explicitly set
 `Migrations__AuthenticationMode=LocalConnectionString` and
 `Database__postgresConnectionString`. This requires `ASPNETCORE_ENVIRONMENT`
-to be `Local`, `Development` or `IntegrationTest`; it never reads Key Vault.
+to be `Local`, `Development`, `IntegrationTest` or `Test`; it never reads Key Vault.
 Deployed CI migrations always force `AzureCli`, including Development.
 
 Connections use `VerifyFull` TLS and acquire PostgreSQL tokens as physical

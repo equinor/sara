@@ -364,15 +364,19 @@ public class DatabaseAuthenticationTests
         Assert.Contains("Migrations:Postgres:Host", error.Message);
     }
 
-    [Fact]
-    public void DesignTimeDevelopmentSupportsExplicitTemporaryConnectionString()
+    [Theory]
+    [InlineData("Local")]
+    [InlineData("Development")]
+    [InlineData("IntegrationTest")]
+    [InlineData("Test")]
+    public void DesignTimeSupportsExplicitLocalOrTemporaryConnectionString(string environment)
     {
         var config = RealSettings("Development")
             .AddInMemoryCollection(
                 new Dictionary<string, string?>
                 {
                     ["Migrations:AuthenticationMode"] = "LocalConnectionString",
-                    ["ASPNETCORE_ENVIRONMENT"] = "Development",
+                    ["ASPNETCORE_ENVIRONMENT"] = environment,
                 }
             )
             .Build();

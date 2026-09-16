@@ -60,9 +60,10 @@ namespace api.Database.Context
                     "IntegrationTest",
                     StringComparison.OrdinalIgnoreCase
                 )
+                && !string.Equals(environment, "Test", StringComparison.OrdinalIgnoreCase)
             )
                 throw new InvalidOperationException(
-                    "LocalConnectionString migrations require Local, Development or IntegrationTest."
+                    "LocalConnectionString migrations require Local, Development, IntegrationTest or Test."
                 );
 
             var connectionString = config["Database:postgresConnectionString"];
