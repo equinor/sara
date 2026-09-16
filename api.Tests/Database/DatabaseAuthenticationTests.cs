@@ -361,7 +361,7 @@ public class DatabaseAuthenticationTests
         var error = Assert.Throws<InvalidOperationException>(() =>
             DesignTimeContextFactory.CreateDbContext(config)
         );
-        Assert.Contains("Migrations:Postgres:Host", error.Message);
+        Assert.Contains("Migrations:Postgres:Username", error.Message);
     }
 
     [Theory]

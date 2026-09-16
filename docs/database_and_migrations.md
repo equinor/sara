@@ -23,12 +23,19 @@ Migrations default to `AzureCli`. The legacy authentication chain, Key Vault
 lookup and automatic password fallback are removed. Mode names are
 case-insensitive; `Legacy`, empty, padded or unknown values fail.
 
-Set `Migrations__Postgres__Host` (DNS hostname/IP, no port),
-`Migrations__Postgres__Database`, `Migrations__Postgres__Username` and
-`AZURE_TENANT_ID` (tenant GUID). It uses only the `azure/login` or local `az login`
-session, with no runtime identity, Key Vault or password fallback. The factory
-reads JSON/environment variables, not `.env`; local login still needs database
-permissions and network access.
+`Migrations:Postgres` in each environment's appsettings supplies the host,
+database and dedicated migration username. The username must be chosen and
+provisioned before cutover; an empty username fails without fallback.
+Runtime `Database` settings are unchanged.
+
+GitHub needs only the login variables `MIGRATION_CLIENT_ID`, `AZURE_TENANT_ID`
+and `AZURE_SUBSCRIPTION_ID`, plus the existing `AspNetEnvironment` to select the
+appsettings file. No `MIGRATION_POSTGRES_*` variables are needed. Authentication
+uses only the `azure/login` or local `az login` session, never runtime identity,
+Key Vault or password fallback. The factory reads JSON then environment
+overrides, not `.env`. For local Azure access, set `AZURE_TENANT_ID`; override
+`Migrations__Postgres__Username` with your mapped user/group role if needed.
+Your login still needs database permissions and network access.
 
 For local PostgreSQL or disposable CI databases only, explicitly set
 `Migrations__AuthenticationMode=LocalConnectionString` and
@@ -62,8 +69,9 @@ dotnet tool install --global dotnet-ef
 is making migrations at the same time as you!**
 
 1. Configure one of the migration authentication paths above. For Azure
-   PostgreSQL, sign in using `az login --tenant <tenant-id>` and set the dedicated
-   database/tenant variables. Set `ASPNETCORE_ENVIRONMENT` to `Development`:
+   PostgreSQL, sign in using `az login --tenant <tenant-id>` and set
+   `AZURE_TENANT_ID` to that tenant. Set `ASPNETCORE_ENVIRONMENT` to `Development`
+   to use its migration database settings:
 
    ```bash
     export ASPNETCORE_ENVIRONMENT=Development
