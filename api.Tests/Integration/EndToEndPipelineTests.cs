@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using api.Database.Context;
 using api.Database.Models;
@@ -127,6 +128,50 @@ public class EndToEndPipelineTests : IAsyncLifetime
         Assert.Equal(ResultJson, workflow.ResultJson);
         Assert.Equal(WorkflowStatus.Succeeded, workflow.Status);
         Assert.Equal(AnalysisRunStatus.Succeeded, workflow.AnalysisRun.Status);
+    }
+
+    [Theory]
+    [InlineData(true, "")]
+    [InlineData(true, null)]
+    [InlineData(false, null)]
+    [InlineData(true, "equipment-tag")]
+    public async Task ImageInspection_OptionalTag_PersistsAndTriggersAnonymization(
+        bool includeTag,
+        string? tag
+    )
+    {
+        var payload = JsonSerializer
+            .SerializeToNode(_db.NewIsarInspectionResultMessage())!
+            .AsObject();
+        if (includeTag)
+            payload["tag_id"] = tag;
+        else
+            payload.Remove("tag_id");
+        var message = payload.Deserialize<IsarInspectionResultMessage>()!;
+
+        await ProcessInspectionResultInScope(message);
+
+        var record = await _context.InspectionRecords.SingleAsync(
+            TestContext.Current.CancellationToken
+        );
+        Assert.Equal(message.InspectionId, record.InspectionId);
+        Assert.Equal(tag, record.Tag);
+        var workflow = await _context.Workflows.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Equal("anonymizer", workflow.WorkflowType);
+        Assert.Single(_factory.ArgoWorkflowClient.Requests);
+    }
+
+    [Fact]
+    public async Task ImageInspection_EmptyRequiredField_IsStillRejected()
+    {
+        var message = _db.NewIsarInspectionResultMessage(tagId: "", robotName: "");
+
+        await ProcessInspectionResultInScope(message);
+
+        Assert.False(
+            await _context.InspectionRecords.AnyAsync(TestContext.Current.CancellationToken)
+        );
+        Assert.Empty(_factory.ArgoWorkflowClient.Requests);
     }
 
     [Fact]
