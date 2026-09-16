@@ -1,5 +1,6 @@
 using api.Configurations;
 using Azure.Core;
+using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
@@ -38,8 +39,24 @@ namespace api.Database.Context
             return CreateDbContext(config);
         }
 
-        internal static SaraDbContext CreateDbContext(IConfiguration config)
+        internal static SaraDbContext CreateDbContext(
+            IConfiguration config,
+            Func<AzureCliCredentialOptions, TokenCredential>? migrationCredentialFactory = null
+        )
         {
+            var migrationMode = config["Migrations:AuthenticationMode"];
+            if (string.Equals(migrationMode, "AzureCli", StringComparison.OrdinalIgnoreCase))
+                return CreateAzureCliContext(config, migrationCredentialFactory);
+            if (
+                migrationMode is not null
+                && !string.Equals(migrationMode, "Legacy", StringComparison.OrdinalIgnoreCase)
+            )
+            {
+                throw new InvalidOperationException(
+                    "Migrations:AuthenticationMode must be 'Legacy' or 'AzureCli' when set."
+                );
+            }
+
             string[] allowedDbAuthMethods =
                 config.GetSection("Database:AllowedAuthMethods").Get<string[]>() ?? [];
             if (allowedDbAuthMethods.Length == 0)
@@ -125,6 +142,77 @@ namespace api.Database.Context
             );
 
             return new SaraDbContext(optionsBuilder.Options);
+        }
+
+        private static SaraDbContext CreateAzureCliContext(
+            IConfiguration config,
+            Func<AzureCliCredentialOptions, TokenCredential>? credentialFactory
+        )
+        {
+            var host = RequiredMigrationSetting(config, "Migrations:Postgres:Host");
+            var database = RequiredMigrationSetting(config, "Migrations:Postgres:Database");
+            var username = RequiredMigrationSetting(config, "Migrations:Postgres:Username");
+            var tenant = RequiredMigrationSetting(config, "AZURE_TENANT_ID");
+            if (Uri.CheckHostName(host) == UriHostNameType.Unknown)
+            {
+                throw new InvalidOperationException(
+                    "Migrations:Postgres:Host must be a single DNS hostname or IP address without a port."
+                );
+            }
+            if (!Guid.TryParseExact(tenant, "D", out var tenantId) || tenantId == Guid.Empty)
+                throw new InvalidOperationException("AZURE_TENANT_ID must be a tenant GUID.");
+
+            var credentialOptions = new AzureCliCredentialOptions
+            {
+                TenantId = tenant,
+                ProcessTimeout = AzureCliMigrationAuthentication.TokenTimeout,
+            };
+            var authentication = new AzureCliMigrationAuthentication(
+                credentialFactory is null
+                    ? new AzureCliCredential(credentialOptions)
+                    : credentialFactory(credentialOptions)
+            );
+            var dataSourceBuilder = new NpgsqlDataSourceBuilder(
+                new NpgsqlConnectionStringBuilder
+                {
+                    Host = host,
+                    Database = database,
+                    Username = username,
+                    SslMode = SslMode.VerifyFull,
+                }.ToString()
+            );
+            dataSourceBuilder.UsePasswordProvider(
+                _ => authentication.GetPassword(),
+                (_, cancellationToken) => authentication.GetPasswordAsync(cancellationToken)
+            );
+            var dataSource = dataSourceBuilder.Build();
+            try
+            {
+                var options = new DbContextOptionsBuilder<SaraDbContext>().UseNpgsql(
+                    dataSource,
+                    o => o.UseQuerySplittingBehavior(QuerySplittingBehavior.SingleQuery)
+                );
+                return new SaraDbContext(options.Options, dataSource);
+            }
+            catch
+            {
+                dataSource.Dispose();
+                throw;
+            }
+        }
+
+        private static string RequiredMigrationSetting(IConfiguration config, string key)
+        {
+            var value = config[key];
+            if (
+                string.IsNullOrWhiteSpace(value)
+                || value != value.Trim()
+                || value.Any(char.IsControl)
+            )
+                throw new InvalidOperationException(
+                    $"{key} is required and must not contain surrounding whitespace or control characters."
+                );
+            return value;
         }
 
         private static string BuildAppRegIdentityConnectionString(IConfiguration config)

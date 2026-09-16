@@ -18,6 +18,40 @@ still honors the configured method order, including CI's `ConnectionString`
 override for admin-owned migrations and development migration fallback. The
 runtime restriction does not remove or change the underlying credentials.
 
+### Design-time migration authentication
+
+Leaving `Migrations:AuthenticationMode` unset (or setting it to `Legacy`) preserves
+the existing ordered authentication, Key Vault/password fallback and local/temporary
+database behavior. Mode names are case-insensitive; explicit empty, padded or
+unknown modes fail.
+
+The opt-in `AzureCli` mode uses only the Azure CLI session established by
+`azure/login`, not runtime credentials, IMDS, Key Vault or stored passwords. Set
+`Migrations__AuthenticationMode=AzureCli`, `Migrations__Postgres__Host` (full DNS
+hostname/IP, no port), `Migrations__Postgres__Database`,
+`Migrations__Postgres__Username` (the dedicated migration role), and
+`AZURE_TENANT_ID` (tenant GUID). All are required; runtime `Database`/`AzureAd`
+settings are ignored. The factory reads JSON and environment variables, not
+Program's Key Vault or `.env` configuration.
+
+Connections require `VerifyFull` TLS. Npgsql's synchronous/asynchronous password
+providers request the PostgreSQL scope from `AzureCliCredential` when physical
+connections authenticate; no token is embedded in the connection string for the
+whole migration run. Acquisition and CLI execution are bounded to 30 seconds,
+async cancellation is propagated, and context disposal releases the data source.
+Token failures stop the migration without credential/password fallback. Expected
+Azure CLI authentication/cancellation errors omit sensitive provider diagnostics.
+EF's short-lived admin connection clones snapshot a fresh token; the main
+migration connection retains the provider. Databases must already be provisioned
+before opt-in; this mode does not provision identities or grant database creation.
+
+`api/.migration-auth-contract` contains exactly `azure-cli-postgresql-v1` plus one
+LF. It is a reviewed source attestation checked by the shared workflow before
+login/build/EF, backed by factory tests, not a compiled preflight.
+No caller opts in yet. Activation requires a later change with a dedicated
+migration identity, catalog ownership/bootstrap and network checks, then explicit
+development caller opt-in. Runtime authentication and release gates are unchanged.
+
 ### Installing EF Core
 
 ```bash

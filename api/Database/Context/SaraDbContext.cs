@@ -2,11 +2,45 @@ using System.Text.Json;
 using api.Database.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Npgsql;
 
 namespace api.Database.Context
 {
     public class SaraDbContext(DbContextOptions options) : DbContext(options)
     {
+        private readonly NpgsqlDataSource? ownedMigrationDataSource;
+
+        internal SaraDbContext(DbContextOptions options, NpgsqlDataSource migrationDataSource)
+            : this(options)
+        {
+            ownedMigrationDataSource = migrationDataSource;
+        }
+
+        public override void Dispose()
+        {
+            try
+            {
+                base.Dispose();
+            }
+            finally
+            {
+                ownedMigrationDataSource?.Dispose();
+            }
+        }
+
+        public override async ValueTask DisposeAsync()
+        {
+            try
+            {
+                await base.DisposeAsync();
+            }
+            finally
+            {
+                if (ownedMigrationDataSource is not null)
+                    await ownedMigrationDataSource.DisposeAsync();
+            }
+        }
+
         public DbSet<InspectionRecord> InspectionRecords { get; set; } = null!;
 
         public DbSet<Analysis> Analyses { get; set; } = null!;
