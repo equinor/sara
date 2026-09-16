@@ -47,7 +47,7 @@ before opt-in; this mode does not provision identities or grant database creatio
 
 `api/.migration-auth-contract` contains exactly `azure-cli-postgresql-v1` plus one
 LF. It is a reviewed source attestation checked by the shared workflow before
-login/build/EF, backed by factory tests, not a compiled preflight.
+login/build/EF, not a compiled preflight.
 No caller opts in yet. Activation requires a later change with a dedicated
 migration identity, catalog ownership/bootstrap and network checks, then explicit
 development caller opt-in. Runtime authentication and release gates are unchanged.

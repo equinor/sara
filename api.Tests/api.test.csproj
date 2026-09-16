@@ -32,9 +32,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="..\api\.migration-auth-contract" Link="DatabaseSettings\.migration-auth-contract">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
     <None Include="..\api\appsettings*.json" Link="DatabaseSettings\%(Filename)%(Extension)">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
