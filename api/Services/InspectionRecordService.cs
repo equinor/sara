@@ -158,7 +158,11 @@ public class InspectionRecordService(
                 : null;
 
         var requiredAnalysis =
-            message.RequiredAnalysis ?? GetDefaultAnalysis(message.InspectionType);
+            message.RequiredAnalysis
+            ?? GetDefaultAnalysis(
+                message.InspectionType,
+                Path.GetExtension(message.InspectionDataPath.BlobName)
+            );
         var analyses = requiredAnalysis
             .Distinct()
             .Select(type =>
@@ -196,13 +200,36 @@ public class InspectionRecordService(
         return await Create(inspectionRecord);
     }
 
-    private IReadOnlyList<string> GetDefaultAnalysis(string inspectionType) =>
-        _analysisOptions
-            .DefaultAnalysisByInspectionType.FirstOrDefault(entry =>
-                string.Equals(entry.Key, inspectionType, StringComparison.OrdinalIgnoreCase)
-            )
-            .Value
-        ?? [];
+    /// <summary>
+    /// Resolves the configured default analyses for an inspection record that carries no
+    /// explicit RequiredAnalysis. A DefaultAnalysisByInspectionTypeAndExtension match on
+    /// inspection type plus file extension wins over the type-only
+    /// DefaultAnalysisByInspectionType map. Both lookups are case-insensitive.
+    /// </summary>
+    private IReadOnlyList<string> GetDefaultAnalysis(string inspectionType, string? extension)
+    {
+        if (!string.IsNullOrEmpty(extension))
+        {
+            var byExtension = _analysisOptions
+                .DefaultAnalysisByInspectionTypeAndExtension.FirstOrDefault(entry =>
+                    string.Equals(entry.Key, inspectionType, StringComparison.OrdinalIgnoreCase)
+                )
+                .Value?.FirstOrDefault(entry =>
+                    string.Equals(entry.Key, extension, StringComparison.OrdinalIgnoreCase)
+                )
+                .Value;
+
+            if (byExtension is { Count: > 0 })
+                return byExtension;
+        }
+
+        return _analysisOptions
+                .DefaultAnalysisByInspectionType.FirstOrDefault(entry =>
+                    string.Equals(entry.Key, inspectionType, StringComparison.OrdinalIgnoreCase)
+                )
+                .Value
+            ?? [];
+    }
 
     private async Task<AnalysisGroup> GetOrCreateAnalysisGroup(
         string analysisGroupId,

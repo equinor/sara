@@ -69,10 +69,76 @@ public class InspectionRecordServiceTests : IAsyncLifetime
         Assert.Equal("per-record-test", analysis.AnalysisType);
     }
 
-    [Fact]
-    public async Task CreateFromMqttMessage_NonImageWithoutRequiredAnalysis_HasNoAnalysis()
+    [Theory]
+    [InlineData("AcousticMeasurement", "clip.mp4")]
+    [InlineData("ThermalVideo", "clip.mp4")]
+    [InlineData("acousticmeasurement", "clip.mp4")]
+    [InlineData("AcousticMeasurement", "clip.MP4")]
+    public async Task CreateFromMqttMessage_TypeAndExtensionMatch_UsesPassthroughDefault(
+        string inspectionType,
+        string blobName
+    )
     {
-        var message = _db.NewIsarInspectionResultMessage(inspectionType: "Video");
+        var message = _db.NewIsarInspectionResultMessage(
+            inspectionType: inspectionType,
+            blobName: blobName
+        );
+
+        var created = await CreateInScope(message);
+
+        var analysis = Assert.Single(created.Analyses);
+        Assert.Equal("passthrough", analysis.AnalysisType);
+    }
+
+    [Fact]
+    public async Task CreateFromMqttMessage_TypeAndExtensionMismatch_FallsBackToTypeOnlyDefault()
+    {
+        var message = _db.NewIsarInspectionResultMessage(
+            inspectionType: "AcousticMeasurement",
+            blobName: "still.jpg"
+        );
+
+        var created = await CreateInScope(message);
+
+        Assert.Empty(created.Analyses);
+    }
+
+    [Fact]
+    public async Task CreateFromMqttMessage_ImageWithJpg_StillUsesTypeOnlyDefault()
+    {
+        var message = _db.NewIsarInspectionResultMessage(
+            inspectionType: "Image",
+            blobName: "photo.jpg"
+        );
+
+        var created = await CreateInScope(message);
+
+        var analysis = Assert.Single(created.Analyses);
+        Assert.Equal("anonymize", analysis.AnalysisType);
+    }
+
+    [Fact]
+    public async Task CreateFromMqttMessage_ExplicitRequiredAnalysis_OverridesTypeAndExtensionDefault()
+    {
+        var message = _db.NewIsarInspectionResultMessage(
+            inspectionType: "AcousticMeasurement",
+            blobName: "clip.mp4",
+            requiredAnalysis: ["per-record-test"]
+        );
+
+        var created = await CreateInScope(message);
+
+        var analysis = Assert.Single(created.Analyses);
+        Assert.Equal("per-record-test", analysis.AnalysisType);
+    }
+
+    [Fact]
+    public async Task CreateFromMqttMessage_UnmappedTypeWithoutRequiredAnalysis_HasNoAnalysis()
+    {
+        var message = _db.NewIsarInspectionResultMessage(
+            inspectionType: "Video",
+            blobName: "clip.mp4"
+        );
 
         var created = await CreateInScope(message);
 
