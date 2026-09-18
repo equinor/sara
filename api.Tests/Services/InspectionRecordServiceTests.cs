@@ -70,6 +70,7 @@ public class InspectionRecordServiceTests : IAsyncLifetime
     }
 
     [Theory]
+    [InlineData("Video", "clip.mp4")]
     [InlineData("AcousticMeasurement", "clip.mp4")]
     [InlineData("ThermalVideo", "clip.mp4")]
     [InlineData("acousticmeasurement", "clip.mp4")]
@@ -136,8 +137,8 @@ public class InspectionRecordServiceTests : IAsyncLifetime
     public async Task CreateFromMqttMessage_UnmappedTypeWithoutRequiredAnalysis_HasNoAnalysis()
     {
         var message = _db.NewIsarInspectionResultMessage(
-            inspectionType: "Video",
-            blobName: "clip.mp4"
+            inspectionType: "Audio",
+            blobName: "recording.wav"
         );
 
         var created = await CreateInScope(message);
