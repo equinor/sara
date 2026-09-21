@@ -49,4 +49,6 @@ public class Analysis
     public List<InspectionRecord> InspectionRecords { get; set; } = [];
 
     public List<AnalysisRun> Runs { get; set; } = [];
+
+    public List<AnalysisThreshold> Thresholds { get; set; } = [];
 }

@@ -21,6 +21,10 @@ namespace api.Database.Context
 
         public DbSet<AnalysisRunFeedback> AnalysisRunFeedbacks { get; set; } = null!;
 
+        public DbSet<AnalysisResultValue> AnalysisResultValues { get; set; } = null!;
+
+        public DbSet<AnalysisThreshold> AnalysisThresholds { get; set; } = null!;
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<InspectionRecord>().HasIndex(ir => ir.InspectionId).IsUnique();
@@ -107,6 +111,51 @@ namespace api.Database.Context
                 .HasConversion<string>();
 
             modelBuilder.Entity<AnalysisRunFeedback>().HasIndex(f => f.AnalysisRunId).IsUnique();
+
+            ConfigureAnalysisResults(modelBuilder);
+        }
+
+        private static void ConfigureAnalysisResults(ModelBuilder modelBuilder)
+        {
+            modelBuilder
+                .Entity<AnalysisThreshold>()
+                .HasIndex(t => new { t.AnalysisId, t.Key })
+                .IsUnique();
+
+            modelBuilder
+                .Entity<AnalysisThreshold>()
+                .Property(t => t.Source)
+                .HasConversion<string>();
+
+            modelBuilder
+                .Entity<AnalysisResultValue>()
+                .Property(v => v.ValueKind)
+                .HasConversion<string>();
+
+            modelBuilder
+                .Entity<AnalysisResultValue>()
+                .Property(v => v.Severity)
+                .HasConversion<string>();
+
+            // Covers the active-alarm query: latest value per correlation key.
+            modelBuilder
+                .Entity<AnalysisResultValue>()
+                .HasIndex(v => new { v.CorrelationKey, v.MeasuredAt })
+                .IsDescending(false, true)
+                .HasDatabaseName("IX_AnalysisResultValue_Correlation_MeasuredAt_Desc");
+
+            modelBuilder
+                .Entity<AnalysisResultValue>()
+                .ToTable(table =>
+                    table.HasCheckConstraint(
+                        "CK_AnalysisResultValue_ExactlyOneValue",
+                        """
+                        (CASE WHEN "NumericValue" IS NULL THEN 0 ELSE 1 END
+                         + CASE WHEN "BooleanValue" IS NULL THEN 0 ELSE 1 END
+                         + CASE WHEN "TextValue" IS NULL THEN 0 ELSE 1 END) = 1
+                        """
+                    )
+                );
         }
     }
 }

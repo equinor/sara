@@ -39,4 +39,6 @@ public class AnalysisRun
     public List<Workflow> Workflows { get; set; } = [];
 
     public AnalysisRunFeedback? Feedback { get; set; }
+
+    public List<AnalysisResultValue> ResultValues { get; set; } = [];
 }
