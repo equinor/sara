@@ -8,6 +8,7 @@ using api.Services;
 using api.Services.HostedServices;
 using api.Services.ResultHandlers.AnalysisResultHandlers;
 using api.Services.ResultHandlers.WorkflowResultHandlers;
+using api.Services.Results;
 using api.Utilities;
 using Azure.Core;
 using k8s;
@@ -136,6 +137,9 @@ builder.Services.AddScoped<IWorkflowResultHandler, CLOEResultHandler>();
 builder.Services.AddScoped<IWorkflowResultHandler, CopyRawToVisualizedResultHandler>();
 builder.Services.AddScoped<IWorkflowResultHandler, FencillaResultHandler>();
 builder.Services.AddScoped<IWorkflowResultHandler, ThermalReadingResultHandler>();
+
+builder.Services.AddScoped<IResultEvaluator, ResultEvaluator>();
+builder.Services.AddScoped<IAnalysisResultRecorder, AnalysisResultRecorder>();
 
 // Per-analysis result handlers — fire once per successful AnalysisRun for cross-step
 // / aggregate reporting. Interface defined for future use; no implementations
