@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import {
+  getActiveAlarms,
   getAnalysisRuns,
   getDashboardSummary,
   getFeedbackSummary,
@@ -8,6 +9,7 @@ import {
   getWorkflows,
 } from "./client";
 
+export const activeAlarmsKey = ["sara", "alarms", "active"] as const;
 export const dashboardTrendDetailsKey = ["sara", "dashboard", "trend-details"] as const;
 export const feedbackTrendDetailsKey = ["sara", "feedback-trend-details"] as const;
 
@@ -68,5 +70,20 @@ export function useFeedbackTrendBucketDetails(
     refetchInterval: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
+  });
+}
+
+/**
+ * Active alarms are derived server-side from the latest reading per tag, so
+ * there is nothing to reconcile client-side — just refetch.
+ */
+export function useActiveAlarms() {
+  return useQuery({
+    queryKey: activeAlarmsKey,
+    queryFn: ({ signal }) => getActiveAlarms({ pageSize: 50 }, signal),
+    staleTime: 0,
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: "always",
   });
 }

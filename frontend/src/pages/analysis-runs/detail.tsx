@@ -7,6 +7,7 @@ import { argoWorkflowStepUrl, argoWorkflowUrl } from "../../utils/argo";
 import { formatElapsedDuration } from "../../utils/duration";
 import StatusChip from "../../components/StatusChip";
 import { ErrorText, TableScroller } from "../../components/Styles";
+import AnalysisResultsTable from "./analysis-runs-components/AnalysisResultsTable";
 
 Icon.add({ arrow_back });
 
@@ -92,6 +93,8 @@ export default function AnalysisRunDetailPage() {
           </Table.Body>
         </Table>
       </TableScroller>
+
+      <AnalysisResultsTable results={run.results ?? []} />
 
       <Typography variant="h5" style={{ marginBottom: "0.5rem" }}>
         Workflows ({workflows.length})

@@ -170,6 +170,7 @@ export interface AnalysisRun {
   completedAt?: string | null;
   workflows?: WorkflowWithoutSAS[];
   analysis?: Analysis;
+  results?: AnalysisResult[];
 }
 
 export interface FeedbackHistory {
@@ -227,6 +228,35 @@ export interface FeedbackSummary {
   trend: FeedbackTrendBucket[];
 }
 
+/** A measurement produced by an analysis run, as projected by AnalysisResultDto. */
+export interface AnalysisResult {
+  analysisId: string;
+  analysisType: string;
+  key?: string | null;
+  value?: string | null;
+  unit?: string | null;
+  /** Percentage (0-100). */
+  confidence?: number | null;
+  warning?: string | null;
+  severity: ResultSeverity;
+  measuredAt?: string | null;
+}
+
+export type ThresholdSource = "Config" | "Manual" | "MissionDefinition";
+
+/** The bounds a result key is judged against. Any bound may be absent. */
+export interface AnalysisThreshold {
+  id: string;
+  key: string;
+  lowerAlert?: number | null;
+  lowerWarning?: number | null;
+  upperWarning?: number | null;
+  upperAlert?: number | null;
+  alertWhenTrue?: boolean | null;
+  minConfidence?: number | null;
+  source: ThresholdSource;
+}
+
 export interface Analysis {
   id: string;
   analysisType: string;
@@ -237,6 +267,8 @@ export interface Analysis {
   analysisGroup?: AnalysisGroup | null;
   inspectionRecords?: InspectionRecord[];
   runs?: AnalysisRun[];
+  thresholds?: AnalysisThreshold[];
+  result?: AnalysisResult | null;
 }
 
 export interface AnalysisGroup {
@@ -842,4 +874,65 @@ export async function getTrendBucketDetails(
 ): Promise<TrendBucketDetails> {
   const query = new URLSearchParams({ bucketStart, windowHours: String(windowHours), timeZone });
   return apiFetch(apiUrl(`/api/dashboard/trend-details?${query}`), { signal });
+}
+
+// ---------------------------------------------------------------------------
+// Alarms
+// ---------------------------------------------------------------------------
+
+export type ResultSeverity =
+  | "NotEvaluated"
+  | "Inconclusive"
+  | "Ok"
+  | "Warning"
+  | "Alert";
+
+export type ResultValueKind = "Numeric" | "Boolean" | "Text";
+
+/** One normalized measurement, with the judgement SARA made about it. */
+export interface AnalysisResultValue {
+  id: string;
+  analysisRunId: string;
+  sourceWorkflowId?: string | null;
+  analysisType: string;
+  installationCode: string;
+  tag?: string | null;
+  inspectionDescription?: string | null;
+  key: string;
+  valueKind: ResultValueKind;
+  numericValue?: number | null;
+  booleanValue?: boolean | null;
+  textValue?: string | null;
+  unit?: string | null;
+  /** Canonically 0-1. */
+  confidence?: number | null;
+  modelMessage?: string | null;
+  severity: ResultSeverity;
+  acknowledged: boolean;
+  measuredAt: string;
+}
+
+export interface ActiveAlarmFilters {
+  pageNumber?: number;
+  pageSize?: number;
+}
+
+export async function getActiveAlarms(
+  filters: ActiveAlarmFilters = {},
+  signal?: AbortSignal
+): Promise<AnalysisResultValue[]> {
+  const query = new URLSearchParams();
+  query.set("pageNumber", String(filters.pageNumber ?? 1));
+  query.set("pageSize", String(filters.pageSize ?? 25));
+  return apiFetch(apiUrl(`/api/alarms/active?${query}`), { signal });
+}
+
+/**
+ * Checks a finding out. Scoped to this specific reading, so the next bad
+ * reading of the same tag raises a fresh alarm.
+ */
+export async function acknowledgeAlarm(resultValueId: string): Promise<void> {
+  await apiFetch(apiUrl(`/api/alarms/${encodeURIComponent(resultValueId)}/acknowledge`), {
+    method: "POST",
+  });
 }

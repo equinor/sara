@@ -8,6 +8,7 @@ import {
 import { useResourceDetail, useResourceMutation } from "../../api/queries";
 import StatusChip from "../../components/StatusChip";
 import { ErrorText, TableScroller } from "../../components/Styles";
+import AnalysisThresholdsTable from "./analyses-components/AnalysisThresholdsTable";
 
 Icon.add({ arrow_back });
 
@@ -104,6 +105,8 @@ export default function AnalysisDetailPage() {
           </Table.Body>
         </Table>
       </TableScroller>
+
+      <AnalysisThresholdsTable thresholds={analysis.thresholds ?? []} />
 
       <Typography variant="h5" style={{ marginBottom: "0.5rem" }}>
         Inspection Records ({(analysis.inspectionRecords ?? []).length})

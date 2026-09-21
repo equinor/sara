@@ -9,6 +9,7 @@ import { dashboardTrendDetailsKey, useOverview } from "../../api/dashboardQuerie
 import DashboardWindowSelector from "../../components/DashboardWindowSelector";
 import PageHeader from "../../components/PageHeader";
 import { ErrorText } from "../../components/Styles";
+import ActiveAlarmsPanel from "./overview-components/ActiveAlarmsPanel";
 import LatestAnalysisRunsPanel from "./overview-components/LatestAnalysisRunsPanel";
 import OverviewBreakdownPanel from "./overview-components/OverviewBreakdownPanel";
 import OverviewSummaryCards from "./overview-components/OverviewSummaryCards";
@@ -92,6 +93,12 @@ export default function OverviewPage() {
           {error.message}
         </ErrorText>
       )}
+
+      {/* Rendered outside the summary block so findings still surface when the
+          dashboard summary itself fails to load. */}
+      <div style={{ marginBottom: "1rem" }}>
+        <ActiveAlarmsPanel />
+      </div>
 
       {isPending && <Typography variant="body_short">Loading dashboard…</Typography>}
       {summary && (
