@@ -36,6 +36,9 @@ public class AnalysisService(SaraDbContext context, IOptions<AnalysisOptions> an
     {
         return await context
             .Analyses.Include(a => a.InspectionRecords)
+            .Include(a => a.Thresholds)
+            .Include(a => a.Runs)
+                .ThenInclude(r => r.ResultValues)
             .Include(a => a.Runs)
                 .ThenInclude(r => r.Workflows)
             .FirstOrDefaultAsync(a => a.Id == id);
@@ -45,6 +48,9 @@ public class AnalysisService(SaraDbContext context, IOptions<AnalysisOptions> an
     {
         var query = context
             .Analyses.Include(a => a.InspectionRecords)
+            .Include(a => a.Thresholds)
+            .Include(a => a.Runs)
+                .ThenInclude(r => r.ResultValues)
             .Include(a => a.Runs)
                 .ThenInclude(r => r.Workflows)
             .AsQueryable();

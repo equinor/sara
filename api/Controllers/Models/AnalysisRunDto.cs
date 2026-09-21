@@ -16,6 +16,9 @@ public class AnalysisRunDto
         SkipReason = run.SkipReason;
         Workflows = run.Workflows.Select(w => new WorkflowDto(w, blobService: null)).ToList();
         Feedback = run.Feedback is { } f ? new FeedbackDto(f) : null;
+        Results = run
+            .ResultValues.Select(v => AnalysisResultDto.FromResultValue(run.AnalysisId, v))
+            .ToList();
     }
 
     public Guid Id { get; set; }
@@ -27,4 +30,7 @@ public class AnalysisRunDto
     public string? SkipReason { get; set; }
     public List<WorkflowDto> Workflows { get; set; } = [];
     public FeedbackDto? Feedback { get; set; }
+
+    /// <summary>The normalized measurements this run produced.</summary>
+    public List<AnalysisResultDto> Results { get; set; } = [];
 }

@@ -20,6 +20,7 @@ public class AnalysisDto
         this.AnalysisGroup = analysis.AnalysisGroup;
         this.AnalysisGroupId = analysis.AnalysisGroupId;
         this.InspectionRecords = analysis.InspectionRecords;
+        this.Thresholds = [.. analysis.Thresholds.Select(t => new AnalysisThresholdDto(t))];
 
         var workflows = analysis.Runs.SelectMany(r => r.Workflows);
 
@@ -69,6 +70,8 @@ public class AnalysisDto
     public List<InspectionRecord> InspectionRecords { get; set; }
 
     public List<AnalysisRunDto> Runs { get; set; } = [];
+
+    public List<AnalysisThresholdDto> Thresholds { get; set; } = [];
 
     public AnalysisResultDto? Result { get; set; }
 }

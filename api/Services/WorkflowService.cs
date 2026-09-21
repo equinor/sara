@@ -92,6 +92,7 @@ public class WorkflowService(
     {
         var analysis = await context
             .Analyses.Include(a => a.InspectionRecords)
+            .Include(a => a.Thresholds)
             .FirstOrDefaultAsync(a => a.Id == run.AnalysisId);
 
         if (analysis is null)

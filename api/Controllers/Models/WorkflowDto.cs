@@ -20,6 +20,37 @@ public class AnalysisResultDto
     public float? Confidence { get; set; } // As percentage (0-100)
 
     public string? Warning { get; set; }
+
+    public string? Key { get; set; }
+
+    public ResultSeverity Severity { get; set; }
+
+    public DateTime? MeasuredAt { get; set; }
+
+    public static AnalysisResultDto FromResultValue(Guid analysisId, AnalysisResultValue value) =>
+        new()
+        {
+            AnalysisId = analysisId,
+            AnalysisType = value.AnalysisType,
+            Key = value.Key,
+            Value = FormatValue(value),
+            Unit = value.Unit,
+            Confidence = value.Confidence is { } confidence ? (float)(confidence * 100d) : null,
+            Warning = value.ModelMessage,
+            Severity = value.Severity,
+            MeasuredAt = value.MeasuredAt,
+        };
+
+    private static string? FormatValue(AnalysisResultValue value) =>
+        value.ValueKind switch
+        {
+            ResultValueKind.Numeric => value.NumericValue?.ToString(
+                "F5",
+                CultureInfo.InvariantCulture
+            ),
+            ResultValueKind.Boolean => value.BooleanValue?.ToString(),
+            _ => value.TextValue,
+        };
 }
 
 public class WorkflowDto
