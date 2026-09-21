@@ -96,13 +96,18 @@ public class DatabaseUtilities(SaraDbContext context)
     public async Task<Analysis> NewAnalysis(
         string type = "test-analysis",
         IEnumerable<InspectionRecord>? inspectionRecords = null,
-        AnalysisGroup? analysisGroup = null
+        AnalysisGroup? analysisGroup = null,
+        IEnumerable<AnalysisThreshold>? thresholds = null
     )
     {
         foreach (var inspectionRecord in inspectionRecords ?? [])
             _context.Entry(inspectionRecord).State = EntityState.Unchanged;
 
         var analysis = new Analysis { AnalysisType = type };
+        if (thresholds is not null)
+        {
+            analysis.Thresholds.AddRange(thresholds);
+        }
         if (inspectionRecords is not null)
         {
             analysis.InspectionRecords.AddRange(inspectionRecords);

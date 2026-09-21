@@ -141,10 +141,11 @@ builder.Services.AddScoped<IWorkflowResultHandler, ThermalReadingResultHandler>(
 builder.Services.AddScoped<IResultEvaluator, ResultEvaluator>();
 builder.Services.AddScoped<IAnalysisResultRecorder, AnalysisResultRecorder>();
 
-// Per-analysis result handlers — fire once per successful AnalysisRun for cross-step
-// / aggregate reporting. Interface defined for future use; no implementations
-// registered yet, so dispatch is a no-op. Add registrations here when needed:
-//   builder.Services.AddScoped<IAnalysisResultHandler, MyAggregateResultHandler>();
+// Per-analysis result handlers — fire once per successful AnalysisRun and
+// normalize the terminal workflow's ResultJson into AnalysisResultValue rows.
+builder.Services.AddScoped<IAnalysisResultHandler, CLOEAnalysisResultHandler>();
+builder.Services.AddScoped<IAnalysisResultHandler, FencillaAnalysisResultHandler>();
+builder.Services.AddScoped<IAnalysisResultHandler, ThermalReadingAnalysisResultHandler>();
 builder.Services.AddScoped<IAnalysisTriggerService, AnalysisTriggerService>();
 builder.Services.AddScoped<ITimeseriesService, TimeseriesService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
