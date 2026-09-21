@@ -2,6 +2,7 @@ using api.Configurations;
 using api.Database.Context;
 using api.Database.Models;
 using api.MQTT;
+using api.Services.Results;
 using api.Utilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -167,7 +168,12 @@ public class InspectionRecordService(
             .Distinct()
             .Select(type =>
                 analysisGroup?.Analyses.Find(a => a.AnalysisType == type)
-                ?? new Analysis { AnalysisType = type, AnalysisGroup = analysisGroup }
+                ?? new Analysis
+                {
+                    AnalysisType = type,
+                    AnalysisGroup = analysisGroup,
+                    Thresholds = AnalysisThresholdDefaults.Build(_analysisOptions, type),
+                }
             )
             .ToList();
 
@@ -346,7 +352,12 @@ public class InspectionRecordService(
                     .Select(
                         (r) =>
                             analysisGroup?.Analyses.Find((a) => a.AnalysisType == r)
-                            ?? new Analysis { AnalysisType = r, AnalysisGroup = analysisGroup }
+                            ?? new Analysis
+                            {
+                                AnalysisType = r,
+                                AnalysisGroup = analysisGroup,
+                                Thresholds = AnalysisThresholdDefaults.Build(_analysisOptions, r),
+                            }
                     )
                     .ToList()
                 : [];
