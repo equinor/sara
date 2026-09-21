@@ -140,6 +140,7 @@ builder.Services.AddScoped<IWorkflowResultHandler, ThermalReadingResultHandler>(
 
 builder.Services.AddScoped<IResultEvaluator, ResultEvaluator>();
 builder.Services.AddScoped<IAnalysisResultRecorder, AnalysisResultRecorder>();
+builder.Services.AddScoped<IAlarmService, AlarmService>();
 
 // Per-analysis result handlers — fire once per successful AnalysisRun and
 // normalize the terminal workflow's ResultJson into AnalysisResultValue rows.

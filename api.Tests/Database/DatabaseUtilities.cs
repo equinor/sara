@@ -245,4 +245,47 @@ public class DatabaseUtilities(SaraDbContext context)
             FileType = fileType,
         };
     }
+
+    public async Task<AnalysisResultValue> NewResultValue(
+        AnalysisRun run,
+        Workflow? sourceWorkflow = null,
+        string analysisType = "cloe",
+        string key = "oilLevel",
+        string tag = "tag-1",
+        string installationCode = "TST",
+        double numericValue = 5,
+        ResultSeverity severity = ResultSeverity.Alert,
+        DateTime? measuredAt = null,
+        bool acknowledged = false
+    )
+    {
+        var value = new AnalysisResultValue
+        {
+            AnalysisRunId = run.Id,
+            SourceWorkflowId = sourceWorkflow?.Id,
+            AnalysisType = analysisType,
+            InstallationCode = installationCode,
+            Tag = tag,
+            InspectionDescription = "descr",
+            CorrelationKey = AnalysisResultValue.BuildCorrelationKey(
+                installationCode,
+                tag,
+                "descr",
+                analysisType,
+                key
+            ),
+            Key = key,
+            ValueKind = ResultValueKind.Numeric,
+            NumericValue = numericValue,
+            Unit = "percent",
+            Confidence = 0.9,
+            Severity = severity,
+            Acknowledged = acknowledged,
+            MeasuredAt = measuredAt ?? new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc),
+        };
+
+        _context.AnalysisResultValues.Add(value);
+        await _context.SaveChangesAsync();
+        return value;
+    }
 }
