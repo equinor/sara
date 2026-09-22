@@ -1,9 +1,7 @@
 using System.Globalization;
-using System.Text.Json;
 using System.Text.Json.Serialization;
 using api.Database.Models;
 using api.Services;
-using api.Services.ResultHandlers.WorkflowResultHandlers;
 
 namespace api.Controllers.Models;
 
@@ -13,6 +11,8 @@ public class AnalysisResultDto
 
     public string AnalysisType { get; set; } = "";
 
+    public string? Key { get; set; }
+
     public string? Value { get; set; }
 
     public string? Unit { get; set; }
@@ -20,8 +20,6 @@ public class AnalysisResultDto
     public float? Confidence { get; set; } // As percentage (0-100)
 
     public string? Warning { get; set; }
-
-    public string? Key { get; set; }
 
     public ResultSeverity Severity { get; set; }
 
@@ -76,110 +74,24 @@ public class WorkflowDto
             blobService != null && workflow.OutputBlobStorageLocation != null
                 ? blobService.TryCreateReadSasUriAsync(workflow.OutputBlobStorageLocation).Result
                 : null;
-        this.Result = GetAnalysisResultDtoFromResultJson(
-            workflow.ResultJson,
-            workflow.AnalysisRun.AnalysisId,
-            workflow.WorkflowType
-        );
+        this.Result = ResolveResult(workflow);
         this.ResultJson = workflow.ResultJson;
         this.StartedAt = workflow.StartedAt;
         this.CompletedAt = workflow.CompletedAt;
         this.ErrorMessage = workflow.ErrorMessage;
     }
 
-    private static AnalysisResultDto? GetAnalysisResultDtoFromResultJson(
-        string? resultJson,
-        Guid analysisId,
-        string workflowType
-    )
+    private static AnalysisResultDto? ResolveResult(Workflow workflow)
     {
-        if (resultJson is null)
+        var run = workflow.AnalysisRun;
+        if (run is null)
             return null;
 
-        var jsonOptions = new JsonSerializerOptions()
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            PropertyNameCaseInsensitive = true,
-        };
+        var value = run.ResultValues.FirstOrDefault(candidate =>
+            candidate.SourceWorkflowId == workflow.Id
+        );
 
-        switch (workflowType)
-        {
-            case "fencilla":
-            {
-                FencillaResult? result;
-                try
-                {
-                    result = JsonSerializer.Deserialize<FencillaResult>(resultJson, jsonOptions);
-                }
-                catch (JsonException)
-                {
-                    return null;
-                }
-
-                var warning = result?.IsBreak == true ? "Breach detected" : result?.Warning;
-
-                return new AnalysisResultDto
-                {
-                    AnalysisId = analysisId,
-                    AnalysisType = workflowType,
-                    Value = result?.IsBreak.ToString(),
-                    Unit = "bool [isBreach]",
-                    Warning = warning,
-                    Confidence = result is null ? null : result.Confidence * 100f,
-                };
-            }
-            case "cloe":
-            {
-                CLOEResult? result;
-                try
-                {
-                    result = JsonSerializer.Deserialize<CLOEResult>(resultJson, jsonOptions);
-                }
-                catch (JsonException)
-                {
-                    return null;
-                }
-
-                return new AnalysisResultDto
-                {
-                    AnalysisId = analysisId,
-                    AnalysisType = workflowType,
-                    Value = result?.OilLevel is { } oil
-                        ? oil.ToString("F5", CultureInfo.InvariantCulture)
-                        : null,
-                    Unit = "",
-                    Confidence = result?.Confidence is { } c ? c * 100f : null,
-                    Warning = result?.Warning,
-                };
-            }
-            case "thermal-reading":
-            {
-                ThermalReadingResult? result;
-                try
-                {
-                    result = JsonSerializer.Deserialize<ThermalReadingResult>(
-                        resultJson,
-                        jsonOptions
-                    );
-                }
-                catch (JsonException)
-                {
-                    return null;
-                }
-
-                return new AnalysisResultDto
-                {
-                    AnalysisId = analysisId,
-                    AnalysisType = workflowType,
-                    Value = result?.Temperature.ToString("F2"),
-                    Unit = "°C",
-                    Confidence = result?.Confidence is null ? null : result.Confidence * 100f,
-                    Warning = result?.Warning,
-                };
-            }
-            default:
-                return null;
-        }
+        return value is null ? null : AnalysisResultDto.FromResultValue(run.AnalysisId, value);
     }
 
     public Guid Id { get; set; }

@@ -135,6 +135,7 @@ public class WorkflowService(
         return await context
             .Workflows.Include(w => w.InputBlobStorageLocations)
             .Include(w => w.AnalysisRun)
+                .ThenInclude(r => r.ResultValues)
             .FirstOrDefaultAsync(w => w.Id == id);
     }
 
@@ -143,6 +144,7 @@ public class WorkflowService(
         var query = context
             .Workflows.Include(w => w.InputBlobStorageLocations)
             .Include(w => w.AnalysisRun)
+                .ThenInclude(r => r.ResultValues)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(parameters.WorkflowType))
