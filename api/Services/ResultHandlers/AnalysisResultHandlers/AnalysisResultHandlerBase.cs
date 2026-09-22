@@ -12,6 +12,12 @@ public abstract class AnalysisResultHandlerBase(IAnalysisResultRecorder recorder
 
     protected abstract IReadOnlyList<ExtractedValue> ExtractValues(Workflow workflow);
 
+    protected virtual Task OnValuesRecorded(
+        Analysis analysis,
+        AnalysisRun analysisRun,
+        IReadOnlyList<RecordedResultValue> recorded
+    ) => Task.CompletedTask;
+
     public async Task OnAnalysisCompleted(Analysis analysis, AnalysisRun analysisRun)
     {
         var workflow = FindResultWorkflow(analysisRun);
@@ -36,7 +42,11 @@ public abstract class AnalysisResultHandlerBase(IAnalysisResultRecorder recorder
             return;
         }
 
-        await recorder.Record(analysis, analysisRun, values);
+        var recorded = await recorder.Record(analysis, analysisRun, values);
+        if (recorded.Count == 0)
+            return;
+
+        await OnValuesRecorded(analysis, analysisRun, recorded);
     }
 
     private Workflow? FindResultWorkflow(AnalysisRun run) =>

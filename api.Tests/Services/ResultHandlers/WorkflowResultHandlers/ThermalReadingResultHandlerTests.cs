@@ -136,15 +136,14 @@ public class ThermalReadingResultHandlerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task OnWorkflowCompleted_ValidResult_UploadsTimeseries()
+    public async Task OnWorkflowCompleted_ValidResult_DoesNotUploadTimeseries()
     {
         var record = await _db.NewInspectionRecord(inspectionId: "insp-123");
         var analysis = await _db.NewAnalysis(inspectionRecords: [record]);
         var run = await _db.NewAnalysisRun(analysis);
         var workflow = await _db.NewWorkflow(run, workflowType: "thermal-reading");
-        const float temperature = 23.5f;
         workflow.ResultJson = JsonSerializer.Serialize(
-            new { temperature = temperature, confidence = 1.00f }
+            new { temperature = 23.5f, confidence = 1.00f }
         );
         await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
@@ -153,23 +152,8 @@ public class ThermalReadingResultHandlerTests : IAsyncLifetime
 
         await handler.OnWorkflowCompleted(workflow);
 
-        var upload = Assert.Single(_factory.TimeseriesService.Uploads);
-        Assert.Equal(temperature, upload.Value);
-    }
-
-    [Fact]
-    public async Task OnWorkflowCompleted_NullResultJson_DoesNotUploadTimeseries()
-    {
-        var record = await _db.NewInspectionRecord(inspectionId: "insp-123");
-        var analysis = await _db.NewAnalysis(inspectionRecords: [record]);
-        var run = await _db.NewAnalysisRun(analysis);
-        var workflow = await _db.NewWorkflow(run, workflowType: "thermal-reading");
-
-        using var scope = _factory.Services.CreateScope();
-        var handler = ResolveHandler(scope);
-
-        await handler.OnWorkflowCompleted(workflow);
-
+        // The timeseries upload is now driven by the evaluated confidence floor
+        // in the analysis result handler, not by this per-workflow handler.
         Assert.Empty(_factory.TimeseriesService.Uploads);
     }
 }

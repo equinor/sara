@@ -43,7 +43,7 @@ public class FencillaResultHandlerTests : IAsyncLifetime
             .Single();
 
     [Fact]
-    public async Task OnWorkflowCompleted_BreakDetectedWithOutput_PublishesMessageWithBlobAndSendsEmail()
+    public async Task OnWorkflowCompleted_BreakDetected_PublishesMessageAndDoesNotSendEmail()
     {
         const string blobName = "breach.jpg";
         const bool isBreak = true;
@@ -75,8 +75,10 @@ public class FencillaResultHandlerTests : IAsyncLifetime
 
         await handler.OnWorkflowCompleted(workflow);
 
-        var published = Assert.Single(_factory.MqttPublisher.AnalysisResultMessages);
-        Assert.Single(_factory.EmailService.FencillaEmails);
+        Assert.Single(_factory.MqttPublisher.AnalysisResultMessages);
+        // The breach email is now driven by evaluated severity in the analysis
+        // result handler, not by this per-workflow handler.
+        Assert.Empty(_factory.EmailService.FencillaEmails);
     }
 
     [Fact]

@@ -104,7 +104,21 @@ public class AnalysisResultHandlerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task LowConfidenceIsRecordedAsInconclusive()
+    public async Task FencillaSendsAnEmailWhenTheBreachIsAnAlert()
+    {
+        var analysis = await Arrange(
+            "fencilla",
+            new { isBreak = true, confidence = 0.88f },
+            new AnalysisThreshold { Key = ResultKeys.IsBreak, AlertWhenTrue = true }
+        );
+
+        await RunHandler(analysis.Id);
+
+        Assert.Single(_factory.EmailService.FencillaEmails);
+    }
+
+    [Fact]
+    public async Task ThermalReadingSkipsTimeseriesWhenConfidenceIsTooLow()
     {
         var analysis = await Arrange(
             "thermal-reading",
@@ -119,6 +133,7 @@ public class AnalysisResultHandlerTests : IAsyncLifetime
 
         await RunHandler(analysis.Id);
 
+        Assert.Empty(_factory.TimeseriesService.Uploads);
         Assert.Equal(ResultSeverity.Inconclusive, Assert.Single(await StoredValues()).Severity);
     }
 
