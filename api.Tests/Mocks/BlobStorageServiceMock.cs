@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using api.Database.Models;
@@ -9,6 +11,16 @@ namespace Api.Test.Mocks;
 public class BlobStorageServiceMock : IBlobStorageService
 {
     public bool BlobExists { get; set; } = true;
+    private readonly ConcurrentQueue<(
+        BlobStorageLocation Location,
+        byte[] Content,
+        string ContentType
+    )> _uploads = new();
+    public IReadOnlyCollection<(
+        BlobStorageLocation Location,
+        byte[] Content,
+        string ContentType
+    )> Uploads => _uploads.ToArray();
 
     public async Task<MemoryStream> DownloadBlobAsync(BlobStorageLocation location)
     {
@@ -22,7 +34,9 @@ public class BlobStorageServiceMock : IBlobStorageService
         string contentType
     )
     {
-        await Task.CompletedTask;
+        using var buffer = new MemoryStream();
+        await content.CopyToAsync(buffer);
+        _uploads.Enqueue((destination, buffer.ToArray(), contentType));
     }
 
     public async Task CopyBlobAsync(BlobStorageLocation source, BlobStorageLocation destination)
