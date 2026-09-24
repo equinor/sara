@@ -184,6 +184,24 @@ public class DatabaseUtilities(SaraDbContext context)
             BlobName = blobName ?? $"{Guid.NewGuid()}.jpg",
         };
 
+    public IsarInspectionValueMessage NewIsarInspectionValueMessage() =>
+        new()
+        {
+            ISARID = "test-isar",
+            RobotName = "test-robot",
+            InspectionId = "test-value",
+            InstallationCode = "TST",
+            TagID = "test-tag",
+            InspectionType = "CO2Measurement",
+            InspectionDescription = "CO2 reading",
+            Value = 0,
+            Unit = "ppm",
+            X = 1.95f,
+            Y = 2.5f,
+            Z = 3.5f,
+            Timestamp = DateTime.UtcNow,
+        };
+
     public IsarAnalysisGroupMessage NewAnalysisGroupMessage(
         string groupId = "test-group",
         int size = 2,

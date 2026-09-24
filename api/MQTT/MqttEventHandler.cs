@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
 using api.Database.Models;
 using api.Services;
 using api.Utilities;
@@ -23,9 +24,6 @@ namespace api.MQTT
 
             Subscribe();
         }
-
-        private ITimeseriesService TimeseriesService =>
-            _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<ITimeseriesService>();
 
         public override void Subscribe()
         {
@@ -266,9 +264,70 @@ namespace api.MQTT
 
         private async void OnIsarInspectionValue(object? sender, MqttReceivedArgs mqttArgs)
         {
+            if (mqttArgs.Message is not IsarInspectionValueMessage message)
+            {
+                _logger.LogError("Received ISAR inspection value message has an unexpected type");
+                return;
+            }
+
+            await ProcessIsarInspectionValue(message);
+        }
+
+        internal async Task ProcessIsarInspectionValue(
+            IsarInspectionValueMessage isarInspectionValueMessage
+        )
+        {
+            using var scope = _scopeFactory.CreateScope();
+            MqttInspectionRecordResult result;
             try
             {
-                var isarInspectionValueMessage = (IsarInspectionValueMessage)mqttArgs.Message;
+                if (
+                    string.IsNullOrWhiteSpace(isarInspectionValueMessage.InspectionId)
+                    || string.IsNullOrWhiteSpace(
+                        Sanitize.SanitizeUserInput(isarInspectionValueMessage.InspectionId)
+                    )
+                    || string.IsNullOrWhiteSpace(isarInspectionValueMessage.InstallationCode)
+                    || string.IsNullOrWhiteSpace(isarInspectionValueMessage.InspectionType)
+                )
+                    throw new ValidationException(
+                        "InspectionId, InstallationCode and InspectionType are required."
+                    );
+
+                var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+                var account = configuration["Storage:InspectionValueStorageAccount"];
+                if (string.IsNullOrWhiteSpace(account))
+                    throw new InvalidOperationException(
+                        "Storage:InspectionValueStorageAccount is not configured."
+                    );
+
+                var location = new BlobStorageLocation
+                {
+                    StorageAccount = account,
+                    BlobContainer = isarInspectionValueMessage.InstallationCode.ToLowerInvariant(),
+                    BlobName = $"inspection-values/{Guid.NewGuid():N}.json",
+                };
+                using var content = new MemoryStream(
+                    JsonSerializer.SerializeToUtf8Bytes(isarInspectionValueMessage)
+                );
+                await scope
+                    .ServiceProvider.GetRequiredService<IBlobStorageService>()
+                    .UploadBlobAsync(location, content, "application/json");
+                result = await scope
+                    .ServiceProvider.GetRequiredService<IInspectionRecordService>()
+                    .CreateFromMqttMessage(isarInspectionValueMessage, location);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Failed to persist ISAR inspection value for InspectionId: {InspectionId}. Timeseries forwarding is skipped.",
+                    isarInspectionValueMessage.InspectionId
+                );
+                return;
+            }
+
+            try
+            {
                 _logger.LogInformation(
                     "Received ISAR inspection value message with InspectionId: {InspectionId}",
                     isarInspectionValueMessage.InspectionId
@@ -294,13 +353,41 @@ namespace api.MQTT
                         { "robot_name", isarInspectionValueMessage.RobotName },
                     },
                 };
-                await TimeseriesService.TriggerTimeseriesUpload(uploadRequest);
+                await scope
+                    .ServiceProvider.GetRequiredService<ITimeseriesService>()
+                    .TriggerTimeseriesUpload(uploadRequest);
             }
             catch (Exception ex)
             {
                 _logger.LogError(
                     ex,
-                    "Error occurred while processing ISAR inspection value message"
+                    "Failed to forward ISAR inspection value to timeseries for InspectionId: {InspectionId}",
+                    isarInspectionValueMessage.InspectionId
+                );
+            }
+
+            if (result.IsDuplicate)
+            {
+                _logger.LogInformation(
+                    "Ignoring duplicate ISAR inspection value for analysis triggering. InspectionId: {InspectionId}, RecordId: {RecordId}",
+                    result.Record.InspectionId,
+                    result.Record.Id
+                );
+                return;
+            }
+
+            try
+            {
+                await scope
+                    .ServiceProvider.GetRequiredService<IAnalysisTriggerService>()
+                    .OnInspectionRecordCreated(result.Record);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error occurred while triggering analyses for InspectionId: {InspectionId}",
+                    isarInspectionValueMessage.InspectionId
                 );
             }
         }

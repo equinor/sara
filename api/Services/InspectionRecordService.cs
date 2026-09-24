@@ -15,6 +15,11 @@ public interface IInspectionRecordService
         IsarInspectionResultMessage message
     );
 
+    public Task<MqttInspectionRecordResult> CreateFromMqttMessage(
+        IsarInspectionValueMessage message,
+        BlobStorageLocation location
+    );
+
     public Task<InspectionRecord> Create(InspectionRecord inspectionRecord);
 
     public Task<InspectionRecord> CreateAndTrigger(CreateInspectionRecordRequest request);
@@ -86,10 +91,46 @@ public class InspectionRecordService(
 {
     private readonly AnalysisOptions _analysisOptions = analysisOptions.Value;
 
-    public async Task<MqttInspectionRecordResult> CreateFromMqttMessage(
+    public Task<MqttInspectionRecordResult> CreateFromMqttMessage(
         IsarInspectionResultMessage message
+    ) => CreateMqttRecordOnce(message.InspectionId, id => CreateMqttRecord(message, id));
+
+    public Task<MqttInspectionRecordResult> CreateFromMqttMessage(
+        IsarInspectionValueMessage message,
+        BlobStorageLocation location
+    ) =>
+        CreateMqttRecordOnce(
+            message.InspectionId,
+            id =>
+                Create(
+                    new InspectionRecord
+                    {
+                        InspectionId = id,
+                        InstallationCode = Sanitize.SanitizeUserInput(message.InstallationCode),
+                        BlobStorageLocation = location,
+                        InspectionType = message.InspectionType,
+                        Tag = message.TagID is null
+                            ? null
+                            : Sanitize.SanitizeUserInput(message.TagID),
+                        InspectionDescription = message.InspectionDescription is null
+                            ? null
+                            : Sanitize.SanitizeUserInput(message.InspectionDescription),
+                        RobotName = message.RobotName,
+                        Timestamp = message.Timestamp,
+                        Analyses = GetDefaultAnalysis(message.InspectionType, ".json")
+                            .Distinct()
+                            .Select(type => new Analysis { AnalysisType = type })
+                            .ToList(),
+                    }
+                )
+        );
+
+    private async Task<MqttInspectionRecordResult> CreateMqttRecordOnce(
+        string rawInspectionId,
+        Func<string, Task<InspectionRecord>> create
     )
     {
+        var inspectionId = Sanitize.SanitizeUserInput(rawInspectionId);
         // Retry the duplicate lookup too: a lost commit acknowledgement must not
         // retry insertion blindly or report the persisted record as newly created.
         var attempt = 0;
@@ -100,15 +141,15 @@ public class InspectionRecordService(
                 // A transient failure may leave tracked entities from a rolled-back attempt.
                 if (attempt++ > 0)
                     context.ChangeTracker.Clear();
-                return await CreateFromMqttMessageAttempt(message);
+                return await CreateFromMqttMessageAttempt(inspectionId, create);
             });
     }
 
     private async Task<MqttInspectionRecordResult> CreateFromMqttMessageAttempt(
-        IsarInspectionResultMessage message
+        string inspectionId,
+        Func<string, Task<InspectionRecord>> create
     )
     {
-        var inspectionId = Sanitize.SanitizeUserInput(message.InspectionId);
         var existing = await ReadMqttDuplicate(inspectionId);
         if (existing is not null)
         {
@@ -117,7 +158,7 @@ public class InspectionRecordService(
 
         try
         {
-            var created = await CreateMqttRecord(message, inspectionId);
+            var created = await create(inspectionId);
             return new MqttInspectionRecordResult(created, false);
         }
         catch (DbUpdateException ex)
