@@ -12,8 +12,10 @@ When running locally the endpoint is reachable at https://localhost:8100
 
 ## Architecture at a glance
 
-- `InspectionRecord` -- one row per ISAR inspection result, persisted on
-  receipt of an `isar/+/inspection_result` MQTT message.
+- `InspectionRecord` -- one row per ISAR inspection, persisted on receipt of an
+  `isar/+/inspection_result` or `isar/+/inspection_value` MQTT message. Values
+  are stored as JSON blobs in `Storage:InspectionValueStorageAccount`, in the
+  lowercased installation container, before forwarding to sara-timeseries.
 - `Analysis` -> `AnalysisRun` -> `Workflow` -- three-tier model where an
   Analysis describes the use-case, an AnalysisRun is one execution attempt,
   and each Workflow is a single Argo step.
