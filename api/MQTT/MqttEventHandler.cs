@@ -295,6 +295,29 @@ namespace api.MQTT
                 return;
             }
 
+            if (!result.IsDuplicate)
+            {
+                try
+                {
+                    await scope
+                        .ServiceProvider.GetRequiredService<IMqttPublisherService>()
+                        .PublishSaraInspectionRecordAvailable(
+                            new SaraInspectionRecordAvailableMessage
+                            {
+                                InspectionId = result.Record.InspectionId,
+                            }
+                        );
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(
+                        ex,
+                        "Failed to publish inspection record availability for InspectionId: {InspectionId}",
+                        result.Record.InspectionId
+                    );
+                }
+            }
+
             try
             {
                 _logger.LogInformation(

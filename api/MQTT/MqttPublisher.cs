@@ -6,6 +6,9 @@ namespace api.MQTT
 {
     public interface IMqttPublisherService
     {
+        public Task PublishSaraInspectionRecordAvailable(
+            SaraInspectionRecordAvailableMessage inspectionRecordAvailableMessage
+        );
         public Task PublishSaraVisualizationAvailable(
             SaraVisualizationAvailableMessage visualizationAvailableMessage
         );
@@ -25,6 +28,14 @@ namespace api.MQTT
         {
             Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
         };
+
+        public Task PublishSaraInspectionRecordAvailable(
+            SaraInspectionRecordAvailableMessage inspectionRecordAvailableMessage
+        ) =>
+            PublishAsync(
+                "sara/inspection_record_available",
+                JsonSerializer.Serialize(inspectionRecordAvailableMessage, serializerOptions)
+            );
 
         public async Task PublishSaraVisualizationAvailable(
             SaraVisualizationAvailableMessage visualizationAvailableMessage
