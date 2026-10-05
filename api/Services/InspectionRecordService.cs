@@ -16,8 +16,7 @@ public interface IInspectionRecordService
     );
 
     public Task<MqttInspectionRecordResult> CreateFromMqttMessage(
-        IsarInspectionValueMessage message,
-        BlobStorageLocation location
+        IsarInspectionValueMessage message
     );
 
     public Task<InspectionRecord> Create(InspectionRecord inspectionRecord);
@@ -96,33 +95,11 @@ public class InspectionRecordService(
     ) => CreateMqttRecordOnce(message.InspectionId, id => CreateMqttRecord(message, id));
 
     public Task<MqttInspectionRecordResult> CreateFromMqttMessage(
-        IsarInspectionValueMessage message,
-        BlobStorageLocation location
+        IsarInspectionValueMessage message
     ) =>
         CreateMqttRecordOnce(
             message.InspectionId,
-            id =>
-                Create(
-                    new InspectionRecord
-                    {
-                        InspectionId = id,
-                        InstallationCode = Sanitize.SanitizeUserInput(message.InstallationCode),
-                        BlobStorageLocation = location,
-                        InspectionType = message.InspectionType,
-                        Tag = message.TagID is null
-                            ? null
-                            : Sanitize.SanitizeUserInput(message.TagID),
-                        InspectionDescription = message.InspectionDescription is null
-                            ? null
-                            : Sanitize.SanitizeUserInput(message.InspectionDescription),
-                        RobotName = message.RobotName,
-                        Timestamp = message.Timestamp,
-                        Analyses = GetDefaultAnalysis(message.InspectionType, ".json")
-                            .Distinct()
-                            .Select(type => new Analysis { AnalysisType = type })
-                            .ToList(),
-                    }
-                )
+            id => Create(NewInspectionValueRecord(message, id))
         );
 
     private async Task<MqttInspectionRecordResult> CreateMqttRecordOnce(
@@ -240,6 +217,35 @@ public class InspectionRecordService(
 
         return await Create(inspectionRecord);
     }
+
+    private InspectionRecord NewInspectionValueRecord(
+        IsarInspectionValueMessage message,
+        string inspectionId
+    ) =>
+        new()
+        {
+            InspectionId = inspectionId,
+            InstallationCode = Sanitize.SanitizeUserInput(message.InstallationCode),
+            BlobStorageLocation = new BlobStorageLocation
+            {
+                StorageAccount = message.InspectionDataPath.StorageAccount,
+                BlobContainer = message.InspectionDataPath.BlobContainer,
+                BlobName = message.InspectionDataPath.BlobName,
+            },
+            InspectionType = message.InspectionType,
+            Tag = message.TagID is null ? null : Sanitize.SanitizeUserInput(message.TagID),
+            InspectionDescription = message.InspectionDescription is null
+                ? null
+                : Sanitize.SanitizeUserInput(message.InspectionDescription),
+            RobotName = message.RobotName,
+            Timestamp = message.Timestamp,
+            RobotPose = message.RobotPose,
+            TargetPosition = message.TargetPosition,
+            Analyses = GetDefaultAnalysis(message.InspectionType, ".json")
+                .Distinct()
+                .Select(type => new Analysis { AnalysisType = type })
+                .ToList(),
+        };
 
     /// <summary>
     /// Resolves the configured default analyses for an inspection record that carries no

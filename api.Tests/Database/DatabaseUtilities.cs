@@ -190,6 +190,12 @@ public class DatabaseUtilities(SaraDbContext context)
             ISARID = "test-isar",
             RobotName = "test-robot",
             InspectionId = "test-value",
+            InspectionDataPath = new InspectionPathMessage
+            {
+                StorageAccount = "isarraw",
+                BlobContainer = "installation-container",
+                BlobName = "mission/CO2Measurement.json",
+            },
             InstallationCode = "TST",
             TagID = "test-tag",
             InspectionType = "CO2Measurement",
