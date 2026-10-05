@@ -25,6 +25,10 @@ public class RecordingMqttPublisher : IMqttPublisherService
     public IReadOnlyCollection<SaraAnalysisResultMessage> AnalysisResultMessages =>
         _analysisResultMessages.ToArray();
 
+    public Task PublishSaraInspectionRecordAvailable(
+        SaraInspectionRecordAvailableMessage inspectionRecordAvailableMessage
+    ) => Task.CompletedTask;
+
     public async Task PublishSaraVisualizationAvailable(
         SaraVisualizationAvailableMessage visualizationAvailableMessage
     )

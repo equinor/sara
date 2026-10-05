@@ -141,6 +141,12 @@ public class IsarAnalysisGroupMessage
     public required List<string> AnalysisGroupAnalyses { get; set; }
 }
 
+public class SaraInspectionRecordAvailableMessage : MqttMessage
+{
+    [JsonPropertyName("inspection_id")]
+    public required string InspectionId { get; set; }
+}
+
 public class SaraVisualizationAvailableMessage : MqttMessage
 {
     [JsonPropertyName("inspection_id")]
