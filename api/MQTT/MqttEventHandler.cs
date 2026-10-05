@@ -1,5 +1,4 @@
 ﻿using System.ComponentModel.DataAnnotations;
-using System.Text.Json;
 using api.Database.Models;
 using api.Services;
 using api.Utilities;
@@ -273,55 +272,25 @@ namespace api.MQTT
             await ProcessIsarInspectionValue(message);
         }
 
-        internal async Task ProcessIsarInspectionValue(
-            IsarInspectionValueMessage isarInspectionValueMessage
-        )
+        internal async Task ProcessIsarInspectionValue(IsarInspectionValueMessage message)
         {
             using var scope = _scopeFactory.CreateScope();
             MqttInspectionRecordResult result;
             try
             {
-                if (
-                    string.IsNullOrWhiteSpace(isarInspectionValueMessage.InspectionId)
-                    || string.IsNullOrWhiteSpace(
-                        Sanitize.SanitizeUserInput(isarInspectionValueMessage.InspectionId)
-                    )
-                    || string.IsNullOrWhiteSpace(isarInspectionValueMessage.InstallationCode)
-                    || string.IsNullOrWhiteSpace(isarInspectionValueMessage.InspectionType)
-                )
-                    throw new ValidationException(
-                        "InspectionId, InstallationCode and InspectionType are required."
-                    );
+                ValidateInspectionValue(message);
+                await VerifyThatBlobExists(scope, message.InspectionDataPath);
 
-                var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
-                var account = configuration["Storage:InspectionValueStorageAccount"];
-                if (string.IsNullOrWhiteSpace(account))
-                    throw new InvalidOperationException(
-                        "Storage:InspectionValueStorageAccount is not configured."
-                    );
-
-                var location = new BlobStorageLocation
-                {
-                    StorageAccount = account,
-                    BlobContainer = isarInspectionValueMessage.InstallationCode.ToLowerInvariant(),
-                    BlobName = $"inspection-values/{Guid.NewGuid():N}.json",
-                };
-                using var content = new MemoryStream(
-                    JsonSerializer.SerializeToUtf8Bytes(isarInspectionValueMessage)
-                );
-                await scope
-                    .ServiceProvider.GetRequiredService<IBlobStorageService>()
-                    .UploadBlobAsync(location, content, "application/json");
                 result = await scope
                     .ServiceProvider.GetRequiredService<IInspectionRecordService>()
-                    .CreateFromMqttMessage(isarInspectionValueMessage, location);
+                    .CreateFromMqttMessage(message);
             }
             catch (Exception ex)
             {
                 _logger.LogError(
                     ex,
                     "Failed to persist ISAR inspection value for InspectionId: {InspectionId}. Timeseries forwarding is skipped.",
-                    isarInspectionValueMessage.InspectionId
+                    message.InspectionId
                 );
                 return;
             }
@@ -330,27 +299,24 @@ namespace api.MQTT
             {
                 _logger.LogInformation(
                     "Received ISAR inspection value message with InspectionId: {InspectionId}",
-                    isarInspectionValueMessage.InspectionId
+                    message.InspectionId
                 );
-                var name = CreateTimeseriesNameFromMQTT(isarInspectionValueMessage);
+                var name = CreateTimeseriesNameFromMQTT(message);
                 var uploadRequest = new TriggerTimeseriesUploadRequest
                 {
                     Name = name,
-                    Facility = isarInspectionValueMessage.InstallationCode,
+                    Facility = message.InstallationCode,
                     ExternalId = "",
-                    Description = isarInspectionValueMessage.InspectionType,
-                    Unit = isarInspectionValueMessage.Unit,
-                    AssetId = isarInspectionValueMessage.InstallationCode, // TODO: check what assetId is
-                    Value = isarInspectionValueMessage.Value,
-                    Timestamp = isarInspectionValueMessage.Timestamp,
+                    Description = message.InspectionType,
+                    Unit = message.Unit,
+                    AssetId = message.InstallationCode, // TODO: check what assetId is
+                    Value = message.Value,
+                    Timestamp = message.Timestamp,
                     Metadata = new Dictionary<string, string>
                     {
-                        { "tag_id", isarInspectionValueMessage.TagID },
-                        {
-                            "inspection_description",
-                            isarInspectionValueMessage.InspectionDescription
-                        },
-                        { "robot_name", isarInspectionValueMessage.RobotName },
+                        { "tag_id", message.TagID },
+                        { "inspection_description", message.InspectionDescription },
+                        { "robot_name", message.RobotName },
                     },
                 };
                 await scope
@@ -362,7 +328,7 @@ namespace api.MQTT
                 _logger.LogError(
                     ex,
                     "Failed to forward ISAR inspection value to timeseries for InspectionId: {InspectionId}",
-                    isarInspectionValueMessage.InspectionId
+                    message.InspectionId
                 );
             }
 
@@ -387,9 +353,57 @@ namespace api.MQTT
                 _logger.LogError(
                     ex,
                     "Error occurred while triggering analyses for InspectionId: {InspectionId}",
-                    isarInspectionValueMessage.InspectionId
+                    message.InspectionId
                 );
             }
+        }
+
+        private static void ValidateInspectionValue(IsarInspectionValueMessage message)
+        {
+            if (
+                string.IsNullOrWhiteSpace(message.InspectionId)
+                || string.IsNullOrWhiteSpace(Sanitize.SanitizeUserInput(message.InspectionId))
+                || string.IsNullOrWhiteSpace(message.InstallationCode)
+                || string.IsNullOrWhiteSpace(message.InspectionType)
+            )
+                throw new ValidationException(
+                    "InspectionId, InstallationCode and InspectionType are required."
+                );
+
+            var path = message.InspectionDataPath;
+            if (path is null)
+                throw new ValidationException(
+                    "blob_storage_data_path is required for inspection values."
+                );
+            Validator.ValidateObject(path, new ValidationContext(path), true);
+            if (message.RobotPose is { } robotPose)
+                Validator.ValidateObject(robotPose, new ValidationContext(robotPose), true);
+            if (message.TargetPosition is { } targetPosition)
+                Validator.ValidateObject(
+                    targetPosition,
+                    new ValidationContext(targetPosition),
+                    true
+                );
+        }
+
+        private static async Task VerifyThatBlobExists(
+            IServiceScope scope,
+            InspectionPathMessage path
+        )
+        {
+            var location = new BlobStorageLocation
+            {
+                StorageAccount = path.StorageAccount,
+                BlobContainer = path.BlobContainer,
+                BlobName = path.BlobName,
+            };
+            var blobExists = await scope
+                .ServiceProvider.GetRequiredService<IBlobStorageService>()
+                .ExistsAsync(location);
+            if (!blobExists)
+                throw new InvalidOperationException(
+                    $"Blob referenced by ISAR inspection value does not exist: {location}."
+                );
         }
 
         private static string CreateTimeseriesNameFromMQTT(

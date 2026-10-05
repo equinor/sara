@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -42,9 +41,44 @@ public class MqttInspectionValueTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ValueMessage_PersistsJsonBackedRecord()
+    public async Task ValueMessage_UsesIsarBlobWithoutUploading()
     {
         var message = _db.NewIsarInspectionValueMessage();
+        var blobService = new Mock<IBlobStorageService>(MockBehavior.Strict);
+        blobService.Setup(s => s.ExistsAsync(It.IsAny<BlobStorageLocation>())).ReturnsAsync(true);
+        using var factory = _factory.WithWebHostBuilder(builder =>
+            builder.ConfigureTestServices(services => services.AddSingleton(blobService.Object))
+        );
+
+        await factory
+            .Services.GetRequiredService<MqttEventHandler>()
+            .ProcessIsarInspectionValue(message);
+
+        var record = await _context.InspectionRecords.SingleAsync(
+            TestContext.Current.CancellationToken
+        );
+        Assert.Equal(
+            $"{message.InspectionDataPath.StorageAccount}/{message.InspectionDataPath.BlobContainer}/{message.InspectionDataPath.BlobName}",
+            record.BlobStorageLocation.ToString()
+        );
+    }
+
+    [Fact]
+    public async Task ValueMessage_PersistsRobotPoseAndTargetPosition()
+    {
+        var message = JsonSerializer.Deserialize<IsarInspectionValueMessage>(
+            """
+            {
+              "inspection_id": "position-test", "installation_code": "TST", "inspection_type": "CO2Measurement",
+              "blob_storage_data_path": {"storage_account": "acct", "blob_container": "cont", "blob_name": "value.json"},
+              "robot_pose": {
+                "position": {"x": 1, "y": 2, "z": 3},
+                "orientation": {"x": 0, "y": 0, "z": 0.6, "w": 0.8}
+              },
+              "target_position": {"x": 4, "y": 5, "z": 6}
+            }
+            """
+        )!;
 
         await _factory
             .Services.GetRequiredService<MqttEventHandler>()
@@ -53,47 +87,23 @@ public class MqttInspectionValueTests : IAsyncLifetime
         var record = await _context.InspectionRecords.SingleAsync(
             TestContext.Current.CancellationToken
         );
-        var upload = Assert.Single(_factory.BlobStorageService.Uploads);
-        Assert.Equal(JsonSerializer.SerializeToUtf8Bytes(message), upload.Content);
-        Assert.Equal(
-            (
-                "teststorage",
-                "tst",
-                upload.Location.BlobName,
-                "application/json",
-                message.InspectionId,
-                message.InspectionType,
-                message.Timestamp
-            ),
-            (
-                record.BlobStorageLocation.StorageAccount,
-                record.BlobStorageLocation.BlobContainer,
-                record.BlobStorageLocation.BlobName,
-                upload.ContentType,
-                record.InspectionId,
-                record.InspectionType,
-                record.Timestamp
-            )
+        Assert.Equivalent(
+            new Pose(new Position(1, 2, 3), new Orientation(0, 0, 0.6f, 0.8f)),
+            record.RobotPose
         );
+        Assert.Equivalent(new Position(4, 5, 6), record.TargetPosition);
     }
 
     [Fact]
-    public async Task ValueMessage_ForwardsUnchangedTimeseriesRequestAfterPersistence()
+    public async Task ValueMessage_ForwardsUnchangedTimeseriesRequest()
     {
         var message = _db.NewIsarInspectionValueMessage();
-        bool recordExistedAtUpload = false;
-        _factory.TimeseriesService.BeforeUpload = async _ =>
-            recordExistedAtUpload = await _context.InspectionRecords.AnyAsync(
-                r => r.InspectionId == message.InspectionId,
-                TestContext.Current.CancellationToken
-            );
 
         await _factory
             .Services.GetRequiredService<MqttEventHandler>()
             .ProcessIsarInspectionValue(message);
 
         var request = Assert.Single(_factory.TimeseriesService.Uploads);
-        Assert.True(recordExistedAtUpload);
         Assert.Equal(
             JsonSerializer.Serialize(
                 new TriggerTimeseriesUploadRequest
@@ -119,28 +129,20 @@ public class MqttInspectionValueTests : IAsyncLifetime
     }
 
     [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task PersistenceFailure_DoesNotForwardOrSubmitAnalysis(bool failBlobUpload)
+    [InlineData("null-path")]
+    [InlineData("missing-blob")]
+    [InlineData("database")]
+    public async Task PersistenceFailure_DoesNotForwardOrSubmitAnalysis(string failure)
     {
+        var message = _db.NewIsarInspectionValueMessage();
+        if (failure == "null-path")
+            message.InspectionDataPath = null!;
+        _factory.BlobStorageService.BlobExists = failure != "missing-blob";
+
         using var factory = _factory.WithWebHostBuilder(builder =>
             builder.ConfigureTestServices(services =>
             {
-                if (failBlobUpload)
-                {
-                    var blobService = new Mock<IBlobStorageService>();
-                    blobService
-                        .Setup(s =>
-                            s.UploadBlobAsync(
-                                It.IsAny<BlobStorageLocation>(),
-                                It.IsAny<Stream>(),
-                                It.IsAny<string>()
-                            )
-                        )
-                        .ThrowsAsync(new IOException("Upload failed"));
-                    services.AddSingleton(blobService.Object);
-                }
-                else
+                if (failure == "database")
                 {
                     var recordService = new Mock<IInspectionRecordService>();
                     recordService
@@ -158,7 +160,7 @@ public class MqttInspectionValueTests : IAsyncLifetime
 
         await factory
             .Services.GetRequiredService<MqttEventHandler>()
-            .ProcessIsarInspectionValue(_db.NewIsarInspectionValueMessage());
+            .ProcessIsarInspectionValue(message);
 
         Assert.Empty(_factory.TimeseriesService.Uploads);
         Assert.Empty(_factory.ArgoWorkflowClient.Requests);

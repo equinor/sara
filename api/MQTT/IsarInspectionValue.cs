@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
 namespace api.MQTT;
@@ -13,6 +14,10 @@ public class IsarInspectionValueMessage : MqttMessage
 
     [JsonPropertyName("inspection_id")]
     public string InspectionId { get; set; }
+
+    [JsonPropertyName("blob_storage_data_path")]
+    [Required]
+    public required InspectionPathMessage InspectionDataPath { get; set; }
 
     [JsonPropertyName("installation_code")]
     public string InstallationCode { get; set; }
@@ -43,4 +48,10 @@ public class IsarInspectionValueMessage : MqttMessage
 
     [JsonPropertyName("timestamp")]
     public DateTime Timestamp { get; set; }
+
+    [JsonPropertyName("robot_pose")]
+    public Database.Models.Pose RobotPose { get; set; }
+
+    [JsonPropertyName("target_position")]
+    public Database.Models.Position TargetPosition { get; set; }
 }
