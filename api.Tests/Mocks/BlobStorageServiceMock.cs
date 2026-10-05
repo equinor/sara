@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Text;
 using System.Threading.Tasks;
 using api.Database.Models;
 using api.Services;
@@ -9,11 +10,11 @@ namespace Api.Test.Mocks;
 public class BlobStorageServiceMock : IBlobStorageService
 {
     public bool BlobExists { get; set; } = true;
+    public string BlobContent { get; set; } = "";
 
-    public async Task<MemoryStream> DownloadBlobAsync(BlobStorageLocation location)
+    public Task<MemoryStream> DownloadBlobAsync(BlobStorageLocation location)
     {
-        var stream = new MemoryStream();
-        return stream;
+        return Task.FromResult(new MemoryStream(Encoding.UTF8.GetBytes(BlobContent)));
     }
 
     public async Task UploadBlobAsync(

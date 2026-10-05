@@ -1,3 +1,4 @@
+using System.Text.Json;
 using api.Configurations;
 using api.Controllers.Models;
 using api.Database.Models;
@@ -288,6 +289,62 @@ public class InspectionRecordController(
 
     [HttpGet]
     [Authorize(Roles = Role.Any)]
+    [Route("id/{id:guid}/measurement")]
+    [ProducesResponseType(typeof(InspectionMeasurementDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<InspectionMeasurementDto>> GetMeasurement(
+        [FromRoute] Guid id,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            var record = await inspectionRecordService.ReadById(id);
+            if (record is null)
+                return NotFound($"Could not find inspection record with id {id}");
+
+            if (
+                !string.Equals(
+                    Path.GetExtension(record.BlobStorageLocation.BlobName),
+                    ".json",
+                    StringComparison.OrdinalIgnoreCase
+                )
+            )
+                return NotFound("The inspection does not have a JSON measurement");
+
+            using var stream = await blobStorageService.DownloadBlobAsync(
+                record.BlobStorageLocation
+            );
+            using var document = await JsonDocument.ParseAsync(
+                stream,
+                cancellationToken: cancellationToken
+            );
+            return Ok(ParseMeasurement(document.RootElement));
+        }
+        catch (RequestFailedException ex) when (ex.Status == 404)
+        {
+            logger.LogWarning(ex, "Measurement blob not found for inspection record {Id}", id);
+            return NotFound("The measurement blob could not be found in storage");
+        }
+        catch (JsonException ex)
+        {
+            logger.LogWarning(ex, "Invalid measurement JSON for inspection record {Id}", id);
+            return UnprocessableEntity("The inspection blob does not contain a valid measurement");
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Error retrieving measurement for inspection record {Id}", id);
+            return StatusCode(
+                StatusCodes.Status500InternalServerError,
+                "An error occurred while retrieving the measurement"
+            );
+        }
+    }
+
+    [HttpGet]
+    [Authorize(Roles = Role.Any)]
     [Route("id/{id:guid}/thermal-image")]
     [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -396,6 +453,25 @@ public class InspectionRecordController(
                 "An error occurred while retrieving the fencilla image"
             );
         }
+    }
+
+    private static InspectionMeasurementDto ParseMeasurement(JsonElement root)
+    {
+        if (root.ValueKind != JsonValueKind.Object)
+            throw new JsonException("Expected a measurement object");
+
+        if (
+            !root.TryGetProperty("value", out var value)
+            || value.ValueKind != JsonValueKind.Number
+            || !value.TryGetDouble(out var number)
+            || !double.IsFinite(number)
+        )
+            throw new JsonException("Expected a finite numeric value");
+
+        if (!root.TryGetProperty("unit", out var unit) || unit.ValueKind != JsonValueKind.String)
+            throw new JsonException("Expected a string unit");
+
+        return new InspectionMeasurementDto(number, unit.GetString()!);
     }
 
     private static BlobStorageLocation? FindLatestWorkflowInputBlobLocation(
