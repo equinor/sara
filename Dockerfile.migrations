@@ -1,0 +1,18 @@
+# Build the migration runner from the same source commit as the API image.
+# Keep the SDK, design-time factory, project source and EF tool together;
+# the API runtime image cannot execute dotnet ef.
+FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:e1ffd2a92ae84c1291bc1b6887501f8af98e6331e7af6d4c8d37168c5e87a64c
+ENV NUGET_PACKAGES=/nuget
+WORKDIR /source
+COPY api/ ./api/
+WORKDIR /source/api
+RUN dotnet restore && dotnet build --no-restore -c Release \
+    && dotnet tool install --tool-path /tools dotnet-ef --version 10.0.12 \
+    && chmod -R a+rX /nuget /source \
+    && chown -R 1001:1001 /source/api
+
+# DesignTimeContextFactory resolves appsettings from the parent of this directory.
+# The Job uses the same app registration and database role as the SARA API.
+ENV PATH="/tools:${PATH}" DOTNET_CLI_HOME=/tmp HOME=/tmp
+USER 1001
+ENTRYPOINT ["sh", "-ec", "test -n \"${AZURE_FEDERATED_TOKEN_FILE:-}\"; test -n \"${AZURE_CLIENT_ID:-}\"; export AzureAd__ClientId=\"$AZURE_CLIENT_ID\"; exec dotnet-ef database update --no-build --configuration Release"]
