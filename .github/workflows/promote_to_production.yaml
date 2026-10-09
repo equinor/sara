@@ -57,7 +57,7 @@ jobs:
     needs: get_staging_version
     strategy:
       matrix:
-        image_name: ['robotics/sara']
+        image_name: ['robotics/sara', 'robotics/sara-migrations']
     permissions:
       contents: read
       # Declared by the shared workflow for its OIDC path; a called
@@ -82,16 +82,12 @@ jobs:
     needs: [get_staging_version, run_migrations, copy-images-to-robotics-prod-registry]
     if: ${{ !cancelled() && needs.get_staging_version.result == 'success' && needs.copy-images-to-robotics-prod-registry.result == 'success' && (needs.run_migrations.result == 'success' || (vars.SARA_PROD_MIGRATIONS_IN_ARGOCD == 'true' && needs.run_migrations.result == 'skipped')) }}
     uses: equinor/armada/.github/workflows/update_kubernetes_deployment.yml@main
-    strategy:
-      max-parallel: 1
-      matrix:
-        include:
-          - image_name: robotics/sara
     with:
       environment: production
       tag: ${{ needs.get_staging_version.outputs.versionTag }}
       registry: roboticsprodacr.azurecr.io
-      image_name: ${{ matrix.image_name }}
+      image_name: robotics/sara
+      paired_image_name: robotics/sara-migrations
       author_name: ${{ github.actor }}
       infrastructure_repository: equinor/robotics-infrastructure
       kustomization_base_path: k8s_kustomize/analytics/overlays
