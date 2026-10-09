@@ -36,22 +36,6 @@ jobs:
           VERSION_TAG=$(sed -n "${TAG_LINE_NUMBER}p" k8s_kustomize/analytics/overlays/staging/kustomization.yaml | awk -F': ' '{print $2}' | tr -d ' ')
           echo "tag=$VERSION_TAG" >> "$GITHUB_OUTPUT"
 
-  run_migrations:
-    name: Update database in Production
-    if: ${{ vars.SARA_PROD_MIGRATIONS_IN_ARGOCD != 'true' }}
-    needs: get_staging_version
-    permissions:
-      contents: read
-      pull-requests: read
-      id-token: write
-    uses: equinor/armada/.github/workflows/run_dotnet_migrations.yml@main
-    with:
-      environment: Production
-      checkout_ref: ${{ needs.get_staging_version.outputs.versionTag }}
-      working_directory: api
-      azure_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-      use_app_reg_identity: ${{ vars.SARA_PROD_MIGRATIONS_USE_APP_REG_IDENTITY == 'true' }}
-
   copy-images-to-robotics-prod-registry:
     name: Copy staging images to robotics prod registry
     needs: get_staging_version
@@ -79,8 +63,7 @@ jobs:
 
   deploy:
     name: Update deployment in Production
-    needs: [get_staging_version, run_migrations, copy-images-to-robotics-prod-registry]
-    if: ${{ !cancelled() && needs.get_staging_version.result == 'success' && needs.copy-images-to-robotics-prod-registry.result == 'success' && (needs.run_migrations.result == 'success' || (vars.SARA_PROD_MIGRATIONS_IN_ARGOCD == 'true' && needs.run_migrations.result == 'skipped')) }}
+    needs: [get_staging_version, copy-images-to-robotics-prod-registry]
     uses: equinor/armada/.github/workflows/update_kubernetes_deployment.yml@main
     with:
       environment: production

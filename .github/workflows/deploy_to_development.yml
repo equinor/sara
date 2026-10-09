@@ -14,20 +14,6 @@ on:
       - "main"
 
 jobs:
-  run_migrations:
-    name: Update database in Development
-    if: ${{ vars.SARA_DEV_MIGRATIONS_IN_ARGOCD != 'true' }}
-    permissions:
-      contents: read
-      pull-requests: read
-      id-token: write
-    uses: equinor/armada/.github/workflows/run_dotnet_migrations.yml@main
-    with:
-      environment: Development
-      working_directory: api
-      azure_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-      use_app_reg_identity: ${{ vars.SARA_DEV_MIGRATIONS_USE_APP_REG_IDENTITY == 'true' }}
-
   get-short-sha:
     outputs:
       tag: ${{ steps.get-tag.outputs.tag }}
@@ -76,8 +62,7 @@ jobs:
 
   deploy:
     name: Update paired deployment in Development
-    needs: [run_migrations, build-and-push-dev-images-to-ghcr, get-short-sha]
-    if: ${{ !cancelled() && needs.build-and-push-dev-images-to-ghcr.result == 'success' && needs.get-short-sha.result == 'success' && (needs.run_migrations.result == 'success' || (vars.SARA_DEV_MIGRATIONS_IN_ARGOCD == 'true' && needs.run_migrations.result == 'skipped')) }}
+    needs: [build-and-push-dev-images-to-ghcr, get-short-sha]
     uses: equinor/armada/.github/workflows/update_kubernetes_deployment.yml@main
     permissions:
       contents: read
