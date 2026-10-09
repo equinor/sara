@@ -96,14 +96,18 @@ public class MqttDuplicateTests : IAsyncLifetime
             _logger.Invocations,
             i =>
                 i.Method.Name == "Log"
-                && (LogLevel)i.Arguments[0] == level
-                && i.Arguments[2].ToString()!.Contains(text)
+                && i.Arguments[0] is LogLevel logLevel
+                && logLevel == level
+                && i.Arguments[2]?.ToString()?.Contains(text) == true
         );
 
     private void AssertNoWarningsOrErrors() =>
         Assert.DoesNotContain(
             _logger.Invocations,
-            i => i.Method.Name == "Log" && (LogLevel)i.Arguments[0] >= LogLevel.Warning
+            i =>
+                i.Method.Name == "Log"
+                && i.Arguments[0] is LogLevel logLevel
+                && logLevel >= LogLevel.Warning
         );
 
     [Fact]
