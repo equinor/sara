@@ -13,52 +13,23 @@ For PostgreSQL at runtime, Staging and Production (case-insensitive) require
 have been applied, regardless of its position in `Database:AllowedAuthMethods`.
 Missing identity configuration or token acquisition failure stops startup without
 password fallback. Development/local connection strings (including pgAdmin), Test
-and in-memory databases are unchanged. EF Core's separate design-time factory
-still honors the configured method order unless CI sets
-`Database__RequireAppRegIdentity=true`. That setting requires `AppRegIdentity`
-regardless of the configured array and fails without a connection-string
-fallback. Until the migration cutover, CI continues using the admin connection
-string. The runtime restriction does not remove or change the underlying credentials.
+and in-memory databases are unchanged. The migration Job's design-time factory
+requires `AppRegIdentity` when `Database__RequireAppRegIdentity=true` is set;
+it cannot fall back to a connection string.
 
-### GitHub Actions migration identity cutover
+### Applying migrations in the cluster
 
-The migration jobs use `armada/.github/workflows/run_dotnet_migrations.yml@main`.
-The shared Armada workflow already accepts `use_app_reg_identity`; deploy SARA's
-callers and design-time factory next. The input defaults to `false`, preserving
-the existing admin-connection-string migration path. No GitHub variable needs
-to be created during preparation.
+Each environment's Argo CD application runs the `sara-migrations` Job as a
+PreSync hook before rolling out the API. The Job uses the same version tag as
+the API, the environment's `robotics-analytics-sa` Workload Identity and its
+`sara-<env>` PostgreSQL role. A failed migration prevents the rollout. Syncing
+the same version again is safe: EF Core applies only pending migrations.
 
-Before enabling identity migrations in an environment, transfer the reviewed
-SARA migration-managed tables (including `__EFMigrationsHistory`) and sequences
-to its `sara-<env>` PostgreSQL role, grant that role `CREATE` on `public`, and
-verify its database access and runtime grants. Use
+When changing migration ownership or permissions, use
 `eq_robot_utility_scripts/postgres-db/sara-migration-ownership-inventory.sql`
-to review the live database before each cutover. The adjacent ownership guide
-describes a *different*, dedicated migration identity; transfer to the
-existing `sara-<env>` role for this workflow. The GitHub OIDC credentials
-on the existing `sara-dev`, `sara-staging`, and `sara-prod` app registrations
-must match the respective GitHub environments.
-
-After ownership and privileges are verified, set the following **repository**
-GitHub Actions variables to the literal string `true`, one environment at a
-time. Unset or any other value keeps the old migration path. Both development
-migration workflows use the same switch. Ensure the SARA ref checked out by
-each release/promotion contains the updated design-time factory before setting
-its switch. Once objects have changed owner, leaving the switch off can make
-subsequent migrations fail because `postgresuser` no longer owns those objects.
-
-| Environment | Repository variable | PostgreSQL role |
-| --- | --- | --- |
-| Development | `SARA_DEV_MIGRATIONS_USE_APP_REG_IDENTITY` | `sara-dev` |
-| Staging | `SARA_STAGING_MIGRATIONS_USE_APP_REG_IDENTITY` | `sara-staging` |
-| Production | `SARA_PROD_MIGRATIONS_USE_APP_REG_IDENTITY` | `sara-prod` |
-
-In identity mode the shared workflow's Azure OIDC login supplies the CLI
-credential used by the design-time factory to obtain a PostgreSQL token. It
-sets `Database__RequireAppRegIdentity=true`, so even a later
-`ConnectionString` entry in appsettings cannot provide a fallback. Validate a
-development migration and same-version rerun before enabling staging, then
-production. Do not enable an environment's switch before its ownership cutover.
+to review the live database. The role needs database access, `CREATE` on
+`public`, and ownership of migration-managed tables (including
+`__EFMigrationsHistory`) and sequences.
 
 ### Installing EF Core
 
@@ -97,20 +68,13 @@ is making migrations at the same time as you!**
   Once removed you can make new changes to the model
   and then create a new migration with `add`.
 
-### Applying the migrations to the dev database
+### Deploying migrations
 
-Updates to the database structure (applying migrations) are done in Github Actions.
-
-When a pull request contains changes in the `/api/Migrations` folder,
-a workflow is triggered to notify that the pull request has database changes.
-
-After the pull request is merged, apply the migrations to the Development database by
-manually running the
-["Run database migrations (Development)"](https://github.com/equinor/sara/actions/workflows/run_development_migrations.yml)
-workflow from the Actions tab.
-
-### Applying migrations to staging and production databases
-
-This is done automatically as part of the promotion workflows
-([promote_to_production](https://github.com/equinor/sara/blob/main/.github/workflows/promote_to_production.yaml)
-and [promote_to_staging](https://github.com/equinor/sara/blob/main/.github/workflows/deploy_to_staging.yml).
+Pull requests that change `/api/Migrations` trigger a notification and migration
+validation against a temporary database. After merging, the Development deploy
+workflow builds matching API and migration images and updates their tags in
+robotics-infrastructure. Argo CD applies pending migrations during the PreSync
+hook. The Staging release and Production promotion workflows likewise publish
+matching images and update both tags; Argo CD runs each environment's hook
+before deploying the new API version. Check the Argo CD sync result and hook
+logs to confirm migrations succeeded.
