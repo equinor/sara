@@ -44,6 +44,10 @@ When running locally the endpoint is reachable at https://localhost:8100
 make run            # or: dotnet run --project api
 ```
 
+The Docker frontend build explicitly installs pinned Corepack because Node 25+
+no longer bundles it. Corepack uses the pnpm version declared in
+`frontend/package.json` under `packageManager`.
+
 ### Local authentication
 
 Cloud deployments authenticate via Azure Workload Identity (federated
