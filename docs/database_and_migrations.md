@@ -14,9 +14,51 @@ have been applied, regardless of its position in `Database:AllowedAuthMethods`.
 Missing identity configuration or token acquisition failure stops startup without
 password fallback. Development/local connection strings (including pgAdmin), Test
 and in-memory databases are unchanged. EF Core's separate design-time factory
-still honors the configured method order, including CI's `ConnectionString`
-override for admin-owned migrations and development migration fallback. The
-runtime restriction does not remove or change the underlying credentials.
+still honors the configured method order unless CI sets
+`Database__RequireAppRegIdentity=true`. That setting requires `AppRegIdentity`
+regardless of the configured array and fails without a connection-string
+fallback. Until the migration cutover, CI continues using the admin connection
+string. The runtime restriction does not remove or change the underlying credentials.
+
+### GitHub Actions migration identity cutover
+
+The migration jobs use `armada/.github/workflows/run_dotnet_migrations.yml@main`.
+The shared Armada workflow already accepts `use_app_reg_identity`; deploy SARA's
+callers and design-time factory next. The input defaults to `false`, preserving
+the existing admin-connection-string migration path. No GitHub variable needs
+to be created during preparation.
+
+Before enabling identity migrations in an environment, transfer the reviewed
+SARA migration-managed tables (including `__EFMigrationsHistory`) and sequences
+to its `sara-<env>` PostgreSQL role, grant that role `CREATE` on `public`, and
+verify its database access and runtime grants. Use
+`eq_robot_utility_scripts/postgres-db/sara-migration-ownership-inventory.sql`
+to review the live database before each cutover. The adjacent ownership guide
+describes a *different*, dedicated migration identity; transfer to the
+existing `sara-<env>` role for this workflow. The GitHub OIDC credentials
+on the existing `sara-dev`, `sara-staging`, and `sara-prod` app registrations
+must match the respective GitHub environments.
+
+After ownership and privileges are verified, set the following **repository**
+GitHub Actions variables to the literal string `true`, one environment at a
+time. Unset or any other value keeps the old migration path. Both development
+migration workflows use the same switch. Ensure the SARA ref checked out by
+each release/promotion contains the updated design-time factory before setting
+its switch. Once objects have changed owner, leaving the switch off can make
+subsequent migrations fail because `postgresuser` no longer owns those objects.
+
+| Environment | Repository variable | PostgreSQL role |
+| --- | --- | --- |
+| Development | `SARA_DEV_MIGRATIONS_USE_APP_REG_IDENTITY` | `sara-dev` |
+| Staging | `SARA_STAGING_MIGRATIONS_USE_APP_REG_IDENTITY` | `sara-staging` |
+| Production | `SARA_PROD_MIGRATIONS_USE_APP_REG_IDENTITY` | `sara-prod` |
+
+In identity mode the shared workflow's Azure OIDC login supplies the CLI
+credential used by the design-time factory to obtain a PostgreSQL token. It
+sets `Database__RequireAppRegIdentity=true`, so even a later
+`ConnectionString` entry in appsettings cannot provide a fallback. Validate a
+development migration and same-version rerun before enabling staging, then
+production. Do not enable an environment's switch before its ownership cutover.
 
 ### Installing EF Core
 

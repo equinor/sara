@@ -26,6 +26,7 @@ jobs:
       checkout_ref: ${{ github.event.release.tag_name }}
       working_directory: api
       azure_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      use_app_reg_identity: ${{ vars.SARA_STAGING_MIGRATIONS_USE_APP_REG_IDENTITY == 'true' }}
 
   build-and-push-latest-release-images-to-robotics-staging-registry:
     name: Build and push latest release images to robotics staging registry

@@ -47,6 +47,14 @@ namespace api.Database.Context
                 allowedDbAuthMethods = ["ConnectionString"];
             }
 
+            // CI's identity-only mode must override the entire configured array:
+            // environment variables for index 0 do not remove later JSON entries.
+            bool requireAppRegIdentity = config.GetValue<bool>("Database:RequireAppRegIdentity");
+            if (requireAppRegIdentity)
+            {
+                allowedDbAuthMethods = ["AppRegIdentity"];
+            }
+
             Console.WriteLine(
                 $"Design-time DB auth methods to try (in order): {string.Join(", ", allowedDbAuthMethods)}"
             );
@@ -70,6 +78,13 @@ namespace api.Database.Context
                     }
                     catch (Exception ex)
                     {
+                        if (requireAppRegIdentity)
+                        {
+                            throw new InvalidOperationException(
+                                "Design-time: AppRegIdentity is required; no connection-string fallback is permitted.",
+                                ex
+                            );
+                        }
                         Console.WriteLine(
                             $"Design-time: AppRegIdentity failed: {ex.GetType().Name}: {ex.Message}. "
                                 + "Trying next method..."

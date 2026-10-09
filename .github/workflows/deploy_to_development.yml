@@ -25,6 +25,7 @@ jobs:
       environment: Development
       working_directory: api
       azure_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      use_app_reg_identity: ${{ vars.SARA_DEV_MIGRATIONS_USE_APP_REG_IDENTITY == 'true' }}
 
   get-short-sha:
     outputs:
