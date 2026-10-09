@@ -370,4 +370,29 @@ public class DatabaseAuthenticationTests
         using var context = DesignTimeContextFactory.CreateDbContext(config);
         Assert.Equal(DirectConnection, context.Database.GetConnectionString());
     }
+
+    [Theory]
+    [InlineData("Development")]
+    [InlineData("Staging")]
+    [InlineData("Production")]
+    public void DesignTimeIdentityOnlyModeCannotFallBackToAdminConnectionString(string environment)
+    {
+        var config = RealSettings(environment)
+            .AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["Database:RequireAppRegIdentity"] = "true",
+                    ["Database:AllowedAuthMethods:0"] = "ConnectionString",
+                    ["Database:Server"] = "",
+                }
+            )
+            .Build();
+
+        var error = Assert.Throws<InvalidOperationException>(() =>
+            DesignTimeContextFactory.CreateDbContext(config)
+        );
+        Assert.Contains("no connection-string fallback", error.Message);
+        Assert.Contains("Database:Server", error.InnerException!.Message);
+        Assert.DoesNotContain(DirectConnection, error.ToString());
+    }
 }

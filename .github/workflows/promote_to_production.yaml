@@ -49,6 +49,7 @@ jobs:
       checkout_ref: ${{ needs.get_staging_version.outputs.versionTag }}
       working_directory: api
       azure_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      use_app_reg_identity: ${{ vars.SARA_PROD_MIGRATIONS_USE_APP_REG_IDENTITY == 'true' }}
 
   copy-images-to-robotics-prod-registry:
     name: Copy staging images to robotics prod registry
