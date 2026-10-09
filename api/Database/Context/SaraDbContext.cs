@@ -21,6 +21,8 @@ namespace api.Database.Context
 
         public DbSet<AnalysisRunFeedback> AnalysisRunFeedbacks { get; set; } = null!;
 
+        public DbSet<MigrationIdentityCheck> MigrationIdentityChecks { get; set; } = null!;
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<InspectionRecord>().HasIndex(ir => ir.InspectionId).IsUnique();
