@@ -102,8 +102,7 @@ public class AcousticMetadataMessage
     public required string LeakRateUnit { get; set; }
 
     [JsonPropertyName("sound_pressure_level_at_sensor_db")]
-    [Required]
-    public required double SoundPressureLevelAtSensorDb { get; set; }
+    public double? SoundPressureLevelAtSensorDb { get; set; }
 
     [JsonPropertyName("sound_pressure_level_at_source_db")]
     [Required]
