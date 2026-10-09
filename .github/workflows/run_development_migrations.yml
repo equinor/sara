@@ -10,6 +10,7 @@ permissions:
 jobs:
   run_migrations:
     name: Update database in Development
+    if: ${{ vars.SARA_DEV_MIGRATIONS_IN_ARGOCD != 'true' }}
     uses: equinor/armada/.github/workflows/run_dotnet_migrations.yml@main
     permissions:
       contents: read
