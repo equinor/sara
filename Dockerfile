@@ -1,7 +1,7 @@
 # https://hub.docker.com/_/microsoft-dotnet
 FROM node:26-slim@sha256:ec7758ee051e457b468b32bde57b0879010b325bb9862718e9615225ce4aaae1 AS frontend-build
 ENV CI=true
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN npm install --global corepack@0.36.0 && corepack enable
 WORKDIR /app
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
