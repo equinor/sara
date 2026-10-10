@@ -1,66 +1,78 @@
-name: Deploy to Staging
+name: Tag paired release images for Kargo staging promotion
 
 concurrency:
-  group: staging-concurrency
+  group: staging-release-${{ github.event.release.tag_name }}
   cancel-in-progress: false
-
-permissions:
-  contents: read
-  packages: write
-  pull-requests: read
 
 on:
   release:
     types: [published]
 
-jobs:
-  build-and-push-latest-release-images-to-robotics-staging-registry:
-    name: Build and push latest release images to robotics staging registry
-    uses: equinor/armada/.github/workflows/build_and_publish_docker_image_to_container_registry.yml@main
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-    strategy:
-      matrix:
-        include:
-          - image_name: robotics/sara
-            path_to_dockerfile: Dockerfile
-            path_to_context: .
-            push_to_ghcr: true
-          - image_name: robotics/sara-migrations
-            path_to_dockerfile: Dockerfile.migrations
-            path_to_context: .
-            push_to_ghcr: false
-    with:
-      registry: roboticsstagingacr.azurecr.io
-      image_name: ${{ matrix.image_name }}
-      tag: "${{ github.event.release.tag_name }}"
-      secondary_tag: latest
-      push_to_ghcr: ${{ matrix.push_to_ghcr }}
-      path_to_dockerfile: ${{ matrix.path_to_dockerfile }}
-      path_to_context: ${{ matrix.path_to_context }}
-      # Authenticate to the registry with a federated credential instead
-      # of the registry password. The environment below is what the OIDC
-      # subject binds to on the Azure side.
-      environment: Staging
-      use_oidc: true
-      azure_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+permissions:
+  contents: read
+  id-token: write
 
-  deploy:
-    name: Update deployment in Staging
-    needs: build-and-push-latest-release-images-to-robotics-staging-registry
-    uses: equinor/armada/.github/workflows/update_kubernetes_deployment.yml@main
-    permissions:
-      contents: read
-    with:
-      environment: staging
-      registry: roboticsstagingacr.azurecr.io
-      tag: ${{ github.event.release.tag_name }}
-      image_name: robotics/sara
-      paired_image_name: robotics/sara-migrations
-      author_name: ${{ github.event.release.author.login }}
-      infrastructure_repository: equinor/robotics-infrastructure
-      kustomization_base_path: k8s_kustomize/analytics/overlays
-    secrets:
-      deploy_key: ${{ secrets.ANALYTICS_INFRASTRUCTURE_DEPLOY_KEY }}
+jobs:
+  tag-existing-dev-images:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: Development
+    env:
+      REGISTRY: roboticsdevacr
+      VERSION: ${{ github.event.release.tag_name }}
+    steps:
+      - name: Check out the release source commit
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Sign in to Azure
+        uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c # v3.0.2
+        with:
+          client-id: ${{ vars.ACR_PUSH_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Verify both commit images before tagging either release image
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Expected vX.Y.Z release tag" >&2; exit 1; }
+          COMMIT=$(git rev-parse HEAD)
+          [[ "$COMMIT" == "$GITHUB_SHA" ]] || { echo "Release tag no longer matches the published release commit" >&2; exit 1; }
+          DEV_TAG="dev.${COMMIT:0:8}"
+          declare -A digests
+          declare -A already_tagged
+
+          for image in sara sara-migrations; do
+            digest=""
+            last_error=""
+            for attempt in {1..31}; do
+              if result=$(az acr manifest show-metadata -r "$REGISTRY" -n "robotics/${image}:${DEV_TAG}" --query digest -o tsv --only-show-errors 2>&1); then
+                [[ "$result" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "Invalid digest for $image:$DEV_TAG: $result" >&2; exit 1; }
+                digest=$result
+                break
+              fi
+              last_error=$result
+              if (( attempt < 31 )); then sleep 20; fi
+            done
+            [[ -n "$digest" ]] || { echo "Missing $image:$DEV_TAG for release commit $COMMIT: $last_error" >&2; exit 1; }
+            digests[$image]=$digest
+
+            if existing=$(az acr manifest show-metadata -r "$REGISTRY" -n "robotics/${image}:${VERSION}" --query digest -o tsv --only-show-errors 2>/dev/null); then
+              [[ "$existing" == "$digest" ]] || { echo "Refusing to move $image:$VERSION" >&2; exit 1; }
+              already_tagged[$image]=true
+            fi
+            echo "Verified $image:$DEV_TAG -> $digest for release $VERSION ($COMMIT)"
+          done
+
+          az acr login --name "$REGISTRY"
+          # Publish API last, after migration. Kargo requires both version tags.
+          for image in sara-migrations sara; do
+            image_url="${REGISTRY}.azurecr.io/robotics/${image}"
+            if [[ "${already_tagged[$image]:-}" != true ]]; then
+              docker buildx imagetools create --prefer-index=false --tag "${image_url}:${VERSION}" "${image_url}@${digests[$image]}"
+            fi
+            tagged=$(az acr manifest show-metadata -r "$REGISTRY" -n "robotics/${image}:${VERSION}" --query digest -o tsv --only-show-errors)
+            [[ "$tagged" == "${digests[$image]}" ]] || { echo "Release tag digest mismatch for $image" >&2; exit 1; }
+          done
