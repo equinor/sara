@@ -78,3 +78,12 @@ hook. The Staging release and Production promotion workflows likewise publish
 matching images and update both tags; Argo CD runs each environment's hook
 before deploying the new API version. Check the Argo CD sync result and hook
 logs to confirm migrations succeeded.
+
+The migration runner reports each applied migration's ID, duration and declared
+schema operations to its console and as OpenTelemetry logs under the
+`sara-migrations` service. Custom SQL is reported as present without inferring
+its effects on data. An up-to-date database produces an info log; failures log
+the migration ID and exception and fail the Job. In Grafana's Backends log panel,
+select `sara-backend` and `sara-migrations` together to view deployment logs in
+one timeline. Check a time range covering the PreSync Job when looking for its
+short-lived logs.
