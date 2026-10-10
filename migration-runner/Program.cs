@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using MigrationRunner;
 using OpenTelemetry;
 using OpenTelemetry.Exporter;
+using OpenTelemetry.Logs;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
@@ -20,14 +21,17 @@ builder.Logging.AddSimpleConsole();
 var endpoint = builder.Configuration["OpenTelemetry:OtelExporterOtlpEndpoint"];
 if (!string.IsNullOrWhiteSpace(endpoint))
 {
-    builder.Logging.AddOpenTelemetry(options =>
-    {
-        options.IncludeFormattedMessage = true;
-        options.IncludeScopes = true;
-    });
     builder
         .Services.AddOpenTelemetry()
         .ConfigureResource(resource => resource.AddService(serviceName))
+        .WithLogging(
+            _ => { },
+            options =>
+            {
+                options.IncludeFormattedMessage = true;
+                options.IncludeScopes = true;
+            }
+        )
         .WithTracing(tracing => tracing.AddSource(serviceName))
         .UseOtlpExporter(OtlpExportProtocol.HttpProtobuf, new Uri(endpoint));
 }
@@ -103,6 +107,13 @@ using (var activity = activitySource.StartActivity("Apply database migrations"))
     }
 }
 
-// The Job exits immediately: let the host flush queued OTLP logs and traces.
+// The Job exits immediately; flush the log provider before stopping the host.
+if (
+    !string.IsNullOrWhiteSpace(endpoint)
+    && !host.Services.GetRequiredService<LoggerProvider>().ForceFlush(5000)
+)
+{
+    Console.Error.WriteLine("Failed to flush migration logs to the OpenTelemetry collector");
+}
 await host.StopAsync();
 return exitCode;
