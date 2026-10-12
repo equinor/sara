@@ -94,7 +94,7 @@ public class WorkflowDto
                     Value = result?.IsBreak.ToString(),
                     Unit = "bool [isBreach]",
                     Warning = warning,
-                    Confidence = result is null ? null : result.Confidence * 100f,
+                    Confidence = result?.Confidence is { } c ? c * 100f : null,
                 };
             }
             case "cloe":

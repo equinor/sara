@@ -8,7 +8,7 @@ namespace api.Services.ResultHandlers.WorkflowResultHandlers;
 internal sealed class FencillaResult
 {
     public bool IsBreak { get; set; }
-    public float Confidence { get; set; }
+    public float? Confidence { get; set; }
     public string? Warning { get; set; }
 }
 
