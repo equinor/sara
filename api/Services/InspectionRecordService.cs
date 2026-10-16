@@ -85,7 +85,8 @@ public class InspectionRecordService(
     SaraDbContext context,
     IAnalysisTriggerService analysisTriggerService,
     IOptions<AnalysisOptions> analysisOptions,
-    ILogger<InspectionRecordService> logger
+    ILogger<InspectionRecordService> logger,
+    InstallationAccess access
 ) : IInspectionRecordService
 {
     private readonly AnalysisOptions _analysisOptions = analysisOptions.Value;
@@ -283,8 +284,9 @@ public class InspectionRecordService(
         int analysisGroupSize
     )
     {
-        var existing = await context
-            .AnalysisGroups.Include((g) => g.Analyses)
+        var existing = await access
+            .Filter(context.AnalysisGroups, AccessMode.Write)
+            .Include(g => g.Analyses)
             .FirstOrDefaultAsync(g => g.GroupId == analysisGroupId);
 
         if (existing is not null)
@@ -307,6 +309,7 @@ public class InspectionRecordService(
 
     public async Task<InspectionRecord> Create(InspectionRecord inspectionRecord)
     {
+        access.RequireAccess(inspectionRecord.InstallationCode, AccessMode.Write);
         await context.InspectionRecords.AddAsync(inspectionRecord);
         var newGroup = inspectionRecord.AnalysisGroup;
         var isNewGroup = newGroup is not null && context.Entry(newGroup).State == EntityState.Added;
@@ -338,34 +341,49 @@ public class InspectionRecordService(
         return inspectionRecord;
     }
 
-    public async Task<InspectionRecord?> ReadById(Guid id)
+    private IQueryable<InspectionRecord> GetRecords(AccessMode mode)
     {
-        return await context
-            .InspectionRecords.Include(ir => ir.Analyses)
+        var analysisIds = access.Filter(context.Analyses, mode).Select(a => a.Id);
+        var query = access.Filter(context.InspectionRecords, mode);
+        if (mode == AccessMode.Write)
+            query = query.Where(record => record.Analyses.All(a => analysisIds.Contains(a.Id)));
+        else
+            query = query.AsNoTracking();
+
+        return query
+            .Include(ir => ir.Analyses.Where(a => analysisIds.Contains(a.Id)))
                 .ThenInclude(a => a.Runs)
                     .ThenInclude(r => r.Workflows)
-            .FirstOrDefaultAsync(ir => ir.Id == id);
+            .Include(ir => ir.Analyses.Where(a => analysisIds.Contains(a.Id)))
+                .ThenInclude(a => a.Runs)
+                    .ThenInclude(r => r.Feedback);
+    }
+
+    public async Task<InspectionRecord?> ReadById(Guid id)
+    {
+        var record = await GetRecords(AccessMode.Read).FirstOrDefaultAsync(ir => ir.Id == id);
+        access.RequireAccessToLookupResult(wasFound: record is not null, AccessMode.Read);
+        return record;
     }
 
     public async Task<InspectionRecord?> ReadByInspectionId(string inspectionId)
     {
-        return await context
-            .InspectionRecords.Include(ir => ir.Analyses)
-                .ThenInclude(a => a.Runs)
-                    .ThenInclude(r => r.Workflows)
-            .Include(ir => ir.Analyses)
-                .ThenInclude(a => a.Runs)
-                    .ThenInclude(r => r.Feedback)
+        var record = await GetRecords(AccessMode.Read)
             .FirstOrDefaultAsync(ir => ir.InspectionId == inspectionId);
+        access.RequireAccessToLookupResult(wasFound: record is not null, AccessMode.Read);
+        return record;
     }
 
     public async Task<bool> ExistsByInspectionId(string inspectionId)
     {
-        return await context.InspectionRecords.AnyAsync(ir => ir.InspectionId == inspectionId);
+        return await access
+            .Filter(context.InspectionRecords, AccessMode.Read)
+            .AnyAsync(ir => ir.InspectionId == inspectionId);
     }
 
     public async Task<InspectionRecord> CreateAndTrigger(CreateInspectionRecordRequest request)
     {
+        access.RequireAccess(request.InstallationCode, AccessMode.Write);
         var inspectionId = Sanitize.SanitizeUserInput(request.InspectionId);
 
         if (await ExistsByInspectionId(inspectionId))
@@ -432,16 +450,16 @@ public class InspectionRecordService(
     )
     {
         var workflowType = Analysis.GetAnalysisTypeFromAnalysisEnum(sourceAnalysisType);
-        var query = context
-            .InspectionRecords.Include(ir => ir.Analyses)
-                .ThenInclude(a => a.Runs)
-                    .ThenInclude(r => r.Workflows)
+        var analysisIds = access.Filter(context.Analyses, AccessMode.Read).Select(a => a.Id);
+        var query = GetRecords(AccessMode.Read)
             .Where(ir =>
                 ir.Analyses.Any(a =>
-                    a.Runs.Any(r => r.Workflows.Any(w => w.WorkflowType == workflowType))
+                    analysisIds.Contains(a.Id)
+                    && a.Runs.Any(r => r.Workflows.Any(w => w.WorkflowType == workflowType))
                 )
                 && ir.Analyses.Any(a =>
-                    a.Runs.Any(r =>
+                    analysisIds.Contains(a.Id)
+                    && a.Runs.Any(r =>
                         r.Workflows.Any(w =>
                             w.WorkflowType == "anonymizer" && w.Status == WorkflowStatus.Succeeded
                         )
@@ -456,12 +474,9 @@ public class InspectionRecordService(
 
     public async Task Delete(Guid id)
     {
-        var record = await context
-            .InspectionRecords.Include(ir => ir.Analyses)
-                .ThenInclude(a => a.Runs)
-                    .ThenInclude(r => r.Workflows)
-            .FirstOrDefaultAsync(ir => ir.Id == id);
+        var record = await GetRecords(AccessMode.Write).FirstOrDefaultAsync(ir => ir.Id == id);
 
+        access.RequireAccessToLookupResult(wasFound: record is not null, AccessMode.Write);
         if (record is null)
         {
             throw new KeyNotFoundException($"Inspection record with id {id} not found");
@@ -500,14 +515,7 @@ public class InspectionRecordService(
         InspectionRecordParameters parameters
     )
     {
-        var query = context
-            .InspectionRecords.Include(ir => ir.Analyses)
-                .ThenInclude(a => a.Runs)
-                    .ThenInclude(r => r.Workflows)
-            .Include(ir => ir.Analyses)
-                .ThenInclude(a => a.Runs)
-                    .ThenInclude(r => r.Feedback)
-            .AsQueryable();
+        var query = GetRecords(AccessMode.Read);
 
         if (parameters.InspectionIds != null && parameters.InspectionIds.Count > 0)
             query = query.Where(ir =>
@@ -540,8 +548,11 @@ public class InspectionRecordService(
                     (a) => Analysis.GetAnalysisTypeFromAnalysisEnum(a)
                 ),
             ];
+            var analysisIds = access.Filter(context.Analyses, AccessMode.Read).Select(a => a.Id);
             query = query.Where(ir =>
-                ir.Analyses.Any((a) => analysisTypeStrings.Contains(a.AnalysisType))
+                ir.Analyses.Any(a =>
+                    analysisIds.Contains(a.Id) && analysisTypeStrings.Contains(a.AnalysisType)
+                )
             );
         }
 
@@ -568,9 +579,11 @@ public class InspectionRecordService(
             );
         }
 
-        var record =
-            await ReadById(inspectionRecordId)
-            ?? throw new KeyNotFoundException(
+        var record = await GetRecords(AccessMode.Write)
+            .FirstOrDefaultAsync(ir => ir.Id == inspectionRecordId);
+        access.RequireAccessToLookupResult(wasFound: record is not null, AccessMode.Write);
+        if (record is null)
+            throw new KeyNotFoundException(
                 $"Inspection record with id {inspectionRecordId} not found"
             );
 

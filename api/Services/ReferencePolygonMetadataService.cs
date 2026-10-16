@@ -67,7 +67,8 @@ public class ReferencePolygonMetadataService(
     SaraDbContext context,
     ILogger<ReferencePolygonMetadataService> logger,
     IBlobStorageService blobStorageService,
-    IConfiguration configuration
+    IConfiguration configuration,
+    InstallationAccess access
 ) : IReferencePolygonMetadataService
 {
     private readonly ILogger<ReferencePolygonMetadataService> _logger = logger;
@@ -80,17 +81,22 @@ public class ReferencePolygonMetadataService(
 
     public async Task<List<ReferencePolygonMetadata>> GetReferencePolygonMetadatas()
     {
-        return await context
-            .ReferencePolygonMetadata.OrderByDescending(reference => reference.DateCreated)
+        return await access
+            .Filter(context.ReferencePolygonMetadata, AccessMode.Read)
+            .OrderByDescending(reference => reference.DateCreated)
             .ThenBy(reference => reference.TagId)
             .ToListAsync();
     }
 
-    public async Task<ReferencePolygonMetadata?> ReadById(Guid id)
+    public Task<ReferencePolygonMetadata?> ReadById(Guid id) => ReadById(id, AccessMode.Read);
+
+    private async Task<ReferencePolygonMetadata?> ReadById(Guid id, AccessMode mode)
     {
-        return await context.ReferencePolygonMetadata.FirstOrDefaultAsync(reference =>
-            reference.Id == id
-        );
+        var reference = await access
+            .Filter(context.ReferencePolygonMetadata, mode)
+            .FirstOrDefaultAsync(reference => reference.Id == id);
+        access.RequireAccessToLookupResult(wasFound: reference is not null, mode);
+        return reference;
     }
 
     public async Task<ReferencePolygonMetadata?> ReadByUniqueKey(
@@ -99,11 +105,14 @@ public class ReferencePolygonMetadataService(
         string inspectionDescription
     )
     {
-        return await context.ReferencePolygonMetadata.FirstOrDefaultAsync(reference =>
-            reference.InstallationCode.ToLower().Equals(installationCode.ToLower())
-            && reference.TagId.ToLower().Equals(tagId.ToLower())
-            && reference.InspectionDescription.ToLower().Equals(inspectionDescription.ToLower())
-        );
+        access.RequireAccess(installationCode, AccessMode.Read);
+        return await access
+            .Filter(context.ReferencePolygonMetadata, AccessMode.Read)
+            .FirstOrDefaultAsync(reference =>
+                reference.InstallationCode.ToLower().Equals(installationCode.ToLower())
+                && reference.TagId.ToLower().Equals(tagId.ToLower())
+                && reference.InspectionDescription.ToLower().Equals(inspectionDescription.ToLower())
+            );
     }
 
     public async Task<ReferencePolygonMetadata> CreateReferencePolygonMetadata(
@@ -111,6 +120,7 @@ public class ReferencePolygonMetadataService(
         BlobStorageLocation referenceImageLocation
     )
     {
+        access.RequireAccess(input.InstallationCode, AccessMode.Write);
         await ThrowIfDuplicateExists(input, null);
 
         var referencePolygonMetadata = new ReferencePolygonMetadata
@@ -134,8 +144,9 @@ public class ReferencePolygonMetadataService(
         BlobStorageLocation referenceImageLocation
     )
     {
+        access.RequireAccess(input.InstallationCode, AccessMode.Write);
         var referencePolygonMetadata =
-            await ReadById(id)
+            await ReadById(id, AccessMode.Write)
             ?? throw new KeyNotFoundException(
                 $"Reference polygon metadata with id {id} was not found"
             );
@@ -157,7 +168,7 @@ public class ReferencePolygonMetadataService(
     public async Task RemoveReferencePolygonMetadata(Guid id)
     {
         var referencePolygonMetadata =
-            await ReadById(id)
+            await ReadById(id, AccessMode.Write)
             ?? throw new KeyNotFoundException(
                 $"Reference polygon metadata with id {id} was not found"
             );
@@ -175,6 +186,8 @@ public class ReferencePolygonMetadataService(
         AnalysisTypeEnum sourceAnalysisType
     )
     {
+        access.RequireAccess(installationCode, AccessMode.Write);
+        access.RequireAccess(record.InstallationCode, AccessMode.Write);
         if (!SupportedSourceAnalysisTypes.Contains(sourceAnalysisType))
         {
             throw new NotSupportedException(

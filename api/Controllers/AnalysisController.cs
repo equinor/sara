@@ -19,7 +19,7 @@ public class AnalysisController(
 ) : ControllerBase
 {
     [HttpGet]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.ReadPolicy)]
     [ProducesResponseType(typeof(PagedResponse<AnalysisDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -47,7 +47,7 @@ public class AnalysisController(
                 }
             );
         }
-        catch (Exception e)
+        catch (Exception e) when (e is not InstallationAccessException)
         {
             logger.LogError(e, "Error during GET of analyses");
             throw;
@@ -55,7 +55,7 @@ public class AnalysisController(
     }
 
     [HttpGet]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.ReadPolicy)]
     [Route("id/{id:guid}")]
     [ProducesResponseType(typeof(Analysis), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -74,7 +74,7 @@ public class AnalysisController(
             var analysisDto = new AnalysisDto(analysis, blobStorageService, analysisOptions.Value);
             return Ok(analysisDto);
         }
-        catch (Exception e)
+        catch (Exception e) when (e is not InstallationAccessException)
         {
             logger.LogError(e, "Error during GET of analysis by id");
             throw;
@@ -82,7 +82,7 @@ public class AnalysisController(
     }
 
     [HttpPost]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.WritePolicy)]
     [Route("id/{id:guid}/rerun")]
     [ProducesResponseType(StatusCodes.Status202Accepted)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -105,7 +105,7 @@ public class AnalysisController(
     }
 
     [HttpDelete]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.WritePolicy)]
     [Route("id/{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -123,7 +123,7 @@ public class AnalysisController(
     }
 
     [HttpGet]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.ReadPolicy)]
     [Route("available")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<ActionResult<List<string>>> GetAvailableAnalyses()

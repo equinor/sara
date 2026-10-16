@@ -17,8 +17,11 @@ public interface IDashboardService
     );
 }
 
-public class DashboardService(SaraDbContext context, IOptions<DashboardOptions> options)
-    : IDashboardService
+public class DashboardService(
+    SaraDbContext context,
+    IOptions<DashboardOptions> options,
+    InstallationAccess access
+) : IDashboardService
 {
     private readonly DashboardOptions _options = options.Value;
 
@@ -42,12 +45,15 @@ public class DashboardService(SaraDbContext context, IOptions<DashboardOptions> 
         var bucketBoundaries = BuildBucketBoundaries(windowHours, timeZone, now);
         var since = bucketBoundaries[0];
         var until = bucketBoundaries[^1];
+        var workflows = access.Filter(context.Workflows, AccessMode.Read);
+        var analysisRuns = access.Filter(context.AnalysisRuns, AccessMode.Read);
+        var analysisGroups = access.Filter(context.AnalysisGroups, AccessMode.Read);
 
         // Single projection of all workflows that reached a terminal state within
         // the window. Everything time-bucketed (status counts, per-type stats,
         // trend) is derived from this in memory.
-        var terminalWorkflows = await context
-            .Workflows.Where(w =>
+        var terminalWorkflows = await workflows
+            .Where(w =>
                 w.CompletedAt != null
                 && w.CompletedAt >= since
                 && w.CompletedAt < until
@@ -65,8 +71,8 @@ public class DashboardService(SaraDbContext context, IOptions<DashboardOptions> 
             ))
             .ToListAsync();
 
-        var terminalAnalysisRuns = await context
-            .AnalysisRuns.Where(run =>
+        var terminalAnalysisRuns = await analysisRuns
+            .Where(run =>
                 run.CompletedAt != null
                 && run.StartedAt != null
                 && run.StartedAt >= since
@@ -90,10 +96,8 @@ public class DashboardService(SaraDbContext context, IOptions<DashboardOptions> 
             Succeeded = terminalWorkflows.Count(w => w.Status == WorkflowStatus.Succeeded),
             Failed = terminalWorkflows.Count(w => w.Status == WorkflowStatus.Failed),
             Skipped = terminalWorkflows.Count(w => w.Status == WorkflowStatus.Skipped),
-            InProgress = await context.Workflows.CountAsync(w =>
-                w.Status == WorkflowStatus.InProgress
-            ),
-            Pending = await context.Workflows.CountAsync(w => w.Status == WorkflowStatus.Pending),
+            InProgress = await workflows.CountAsync(w => w.Status == WorkflowStatus.InProgress),
+            Pending = await workflows.CountAsync(w => w.Status == WorkflowStatus.Pending),
         };
 
         var runStatusCounts = new StatusCounts
@@ -103,12 +107,10 @@ public class DashboardService(SaraDbContext context, IOptions<DashboardOptions> 
             ),
             Failed = terminalAnalysisRuns.Count(run => run.Status == AnalysisRunStatus.Failed),
             Skipped = terminalAnalysisRuns.Count(run => run.Status == AnalysisRunStatus.Skipped),
-            InProgress = await context.AnalysisRuns.CountAsync(r =>
+            InProgress = await analysisRuns.CountAsync(r =>
                 r.Status == AnalysisRunStatus.InProgress
             ),
-            Pending = await context.AnalysisRuns.CountAsync(r =>
-                r.Status == AnalysisRunStatus.Pending
-            ),
+            Pending = await analysisRuns.CountAsync(r => r.Status == AnalysisRunStatus.Pending),
         };
 
         var succeeded = runStatusCounts.Succeeded;
@@ -149,8 +151,8 @@ public class DashboardService(SaraDbContext context, IOptions<DashboardOptions> 
         var trend = BuildTrend(terminalAnalysisRuns, bucketBoundaries);
 
         var stuckThreshold = now.AddMinutes(-_options.StuckWorkflowThresholdMinutes);
-        var stuck = await context
-            .Workflows.Where(w =>
+        var stuck = await workflows
+            .Where(w =>
                 w.Status == WorkflowStatus.InProgress
                 && w.StartedAt != null
                 && w.StartedAt < stuckThreshold
@@ -179,20 +181,18 @@ public class DashboardService(SaraDbContext context, IOptions<DashboardOptions> 
 
         var analysisGroupCounts = new AnalysisGroupCounts
         {
-            Pending = await context.AnalysisGroups.CountAsync(g =>
-                g.Status == AnalysisGroupStatus.Pending
-            ),
-            Complete = await context.AnalysisGroups.CountAsync(g =>
+            Pending = await analysisGroups.CountAsync(g => g.Status == AnalysisGroupStatus.Pending),
+            Complete = await analysisGroups.CountAsync(g =>
                 g.Status == AnalysisGroupStatus.Complete
             ),
-            TimedOut = await context.AnalysisGroups.CountAsync(g =>
+            TimedOut = await analysisGroups.CountAsync(g =>
                 g.Status == AnalysisGroupStatus.TimedOut
             ),
         };
 
-        var inspectionRecordsIngested = await context.InspectionRecords.CountAsync(ir =>
-            ir.CreatedAt >= since
-        );
+        var inspectionRecordsIngested = await access
+            .Filter(context.InspectionRecords, AccessMode.Read)
+            .CountAsync(ir => ir.CreatedAt >= since);
 
         return new DashboardSummaryDto
         {
@@ -224,8 +224,9 @@ public class DashboardService(SaraDbContext context, IOptions<DashboardOptions> 
     {
         bucketStart = bucketStart.ToUniversalTime();
         var bucketEnd = GetBucketEnd(bucketStart, windowHours, timeZone);
-        var runs = await context
-            .AnalysisRuns.Where(run =>
+        var runs = await access
+            .Filter(context.AnalysisRuns, AccessMode.Read)
+            .Where(run =>
                 run.CompletedAt != null
                 && run.StartedAt != null
                 && run.StartedAt >= bucketStart
