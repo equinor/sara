@@ -14,7 +14,7 @@ public class AnalysisRunController(
 ) : ControllerBase
 {
     [HttpGet]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.ReadPolicy)]
     [ProducesResponseType(typeof(PagedResponse<AnalysisRun>), StatusCodes.Status200OK)]
     public async Task<ActionResult<PagedResponse<AnalysisRun>>> GetAll(
         [FromQuery] AnalysisRunParameters parameters
@@ -43,7 +43,7 @@ public class AnalysisRunController(
                 }
             );
         }
-        catch (Exception e)
+        catch (Exception e) when (e is not InstallationAccessException)
         {
             logger.LogError(e, "Error during GET of analysis runs");
             throw;
@@ -51,7 +51,7 @@ public class AnalysisRunController(
     }
 
     [HttpGet]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.ReadPolicy)]
     [Route("id/{id:guid}")]
     [ProducesResponseType(typeof(AnalysisRunDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -69,7 +69,7 @@ public class AnalysisRunController(
             }
             return Ok(new AnalysisRunDto(run));
         }
-        catch (Exception e)
+        catch (Exception e) when (e is not InstallationAccessException)
         {
             logger.LogError(e, "Error during GET of analysis run by id");
             throw;
@@ -77,7 +77,7 @@ public class AnalysisRunController(
     }
 
     [HttpDelete]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.WritePolicy)]
     [Route("id/{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

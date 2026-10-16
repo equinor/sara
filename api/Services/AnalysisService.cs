@@ -27,24 +27,31 @@ public class AnalysisParameters
     public Guid? InspectionRecordId { get; set; }
 }
 
-public class AnalysisService(SaraDbContext context, IOptions<AnalysisOptions> analysisOptions)
-    : IAnalysisService
+public class AnalysisService(
+    SaraDbContext context,
+    IOptions<AnalysisOptions> analysisOptions,
+    InstallationAccess access
+) : IAnalysisService
 {
     private readonly AnalysisOptions _analysisOptions = analysisOptions.Value;
 
     public async Task<Analysis?> ReadById(Guid id)
     {
-        return await context
-            .Analyses.Include(a => a.InspectionRecords)
+        var analysis = await access
+            .Filter(context.Analyses, AccessMode.Read)
+            .Include(a => a.InspectionRecords)
             .Include(a => a.Runs)
                 .ThenInclude(r => r.Workflows)
             .FirstOrDefaultAsync(a => a.Id == id);
+        access.RequireAccessToLookupResult(wasFound: analysis is not null, AccessMode.Read);
+        return analysis;
     }
 
     public async Task<PagedList<Analysis>> GetAnalyses(AnalysisParameters parameters)
     {
-        var query = context
-            .Analyses.Include(a => a.InspectionRecords)
+        var query = access
+            .Filter(context.Analyses, AccessMode.Read)
+            .Include(a => a.InspectionRecords)
             .Include(a => a.Runs)
                 .ThenInclude(r => r.Workflows)
             .AsQueryable();
@@ -55,10 +62,26 @@ public class AnalysisService(SaraDbContext context, IOptions<AnalysisOptions> an
             );
 
         if (parameters.AnalysisGroupId is { } groupId)
+        {
+            access.RequireAccessToLookupResult(
+                wasFound: await access
+                    .Filter(context.AnalysisGroups, AccessMode.Read)
+                    .AnyAsync(g => g.Id == groupId),
+                AccessMode.Read
+            );
             query = query.Where(a => a.AnalysisGroupId.Equals(groupId));
+        }
 
         if (parameters.InspectionRecordId is { } recordId)
+        {
+            access.RequireAccessToLookupResult(
+                wasFound: await access
+                    .Filter(context.InspectionRecords, AccessMode.Read)
+                    .AnyAsync(r => r.Id == recordId),
+                AccessMode.Read
+            );
             query = query.Where(a => a.InspectionRecords.Any(r => r.Id == recordId));
+        }
 
         query = query.OrderByDescending(a => a.CreatedAt).ThenByDescending(a => a.Id);
 
@@ -71,11 +94,13 @@ public class AnalysisService(SaraDbContext context, IOptions<AnalysisOptions> an
 
     public async Task Delete(Guid id)
     {
-        var analysis = await context
-            .Analyses.Include(a => a.Runs)
+        var analysis = await access
+            .Filter(context.Analyses, AccessMode.Write)
+            .Include(a => a.Runs)
                 .ThenInclude(r => r.Workflows)
             .FirstOrDefaultAsync(a => a.Id == id);
 
+        access.RequireAccessToLookupResult(wasFound: analysis is not null, AccessMode.Write);
         if (analysis is null)
         {
             throw new KeyNotFoundException($"Analysis with id {id} not found");

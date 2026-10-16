@@ -19,7 +19,8 @@ public class AnalysisTriggerService(
     SaraDbContext context,
     IOptions<AnalysisOptions> analysisOptions,
     IAnalysisWorkflowService analysisWorkflowService,
-    ILogger<AnalysisTriggerService> logger
+    ILogger<AnalysisTriggerService> logger,
+    InstallationAccess access
 ) : IAnalysisTriggerService
 {
     private readonly AnalysisOptions _options = analysisOptions.Value;
@@ -220,11 +221,13 @@ public class AnalysisTriggerService(
 
     public async Task RerunAnalysis(Guid analysisId)
     {
-        var analysis = await context
-            .Analyses.Include(a => a.InspectionRecords)
+        var analysis = await access
+            .Filter(context.Analyses, AccessMode.Write)
+            .Include(a => a.InspectionRecords)
             .AsNoTracking()
             .FirstOrDefaultAsync(a => a.Id == analysisId);
 
+        access.RequireAccessToLookupResult(wasFound: analysis is not null, AccessMode.Write);
         if (analysis is null)
         {
             throw new KeyNotFoundException($"Analysis with id {analysisId} not found");

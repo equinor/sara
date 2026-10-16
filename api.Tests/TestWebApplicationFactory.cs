@@ -179,7 +179,7 @@ public class TestWebApplicationFactory<TProgram>(
 
     private static void ReplaceAuthentication(IServiceCollection services)
     {
-        services.AddSingleton<IHttpContextAccessor, MockHttpContextAccessor>();
+        services.AddHttpContextAccessor();
         services
             .AddAuthorizationBuilder()
             .AddFallbackPolicy(
@@ -191,6 +191,7 @@ public class TestWebApplicationFactory<TProgram>(
             {
                 options.DefaultAuthenticateScheme = TestAuthHandler.SchemeName;
                 options.DefaultChallengeScheme = TestAuthHandler.SchemeName;
+                options.DefaultForbidScheme = TestAuthHandler.SchemeName;
             })
             .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
                 TestAuthHandler.SchemeName,
