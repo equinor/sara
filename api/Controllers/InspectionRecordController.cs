@@ -32,7 +32,7 @@ public class InspectionRecordController(
     };
 
     [HttpGet]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.ReadPolicy)]
     [ProducesResponseType(typeof(PagedResponse<InspectionRecord>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -71,7 +71,7 @@ public class InspectionRecordController(
     }
 
     [HttpGet]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.ReadPolicy)]
     [Route("id/{id:guid}")]
     [ProducesResponseType(typeof(InspectionRecord), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -94,7 +94,7 @@ public class InspectionRecordController(
             );
             return Ok(recordDto);
         }
-        catch (Exception e)
+        catch (Exception e) when (e is not InstallationAccessException)
         {
             logger.LogError(e, "Error during GET of inspection record by id");
             throw;
@@ -102,7 +102,7 @@ public class InspectionRecordController(
     }
 
     [HttpGet]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.ReadPolicy)]
     [Route("inspection-id/{inspectionId}")]
     [ProducesResponseType(typeof(InspectionRecord), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -130,7 +130,7 @@ public class InspectionRecordController(
             );
             return Ok(recordDto);
         }
-        catch (Exception e)
+        catch (Exception e) when (e is not InstallationAccessException)
         {
             logger.LogError(e, "Error during GET of inspection record by inspection id");
             throw;
@@ -138,7 +138,7 @@ public class InspectionRecordController(
     }
 
     [HttpGet]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.ReadPolicy)]
     [Route("inspection-id/{inspectionId}/visualization-location")]
     [ProducesResponseType(typeof(BlobStorageLocation), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status202Accepted)]
@@ -204,7 +204,7 @@ public class InspectionRecordController(
                 ),
             };
         }
-        catch (Exception e)
+        catch (Exception e) when (e is not InstallationAccessException)
         {
             logger.LogError(e, "Error fetching visualization location for inspection id");
             return StatusCode(StatusCodes.Status500InternalServerError, "Internal server error");
@@ -212,7 +212,7 @@ public class InspectionRecordController(
     }
 
     [HttpGet]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.ReadPolicy)]
     [Route("thermal")]
     [ProducesResponseType(typeof(PagedResponse<InspectionRecord>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
@@ -250,7 +250,7 @@ public class InspectionRecordController(
     }
 
     [HttpGet]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.ReadPolicy)]
     [Route("fencilla")]
     [ProducesResponseType(typeof(PagedResponse<InspectionRecord>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
@@ -288,7 +288,7 @@ public class InspectionRecordController(
     }
 
     [HttpGet]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.ReadPolicy)]
     [Route("id/{id:guid}/measurement")]
     [ProducesResponseType(typeof(InspectionMeasurementDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -333,7 +333,8 @@ public class InspectionRecordController(
             logger.LogWarning(ex, "Invalid measurement JSON for inspection record {Id}", id);
             return UnprocessableEntity("The inspection blob does not contain a valid measurement");
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex)
+            when (ex is not OperationCanceledException and not InstallationAccessException)
         {
             logger.LogError(ex, "Error retrieving measurement for inspection record {Id}", id);
             return StatusCode(
@@ -344,7 +345,7 @@ public class InspectionRecordController(
     }
 
     [HttpGet]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.ReadPolicy)]
     [Route("id/{id:guid}/thermal-image")]
     [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -397,7 +398,7 @@ public class InspectionRecordController(
             );
             return NotFound("The preprocessed thermal image blob could not be found in storage");
         }
-        catch (Exception e)
+        catch (Exception e) when (e is not InstallationAccessException)
         {
             logger.LogError(e, "Error generating thermal image for inspection record {Id}", id);
             return StatusCode(
@@ -408,7 +409,7 @@ public class InspectionRecordController(
     }
 
     [HttpGet]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.ReadPolicy)]
     [Route("id/{id:guid}/fencilla-image")]
     [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -445,7 +446,7 @@ public class InspectionRecordController(
             );
             return NotFound("The preprocessed fencilla image blob could not be found in storage");
         }
-        catch (Exception e)
+        catch (Exception e) when (e is not InstallationAccessException)
         {
             logger.LogError(e, "Error retrieving fencilla image for inspection record {Id}", id);
             return StatusCode(
@@ -504,7 +505,7 @@ public class InspectionRecordController(
     }
 
     [HttpPost]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.WritePolicy)]
     [ProducesResponseType(typeof(InspectionRecord), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -528,7 +529,7 @@ public class InspectionRecordController(
         {
             return Conflict(ex.Message);
         }
-        catch (Exception e)
+        catch (Exception e) when (e is not InstallationAccessException)
         {
             logger.LogError(e, "Error creating inspection record");
             throw;
@@ -536,7 +537,7 @@ public class InspectionRecordController(
     }
 
     [HttpDelete]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.WritePolicy)]
     [Route("id/{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -554,7 +555,7 @@ public class InspectionRecordController(
     }
 
     [HttpPost]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.WritePolicy)]
     [Route("id/{id:guid}/analyses")]
     [ProducesResponseType(StatusCodes.Status202Accepted)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -584,7 +585,7 @@ public class InspectionRecordController(
         {
             return Conflict(ex.Message);
         }
-        catch (Exception e)
+        catch (Exception e) when (e is not InstallationAccessException)
         {
             logger.LogError(e, "Error adding analysis to inspection record");
             throw;

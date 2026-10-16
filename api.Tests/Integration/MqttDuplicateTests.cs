@@ -10,6 +10,7 @@ using api.Database.Models;
 using api.MQTT;
 using api.Services;
 using Api.Test.Database;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -61,7 +62,11 @@ public class MqttDuplicateTests : IAsyncLifetime
             context,
             Mock.Of<IAnalysisTriggerService>(),
             Options.Create(new AnalysisOptions()),
-            NullLogger<InspectionRecordService>.Instance
+            NullLogger<InspectionRecordService>.Instance,
+            new InstallationAccess(
+                new HttpContextAccessor(),
+                NullLogger<InstallationAccess>.Instance
+            )
         );
 
     private SaraDbContext ContextWith(IInterceptor interceptor) =>

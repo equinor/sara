@@ -14,7 +14,7 @@ public class AnalysisGroupController(
 ) : ControllerBase
 {
     [HttpGet]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.ReadPolicy)]
     [ProducesResponseType(typeof(PagedResponse<AnalysisGroup>), StatusCodes.Status200OK)]
     public async Task<ActionResult<PagedResponse<AnalysisGroup>>> GetAll(
         [FromQuery] AnalysisGroupParameters parameters
@@ -42,7 +42,7 @@ public class AnalysisGroupController(
     }
 
     [HttpGet]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.ReadPolicy)]
     [Route("id/{id:guid}")]
     [ProducesResponseType(typeof(AnalysisGroup), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -57,7 +57,7 @@ public class AnalysisGroupController(
     }
 
     [HttpDelete]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.WritePolicy)]
     [Route("id/{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

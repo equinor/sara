@@ -30,7 +30,7 @@ public class ReferencePolygonMetadataController(
 ) : ControllerBase
 {
     [HttpGet]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.ReadPolicy)]
     [ProducesResponseType(typeof(IList<ReferencePolygonMetadata>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IList<ReferencePolygonMetadata>>> GetReferencePolygonMetadatas()
     {
@@ -51,7 +51,7 @@ public class ReferencePolygonMetadataController(
     }
 
     [HttpGet("id/{id}")]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.ReadPolicy)]
     [ProducesResponseType(typeof(ReferencePolygonMetadata), StatusCodes.Status200OK)]
     public async Task<ActionResult<ReferencePolygonMetadata>> GetReferencePolygonMetadataById(
         [FromRoute] Guid id
@@ -67,7 +67,7 @@ public class ReferencePolygonMetadataController(
 
             return Ok(referencePolygonMetadata);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not InstallationAccessException)
         {
             logger.LogError(ex, "Error during GET of reference polygon metadata by id");
             return StatusCode(
@@ -78,7 +78,7 @@ public class ReferencePolygonMetadataController(
     }
 
     [HttpPost]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.WritePolicy)]
     [ProducesResponseType(typeof(ReferencePolygonMetadata), StatusCodes.Status200OK)]
     public async Task<ActionResult<ReferencePolygonMetadata>> CreateReferencePolygonMetadata(
         [FromBody] ReferencePolygonMetadataInput input
@@ -106,7 +106,7 @@ public class ReferencePolygonMetadataController(
             logger.LogWarning(ex, "Conflicting reference polygon metadata create request");
             return Conflict(ex.Message);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not InstallationAccessException)
         {
             logger.LogError(ex, "Error during creation of reference polygon metadata");
             return StatusCode(
@@ -117,7 +117,7 @@ public class ReferencePolygonMetadataController(
     }
 
     [HttpPost("from-inspection-record")]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.WritePolicy)]
     [ProducesResponseType(typeof(ReferencePolygonMetadata), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -192,7 +192,7 @@ public class ReferencePolygonMetadataController(
             logger.LogWarning(ex, "Blob not found during create from inspection record");
             return NotFound("The source blob could not be found in storage");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not InstallationAccessException)
         {
             logger.LogError(
                 ex,
@@ -206,7 +206,7 @@ public class ReferencePolygonMetadataController(
     }
 
     [HttpPut("id/{id}")]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.WritePolicy)]
     [ProducesResponseType(typeof(ReferencePolygonMetadata), StatusCodes.Status200OK)]
     public async Task<ActionResult<ReferencePolygonMetadata>> UpdateReferencePolygonMetadata(
         [FromRoute] Guid id,
@@ -237,7 +237,7 @@ public class ReferencePolygonMetadataController(
             logger.LogWarning(ex, "Conflicting reference polygon metadata update request");
             return Conflict(ex.Message);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not InstallationAccessException)
         {
             logger.LogError(ex, "Error during update of reference polygon metadata");
             return StatusCode(
@@ -248,7 +248,7 @@ public class ReferencePolygonMetadataController(
     }
 
     [HttpDelete("id/{id}")]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.WritePolicy)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<ActionResult> DeleteReferencePolygonMetadata([FromRoute] Guid id)
     {
@@ -262,7 +262,7 @@ public class ReferencePolygonMetadataController(
             logger.LogWarning(ex, "Reference polygon metadata not found during delete");
             return NotFound(ex.Message);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not InstallationAccessException)
         {
             logger.LogError(ex, "Error during removal of reference polygon metadata");
             return StatusCode(
@@ -273,7 +273,7 @@ public class ReferencePolygonMetadataController(
     }
 
     [HttpGet("id/{id}/image")]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.ReadPolicy)]
     [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> GetReferencePolygonImage([FromRoute] Guid id)
@@ -320,7 +320,7 @@ public class ReferencePolygonMetadataController(
             logger.LogWarning(ex, "Reference image blob not found for id {Id}", id);
             return NotFound("The reference image blob could not be found in storage");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not InstallationAccessException)
         {
             logger.LogError(ex, "Error generating reference image for id {Id}", id);
             return StatusCode(

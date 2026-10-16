@@ -25,28 +25,41 @@ public class AnalysisRunParameters
     public DateTime? StartedUntil { get; set; }
 }
 
-public class AnalysisRunService(SaraDbContext context) : IAnalysisRunService
+public class AnalysisRunService(SaraDbContext context, InstallationAccess access)
+    : IAnalysisRunService
 {
     public async Task<AnalysisRun?> ReadById(Guid id)
     {
-        return await context
-            .AnalysisRuns.Include(r => r.Analysis)
+        var run = await access
+            .Filter(context.AnalysisRuns, AccessMode.Read)
+            .Include(r => r.Analysis)
             .Include(r => r.Workflows)
                 .ThenInclude(w => w.InputBlobStorageLocations)
             .Include(r => r.Feedback)
             .FirstOrDefaultAsync(r => r.Id == id);
+        access.RequireAccessToLookupResult(wasFound: run is not null, AccessMode.Read);
+        return run;
     }
 
     public async Task<PagedList<AnalysisRun>> GetRuns(AnalysisRunParameters parameters)
     {
-        var query = context
-            .AnalysisRuns.Include(r => r.Analysis)
+        var query = access
+            .Filter(context.AnalysisRuns, AccessMode.Read)
+            .Include(r => r.Analysis)
             .Include(r => r.Workflows)
             .Include(r => r.Feedback)
             .AsQueryable();
 
         if (parameters.AnalysisId is { } analysisId)
+        {
+            access.RequireAccessToLookupResult(
+                wasFound: await access
+                    .Filter(context.Analyses, AccessMode.Read)
+                    .AnyAsync(a => a.Id == analysisId),
+                AccessMode.Read
+            );
             query = query.Where(r => r.AnalysisId == analysisId);
+        }
 
         if (!string.IsNullOrWhiteSpace(parameters.AnalysisType))
             query = query.Where(r => r.Analysis.AnalysisType == parameters.AnalysisType);
@@ -71,9 +84,11 @@ public class AnalysisRunService(SaraDbContext context) : IAnalysisRunService
 
     public async Task Delete(Guid id)
     {
-        var run = await context
-            .AnalysisRuns.Include(r => r.Workflows)
+        var run = await access
+            .Filter(context.AnalysisRuns, AccessMode.Write)
+            .Include(r => r.Workflows)
             .FirstOrDefaultAsync(r => r.Id == id);
+        access.RequireAccessToLookupResult(wasFound: run is not null, AccessMode.Write);
         if (run is null)
         {
             throw new KeyNotFoundException($"Analysis run with id {id} not found");

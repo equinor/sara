@@ -10,6 +10,7 @@ using api.Controllers.Models;
 using api.Database.Context;
 using api.Database.Models;
 using Api.Test.Database;
+using Microsoft.EntityFrameworkCore;
 using Testcontainers.PostgreSql;
 using Xunit;
 
@@ -38,6 +39,108 @@ public class AnalysisRunControllerTests : IAsyncLifetime
         await _context.DisposeAsync();
         await _factory.DisposeAsync();
         await _container.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task NoAccessForInstallation()
+    {
+        _client.DefaultRequestHeaders.Add("X-Test-Roles", "Role.User");
+
+        var response = await _client.GetAsync(
+            "/api/analysis-run",
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ListsExcludeUnauthorizedAndMixedInstallationsBeforePagination()
+    {
+        var allowedRecord = await _db.NewInspectionRecord(installationCode: "TST");
+        var deniedRecord = await _db.NewInspectionRecord(
+            installationCode: "NON",
+            inspectionId: "denied"
+        );
+        var allowedAnalysis = await _db.NewAnalysis(
+            type: "cloe",
+            inspectionRecords: [allowedRecord]
+        );
+        var deniedAnalysis = await _db.NewAnalysis(type: "cloe", inspectionRecords: [deniedRecord]);
+        var mixedAnalysis = await _db.NewAnalysis(
+            type: "cloe",
+            inspectionRecords: [allowedRecord, deniedRecord]
+        );
+        await _db.NewAnalysisRun(mixedAnalysis);
+        await _db.NewAnalysisRun(await _db.NewAnalysis());
+        var allowedRun = await _db.NewAnalysisRun(allowedAnalysis);
+        var deniedRun = await _db.NewAnalysisRun(deniedAnalysis);
+        allowedRun.StartedAt = DateTime.UtcNow.AddHours(-1);
+        deniedRun.StartedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        _client.DefaultRequestHeaders.Add("X-Test-Roles", "Role.User.TST");
+
+        var response = await _client.GetAsync(
+            "/api/analysis-run?PageSize=1",
+            TestContext.Current.CancellationToken
+        );
+        response.EnsureSuccessStatusCode();
+        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        options.Converters.Add(new JsonStringEnumConverter());
+        var page = await response.Content.ReadFromJsonAsync<PagedResponse<AnalysisRun>>(
+            options,
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.NotNull(page);
+        Assert.Equal([allowedRun.Id], page.Items.Select(run => run.Id));
+        Assert.Equal(1, page.TotalCount);
+        Assert.Equal(1, page.TotalPages);
+
+        var recordJson = await _client.GetStringAsync(
+            $"/api/inspection-record/id/{allowedRecord.Id}",
+            TestContext.Current.CancellationToken
+        );
+        Assert.DoesNotContain(mixedAnalysis.Id.ToString(), recordJson);
+        Assert.DoesNotContain(deniedRecord.Id.ToString(), recordJson);
+        var delete = await _client.DeleteAsync(
+            $"/api/inspection-record/id/{allowedRecord.Id}",
+            TestContext.Current.CancellationToken
+        );
+        Assert.Equal(HttpStatusCode.Forbidden, delete.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("Role.User.TST", HttpStatusCode.OK, HttpStatusCode.NoContent)]
+    [InlineData("Role.ReadOnly.TST", HttpStatusCode.OK, HttpStatusCode.Forbidden)]
+    [InlineData("Role.User.NON", HttpStatusCode.Forbidden, HttpStatusCode.Forbidden)]
+    [InlineData("Role.User.NON,Role.ReadOnly.TST", HttpStatusCode.OK, HttpStatusCode.Forbidden)]
+    [InlineData("Role.User.NON,Role.User.TST", HttpStatusCode.OK, HttpStatusCode.NoContent)]
+    [InlineData("Role.Admin", HttpStatusCode.OK, HttpStatusCode.NoContent)]
+    [InlineData("PlantData.Read", HttpStatusCode.OK, HttpStatusCode.Forbidden)]
+    public async Task InstallationRolesControlReadsAndWrites(
+        string roles,
+        HttpStatusCode readStatus,
+        HttpStatusCode writeStatus
+    )
+    {
+        var record = await _db.NewInspectionRecord(installationCode: "tst");
+        var analysis = await _db.NewAnalysis(inspectionRecords: [record]);
+        var run = await _db.NewAnalysisRun(analysis);
+        _client.DefaultRequestHeaders.Add("X-Test-Roles", roles);
+        var path = $"/api/analysis-run/id/{run.Id}";
+
+        using var read = await _client.GetAsync(path, TestContext.Current.CancellationToken);
+        Assert.Equal(readStatus, read.StatusCode);
+        using var delete = await _client.DeleteAsync(path, TestContext.Current.CancellationToken);
+        Assert.Equal(writeStatus, delete.StatusCode);
+        Assert.Equal(
+            writeStatus == HttpStatusCode.Forbidden,
+            await _context.AnalysisRuns.AnyAsync(
+                r => r.Id == run.Id,
+                TestContext.Current.CancellationToken
+            )
+        );
     }
 
     [Fact]

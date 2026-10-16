@@ -11,7 +11,8 @@ namespace api.Controllers;
 [Route("[controller]")]
 public class TimeSeriesDataController(
     ILogger<TimeSeriesDataController> logger,
-    ITimeseriesService timeseriesService
+    ITimeseriesService timeseriesService,
+    InstallationAccess access
 ) : ControllerBase
 {
     private static readonly JsonSerializerOptions _jsonSerializerOptions = new()
@@ -26,7 +27,7 @@ public class TimeSeriesDataController(
     /// <para> This query gets a single CO2 concentration </para>
     /// </remarks>
     [HttpPost]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.ReadPolicy)]
     [Route("CO2")]
     [ProducesResponseType(typeof(double), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -50,6 +51,7 @@ public class TimeSeriesDataController(
 
         try
         {
+            access.RequireAccess(fetchRequest.Facility, AccessMode.Read);
             var co2Value = await timeseriesService.FetchCO2ConcentrationFromTimeseries(
                 fetchRequest
             );

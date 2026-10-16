@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using System.Text.Json.Serialization;
 using api.Configurations;
+using api.Controllers;
 using api.Database.Context;
 using api.MQTT;
 using api.Services;
@@ -145,6 +146,8 @@ builder.Services.AddScoped<IAnalysisTriggerService, AnalysisTriggerService>();
 builder.Services.AddScoped<ITimeseriesService, TimeseriesService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IAnalysisGroupTimeoutProcessor, AnalysisGroupTimeoutProcessor>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<InstallationAccess>();
 
 builder.Services.AddHostedService<MqttEventHandler>();
 builder.Services.AddHostedService<MqttService>();
@@ -155,6 +158,7 @@ builder
     .Services.AddControllers(options =>
     {
         options.Conventions.Add(new ApiRoutePrefixConvention("api"));
+        options.Filters.Add<InstallationAccessExceptionFilter>();
     })
     .AddJsonOptions(options =>
     {
@@ -172,6 +176,24 @@ builder.Services.ConfigureJwtBearerLogging();
 
 builder
     .Services.AddAuthorizationBuilder()
+    .AddPolicy(
+        InstallationAccess.ReadPolicy,
+        policy =>
+            policy
+                .RequireAuthenticatedUser()
+                .RequireAssertion(context =>
+                    InstallationAccess.HasAccess(context.User, write: false)
+                )
+    )
+    .AddPolicy(
+        InstallationAccess.WritePolicy,
+        policy =>
+            policy
+                .RequireAuthenticatedUser()
+                .RequireAssertion(context =>
+                    InstallationAccess.HasAccess(context.User, write: true)
+                )
+    )
     .AddFallbackPolicy("RequireAuthenticatedUser", policy => policy.RequireAuthenticatedUser());
 
 var app = builder.Build();
@@ -267,7 +289,7 @@ app.MapGet(
                 Workflows = kvp.Value.Workflows,
             })
     )
-    .RequireAuthorization();
+    .RequireAuthorization(InstallationAccess.ReadPolicy);
 
 if (enableFrontend)
 {

@@ -15,7 +15,7 @@ public class WorkflowController(
 ) : ControllerBase
 {
     [HttpGet]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.ReadPolicy)]
     [ProducesResponseType(typeof(PagedResponse<Workflow>), StatusCodes.Status200OK)]
     public async Task<ActionResult<PagedResponse<WorkflowDto>>> GetAll(
         [FromQuery] WorkflowParameters parameters
@@ -36,7 +36,7 @@ public class WorkflowController(
                 }
             );
         }
-        catch (Exception e)
+        catch (Exception e) when (e is not InstallationAccessException)
         {
             logger.LogError(e, "Error during GET of workflows");
             throw;
@@ -44,7 +44,7 @@ public class WorkflowController(
     }
 
     [HttpGet]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.ReadPolicy)]
     [Route("id/{id:guid}")]
     [ProducesResponseType(typeof(Workflow), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -60,7 +60,7 @@ public class WorkflowController(
     }
 
     [HttpPost]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.WritePolicy)]
     [Route("id/{id:guid}/retry")]
     [ProducesResponseType(StatusCodes.Status202Accepted)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -78,7 +78,7 @@ public class WorkflowController(
     }
 
     [HttpDelete]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.WritePolicy)]
     [Route("id/{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

@@ -18,7 +18,7 @@ public class FeedbackController(
     private readonly DashboardOptions _dashboardOptions = dashboardOptions.Value;
 
     [HttpGet]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.ReadPolicy)]
     [ProducesResponseType(typeof(PagedResponse<FeedbackHistoryDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<PagedResponse<FeedbackHistoryDto>>> GetAll(
@@ -46,7 +46,7 @@ public class FeedbackController(
     }
 
     [HttpGet]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.ReadPolicy)]
     [Route("summary")]
     [ProducesResponseType(typeof(FeedbackSummaryDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -79,7 +79,7 @@ public class FeedbackController(
     }
 
     [HttpGet]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.ReadPolicy)]
     [Route("trend-details")]
     [ProducesResponseType(typeof(FeedbackTrendBucketDetailsDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -120,7 +120,7 @@ public class FeedbackController(
     }
 
     [HttpGet]
-    [Authorize(Roles = Role.Any)]
+    [Authorize(Policy = InstallationAccess.ReadPolicy)]
     [Route("analysis-run/{runId:guid}")]
     [ProducesResponseType(typeof(FeedbackDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -134,7 +134,7 @@ public class FeedbackController(
     }
 
     [HttpPut]
-    [Authorize(Roles = Role.User)]
+    [Authorize(Policy = InstallationAccess.WritePolicy)]
     [Route("analysis-run/{runId:guid}")]
     [ProducesResponseType(typeof(FeedbackDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -154,7 +154,7 @@ public class FeedbackController(
         {
             return NotFound(ex.Message);
         }
-        catch (Exception e)
+        catch (Exception e) when (e is not InstallationAccessException)
         {
             logger.LogError(e, "Error upserting feedback for analysis run {RunId}", runId);
             throw;
@@ -162,7 +162,7 @@ public class FeedbackController(
     }
 
     [HttpDelete]
-    [Authorize(Roles = Role.User)]
+    [Authorize(Policy = InstallationAccess.WritePolicy)]
     [Route("analysis-run/{runId:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]

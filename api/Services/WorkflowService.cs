@@ -40,7 +40,8 @@ public class WorkflowService(
     IEnumerable<IWorkflowResultHandler> workflowResultHandlers,
     IEnumerable<IAnalysisResultHandler> analysisResultHandlers,
     IAnalysisTriggerService analysisTriggerService,
-    ILogger<WorkflowService> logger
+    ILogger<WorkflowService> logger,
+    InstallationAccess access
 ) : IWorkflowService
 {
     private readonly Dictionary<string, IWorkflowResultHandler> _workflowResultHandlersByType =
@@ -131,16 +132,20 @@ public class WorkflowService(
 
     public async Task<Workflow?> ReadById(Guid id)
     {
-        return await context
-            .Workflows.Include(w => w.InputBlobStorageLocations)
+        var workflow = await access
+            .Filter(context.Workflows, AccessMode.Read)
+            .Include(w => w.InputBlobStorageLocations)
             .Include(w => w.AnalysisRun)
             .FirstOrDefaultAsync(w => w.Id == id);
+        access.RequireAccessToLookupResult(wasFound: workflow is not null, AccessMode.Read);
+        return workflow;
     }
 
     public async Task<PagedList<Workflow>> GetWorkflows(WorkflowParameters parameters)
     {
-        var query = context
-            .Workflows.Include(w => w.InputBlobStorageLocations)
+        var query = access
+            .Filter(context.Workflows, AccessMode.Read)
+            .Include(w => w.InputBlobStorageLocations)
             .Include(w => w.AnalysisRun)
             .AsQueryable();
 
@@ -153,7 +158,15 @@ public class WorkflowService(
             query = query.Where(w => w.Status == status);
 
         if (parameters.AnalysisRunId is { } runId)
+        {
+            access.RequireAccessToLookupResult(
+                wasFound: await access
+                    .Filter(context.AnalysisRuns, AccessMode.Read)
+                    .AnyAsync(r => r.Id == runId),
+                AccessMode.Read
+            );
             query = query.Where(w => w.AnalysisRunId == runId);
+        }
 
         if (parameters.StartedSince is { } startedSince)
             query = query.Where(w => w.StartedAt >= startedSince.ToUniversalTime());
@@ -169,9 +182,11 @@ public class WorkflowService(
 
     public async Task RetryWorkflow(Guid id)
     {
-        var workflow = await context
-            .Workflows.Include(w => w.AnalysisRun)
+        var workflow = await access
+            .Filter(context.Workflows, AccessMode.Write)
+            .Include(w => w.AnalysisRun)
             .FirstOrDefaultAsync(w => w.Id == id);
+        access.RequireAccessToLookupResult(wasFound: workflow is not null, AccessMode.Write);
         if (workflow is null)
         {
             throw new KeyNotFoundException($"Workflow with id {id} not found");
@@ -182,9 +197,11 @@ public class WorkflowService(
 
     public async Task Delete(Guid id)
     {
-        var workflow = await context
-            .Workflows.Include(w => w.InputBlobStorageLocations)
+        var workflow = await access
+            .Filter(context.Workflows, AccessMode.Write)
+            .Include(w => w.InputBlobStorageLocations)
             .FirstOrDefaultAsync(w => w.Id == id);
+        access.RequireAccessToLookupResult(wasFound: workflow is not null, AccessMode.Write);
         if (workflow is null)
         {
             throw new KeyNotFoundException($"Workflow with id {id} not found");
