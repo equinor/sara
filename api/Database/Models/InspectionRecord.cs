@@ -56,6 +56,8 @@ public class InspectionRecord
     [ForeignKey(nameof(AnalysisGroupId))]
     public AnalysisGroup? AnalysisGroup { get; set; }
 
+    public string? TimeseriesId { get; set; }
+
     public List<Analysis> Analyses { get; set; } = [];
 
     public Workflow? FindLatestWorkflow(AnalysisTypeEnum sourceAnalysisType)

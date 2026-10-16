@@ -99,17 +99,13 @@ public class ThermalReadingResultHandler(
             },
         };
 
-        try
-        {
-            await timeseriesService.TriggerTimeseriesUpload(uploadRequest);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(
-                ex,
-                "Failed to upload thermal-reading datapoint to Timeseries for workflow {WorkflowId}",
-                workflow.Id
-            );
-        }
+        await WorkflowResultHandlerHelpers.UploadTimeseriesAndAssignId(
+            context,
+            timeseriesService,
+            inspectionRecord,
+            uploadRequest,
+            workflow,
+            logger
+        );
     }
 }
