@@ -343,9 +343,16 @@ namespace api.MQTT
                         { "robot_name", message.RobotName },
                     },
                 };
-                await scope
+                var timeseriesId = await scope
                     .ServiceProvider.GetRequiredService<ITimeseriesService>()
                     .TriggerTimeseriesUpload(uploadRequest);
+
+                if (timeseriesId is not null)
+                {
+                    await scope
+                        .ServiceProvider.GetRequiredService<IInspectionRecordService>()
+                        .SetTimeseriesId(result.Record.Id, timeseriesId);
+                }
             }
             catch (Exception ex)
             {

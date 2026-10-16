@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,10 +17,13 @@ public class RecordingTimeseriesService : ITimeseriesService
 
     public IReadOnlyCollection<TriggerTimeseriesUploadRequest> Uploads => _uploads.ToArray();
 
-    public Task TriggerTimeseriesUpload(TriggerTimeseriesUploadRequest uploadRequest)
+    public Func<TriggerTimeseriesUploadRequest, string?> UploadResult { get; set; } =
+        _ => Guid.NewGuid().ToString();
+
+    public Task<string?> TriggerTimeseriesUpload(TriggerTimeseriesUploadRequest uploadRequest)
     {
         _uploads.Enqueue(uploadRequest);
-        return Task.CompletedTask;
+        return Task.FromResult(UploadResult(uploadRequest));
     }
 
     public Task<double?> FetchCO2ConcentrationFromTimeseries(
@@ -32,5 +36,6 @@ public class RecordingTimeseriesService : ITimeseriesService
     public void Reset()
     {
         _uploads.Clear();
+        UploadResult = _ => Guid.NewGuid().ToString();
     }
 }
