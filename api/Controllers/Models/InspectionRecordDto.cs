@@ -27,4 +27,5 @@ public class InspectionRecordDto(
     public string? RobotName { get; set; } = record.RobotName;
     public DateTime? Timestamp { get; set; } = record.Timestamp;
     public Guid? AnalysisGroupId { get; set; } = record.AnalysisGroupId;
+    public string? TimeseriesId { get; set; } = record.TimeseriesId;
 }

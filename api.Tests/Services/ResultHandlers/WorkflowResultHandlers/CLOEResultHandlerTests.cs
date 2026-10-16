@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using api.Database.Context;
 using api.Services.ResultHandlers.WorkflowResultHandlers;
 using Api.Test.Database;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
 using Xunit;
@@ -76,6 +77,67 @@ public class CLOEResultHandlerTests : IAsyncLifetime
 
         var upload = Assert.Single(_factory.TimeseriesService.Uploads);
         Assert.Equal(oilLevel * 100, upload.Value);
+    }
+
+    [Fact]
+    public async Task OnWorkflowCompleted_SuccessfulTimeseriesUpload_SetsTimeseriesIdOnRecord()
+    {
+        var record = await _db.NewInspectionRecord(inspectionId: "insp-123");
+        var analysis = await _db.NewAnalysis(inspectionRecords: [record]);
+        var run = await _db.NewAnalysisRun(analysis);
+        var workflow = await _db.NewWorkflow(run, workflowType: "cloe");
+        workflow.ResultJson = JsonSerializer.Serialize(
+            new
+            {
+                oilLevel = 0.42f,
+                confidence = 0.93f,
+                warning = (string?)null,
+            }
+        );
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        _factory.TimeseriesService.UploadResult = _ => "ts-id-123";
+
+        using var scope = _factory.Services.CreateScope();
+        var handler = ResolveHandler(scope);
+
+        await handler.OnWorkflowCompleted(workflow);
+
+        var updated = await _context.InspectionRecords.AsNoTracking()
+            .SingleAsync(r => r.Id == record.Id, TestContext.Current.CancellationToken);
+        Assert.Equal("ts-id-123", updated.TimeseriesId);
+    }
+
+    [Fact]
+    public async Task OnWorkflowCompleted_FailedTimeseriesUpload_LeavesTimeseriesIdNullAndStillPublishes()
+    {
+        var record = await _db.NewInspectionRecord(inspectionId: "insp-456");
+        var analysis = await _db.NewAnalysis(inspectionRecords: [record]);
+        var run = await _db.NewAnalysisRun(analysis);
+        var workflow = await _db.NewWorkflow(run, workflowType: "cloe");
+        workflow.ResultJson = JsonSerializer.Serialize(
+            new
+            {
+                oilLevel = 0.42f,
+                confidence = 0.93f,
+                warning = (string?)null,
+            }
+        );
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        _factory.TimeseriesService.UploadResult = _ =>
+            throw new InvalidOperationException("Simulated upload failure");
+
+        using var scope = _factory.Services.CreateScope();
+        var handler = ResolveHandler(scope);
+
+        await handler.OnWorkflowCompleted(workflow);
+
+        Assert.Single(_factory.MqttPublisher.AnalysisResultMessages);
+
+        var updated = await _context.InspectionRecords.AsNoTracking()
+            .SingleAsync(r => r.Id == record.Id, TestContext.Current.CancellationToken);
+        Assert.Null(updated.TimeseriesId);
     }
 
     [Fact]

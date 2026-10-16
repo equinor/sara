@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using api.Database.Context;
 using api.Database.Models;
 using api.Services;
 using api.Utilities;
@@ -342,9 +343,17 @@ namespace api.MQTT
                         { "robot_name", message.RobotName },
                     },
                 };
-                await scope
+                var timeseriesId = await scope
                     .ServiceProvider.GetRequiredService<ITimeseriesService>()
                     .TriggerTimeseriesUpload(uploadRequest);
+
+                if (timeseriesId is not null)
+                {
+                    var context = scope.ServiceProvider.GetRequiredService<SaraDbContext>();
+                    result.Record.TimeseriesId = timeseriesId;
+                    context.InspectionRecords.Update(result.Record);
+                    await context.SaveChangesAsync();
+                }
             }
             catch (Exception ex)
             {

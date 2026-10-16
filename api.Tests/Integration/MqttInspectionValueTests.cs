@@ -82,4 +82,37 @@ public class MqttInspectionValueTests : IAsyncLifetime
             request
         );
     }
+
+    [Fact]
+    public async Task ValueMessage_SuccessfulTimeseriesUpload_SetsTimeseriesId()
+    {
+        var message = _db.NewIsarInspectionValueMessage();
+        _factory.TimeseriesService.UploadResult = _ => "ts-id-789";
+
+        await _factory
+            .Services.GetRequiredService<MqttEventHandler>()
+            .ProcessIsarInspectionValue(message);
+
+        var record = await _context.InspectionRecords.SingleAsync(
+            TestContext.Current.CancellationToken
+        );
+        Assert.Equal("ts-id-789", record.TimeseriesId);
+    }
+
+    [Fact]
+    public async Task ValueMessage_FailedTimeseriesUpload_LeavesTimeseriesIdNullAndStillCreatesRecord()
+    {
+        var message = _db.NewIsarInspectionValueMessage();
+        _factory.TimeseriesService.UploadResult = _ =>
+            throw new InvalidOperationException("Simulated upload failure");
+
+        await _factory
+            .Services.GetRequiredService<MqttEventHandler>()
+            .ProcessIsarInspectionValue(message);
+
+        var record = await _context.InspectionRecords.SingleAsync(
+            TestContext.Current.CancellationToken
+        );
+        Assert.Null(record.TimeseriesId);
+    }
 }
