@@ -187,6 +187,9 @@ namespace api.Migrations
                     b.Property<string>("Tag")
                         .HasColumnType("text");
 
+                    b.Property<string>("TimeseriesId")
+                        .HasColumnType("text");
+
                     b.Property<DateTime?>("Timestamp")
                         .HasColumnType("timestamp with time zone");
 
