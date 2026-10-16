@@ -47,6 +47,8 @@ public interface IInspectionRecordService
         Guid inspectionRecordId,
         AnalysisTypeEnum analysisName
     );
+
+    public Task SetTimeseriesId(Guid inspectionRecordId, string timeseriesId);
 }
 
 public class InspectionRecordStidParameters
@@ -654,5 +656,23 @@ public class InspectionRecordService(
         await analysisTriggerService.OnInspectionRecordCreated(record);
 
         return record;
+    }
+
+    public async Task SetTimeseriesId(Guid inspectionRecordId, string timeseriesId)
+    {
+        var record = await context.InspectionRecords.FirstOrDefaultAsync(ir =>
+            ir.Id == inspectionRecordId
+        );
+        if (record is null)
+        {
+            logger.LogWarning(
+                "Cannot set TimeseriesId: inspection record {Id} not found",
+                inspectionRecordId
+            );
+            return;
+        }
+
+        record.TimeseriesId = timeseriesId;
+        await context.SaveChangesAsync();
     }
 }

@@ -14,6 +14,7 @@ internal sealed class ThermalReadingResult
 
 public class ThermalReadingResultHandler(
     SaraDbContext context,
+    IInspectionRecordService inspectionRecordService,
     IMqttPublisherService mqttPublisherService,
     ITimeseriesService timeseriesService,
     ILogger<ThermalReadingResultHandler> logger
@@ -99,17 +100,13 @@ public class ThermalReadingResultHandler(
             },
         };
 
-        try
-        {
-            await timeseriesService.TriggerTimeseriesUpload(uploadRequest);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(
-                ex,
-                "Failed to upload thermal-reading datapoint to Timeseries for workflow {WorkflowId}",
-                workflow.Id
-            );
-        }
+        await WorkflowResultHandlerHelpers.UploadToTimeseriesAndAssignId(
+            inspectionRecordService,
+            timeseriesService,
+            inspectionRecord,
+            uploadRequest,
+            workflow,
+            logger
+        );
     }
 }

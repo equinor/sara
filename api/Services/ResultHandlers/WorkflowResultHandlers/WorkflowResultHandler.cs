@@ -48,4 +48,32 @@ internal static class WorkflowResultHandlerHelpers
             return null;
         }
     }
+
+    public static async Task UploadToTimeseriesAndAssignId(
+        IInspectionRecordService inspectionRecordService,
+        ITimeseriesService timeseriesService,
+        InspectionRecord inspectionRecord,
+        TriggerTimeseriesUploadRequest uploadRequest,
+        Workflow workflow,
+        ILogger logger
+    )
+    {
+        try
+        {
+            var timeseriesId = await timeseriesService.TriggerTimeseriesUpload(uploadRequest);
+            if (timeseriesId is null)
+                return;
+
+            await inspectionRecordService.SetTimeseriesId(inspectionRecord.Id, timeseriesId);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(
+                ex,
+                "Failed to upload {Description} datapoint to Timeseries for workflow {WorkflowId}",
+                uploadRequest.Description,
+                workflow.Id
+            );
+        }
+    }
 }

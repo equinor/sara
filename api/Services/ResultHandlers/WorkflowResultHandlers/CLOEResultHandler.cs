@@ -15,6 +15,7 @@ internal sealed class CLOEResult
 
 public class CLOEResultHandler(
     SaraDbContext context,
+    IInspectionRecordService inspectionRecordService,
     IMqttPublisherService mqttPublisherService,
     ITimeseriesService timeseriesService,
     ILogger<CLOEResultHandler> logger
@@ -84,17 +85,13 @@ public class CLOEResultHandler(
             },
         };
 
-        try
-        {
-            await timeseriesService.TriggerTimeseriesUpload(uploadRequest);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(
-                ex,
-                "Failed to upload CLOE oil-level datapoint to Timeseries for workflow {WorkflowId}",
-                workflow.Id
-            );
-        }
+        await WorkflowResultHandlerHelpers.UploadToTimeseriesAndAssignId(
+            inspectionRecordService,
+            timeseriesService,
+            inspectionRecord,
+            uploadRequest,
+            workflow,
+            logger
+        );
     }
 }
