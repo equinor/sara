@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Azure.Storage.Blobs" Version="12.30.0" />
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.30.1" />
     <PackageReference Include="BitMiracle.LibTiff.NET" Version="2.4.660" />
     <PackageReference Include="KubernetesClient" Version="19.0.2" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
@@ -48,7 +48,7 @@
     <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
     <PackageReference Include="MQTTnet" Version="4.3.7.1207" />
     <PackageReference Include="MQTTnet.Extensions.ManagedClient" Version="4.3.7.1207" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.3.0" />
     <!--
       Pin SQLitePCLRaw.bundle_e_sqlite3 to the 3.x line so the native SQLite library is
       sourced from SourceGear.sqlite3 (SQLite >= 3.50.4) instead of the deprecated and
