@@ -184,6 +184,53 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task OnInspectionRecordCreated_ThermalChain_SubmitsAndPersistsPreprocessedTiffInput()
+    {
+        var metadata = await _db.NewReferencePolygonMetadata();
+        var analysis = await _db.NewAnalysis(type: "thermal-chain-test");
+        var record = await _db.NewInspectionRecord(
+            analyses: [analysis],
+            blobName: "thermal/raw.fff",
+            tag: metadata.TagId,
+            inspectionDescription: metadata.InspectionDescription
+        );
+
+        await OnInspectionRecordCreatedInScope(record);
+
+        var tasks = Assert.Single(_factory.ArgoWorkflowClient.Requests).Tasks;
+        Assert.Equal(2, tasks.Count);
+        Assert.Equal(_factory.WorkflowTemplateNameFor("anonymizer"), tasks[0].TemplateRef.Name);
+        Assert.Equal(
+            _factory.WorkflowTemplateNameFor("thermal-reading"),
+            tasks[1].TemplateRef.Name
+        );
+        var preProcessed = ReadArgument<JsonElement>(tasks[0], "extras")
+            .GetProperty("preProcessedBlobStorageLocation")
+            .Deserialize<BlobStorageLocation>(JsonSerializerOptions.Web)!;
+        Assert.Equal("thermal/raw.tiff", preProcessed.BlobName);
+        var submittedInput = Assert.Single(
+            ReadArgument<BlobStorageLocation[]>(tasks[1], "inputBlobStorageLocations")
+        );
+        Assert.Equal(preProcessed.ToString(), submittedInput.ToString());
+
+        var workflows = await _context
+            .Workflows.AsNoTracking()
+            .OrderBy(workflow => workflow.StepNumber)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(2, workflows.Count);
+        Assert.All(
+            workflows,
+            workflow =>
+            {
+                Assert.Equal(WorkflowStatus.Pending, workflow.Status);
+                Assert.Null(workflow.ResultJson);
+            }
+        );
+        var persistedInput = Assert.Single(workflows[1].InputBlobStorageLocations);
+        Assert.Equal(preProcessed.ToString(), persistedInput.ToString());
+    }
+
+    [Fact]
     public async Task OnInspectionRecordCreated_UsesWorkflowTypesInArgoTaskNames()
     {
         var analysis = await _db.NewAnalysis(type: "multi-step-gated-test");
