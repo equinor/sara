@@ -18,7 +18,7 @@ public class DashboardController(
     private readonly DashboardOptions _options = options.Value;
 
     [HttpGet]
-    [Authorize(Policy = InstallationAccess.ReadPolicy)]
+    [Authorize(Policy = InstallationAccess.ObserverPolicy)]
     [Route("summary")]
     [ProducesResponseType(typeof(DashboardSummaryDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -49,7 +49,7 @@ public class DashboardController(
     }
 
     [HttpGet]
-    [Authorize(Policy = InstallationAccess.ReadPolicy)]
+    [Authorize(Policy = InstallationAccess.ObserverPolicy)]
     [Route("trend-details")]
     [ProducesResponseType(typeof(TrendBucketDetailsDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

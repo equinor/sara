@@ -177,21 +177,21 @@ builder.Services.ConfigureJwtBearerLogging();
 builder
     .Services.AddAuthorizationBuilder()
     .AddPolicy(
-        InstallationAccess.ReadPolicy,
+        InstallationAccess.ObserverPolicy,
         policy =>
             policy
                 .RequireAuthenticatedUser()
                 .RequireAssertion(context =>
-                    InstallationAccess.HasAccess(context.User, AccessMode.Read)
+                    InstallationAccess.HasAccess(context.User, AccessLevel.Observer)
                 )
     )
     .AddPolicy(
-        InstallationAccess.WritePolicy,
+        InstallationAccess.AdminPolicy,
         policy =>
             policy
                 .RequireAuthenticatedUser()
                 .RequireAssertion(context =>
-                    InstallationAccess.HasAccess(context.User, AccessMode.Write)
+                    InstallationAccess.HasAccess(context.User, AccessLevel.Admin)
                 )
     )
     .AddFallbackPolicy("RequireAuthenticatedUser", policy => policy.RequireAuthenticatedUser());
@@ -289,7 +289,7 @@ app.MapGet(
                 Workflows = kvp.Value.Workflows,
             })
     )
-    .RequireAuthorization(InstallationAccess.ReadPolicy);
+    .RequireAuthorization(InstallationAccess.ObserverPolicy);
 
 if (enableFrontend)
 {

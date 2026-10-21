@@ -133,18 +133,18 @@ public class WorkflowService(
     public async Task<Workflow?> ReadById(Guid id)
     {
         var workflow = await access
-            .Filter(context.Workflows, AccessMode.Read)
+            .Filter(context.Workflows, AccessLevel.Observer)
             .Include(w => w.InputBlobStorageLocations)
             .Include(w => w.AnalysisRun)
             .FirstOrDefaultAsync(w => w.Id == id);
-        access.RequireAccessToLookupResult(wasFound: workflow is not null, AccessMode.Read);
+        access.RequireAccessToLookupResult(wasFound: workflow is not null, AccessLevel.Observer);
         return workflow;
     }
 
     public async Task<PagedList<Workflow>> GetWorkflows(WorkflowParameters parameters)
     {
         var query = access
-            .Filter(context.Workflows, AccessMode.Read)
+            .Filter(context.Workflows, AccessLevel.Observer)
             .Include(w => w.InputBlobStorageLocations)
             .Include(w => w.AnalysisRun)
             .AsQueryable();
@@ -161,9 +161,9 @@ public class WorkflowService(
         {
             access.RequireAccessToLookupResult(
                 wasFound: await access
-                    .Filter(context.AnalysisRuns, AccessMode.Read)
+                    .Filter(context.AnalysisRuns, AccessLevel.Observer)
                     .AnyAsync(r => r.Id == runId),
-                AccessMode.Read
+                AccessLevel.Observer
             );
             query = query.Where(w => w.AnalysisRunId == runId);
         }
@@ -183,10 +183,10 @@ public class WorkflowService(
     public async Task RetryWorkflow(Guid id)
     {
         var workflow = await access
-            .Filter(context.Workflows, AccessMode.Write)
+            .Filter(context.Workflows, AccessLevel.Admin)
             .Include(w => w.AnalysisRun)
             .FirstOrDefaultAsync(w => w.Id == id);
-        access.RequireAccessToLookupResult(wasFound: workflow is not null, AccessMode.Write);
+        access.RequireAccessToLookupResult(wasFound: workflow is not null, AccessLevel.Admin);
         if (workflow is null)
         {
             throw new KeyNotFoundException($"Workflow with id {id} not found");
@@ -198,10 +198,10 @@ public class WorkflowService(
     public async Task Delete(Guid id)
     {
         var workflow = await access
-            .Filter(context.Workflows, AccessMode.Write)
+            .Filter(context.Workflows, AccessLevel.Admin)
             .Include(w => w.InputBlobStorageLocations)
             .FirstOrDefaultAsync(w => w.Id == id);
-        access.RequireAccessToLookupResult(wasFound: workflow is not null, AccessMode.Write);
+        access.RequireAccessToLookupResult(wasFound: workflow is not null, AccessLevel.Admin);
         if (workflow is null)
         {
             throw new KeyNotFoundException($"Workflow with id {id} not found");

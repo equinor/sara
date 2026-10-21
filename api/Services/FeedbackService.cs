@@ -46,18 +46,18 @@ public class FeedbackService(SaraDbContext context, InstallationAccess access) :
     {
         access.RequireAccessToLookupResult(
             wasFound: await access
-                .Filter(context.AnalysisRuns, AccessMode.Read)
+                .Filter(context.AnalysisRuns, AccessLevel.Observer)
                 .AnyAsync(r => r.Id == runId),
-            AccessMode.Read
+            AccessLevel.Observer
         );
         return await access
-            .Filter(context.AnalysisRunFeedbacks, AccessMode.Read)
+            .Filter(context.AnalysisRunFeedbacks, AccessLevel.Observer)
             .FirstOrDefaultAsync(f => f.AnalysisRunId == runId);
     }
 
     public async Task<PagedList<FeedbackHistoryDto>> GetAll(FeedbackParameters parameters)
     {
-        var query = access.Filter(context.AnalysisRunFeedbacks, AccessMode.Read);
+        var query = access.Filter(context.AnalysisRunFeedbacks, AccessLevel.Observer);
 
         if (!string.IsNullOrWhiteSpace(parameters.AnalysisType))
             query = query.Where(feedback =>
@@ -112,7 +112,7 @@ public class FeedbackService(SaraDbContext context, InstallationAccess access) :
         var until = bucketBoundaries[^1];
 
         var runsQuery = access
-            .Filter(context.AnalysisRuns, AccessMode.Read)
+            .Filter(context.AnalysisRuns, AccessLevel.Observer)
             .Where(run => run.StartedAt != null && run.StartedAt >= since && run.StartedAt < until);
         if (!string.IsNullOrWhiteSpace(analysisType))
             runsQuery = runsQuery.Where(run => run.Analysis.AnalysisType == analysisType);
@@ -179,7 +179,7 @@ public class FeedbackService(SaraDbContext context, InstallationAccess access) :
         bucketStart = bucketStart.ToUniversalTime();
         var bucketEnd = GetBucketEnd(bucketStart, windowHours, timeZone);
         var query = access
-            .Filter(context.AnalysisRuns, AccessMode.Read)
+            .Filter(context.AnalysisRuns, AccessLevel.Observer)
             .Where(run =>
                 run.StartedAt != null
                 && run.StartedAt >= bucketStart
@@ -213,14 +213,14 @@ public class FeedbackService(SaraDbContext context, InstallationAccess access) :
     public async Task<AnalysisRunFeedback> Upsert(Guid runId, UpsertFeedbackRequest request)
     {
         var runExists = await access
-            .Filter(context.AnalysisRuns, AccessMode.Read)
+            .Filter(context.AnalysisRuns, AccessLevel.Observer)
             .AnyAsync(r => r.Id == runId);
-        access.RequireAccessToLookupResult(wasFound: runExists, AccessMode.Read);
+        access.RequireAccessToLookupResult(wasFound: runExists, AccessLevel.Observer);
         if (!runExists)
             throw new KeyNotFoundException($"Analysis run with id {runId} not found");
 
         var existing = await access
-            .Filter(context.AnalysisRunFeedbacks, AccessMode.Read)
+            .Filter(context.AnalysisRunFeedbacks, AccessLevel.Observer)
             .FirstOrDefaultAsync(f => f.AnalysisRunId == runId);
 
         if (existing is null)
@@ -245,12 +245,12 @@ public class FeedbackService(SaraDbContext context, InstallationAccess access) :
     {
         access.RequireAccessToLookupResult(
             wasFound: await access
-                .Filter(context.AnalysisRuns, AccessMode.Write)
+                .Filter(context.AnalysisRuns, AccessLevel.Admin)
                 .AnyAsync(r => r.Id == runId),
-            AccessMode.Write
+            AccessLevel.Admin
         );
         var feedback = await access
-            .Filter(context.AnalysisRunFeedbacks, AccessMode.Write)
+            .Filter(context.AnalysisRunFeedbacks, AccessLevel.Admin)
             .FirstOrDefaultAsync(f => f.AnalysisRunId == runId);
         if (feedback is null)
             throw new KeyNotFoundException($"No feedback found for analysis run with id {runId}");

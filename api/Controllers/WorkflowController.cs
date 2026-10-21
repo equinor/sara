@@ -15,7 +15,7 @@ public class WorkflowController(
 ) : ControllerBase
 {
     [HttpGet]
-    [Authorize(Policy = InstallationAccess.ReadPolicy)]
+    [Authorize(Policy = InstallationAccess.ObserverPolicy)]
     [ProducesResponseType(typeof(PagedResponse<Workflow>), StatusCodes.Status200OK)]
     public async Task<ActionResult<PagedResponse<WorkflowDto>>> GetAll(
         [FromQuery] WorkflowParameters parameters
@@ -44,7 +44,7 @@ public class WorkflowController(
     }
 
     [HttpGet]
-    [Authorize(Policy = InstallationAccess.ReadPolicy)]
+    [Authorize(Policy = InstallationAccess.ObserverPolicy)]
     [Route("id/{id:guid}")]
     [ProducesResponseType(typeof(Workflow), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -60,7 +60,7 @@ public class WorkflowController(
     }
 
     [HttpPost]
-    [Authorize(Policy = InstallationAccess.WritePolicy)]
+    [Authorize(Policy = InstallationAccess.AdminPolicy)]
     [Route("id/{id:guid}/retry")]
     [ProducesResponseType(StatusCodes.Status202Accepted)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -78,7 +78,7 @@ public class WorkflowController(
     }
 
     [HttpDelete]
-    [Authorize(Policy = InstallationAccess.WritePolicy)]
+    [Authorize(Policy = InstallationAccess.AdminPolicy)]
     [Route("id/{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

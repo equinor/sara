@@ -82,20 +82,20 @@ public class ReferencePolygonMetadataService(
     public async Task<List<ReferencePolygonMetadata>> GetReferencePolygonMetadatas()
     {
         return await access
-            .Filter(context.ReferencePolygonMetadata, AccessMode.Read)
+            .Filter(context.ReferencePolygonMetadata, AccessLevel.Observer)
             .OrderByDescending(reference => reference.DateCreated)
             .ThenBy(reference => reference.TagId)
             .ToListAsync();
     }
 
-    public Task<ReferencePolygonMetadata?> ReadById(Guid id) => ReadById(id, AccessMode.Read);
+    public Task<ReferencePolygonMetadata?> ReadById(Guid id) => ReadById(id, AccessLevel.Observer);
 
-    private async Task<ReferencePolygonMetadata?> ReadById(Guid id, AccessMode mode)
+    private async Task<ReferencePolygonMetadata?> ReadById(Guid id, AccessLevel level)
     {
         var reference = await access
-            .Filter(context.ReferencePolygonMetadata, mode)
+            .Filter(context.ReferencePolygonMetadata, level)
             .FirstOrDefaultAsync(reference => reference.Id == id);
-        access.RequireAccessToLookupResult(wasFound: reference is not null, mode);
+        access.RequireAccessToLookupResult(wasFound: reference is not null, level);
         return reference;
     }
 
@@ -105,9 +105,9 @@ public class ReferencePolygonMetadataService(
         string inspectionDescription
     )
     {
-        access.RequireAccess(installationCode, AccessMode.Read);
+        access.RequireAccess(installationCode, AccessLevel.Observer);
         return await access
-            .Filter(context.ReferencePolygonMetadata, AccessMode.Read)
+            .Filter(context.ReferencePolygonMetadata, AccessLevel.Observer)
             .FirstOrDefaultAsync(reference =>
                 reference.InstallationCode.ToLower().Equals(installationCode.ToLower())
                 && reference.TagId.ToLower().Equals(tagId.ToLower())
@@ -120,7 +120,7 @@ public class ReferencePolygonMetadataService(
         BlobStorageLocation referenceImageLocation
     )
     {
-        access.RequireAccess(input.InstallationCode, AccessMode.Write);
+        access.RequireAccess(input.InstallationCode, AccessLevel.Admin);
         await ThrowIfDuplicateExists(input, null);
 
         var referencePolygonMetadata = new ReferencePolygonMetadata
@@ -144,9 +144,9 @@ public class ReferencePolygonMetadataService(
         BlobStorageLocation referenceImageLocation
     )
     {
-        access.RequireAccess(input.InstallationCode, AccessMode.Write);
+        access.RequireAccess(input.InstallationCode, AccessLevel.Admin);
         var referencePolygonMetadata =
-            await ReadById(id, AccessMode.Write)
+            await ReadById(id, AccessLevel.Admin)
             ?? throw new KeyNotFoundException(
                 $"Reference polygon metadata with id {id} was not found"
             );
@@ -168,7 +168,7 @@ public class ReferencePolygonMetadataService(
     public async Task RemoveReferencePolygonMetadata(Guid id)
     {
         var referencePolygonMetadata =
-            await ReadById(id, AccessMode.Write)
+            await ReadById(id, AccessLevel.Admin)
             ?? throw new KeyNotFoundException(
                 $"Reference polygon metadata with id {id} was not found"
             );
@@ -186,8 +186,8 @@ public class ReferencePolygonMetadataService(
         AnalysisTypeEnum sourceAnalysisType
     )
     {
-        access.RequireAccess(installationCode, AccessMode.Write);
-        access.RequireAccess(record.InstallationCode, AccessMode.Write);
+        access.RequireAccess(installationCode, AccessLevel.Admin);
+        access.RequireAccess(record.InstallationCode, AccessLevel.Admin);
         if (!SupportedSourceAnalysisTypes.Contains(sourceAnalysisType))
         {
             throw new NotSupportedException(

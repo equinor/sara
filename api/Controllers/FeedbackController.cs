@@ -18,7 +18,7 @@ public class FeedbackController(
     private readonly DashboardOptions _dashboardOptions = dashboardOptions.Value;
 
     [HttpGet]
-    [Authorize(Policy = InstallationAccess.ReadPolicy)]
+    [Authorize(Policy = InstallationAccess.ObserverPolicy)]
     [ProducesResponseType(typeof(PagedResponse<FeedbackHistoryDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<PagedResponse<FeedbackHistoryDto>>> GetAll(
@@ -46,7 +46,7 @@ public class FeedbackController(
     }
 
     [HttpGet]
-    [Authorize(Policy = InstallationAccess.ReadPolicy)]
+    [Authorize(Policy = InstallationAccess.ObserverPolicy)]
     [Route("summary")]
     [ProducesResponseType(typeof(FeedbackSummaryDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -79,7 +79,7 @@ public class FeedbackController(
     }
 
     [HttpGet]
-    [Authorize(Policy = InstallationAccess.ReadPolicy)]
+    [Authorize(Policy = InstallationAccess.ObserverPolicy)]
     [Route("trend-details")]
     [ProducesResponseType(typeof(FeedbackTrendBucketDetailsDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -120,7 +120,7 @@ public class FeedbackController(
     }
 
     [HttpGet]
-    [Authorize(Policy = InstallationAccess.ReadPolicy)]
+    [Authorize(Policy = InstallationAccess.ObserverPolicy)]
     [Route("analysis-run/{runId:guid}")]
     [ProducesResponseType(typeof(FeedbackDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -134,7 +134,7 @@ public class FeedbackController(
     }
 
     [HttpPut]
-    [Authorize(Policy = InstallationAccess.ReadPolicy)]
+    [Authorize(Policy = InstallationAccess.ObserverPolicy)]
     [Route("analysis-run/{runId:guid}")]
     [ProducesResponseType(typeof(FeedbackDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -162,7 +162,7 @@ public class FeedbackController(
     }
 
     [HttpDelete]
-    [Authorize(Policy = InstallationAccess.WritePolicy)]
+    [Authorize(Policy = InstallationAccess.AdminPolicy)]
     [Route("analysis-run/{runId:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]

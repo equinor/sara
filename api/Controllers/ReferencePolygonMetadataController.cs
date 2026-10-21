@@ -30,7 +30,7 @@ public class ReferencePolygonMetadataController(
 ) : ControllerBase
 {
     [HttpGet]
-    [Authorize(Policy = InstallationAccess.ReadPolicy)]
+    [Authorize(Policy = InstallationAccess.ObserverPolicy)]
     [ProducesResponseType(typeof(IList<ReferencePolygonMetadata>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IList<ReferencePolygonMetadata>>> GetReferencePolygonMetadatas()
     {
@@ -51,7 +51,7 @@ public class ReferencePolygonMetadataController(
     }
 
     [HttpGet("id/{id}")]
-    [Authorize(Policy = InstallationAccess.ReadPolicy)]
+    [Authorize(Policy = InstallationAccess.ObserverPolicy)]
     [ProducesResponseType(typeof(ReferencePolygonMetadata), StatusCodes.Status200OK)]
     public async Task<ActionResult<ReferencePolygonMetadata>> GetReferencePolygonMetadataById(
         [FromRoute] Guid id
@@ -78,7 +78,7 @@ public class ReferencePolygonMetadataController(
     }
 
     [HttpPost]
-    [Authorize(Policy = InstallationAccess.WritePolicy)]
+    [Authorize(Policy = InstallationAccess.AdminPolicy)]
     [ProducesResponseType(typeof(ReferencePolygonMetadata), StatusCodes.Status200OK)]
     public async Task<ActionResult<ReferencePolygonMetadata>> CreateReferencePolygonMetadata(
         [FromBody] ReferencePolygonMetadataInput input
@@ -117,7 +117,7 @@ public class ReferencePolygonMetadataController(
     }
 
     [HttpPost("from-inspection-record")]
-    [Authorize(Policy = InstallationAccess.WritePolicy)]
+    [Authorize(Policy = InstallationAccess.AdminPolicy)]
     [ProducesResponseType(typeof(ReferencePolygonMetadata), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -206,7 +206,7 @@ public class ReferencePolygonMetadataController(
     }
 
     [HttpPut("id/{id}")]
-    [Authorize(Policy = InstallationAccess.WritePolicy)]
+    [Authorize(Policy = InstallationAccess.AdminPolicy)]
     [ProducesResponseType(typeof(ReferencePolygonMetadata), StatusCodes.Status200OK)]
     public async Task<ActionResult<ReferencePolygonMetadata>> UpdateReferencePolygonMetadata(
         [FromRoute] Guid id,
@@ -248,7 +248,7 @@ public class ReferencePolygonMetadataController(
     }
 
     [HttpDelete("id/{id}")]
-    [Authorize(Policy = InstallationAccess.WritePolicy)]
+    [Authorize(Policy = InstallationAccess.AdminPolicy)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<ActionResult> DeleteReferencePolygonMetadata([FromRoute] Guid id)
     {
@@ -273,7 +273,7 @@ public class ReferencePolygonMetadataController(
     }
 
     [HttpGet("id/{id}/image")]
-    [Authorize(Policy = InstallationAccess.ReadPolicy)]
+    [Authorize(Policy = InstallationAccess.ObserverPolicy)]
     [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> GetReferencePolygonImage([FromRoute] Guid id)

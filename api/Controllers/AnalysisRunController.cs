@@ -14,7 +14,7 @@ public class AnalysisRunController(
 ) : ControllerBase
 {
     [HttpGet]
-    [Authorize(Policy = InstallationAccess.ReadPolicy)]
+    [Authorize(Policy = InstallationAccess.ObserverPolicy)]
     [ProducesResponseType(typeof(PagedResponse<AnalysisRun>), StatusCodes.Status200OK)]
     public async Task<ActionResult<PagedResponse<AnalysisRun>>> GetAll(
         [FromQuery] AnalysisRunParameters parameters
@@ -51,7 +51,7 @@ public class AnalysisRunController(
     }
 
     [HttpGet]
-    [Authorize(Policy = InstallationAccess.ReadPolicy)]
+    [Authorize(Policy = InstallationAccess.ObserverPolicy)]
     [Route("id/{id:guid}")]
     [ProducesResponseType(typeof(AnalysisRunDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -77,7 +77,7 @@ public class AnalysisRunController(
     }
 
     [HttpDelete]
-    [Authorize(Policy = InstallationAccess.WritePolicy)]
+    [Authorize(Policy = InstallationAccess.AdminPolicy)]
     [Route("id/{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

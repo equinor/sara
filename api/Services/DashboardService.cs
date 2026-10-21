@@ -45,9 +45,9 @@ public class DashboardService(
         var bucketBoundaries = BuildBucketBoundaries(windowHours, timeZone, now);
         var since = bucketBoundaries[0];
         var until = bucketBoundaries[^1];
-        var workflows = access.Filter(context.Workflows, AccessMode.Read);
-        var analysisRuns = access.Filter(context.AnalysisRuns, AccessMode.Read);
-        var analysisGroups = access.Filter(context.AnalysisGroups, AccessMode.Read);
+        var workflows = access.Filter(context.Workflows, AccessLevel.Observer);
+        var analysisRuns = access.Filter(context.AnalysisRuns, AccessLevel.Observer);
+        var analysisGroups = access.Filter(context.AnalysisGroups, AccessLevel.Observer);
 
         // Single projection of all workflows that reached a terminal state within
         // the window. Everything time-bucketed (status counts, per-type stats,
@@ -191,7 +191,7 @@ public class DashboardService(
         };
 
         var inspectionRecordsIngested = await access
-            .Filter(context.InspectionRecords, AccessMode.Read)
+            .Filter(context.InspectionRecords, AccessLevel.Observer)
             .CountAsync(ir => ir.CreatedAt >= since);
 
         return new DashboardSummaryDto
@@ -225,7 +225,7 @@ public class DashboardService(
         bucketStart = bucketStart.ToUniversalTime();
         var bucketEnd = GetBucketEnd(bucketStart, windowHours, timeZone);
         var runs = await access
-            .Filter(context.AnalysisRuns, AccessMode.Read)
+            .Filter(context.AnalysisRuns, AccessLevel.Observer)
             .Where(run =>
                 run.CompletedAt != null
                 && run.StartedAt != null

@@ -28,19 +28,19 @@ public class AnalysisGroupService(SaraDbContext context, InstallationAccess acce
     public async Task<AnalysisGroup?> ReadById(Guid id)
     {
         var group = await access
-            .Filter(context.AnalysisGroups, AccessMode.Read)
+            .Filter(context.AnalysisGroups, AccessLevel.Observer)
             .Include(g => g.InspectionRecords)
             .Include(g => g.Analyses)
                 .ThenInclude(a => a.Runs)
             .FirstOrDefaultAsync(g => g.Id == id);
-        access.RequireAccessToLookupResult(wasFound: group is not null, AccessMode.Read);
+        access.RequireAccessToLookupResult(wasFound: group is not null, AccessLevel.Observer);
         return group;
     }
 
     public async Task<PagedList<AnalysisGroup>> GetGroups(AnalysisGroupParameters parameters)
     {
         var query = access
-            .Filter(context.AnalysisGroups, AccessMode.Read)
+            .Filter(context.AnalysisGroups, AccessLevel.Observer)
             .Include(g => g.InspectionRecords)
             .Include(g => g.Analyses)
             .AsQueryable();
@@ -63,14 +63,14 @@ public class AnalysisGroupService(SaraDbContext context, InstallationAccess acce
     public async Task Delete(Guid id)
     {
         var group = await access
-            .Filter(context.AnalysisGroups, AccessMode.Write)
+            .Filter(context.AnalysisGroups, AccessLevel.Admin)
             .Include(g => g.Analyses)
                 .ThenInclude(a => a.Runs)
                     .ThenInclude(r => r.Workflows)
             .Include(g => g.InspectionRecords)
             .FirstOrDefaultAsync(g => g.Id == id);
 
-        access.RequireAccessToLookupResult(wasFound: group is not null, AccessMode.Write);
+        access.RequireAccessToLookupResult(wasFound: group is not null, AccessLevel.Admin);
         if (group is null)
         {
             throw new KeyNotFoundException($"Analysis group with id {id} not found");
