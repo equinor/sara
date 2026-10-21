@@ -44,7 +44,7 @@ public class AnalysisRunControllerTests : IAsyncLifetime
     [Fact]
     public async Task NoAccessForInstallation()
     {
-        _client.DefaultRequestHeaders.Add("X-Test-Roles", "Role.User");
+        _client.DefaultRequestHeaders.Add("X-Test-Roles", "Role.Observer");
 
         var response = await _client.GetAsync(
             "/api/analysis-run",
@@ -78,7 +78,7 @@ public class AnalysisRunControllerTests : IAsyncLifetime
         allowedRun.StartedAt = DateTime.UtcNow.AddHours(-1);
         deniedRun.StartedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
-        _client.DefaultRequestHeaders.Add("X-Test-Roles", "Role.User.TST");
+        _client.DefaultRequestHeaders.Add("X-Test-Roles", "Role.Observer.TST");
 
         var response = await _client.GetAsync(
             "/api/analysis-run?PageSize=1",
@@ -111,13 +111,10 @@ public class AnalysisRunControllerTests : IAsyncLifetime
     }
 
     [Theory]
-    [InlineData("Role.User.TST", HttpStatusCode.OK, HttpStatusCode.NoContent)]
-    [InlineData("Role.ReadOnly.TST", HttpStatusCode.OK, HttpStatusCode.Forbidden)]
-    [InlineData("Role.User.NON", HttpStatusCode.Forbidden, HttpStatusCode.Forbidden)]
-    [InlineData("Role.User.NON,Role.ReadOnly.TST", HttpStatusCode.OK, HttpStatusCode.Forbidden)]
-    [InlineData("Role.User.NON,Role.User.TST", HttpStatusCode.OK, HttpStatusCode.NoContent)]
+    [InlineData("Role.Observer.TST", HttpStatusCode.OK, HttpStatusCode.Forbidden)]
+    [InlineData("Role.Observer.NON", HttpStatusCode.Forbidden, HttpStatusCode.Forbidden)]
+    [InlineData("Role.Observer.NON,Role.Observer.TST", HttpStatusCode.OK, HttpStatusCode.Forbidden)]
     [InlineData("Role.Admin", HttpStatusCode.OK, HttpStatusCode.NoContent)]
-    [InlineData("PlantData.Read", HttpStatusCode.OK, HttpStatusCode.Forbidden)]
     public async Task InstallationRolesControlReadsAndWrites(
         string roles,
         HttpStatusCode readStatus,

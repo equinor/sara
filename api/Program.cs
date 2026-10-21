@@ -182,7 +182,7 @@ builder
             policy
                 .RequireAuthenticatedUser()
                 .RequireAssertion(context =>
-                    InstallationAccess.HasAccess(context.User, write: false)
+                    InstallationAccess.HasAccess(context.User, AccessMode.Read)
                 )
     )
     .AddPolicy(
@@ -191,7 +191,7 @@ builder
             policy
                 .RequireAuthenticatedUser()
                 .RequireAssertion(context =>
-                    InstallationAccess.HasAccess(context.User, write: true)
+                    InstallationAccess.HasAccess(context.User, AccessMode.Write)
                 )
     )
     .AddFallbackPolicy("RequireAuthenticatedUser", policy => policy.RequireAuthenticatedUser());

@@ -134,7 +134,7 @@ public class FeedbackController(
     }
 
     [HttpPut]
-    [Authorize(Policy = InstallationAccess.WritePolicy)]
+    [Authorize(Policy = InstallationAccess.ReadPolicy)]
     [Route("analysis-run/{runId:guid}")]
     [ProducesResponseType(typeof(FeedbackDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
