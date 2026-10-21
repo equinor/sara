@@ -285,7 +285,7 @@ public class InspectionRecordService(
     )
     {
         var existing = await access
-            .Filter(context.AnalysisGroups, AccessMode.Write)
+            .Filter(context.AnalysisGroups, AccessLevel.Admin)
             .Include(g => g.Analyses)
             .FirstOrDefaultAsync(g => g.GroupId == analysisGroupId);
 
@@ -309,7 +309,7 @@ public class InspectionRecordService(
 
     public async Task<InspectionRecord> Create(InspectionRecord inspectionRecord)
     {
-        access.RequireAccess(inspectionRecord.InstallationCode, AccessMode.Write);
+        access.RequireAccess(inspectionRecord.InstallationCode, AccessLevel.Admin);
         await context.InspectionRecords.AddAsync(inspectionRecord);
         var newGroup = inspectionRecord.AnalysisGroup;
         var isNewGroup = newGroup is not null && context.Entry(newGroup).State == EntityState.Added;
@@ -341,11 +341,11 @@ public class InspectionRecordService(
         return inspectionRecord;
     }
 
-    private IQueryable<InspectionRecord> GetRecords(AccessMode mode)
+    private IQueryable<InspectionRecord> GetRecords(AccessLevel level)
     {
-        var analysisIds = access.Filter(context.Analyses, mode).Select(a => a.Id);
-        var query = access.Filter(context.InspectionRecords, mode);
-        if (mode == AccessMode.Write)
+        var analysisIds = access.Filter(context.Analyses, level).Select(a => a.Id);
+        var query = access.Filter(context.InspectionRecords, level);
+        if (level == AccessLevel.Admin)
             query = query.Where(record => record.Analyses.All(a => analysisIds.Contains(a.Id)));
         else
             query = query.AsNoTracking();
@@ -361,29 +361,29 @@ public class InspectionRecordService(
 
     public async Task<InspectionRecord?> ReadById(Guid id)
     {
-        var record = await GetRecords(AccessMode.Read).FirstOrDefaultAsync(ir => ir.Id == id);
-        access.RequireAccessToLookupResult(wasFound: record is not null, AccessMode.Read);
+        var record = await GetRecords(AccessLevel.Observer).FirstOrDefaultAsync(ir => ir.Id == id);
+        access.RequireAccessToLookupResult(wasFound: record is not null, AccessLevel.Observer);
         return record;
     }
 
     public async Task<InspectionRecord?> ReadByInspectionId(string inspectionId)
     {
-        var record = await GetRecords(AccessMode.Read)
+        var record = await GetRecords(AccessLevel.Observer)
             .FirstOrDefaultAsync(ir => ir.InspectionId == inspectionId);
-        access.RequireAccessToLookupResult(wasFound: record is not null, AccessMode.Read);
+        access.RequireAccessToLookupResult(wasFound: record is not null, AccessLevel.Observer);
         return record;
     }
 
     public async Task<bool> ExistsByInspectionId(string inspectionId)
     {
         return await access
-            .Filter(context.InspectionRecords, AccessMode.Read)
+            .Filter(context.InspectionRecords, AccessLevel.Observer)
             .AnyAsync(ir => ir.InspectionId == inspectionId);
     }
 
     public async Task<InspectionRecord> CreateAndTrigger(CreateInspectionRecordRequest request)
     {
-        access.RequireAccess(request.InstallationCode, AccessMode.Write);
+        access.RequireAccess(request.InstallationCode, AccessLevel.Admin);
         var inspectionId = Sanitize.SanitizeUserInput(request.InspectionId);
 
         if (await ExistsByInspectionId(inspectionId))
@@ -450,8 +450,8 @@ public class InspectionRecordService(
     )
     {
         var workflowType = Analysis.GetAnalysisTypeFromAnalysisEnum(sourceAnalysisType);
-        var analysisIds = access.Filter(context.Analyses, AccessMode.Read).Select(a => a.Id);
-        var query = GetRecords(AccessMode.Read)
+        var analysisIds = access.Filter(context.Analyses, AccessLevel.Observer).Select(a => a.Id);
+        var query = GetRecords(AccessLevel.Observer)
             .Where(ir =>
                 ir.Analyses.Any(a =>
                     analysisIds.Contains(a.Id)
@@ -474,9 +474,9 @@ public class InspectionRecordService(
 
     public async Task Delete(Guid id)
     {
-        var record = await GetRecords(AccessMode.Write).FirstOrDefaultAsync(ir => ir.Id == id);
+        var record = await GetRecords(AccessLevel.Admin).FirstOrDefaultAsync(ir => ir.Id == id);
 
-        access.RequireAccessToLookupResult(wasFound: record is not null, AccessMode.Write);
+        access.RequireAccessToLookupResult(wasFound: record is not null, AccessLevel.Admin);
         if (record is null)
         {
             throw new KeyNotFoundException($"Inspection record with id {id} not found");
@@ -515,7 +515,7 @@ public class InspectionRecordService(
         InspectionRecordParameters parameters
     )
     {
-        var query = GetRecords(AccessMode.Read);
+        var query = GetRecords(AccessLevel.Observer);
 
         if (parameters.InspectionIds != null && parameters.InspectionIds.Count > 0)
             query = query.Where(ir =>
@@ -548,7 +548,9 @@ public class InspectionRecordService(
                     (a) => Analysis.GetAnalysisTypeFromAnalysisEnum(a)
                 ),
             ];
-            var analysisIds = access.Filter(context.Analyses, AccessMode.Read).Select(a => a.Id);
+            var analysisIds = access
+                .Filter(context.Analyses, AccessLevel.Observer)
+                .Select(a => a.Id);
             query = query.Where(ir =>
                 ir.Analyses.Any(a =>
                     analysisIds.Contains(a.Id) && analysisTypeStrings.Contains(a.AnalysisType)
@@ -579,9 +581,9 @@ public class InspectionRecordService(
             );
         }
 
-        var record = await GetRecords(AccessMode.Write)
+        var record = await GetRecords(AccessLevel.Admin)
             .FirstOrDefaultAsync(ir => ir.Id == inspectionRecordId);
-        access.RequireAccessToLookupResult(wasFound: record is not null, AccessMode.Write);
+        access.RequireAccessToLookupResult(wasFound: record is not null, AccessLevel.Admin);
         if (record is null)
             throw new KeyNotFoundException(
                 $"Inspection record with id {inspectionRecordId} not found"

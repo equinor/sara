@@ -38,19 +38,19 @@ public class AnalysisService(
     public async Task<Analysis?> ReadById(Guid id)
     {
         var analysis = await access
-            .Filter(context.Analyses, AccessMode.Read)
+            .Filter(context.Analyses, AccessLevel.Observer)
             .Include(a => a.InspectionRecords)
             .Include(a => a.Runs)
                 .ThenInclude(r => r.Workflows)
             .FirstOrDefaultAsync(a => a.Id == id);
-        access.RequireAccessToLookupResult(wasFound: analysis is not null, AccessMode.Read);
+        access.RequireAccessToLookupResult(wasFound: analysis is not null, AccessLevel.Observer);
         return analysis;
     }
 
     public async Task<PagedList<Analysis>> GetAnalyses(AnalysisParameters parameters)
     {
         var query = access
-            .Filter(context.Analyses, AccessMode.Read)
+            .Filter(context.Analyses, AccessLevel.Observer)
             .Include(a => a.InspectionRecords)
             .Include(a => a.Runs)
                 .ThenInclude(r => r.Workflows)
@@ -65,9 +65,9 @@ public class AnalysisService(
         {
             access.RequireAccessToLookupResult(
                 wasFound: await access
-                    .Filter(context.AnalysisGroups, AccessMode.Read)
+                    .Filter(context.AnalysisGroups, AccessLevel.Observer)
                     .AnyAsync(g => g.Id == groupId),
-                AccessMode.Read
+                AccessLevel.Observer
             );
             query = query.Where(a => a.AnalysisGroupId.Equals(groupId));
         }
@@ -76,9 +76,9 @@ public class AnalysisService(
         {
             access.RequireAccessToLookupResult(
                 wasFound: await access
-                    .Filter(context.InspectionRecords, AccessMode.Read)
+                    .Filter(context.InspectionRecords, AccessLevel.Observer)
                     .AnyAsync(r => r.Id == recordId),
-                AccessMode.Read
+                AccessLevel.Observer
             );
             query = query.Where(a => a.InspectionRecords.Any(r => r.Id == recordId));
         }
@@ -95,12 +95,12 @@ public class AnalysisService(
     public async Task Delete(Guid id)
     {
         var analysis = await access
-            .Filter(context.Analyses, AccessMode.Write)
+            .Filter(context.Analyses, AccessLevel.Admin)
             .Include(a => a.Runs)
                 .ThenInclude(r => r.Workflows)
             .FirstOrDefaultAsync(a => a.Id == id);
 
-        access.RequireAccessToLookupResult(wasFound: analysis is not null, AccessMode.Write);
+        access.RequireAccessToLookupResult(wasFound: analysis is not null, AccessLevel.Admin);
         if (analysis is null)
         {
             throw new KeyNotFoundException($"Analysis with id {id} not found");

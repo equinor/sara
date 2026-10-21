@@ -222,12 +222,12 @@ public class AnalysisTriggerService(
     public async Task RerunAnalysis(Guid analysisId)
     {
         var analysis = await access
-            .Filter(context.Analyses, AccessMode.Write)
+            .Filter(context.Analyses, AccessLevel.Admin)
             .Include(a => a.InspectionRecords)
             .AsNoTracking()
             .FirstOrDefaultAsync(a => a.Id == analysisId);
 
-        access.RequireAccessToLookupResult(wasFound: analysis is not null, AccessMode.Write);
+        access.RequireAccessToLookupResult(wasFound: analysis is not null, AccessLevel.Admin);
         if (analysis is null)
         {
             throw new KeyNotFoundException($"Analysis with id {analysisId} not found");

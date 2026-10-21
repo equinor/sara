@@ -27,7 +27,7 @@ public class TimeSeriesDataController(
     /// <para> This query gets a single CO2 concentration </para>
     /// </remarks>
     [HttpPost]
-    [Authorize(Policy = InstallationAccess.ReadPolicy)]
+    [Authorize(Policy = InstallationAccess.ObserverPolicy)]
     [Route("CO2")]
     [ProducesResponseType(typeof(double), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -51,7 +51,7 @@ public class TimeSeriesDataController(
 
         try
         {
-            access.RequireAccess(fetchRequest.Facility, AccessMode.Read);
+            access.RequireAccess(fetchRequest.Facility, AccessLevel.Observer);
             var co2Value = await timeseriesService.FetchCO2ConcentrationFromTimeseries(
                 fetchRequest
             );

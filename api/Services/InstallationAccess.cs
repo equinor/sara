@@ -3,10 +3,10 @@ using api.Database.Models;
 
 namespace api.Services;
 
-public enum AccessMode
+public enum AccessLevel
 {
-    Read,
-    Write,
+    Observer,
+    Admin,
 }
 
 public class InstallationAccessException() : Exception("Installation access denied");
@@ -16,25 +16,29 @@ public class InstallationAccess(
     ILogger<InstallationAccess> logger
 )
 {
-    public const string ReadPolicy = "Installation.Read";
-    public const string WritePolicy = "Installation.Write";
+    // Mainly reads within assigned installations, plus non-critical workflow metadata writes
+    // such as feedback. Administrators also satisfy this policy.
+    public const string ObserverPolicy = "Installation.Observer";
+
+    // Full access to all read and write operations across installations.
+    public const string AdminPolicy = "Installation.Admin";
 
     // No HTTP context is trusted background processing; a missing auth header still has a context.
-    public bool HasFullAccess(AccessMode mode) =>
+    public bool HasFullAccess(AccessLevel level) =>
         httpContextAccessor.HttpContext is null
         || HasGlobalAccess(httpContextAccessor.HttpContext.User);
 
-    public string[] InstallationCodes(AccessMode mode) =>
-        GetInstallationCodes(httpContextAccessor.HttpContext?.User, mode);
+    public string[] InstallationCodes(AccessLevel level) =>
+        GetInstallationCodes(httpContextAccessor.HttpContext?.User, level);
 
-    public void RequireAccess(string installationCode, AccessMode mode) =>
+    public void RequireAccess(string installationCode, AccessLevel level) =>
         Require(
-            HasFullAccess(mode)
-                || InstallationCodes(mode).Contains(installationCode.ToUpperInvariant())
+            HasFullAccess(level)
+                || InstallationCodes(level).Contains(installationCode.ToUpperInvariant())
         );
 
-    public void RequireAccessToLookupResult(bool wasFound, AccessMode mode) =>
-        Require(wasFound || HasFullAccess(mode));
+    public void RequireAccessToLookupResult(bool wasFound, AccessLevel level) =>
+        Require(wasFound || HasFullAccess(level));
 
     private void Require(bool permitted)
     {
@@ -45,19 +49,22 @@ public class InstallationAccess(
         throw new InstallationAccessException();
     }
 
-    public IQueryable<InspectionRecord> Filter(IQueryable<InspectionRecord> query, AccessMode mode)
+    public IQueryable<InspectionRecord> Filter(
+        IQueryable<InspectionRecord> query,
+        AccessLevel level
+    )
     {
-        if (HasFullAccess(mode))
+        if (HasFullAccess(level))
             return query;
-        var codes = InstallationCodes(mode);
+        var codes = InstallationCodes(level);
         return query.Where(record => codes.Contains(record.InstallationCode.ToUpper()));
     }
 
-    public IQueryable<Analysis> Filter(IQueryable<Analysis> query, AccessMode mode)
+    public IQueryable<Analysis> Filter(IQueryable<Analysis> query, AccessLevel level)
     {
-        if (HasFullAccess(mode))
+        if (HasFullAccess(level))
             return query;
-        var codes = InstallationCodes(mode);
+        var codes = InstallationCodes(level);
         return query.Where(analysis =>
             analysis.InspectionRecords.Any()
             && analysis.InspectionRecords.All(record =>
@@ -66,11 +73,11 @@ public class InstallationAccess(
         );
     }
 
-    public IQueryable<AnalysisGroup> Filter(IQueryable<AnalysisGroup> query, AccessMode mode)
+    public IQueryable<AnalysisGroup> Filter(IQueryable<AnalysisGroup> query, AccessLevel level)
     {
-        if (HasFullAccess(mode))
+        if (HasFullAccess(level))
             return query;
-        var codes = InstallationCodes(mode);
+        var codes = InstallationCodes(level);
         return query.Where(group =>
             group.InspectionRecords.Any()
             && group.InspectionRecords.All(record =>
@@ -85,11 +92,11 @@ public class InstallationAccess(
         );
     }
 
-    public IQueryable<AnalysisRun> Filter(IQueryable<AnalysisRun> query, AccessMode mode)
+    public IQueryable<AnalysisRun> Filter(IQueryable<AnalysisRun> query, AccessLevel level)
     {
-        if (HasFullAccess(mode))
+        if (HasFullAccess(level))
             return query;
-        var codes = InstallationCodes(mode);
+        var codes = InstallationCodes(level);
         return query.Where(run =>
             run.Analysis.InspectionRecords.Any()
             && run.Analysis.InspectionRecords.All(record =>
@@ -98,11 +105,11 @@ public class InstallationAccess(
         );
     }
 
-    public IQueryable<Workflow> Filter(IQueryable<Workflow> query, AccessMode mode)
+    public IQueryable<Workflow> Filter(IQueryable<Workflow> query, AccessLevel level)
     {
-        if (HasFullAccess(mode))
+        if (HasFullAccess(level))
             return query;
-        var codes = InstallationCodes(mode);
+        var codes = InstallationCodes(level);
         return query.Where(workflow =>
             workflow.AnalysisRun.Analysis.InspectionRecords.Any()
             && workflow.AnalysisRun.Analysis.InspectionRecords.All(record =>
@@ -113,12 +120,12 @@ public class InstallationAccess(
 
     public IQueryable<AnalysisRunFeedback> Filter(
         IQueryable<AnalysisRunFeedback> query,
-        AccessMode mode
+        AccessLevel level
     )
     {
-        if (HasFullAccess(mode))
+        if (HasFullAccess(level))
             return query;
-        var codes = InstallationCodes(mode);
+        var codes = InstallationCodes(level);
         return query.Where(feedback =>
             feedback.AnalysisRun.Analysis.InspectionRecords.Any()
             && feedback.AnalysisRun.Analysis.InspectionRecords.All(record =>
@@ -129,26 +136,26 @@ public class InstallationAccess(
 
     public IQueryable<ReferencePolygonMetadata> Filter(
         IQueryable<ReferencePolygonMetadata> query,
-        AccessMode mode
+        AccessLevel level
     )
     {
-        if (HasFullAccess(mode))
+        if (HasFullAccess(level))
             return query;
-        var codes = InstallationCodes(mode);
+        var codes = InstallationCodes(level);
         return query.Where(reference => codes.Contains(reference.InstallationCode.ToUpper()));
     }
 
-    public static bool HasAccess(ClaimsPrincipal user, AccessMode mode) =>
-        HasGlobalAccess(user) || GetInstallationCodes(user, mode).Length > 0;
+    public static bool HasAccess(ClaimsPrincipal user, AccessLevel level) =>
+        HasGlobalAccess(user) || GetInstallationCodes(user, level).Length > 0;
 
     private static bool HasGlobalAccess(ClaimsPrincipal user) => user.IsInRole("Role.Admin");
 
-    private static string[] GetInstallationCodes(ClaimsPrincipal? user, AccessMode mode) =>
+    private static string[] GetInstallationCodes(ClaimsPrincipal? user, AccessLevel level) =>
         user?.Identities.Where(identity => identity.IsAuthenticated)
             .SelectMany(identity => identity.FindAll(identity.RoleClaimType))
             .Select(claim => claim.Value.Split('.'))
             .Where(parts =>
-                mode != AccessMode.Write
+                level != AccessLevel.Admin
                 && parts.Length == 3
                 && parts[0] == "Role"
                 && parts[1] == "Observer"
