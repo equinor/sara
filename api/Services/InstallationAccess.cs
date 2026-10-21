@@ -1,5 +1,4 @@
 using System.Security.Claims;
-using api.Controllers.Models;
 using api.Database.Models;
 
 namespace api.Services;
@@ -23,10 +22,10 @@ public class InstallationAccess(
     // No HTTP context is trusted background processing; a missing auth header still has a context.
     public bool HasFullAccess(AccessMode mode) =>
         httpContextAccessor.HttpContext is null
-        || HasGlobalAccess(httpContextAccessor.HttpContext.User, mode == AccessMode.Write);
+        || HasGlobalAccess(httpContextAccessor.HttpContext.User);
 
     public string[] InstallationCodes(AccessMode mode) =>
-        GetInstallationCodes(httpContextAccessor.HttpContext?.User, mode == AccessMode.Write);
+        GetInstallationCodes(httpContextAccessor.HttpContext?.User, mode);
 
     public void RequireAccess(string installationCode, AccessMode mode) =>
         Require(
@@ -139,20 +138,20 @@ public class InstallationAccess(
         return query.Where(reference => codes.Contains(reference.InstallationCode.ToUpper()));
     }
 
-    public static bool HasAccess(ClaimsPrincipal user, bool write) =>
-        HasGlobalAccess(user, write) || GetInstallationCodes(user, write).Length > 0;
+    public static bool HasAccess(ClaimsPrincipal user, AccessMode mode) =>
+        HasGlobalAccess(user) || GetInstallationCodes(user, mode).Length > 0;
 
-    private static bool HasGlobalAccess(ClaimsPrincipal user, bool write) =>
-        user.IsInRole(Role.Admin) || (!write && user.IsInRole(Role.PlantDataRead));
+    private static bool HasGlobalAccess(ClaimsPrincipal user) => user.IsInRole("Role.Admin");
 
-    private static string[] GetInstallationCodes(ClaimsPrincipal? user, bool write) =>
+    private static string[] GetInstallationCodes(ClaimsPrincipal? user, AccessMode mode) =>
         user?.Identities.Where(identity => identity.IsAuthenticated)
             .SelectMany(identity => identity.FindAll(identity.RoleClaimType))
             .Select(claim => claim.Value.Split('.'))
             .Where(parts =>
-                parts.Length == 3
+                mode != AccessMode.Write
+                && parts.Length == 3
                 && parts[0] == "Role"
-                && (parts[1] == "User" || (!write && parts[1] == "ReadOnly"))
+                && parts[1] == "Observer"
                 && parts[2].Length == 3
                 && parts[2].All(char.IsAsciiLetterOrDigit)
             )

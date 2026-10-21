@@ -213,14 +213,14 @@ public class FeedbackService(SaraDbContext context, InstallationAccess access) :
     public async Task<AnalysisRunFeedback> Upsert(Guid runId, UpsertFeedbackRequest request)
     {
         var runExists = await access
-            .Filter(context.AnalysisRuns, AccessMode.Write)
+            .Filter(context.AnalysisRuns, AccessMode.Read)
             .AnyAsync(r => r.Id == runId);
-        access.RequireAccessToLookupResult(wasFound: runExists, AccessMode.Write);
+        access.RequireAccessToLookupResult(wasFound: runExists, AccessMode.Read);
         if (!runExists)
             throw new KeyNotFoundException($"Analysis run with id {runId} not found");
 
         var existing = await access
-            .Filter(context.AnalysisRunFeedbacks, AccessMode.Write)
+            .Filter(context.AnalysisRunFeedbacks, AccessMode.Read)
             .FirstOrDefaultAsync(f => f.AnalysisRunId == runId);
 
         if (existing is null)
