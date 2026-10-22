@@ -1,4 +1,5 @@
 using System.Text.Json;
+using api.Database.Context;
 using api.Database.Models;
 
 namespace api.Services.ResultHandlers.WorkflowResultHandlers;
@@ -46,6 +47,35 @@ internal static class WorkflowResultHandlerHelpers
                 workflow.ResultJson
             );
             return null;
+        }
+    }
+
+    public static async Task UploadTimeseriesAndAssignId(
+        SaraDbContext context,
+        ITimeseriesService timeseriesService,
+        InspectionRecord inspectionRecord,
+        TriggerTimeseriesUploadRequest uploadRequest,
+        Workflow workflow,
+        ILogger logger
+    )
+    {
+        try
+        {
+            var timeseriesId = await timeseriesService.TriggerTimeseriesUpload(uploadRequest);
+            if (timeseriesId is null)
+                return;
+
+            inspectionRecord.TimeseriesId = timeseriesId;
+            await context.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(
+                ex,
+                "Failed to upload {Description} datapoint to Timeseries for workflow {WorkflowId}",
+                uploadRequest.Description,
+                workflow.Id
+            );
         }
     }
 }

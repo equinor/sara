@@ -84,17 +84,13 @@ public class CLOEResultHandler(
             },
         };
 
-        try
-        {
-            await timeseriesService.TriggerTimeseriesUpload(uploadRequest);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(
-                ex,
-                "Failed to upload CLOE oil-level datapoint to Timeseries for workflow {WorkflowId}",
-                workflow.Id
-            );
-        }
+        await WorkflowResultHandlerHelpers.UploadTimeseriesAndAssignId(
+            context,
+            timeseriesService,
+            inspectionRecord,
+            uploadRequest,
+            workflow,
+            logger
+        );
     }
 }

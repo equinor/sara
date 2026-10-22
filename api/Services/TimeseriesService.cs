@@ -44,7 +44,9 @@ public record FetchCO2MeasurementRequest
 
 public interface ITimeseriesService
 {
-    public Task TriggerTimeseriesUpload(TriggerTimeseriesUploadRequest isarInspectionValueMessage);
+    public Task<string?> TriggerTimeseriesUpload(
+        TriggerTimeseriesUploadRequest isarInspectionValueMessage
+    );
     public Task<double?> FetchCO2ConcentrationFromTimeseries(
         FetchCO2MeasurementRequest fetchRequest
     );
@@ -62,10 +64,10 @@ public class TimeseriesService(IConfiguration configuration, ILogger<TimeseriesS
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
-    public async Task TriggerTimeseriesUpload(TriggerTimeseriesUploadRequest uploadRequest)
+    public async Task<string?> TriggerTimeseriesUpload(TriggerTimeseriesUploadRequest uploadRequest)
     {
         if (_baseUrl == "")
-            return;
+            return null;
 
         var url = $"{_baseUrl}/timeseries/datapoint";
 
@@ -80,12 +82,23 @@ public class TimeseriesService(IConfiguration configuration, ILogger<TimeseriesS
                 await response.Content.ReadFromJsonAsync<TriggerTimeseriesUploadResponse>(
                     useCamelCaseOption
                 );
+
+            if (uploadResponse?.TimeseriesId is null)
+            {
+                throw new InvalidOperationException(
+                    $"Timeseries upload for datapoint with name: {uploadRequest.Name} and description: {uploadRequest.Description} "
+                        + "succeeded but response did not contain a TimeseriesId."
+                );
+            }
+
             logger.LogInformation(
                 "Successfully uploaded datapoint with name: {Name} and description: {Description} to Timeseries. TimeseriesId: {TimeseriesId}",
                 uploadRequest.Name,
                 uploadRequest.Description,
-                uploadResponse?.TimeseriesId
+                uploadResponse.TimeseriesId
             );
+
+            return uploadResponse.TimeseriesId;
         }
         else
         {
@@ -96,6 +109,9 @@ public class TimeseriesService(IConfiguration configuration, ILogger<TimeseriesS
                 uploadRequest.Description,
                 response.StatusCode,
                 errorMessage
+            );
+            throw new InvalidOperationException(
+                $"Failed to upload datapoint with name: {uploadRequest.Name} to Timeseries. StatusCode: {response.StatusCode}, Message: {errorMessage}"
             );
         }
     }
