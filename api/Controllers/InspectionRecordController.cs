@@ -475,14 +475,16 @@ public class InspectionRecordController(
         return new InspectionMeasurementDto(number, unit.GetString()!);
     }
 
-    private static BlobStorageLocation? FindLatestWorkflowInputBlobLocation(
+    private BlobStorageLocation? FindLatestWorkflowInputBlobLocation(
         InspectionRecord record,
         AnalysisTypeEnum sourceAnalysisType,
         out string? notFoundMessage
     )
     {
-        var workflowType = Analysis.GetAnalysisTypeFromAnalysisEnum(sourceAnalysisType);
-        var workflow = record.FindLatestWorkflow(sourceAnalysisType);
+        var workflowType = analysisOptions
+            .Value.Analyses[sourceAnalysisType.ToString()]
+            .Workflows.Last();
+        var workflow = record.FindLatestWorkflow(workflowType);
 
         if (workflow is null)
         {

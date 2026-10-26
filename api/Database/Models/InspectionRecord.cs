@@ -58,9 +58,8 @@ public class InspectionRecord
 
     public List<Analysis> Analyses { get; set; } = [];
 
-    public Workflow? FindLatestWorkflow(AnalysisTypeEnum sourceAnalysisType)
+    public Workflow? FindLatestWorkflow(string workflowType)
     {
-        var workflowType = Analysis.GetAnalysisTypeFromAnalysisEnum(sourceAnalysisType);
         return Analyses
             .SelectMany(a => a.Runs)
             .SelectMany(r => r.Workflows)

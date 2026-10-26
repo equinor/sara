@@ -19,6 +19,8 @@ const SOURCE_ANALYSIS_TYPE_LABELS: Record<AnalysisType, string> = {
     [AnalysisType.Fencilla]: "Fencilla",
     [AnalysisType.CLOE]: "CLOE",
     [AnalysisType.CO2]: "CO2",
+    [AnalysisType.Anonymize]: "Anonymize",
+    [AnalysisType.Passthrough]: "Passthrough",
 }
 
 export default function ReferenceMetadataSummary({ data }: { data: ReferencePolygonMetadata }) {

@@ -45,7 +45,7 @@ public class FencillaResultHandler(
             WorkflowId = workflow.Id,
             AnalysisRunId = workflow.AnalysisRunId,
             AnalysisId = workflow.AnalysisRun.AnalysisId,
-            AnalysisType = workflow.WorkflowType,
+            AnalysisType = nameof(AnalysisTypeEnum.Fencilla),
         };
 
         if (result?.IsBreak == true && workflow.OutputBlobStorageLocation is { } output)

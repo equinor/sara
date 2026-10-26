@@ -401,9 +401,7 @@ public class InspectionRecordService(
                 )
                 : null;
 
-        var analysisTypes = request
-            .RequiredAnalysis?.Select((a) => Analysis.GetAnalysisTypeFromAnalysisEnum(a))
-            .ToList();
+        var analysisTypes = request.RequiredAnalysis?.Select((a) => a.ToString()).ToList();
 
         var analyses =
             analysisTypes != null
@@ -449,7 +447,9 @@ public class InspectionRecordService(
         int pageSize
     )
     {
-        var workflowType = Analysis.GetAnalysisTypeFromAnalysisEnum(sourceAnalysisType);
+        var workflowType = _analysisOptions
+            .Analyses[sourceAnalysisType.ToString()]
+            .Workflows.Last();
         var analysisIds = access.Filter(context.Analyses, AccessLevel.Observer).Select(a => a.Id);
         var query = GetRecords(AccessLevel.Observer)
             .Where(ir =>
@@ -544,9 +544,7 @@ public class InspectionRecordService(
         {
             List<string> analysisTypeStrings =
             [
-                .. parameters.AnalysisTypes.Select(
-                    (a) => Analysis.GetAnalysisTypeFromAnalysisEnum(a)
-                ),
+                .. parameters.AnalysisTypes.Select((a) => a.ToString()),
             ];
             var analysisIds = access
                 .Filter(context.Analyses, AccessLevel.Observer)
@@ -572,11 +570,11 @@ public class InspectionRecordService(
         AnalysisTypeEnum analysisName
     )
     {
-        var workflowType = Analysis.GetAnalysisTypeFromAnalysisEnum(analysisName);
-        if (!_analysisOptions.Analyses.ContainsKey(workflowType))
+        var analysisType = analysisName.ToString();
+        if (!_analysisOptions.Analyses.ContainsKey(analysisType))
         {
             throw new InvalidOperationException(
-                $"Unknown analysis '{workflowType}'. Valid analyses are: "
+                $"Unknown analysis '{analysisType}'. Valid analyses are: "
                     + string.Join(", ", _analysisOptions.Analyses.Keys)
             );
         }
