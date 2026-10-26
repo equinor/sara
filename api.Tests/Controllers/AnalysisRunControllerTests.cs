@@ -63,12 +63,12 @@ public class AnalysisRunControllerTests : IAsyncLifetime
             inspectionId: "denied"
         );
         var allowedAnalysis = await _db.NewAnalysis(
-            type: "cloe",
+            type: "CLOE",
             inspectionRecords: [allowedRecord]
         );
-        var deniedAnalysis = await _db.NewAnalysis(type: "cloe", inspectionRecords: [deniedRecord]);
+        var deniedAnalysis = await _db.NewAnalysis(type: "CLOE", inspectionRecords: [deniedRecord]);
         var mixedAnalysis = await _db.NewAnalysis(
-            type: "cloe",
+            type: "CLOE",
             inspectionRecords: [allowedRecord, deniedRecord]
         );
         await _db.NewAnalysisRun(mixedAnalysis);
@@ -143,13 +143,13 @@ public class AnalysisRunControllerTests : IAsyncLifetime
     [Fact]
     public async Task GetAllFiltersByAnalysisType()
     {
-        var cloe = await _db.NewAnalysis(type: "cloe");
-        var fencilla = await _db.NewAnalysis(type: "fencilla");
+        var cloe = await _db.NewAnalysis(type: "CLOE");
+        var fencilla = await _db.NewAnalysis(type: "Fencilla");
         var cloeRun = await _db.NewAnalysisRun(cloe);
         await _db.NewAnalysisRun(fencilla);
 
         var response = await _client.GetAsync(
-            "/api/analysis-run?AnalysisType=cloe",
+            "/api/analysis-run?AnalysisType=CLOE",
             TestContext.Current.CancellationToken
         );
         var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };

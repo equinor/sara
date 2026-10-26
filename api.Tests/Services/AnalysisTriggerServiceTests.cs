@@ -69,11 +69,11 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
             .SingleAsync(a => a.AnalysisType == name, TestContext.Current.CancellationToken);
 
     [Theory]
-    [InlineData("anonymize", "anonymize-0123456789abcdef0123456789abcdef")]
-    [InlineData("fencilla", "fencilla-0123456789abcdef0123456789abcdef")]
-    [InlineData("cloe", "cloe-0123456789abcdef0123456789abcdef")]
-    [InlineData("thermal-reading", "thermal-reading-0123456789abcdef0123456789abcdef")]
-    [InlineData("passthrough", "passthrough-0123456789abcdef0123456789abcdef")]
+    [InlineData("Anonymize", "anonymize-0123456789abcdef0123456789abcdef")]
+    [InlineData("Fencilla", "fencilla-0123456789abcdef0123456789abcdef")]
+    [InlineData("CLOE", "cloe-0123456789abcdef0123456789abcdef")]
+    [InlineData("ThermalReading", "thermalreading-0123456789abcdef0123456789abcdef")]
+    [InlineData("Passthrough", "passthrough-0123456789abcdef0123456789abcdef")]
     [InlineData("Custom Analysis", "custom-analysis-0123456789abcdef0123456789abcdef")]
     public void ArgoWorkflowName_UsesDnsSafeAnalysisType(string analysisType, string expected)
     {
@@ -200,7 +200,7 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
     [Fact]
     public async Task OnInspectionRecordCreated_FencillaTaskPassesInspectionMetadata()
     {
-        var analysis = await _db.NewAnalysis(type: "fencilla");
+        var analysis = await _db.NewAnalysis(type: "Fencilla");
         var record = await _db.NewInspectionRecord(
             analyses: [analysis],
             tag: "test-tag",

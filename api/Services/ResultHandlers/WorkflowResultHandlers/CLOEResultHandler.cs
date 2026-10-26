@@ -43,7 +43,7 @@ public class CLOEResultHandler(
             WorkflowId = workflow.Id,
             AnalysisRunId = workflow.AnalysisRunId,
             AnalysisId = workflow.AnalysisRun.AnalysisId,
-            AnalysisType = workflow.WorkflowType,
+            AnalysisType = nameof(AnalysisTypeEnum.CLOE),
         };
 
         await mqttPublisherService.PublishSaraAnalysisResultAvailable(message);

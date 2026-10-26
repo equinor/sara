@@ -52,7 +52,7 @@ public class InspectionRecordServiceTests : IAsyncLifetime
         var created = await CreateInScope(message);
 
         var analysis = Assert.Single(created.Analyses);
-        Assert.Equal("anonymize", analysis.AnalysisType);
+        Assert.Equal("Anonymize", analysis.AnalysisType);
     }
 
     [Fact]
@@ -88,7 +88,7 @@ public class InspectionRecordServiceTests : IAsyncLifetime
         var created = await CreateInScope(message);
 
         var analysis = Assert.Single(created.Analyses);
-        Assert.Equal("passthrough", analysis.AnalysisType);
+        Assert.Equal("Passthrough", analysis.AnalysisType);
     }
 
     [Fact]
@@ -115,7 +115,7 @@ public class InspectionRecordServiceTests : IAsyncLifetime
         var created = await CreateInScope(message);
 
         var analysis = Assert.Single(created.Analyses);
-        Assert.Equal("anonymize", analysis.AnalysisType);
+        Assert.Equal("Anonymize", analysis.AnalysisType);
     }
 
     [Fact]

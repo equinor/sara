@@ -1,12 +1,12 @@
 export function formatAnalysisType(analysisType: string | undefined): string {
-  switch (analysisType?.toLowerCase()) {
-    case "fencilla":
+  switch (analysisType) {
+    case "Fencilla":
       return "Fence detection";
-    case "thermal-reading":
+    case "ThermalReading":
       return "Thermal reading";
-    case "cloe":
+    case "CLOE":
       return "CLOE";
-    case "co2":
+    case "CO2":
       return "CO2";
     default:
       return analysisType ?? "\u2013";

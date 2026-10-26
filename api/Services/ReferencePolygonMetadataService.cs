@@ -1,8 +1,10 @@
 using System.Text.Json;
+using api.Configurations;
 using api.Database.Context;
 using api.Database.Models;
 using api.Utilities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace api.Services;
 
@@ -68,6 +70,7 @@ public class ReferencePolygonMetadataService(
     ILogger<ReferencePolygonMetadataService> logger,
     IBlobStorageService blobStorageService,
     IConfiguration configuration,
+    IOptions<AnalysisOptions> analysisOptions,
     InstallationAccess access
 ) : IReferencePolygonMetadataService
 {
@@ -224,14 +227,16 @@ public class ReferencePolygonMetadataService(
         return await CreateReferencePolygonMetadata(input, imageDestination);
     }
 
-    private static BlobStorageLocation ResolveSourceBlobLocation(
+    private BlobStorageLocation ResolveSourceBlobLocation(
         InspectionRecord record,
         AnalysisTypeEnum sourceAnalysisType
     )
     {
-        var workflowType = Analysis.GetAnalysisTypeFromAnalysisEnum(sourceAnalysisType);
+        var workflowType = analysisOptions
+            .Value.Analyses[sourceAnalysisType.ToString()]
+            .Workflows.Last();
         var sourceWorkflow =
-            record.FindLatestWorkflow(sourceAnalysisType)
+            record.FindLatestWorkflow(workflowType)
             ?? throw new KeyNotFoundException(
                 $"No {workflowType} workflow found for inspection record {record.Id}"
             );

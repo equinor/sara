@@ -90,7 +90,7 @@ public class WorkflowDto
                 return new AnalysisResultDto
                 {
                     AnalysisId = analysisId,
-                    AnalysisType = workflowType,
+                    AnalysisType = nameof(AnalysisTypeEnum.Fencilla),
                     Value = result?.IsBreak.ToString(),
                     Unit = "bool [isBreach]",
                     Warning = warning,
@@ -112,7 +112,7 @@ public class WorkflowDto
                 return new AnalysisResultDto
                 {
                     AnalysisId = analysisId,
-                    AnalysisType = workflowType,
+                    AnalysisType = nameof(AnalysisTypeEnum.CLOE),
                     Value = result?.OilLevel is { } oil
                         ? oil.ToString("F5", CultureInfo.InvariantCulture)
                         : null,
@@ -139,7 +139,7 @@ public class WorkflowDto
                 return new AnalysisResultDto
                 {
                     AnalysisId = analysisId,
-                    AnalysisType = workflowType,
+                    AnalysisType = nameof(AnalysisTypeEnum.ThermalReading),
                     Value = result?.Temperature.ToString("F2"),
                     Unit = "°C",
                     Confidence = result?.Confidence is null ? null : result.Confidence * 100f,

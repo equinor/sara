@@ -80,6 +80,8 @@ export enum AnalysisType {
   CLOE = "CLOE",
   ThermalReading = "ThermalReading",
   CO2 = "CO2",
+  Anonymize = "Anonymize",
+  Passthrough = "Passthrough",
 }
 
 // --- Domain types ---

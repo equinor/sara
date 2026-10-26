@@ -45,7 +45,7 @@ public class ThermalReadingResultHandler(
             WorkflowId = workflow.Id,
             AnalysisRunId = workflow.AnalysisRunId,
             AnalysisId = workflow.AnalysisRun.AnalysisId,
-            AnalysisType = workflow.WorkflowType,
+            AnalysisType = nameof(AnalysisTypeEnum.ThermalReading),
         };
 
         await mqttPublisherService.PublishSaraAnalysisResultAvailable(message);

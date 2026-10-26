@@ -80,7 +80,7 @@ public class DashboardControllerTests : IAsyncLifetime
     public async Task SummaryCountsAnalysisRunsWithoutInflatingCountsForWorkflowSteps()
     {
         var now = DateTime.UtcNow;
-        var cloe = await _db.NewAnalysis(type: "cloe");
+        var cloe = await _db.NewAnalysis(type: "CLOE");
         var succeededRun = await _db.NewAnalysisRun(cloe);
         succeededRun.Status = AnalysisRunStatus.Succeeded;
         succeededRun.StartedAt = now.AddHours(-2);
@@ -100,7 +100,7 @@ public class DashboardControllerTests : IAsyncLifetime
             now.AddHours(-1)
         );
 
-        var fencilla = await _db.NewAnalysis(type: "fencilla");
+        var fencilla = await _db.NewAnalysis(type: "Fencilla");
         var failedRun = await _db.NewAnalysisRun(fencilla);
         failedRun.Status = AnalysisRunStatus.Failed;
         failedRun.StartedAt = now.AddHours(-3);
@@ -126,11 +126,11 @@ public class DashboardControllerTests : IAsyncLifetime
         Assert.DoesNotContain(summary.PerAnalysisType, stat => stat.AnalysisType == "anonymizer");
         Assert.Contains(
             summary.PerAnalysisType,
-            stat => stat.AnalysisType == "cloe" && stat.Succeeded == 1
+            stat => stat.AnalysisType == "CLOE" && stat.Succeeded == 1
         );
         Assert.Contains(
             summary.PerAnalysisType,
-            stat => stat.AnalysisType == "fencilla" && stat.Failed == 1
+            stat => stat.AnalysisType == "Fencilla" && stat.Failed == 1
         );
         Assert.Equal(2, summary.Trend.Sum(bucket => bucket.Succeeded + bucket.Failed));
     }
@@ -230,7 +230,7 @@ public class DashboardControllerTests : IAsyncLifetime
     public async Task TrendDetailsGroupsCompletedRunsByAnalysisTypeForRequestedBucket()
     {
         var bucketStart = new DateTime(2026, 9, 4, 10, 0, 0, DateTimeKind.Utc);
-        var cloe = await _db.NewAnalysis(type: "cloe");
+        var cloe = await _db.NewAnalysis(type: "CLOE");
         var succeeded = await _db.NewAnalysisRun(cloe);
         succeeded.Status = AnalysisRunStatus.Succeeded;
         succeeded.StartedAt = bucketStart.AddMinutes(10);
@@ -239,7 +239,7 @@ public class DashboardControllerTests : IAsyncLifetime
         failed.Status = AnalysisRunStatus.Failed;
         failed.StartedAt = bucketStart.AddMinutes(20);
         failed.CompletedAt = bucketStart.AddHours(2);
-        var thermal = await _db.NewAnalysis(type: "thermal-reading");
+        var thermal = await _db.NewAnalysis(type: "ThermalReading");
         var outsideBucket = await _db.NewAnalysisRun(thermal);
         outsideBucket.Status = AnalysisRunStatus.Succeeded;
         outsideBucket.StartedAt = bucketStart.AddHours(1);
@@ -258,7 +258,7 @@ public class DashboardControllerTests : IAsyncLifetime
 
         Assert.NotNull(details);
         var cloeDetails = Assert.Single(details.PerAnalysisType);
-        Assert.Equal("cloe", cloeDetails.AnalysisType);
+        Assert.Equal("CLOE", cloeDetails.AnalysisType);
         Assert.Equal(1, cloeDetails.Succeeded);
         Assert.Equal(1, cloeDetails.Failed);
     }
