@@ -447,15 +447,12 @@ public class InspectionRecordService(
         int pageSize
     )
     {
-        var workflowType = _analysisOptions
-            .Analyses[sourceAnalysisType.ToString()]
-            .Workflows.Last();
+        var analysisTypeName = sourceAnalysisType.ToString();
         var analysisIds = access.Filter(context.Analyses, AccessLevel.Observer).Select(a => a.Id);
         var query = GetRecords(AccessLevel.Observer)
             .Where(ir =>
                 ir.Analyses.Any(a =>
-                    analysisIds.Contains(a.Id)
-                    && a.Runs.Any(r => r.Workflows.Any(w => w.WorkflowType == workflowType))
+                    analysisIds.Contains(a.Id) && a.AnalysisType == analysisTypeName
                 )
                 && ir.Analyses.Any(a =>
                     analysisIds.Contains(a.Id)

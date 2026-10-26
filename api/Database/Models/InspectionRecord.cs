@@ -58,12 +58,14 @@ public class InspectionRecord
 
     public List<Analysis> Analyses { get; set; } = [];
 
-    public Workflow? FindLatestWorkflow(string workflowType)
+    public Workflow? FindLatestWorkflow(AnalysisTypeEnum analysisType)
     {
+        var analysisTypeName = analysisType.ToString();
         return Analyses
+            .Where(a => a.AnalysisType == analysisTypeName)
             .SelectMany(a => a.Runs)
-            .SelectMany(r => r.Workflows)
-            .Where(w => w.WorkflowType.Equals(workflowType, StringComparison.OrdinalIgnoreCase))
+            .Select(r => r.Workflows.MaxBy(w => w.StepNumber))
+            .OfType<Workflow>()
             .OrderByDescending(w => w.CompletedAt ?? w.StartedAt ?? DateTime.MinValue)
             .FirstOrDefault();
     }
