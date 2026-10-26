@@ -475,20 +475,18 @@ public class InspectionRecordController(
         return new InspectionMeasurementDto(number, unit.GetString()!);
     }
 
-    private BlobStorageLocation? FindLatestWorkflowInputBlobLocation(
+    private static BlobStorageLocation? FindLatestWorkflowInputBlobLocation(
         InspectionRecord record,
         AnalysisTypeEnum sourceAnalysisType,
         out string? notFoundMessage
     )
     {
-        var workflowType = analysisOptions
-            .Value.Analyses[sourceAnalysisType.ToString()]
-            .Workflows.Last();
-        var workflow = record.FindLatestWorkflow(workflowType);
+        var workflow = record.FindLatestWorkflow(sourceAnalysisType);
 
         if (workflow is null)
         {
-            notFoundMessage = $"No {workflowType} workflow found for inspection record {record.Id}";
+            notFoundMessage =
+                $"No {sourceAnalysisType} workflow found for inspection record {record.Id}";
             return null;
         }
 
@@ -498,7 +496,7 @@ public class InspectionRecordController(
         )
         {
             notFoundMessage =
-                $"{workflowType} workflow has no input blob location for inspection record {record.Id}";
+                $"{sourceAnalysisType} workflow has no input blob location for inspection record {record.Id}";
             return null;
         }
 

@@ -1,10 +1,8 @@
 using System.Text.Json;
-using api.Configurations;
 using api.Database.Context;
 using api.Database.Models;
 using api.Utilities;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 
 namespace api.Services;
 
@@ -70,7 +68,6 @@ public class ReferencePolygonMetadataService(
     ILogger<ReferencePolygonMetadataService> logger,
     IBlobStorageService blobStorageService,
     IConfiguration configuration,
-    IOptions<AnalysisOptions> analysisOptions,
     InstallationAccess access
 ) : IReferencePolygonMetadataService
 {
@@ -227,18 +224,15 @@ public class ReferencePolygonMetadataService(
         return await CreateReferencePolygonMetadata(input, imageDestination);
     }
 
-    private BlobStorageLocation ResolveSourceBlobLocation(
+    private static BlobStorageLocation ResolveSourceBlobLocation(
         InspectionRecord record,
         AnalysisTypeEnum sourceAnalysisType
     )
     {
-        var workflowType = analysisOptions
-            .Value.Analyses[sourceAnalysisType.ToString()]
-            .Workflows.Last();
         var sourceWorkflow =
-            record.FindLatestWorkflow(workflowType)
+            record.FindLatestWorkflow(sourceAnalysisType)
             ?? throw new KeyNotFoundException(
-                $"No {workflowType} workflow found for inspection record {record.Id}"
+                $"No {sourceAnalysisType} workflow found for inspection record {record.Id}"
             );
 
         if (
@@ -246,7 +240,9 @@ public class ReferencePolygonMetadataService(
             || sourceWorkflow.InputBlobStorageLocations.Count == 0
         )
         {
-            throw new KeyNotFoundException($"{workflowType} workflow has no input blob location");
+            throw new KeyNotFoundException(
+                $"{sourceAnalysisType} workflow has no input blob location"
+            );
         }
 
         return sourceWorkflow.InputBlobStorageLocations[0];
