@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using api.Database.Context;
 using api.Database.Models;
@@ -80,6 +81,89 @@ public class MqttInspectionValueTests : IAsyncLifetime
                 Facility = message.InstallationCode,
             },
             request
+        );
+    }
+
+    private static readonly string[] GasMeasurementTypes =
+    [
+        "IsobutyleneMeasurement",
+        "CO2Measurement",
+        "TolueneMeasurement",
+        "O2Measurement",
+        "COMeasurement",
+        "H2SMeasurement",
+    ];
+
+    private IsarInspectionValueMessage[] NewXam8000GasMeasurementMessages(
+        string inspectionId = "xam-task"
+    ) =>
+        GasMeasurementTypes
+            .Select(
+                (type, index) =>
+                    _db.NewIsarInspectionValueMessage(
+                        inspectionId: inspectionId,
+                        inspectionType: type,
+                        inspectionDescription: "Xam-8000 gas recording",
+                        value: index + 1,
+                        unit: type == "O2Measurement" ? "%" : "ppm"
+                    )
+            )
+            .ToArray();
+
+    [Fact]
+    public async Task GasMeasurementsSharingInspectionId_AreStoredAsSeparateRecords()
+    {
+        var messages = NewXam8000GasMeasurementMessages();
+        var handler = _factory.Services.GetRequiredService<MqttEventHandler>();
+
+        foreach (var message in messages)
+            await handler.ProcessIsarInspectionValue(message);
+
+        var records = await _context
+            .InspectionRecords.OrderBy(r => r.CreatedAt)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(GasMeasurementTypes.Length, records.Count);
+        Assert.All(records, r => Assert.Equal("xam-task", r.InspectionId));
+        Assert.Equal(GasMeasurementTypes, records.Select(r => r.InspectionType));
+        Assert.Equal(
+            messages.Select(m => m.InspectionDataPath.BlobName),
+            records.Select(r => r.BlobStorageLocation.BlobName)
+        );
+        Assert.Equal(GasMeasurementTypes.Length, _factory.TimeseriesService.Uploads.Count);
+        Assert.Equal(
+            GasMeasurementTypes.Length,
+            _factory.MqttPublisher.InspectionRecordAvailableMessages.Count
+        );
+        Assert.All(
+            _factory.MqttPublisher.InspectionRecordAvailableMessages,
+            m => Assert.Equal("xam-task", m.InspectionId)
+        );
+    }
+
+    [Fact]
+    public async Task ReplayedGasMeasurement_IsIgnoredWithoutAffectingOtherTypes()
+    {
+        var messages = NewXam8000GasMeasurementMessages();
+        var handler = _factory.Services.GetRequiredService<MqttEventHandler>();
+        foreach (var message in messages)
+            await handler.ProcessIsarInspectionValue(message);
+
+        await handler.ProcessIsarInspectionValue(messages[2]);
+
+        Assert.Equal(
+            GasMeasurementTypes.Length,
+            await _context.InspectionRecords.CountAsync(TestContext.Current.CancellationToken)
+        );
+        Assert.Equal(
+            GasMeasurementTypes.Length,
+            _factory.MqttPublisher.InspectionRecordAvailableMessages.Count
+        );
+        Assert.Equal(
+            1,
+            await _context.InspectionRecords.CountAsync(
+                r => r.InspectionType == messages[2].InspectionType,
+                TestContext.Current.CancellationToken
+            )
         );
     }
 }

@@ -139,6 +139,35 @@ public class MqttDuplicateTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task SameInspectionIdWithDifferentInspectionType_CreatesSeparateRecords()
+    {
+        var image = _db.NewIsarInspectionResultMessage(
+            inspectionType: "Image",
+            requiredAnalysis: ["per-record-test"]
+        );
+        var thermal = _db.NewIsarInspectionResultMessage(
+            inspectionType: "ThermalImage",
+            requiredAnalysis: ["per-record-test"]
+        );
+        await Process(image);
+
+        await Process(thermal);
+
+        var records = await _context
+            .InspectionRecords.OrderBy(r => r.CreatedAt)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(2, records.Count);
+        Assert.All(records, r => Assert.Equal(image.InspectionId, r.InspectionId));
+        Assert.Equal(["Image", "ThermalImage"], records.Select(r => r.InspectionType));
+        Assert.Equal(2, _factory.ArgoWorkflowClient.Requests.Count);
+        AssertNoWarningsOrErrors();
+        Assert.DoesNotContain(
+            _logger.Invocations,
+            i => i.Arguments[2]?.ToString()?.Contains("Ignoring duplicate") == true
+        );
+    }
+
+    [Fact]
     public async Task NoAnalysisDuplicate_UsesSanitizedInspectionId()
     {
         var message = _db.NewIsarInspectionResultMessage(inspectionId: "test-\r\ninspection");

@@ -237,8 +237,9 @@ namespace api.MQTT
             if (result.IsDuplicate)
             {
                 _logger.LogInformation(
-                    "Ignoring duplicate ISAR inspection result for InspectionId: {InspectionId}, RecordId: {RecordId}.",
+                    "Ignoring duplicate ISAR inspection result for InspectionId: {InspectionId}, InspectionType: {InspectionType}, RecordId: {RecordId}.",
                     result.Record.InspectionId,
+                    result.Record.InspectionType,
                     result.Record.Id
                 );
                 return;
@@ -358,8 +359,9 @@ namespace api.MQTT
             if (result.IsDuplicate)
             {
                 _logger.LogInformation(
-                    "Ignoring duplicate ISAR inspection value for analysis triggering. InspectionId: {InspectionId}, RecordId: {RecordId}",
+                    "Ignoring duplicate ISAR inspection value for analysis triggering. InspectionId: {InspectionId}, InspectionType: {InspectionType}, RecordId: {RecordId}",
                     result.Record.InspectionId,
+                    result.Record.InspectionType,
                     result.Record.Id
                 );
                 return;

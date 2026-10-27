@@ -27,7 +27,7 @@ public interface IInspectionRecordService
 
     public Task<InspectionRecord?> ReadByInspectionId(string inspectionId);
 
-    public Task<bool> ExistsByInspectionId(string inspectionId);
+    public Task<bool> ExistsByInspectionIdAndType(string inspectionId, string? inspectionType);
 
     public Task<PagedList<InspectionRecord>> GetInspectionRecords(
         InspectionRecordParameters parameters
@@ -104,18 +104,25 @@ public class InspectionRecordService(
 
     public Task<MqttInspectionRecordResult> CreateFromMqttMessage(
         IsarInspectionResultMessage message
-    ) => CreateMqttRecordOnce(message.InspectionId, id => CreateMqttRecord(message, id));
+    ) =>
+        CreateMqttRecordOnce(
+            message.InspectionId,
+            message.InspectionType,
+            id => CreateMqttRecord(message, id)
+        );
 
     public Task<MqttInspectionRecordResult> CreateFromMqttMessage(
         IsarInspectionValueMessage message
     ) =>
         CreateMqttRecordOnce(
             message.InspectionId,
+            message.InspectionType,
             id => Create(NewInspectionValueRecord(message, id))
         );
 
     private async Task<MqttInspectionRecordResult> CreateMqttRecordOnce(
         string rawInspectionId,
+        string? inspectionType,
         Func<string, Task<InspectionRecord>> create
     )
     {
@@ -130,16 +137,17 @@ public class InspectionRecordService(
                 // A transient failure may leave tracked entities from a rolled-back attempt.
                 if (attempt++ > 0)
                     context.ChangeTracker.Clear();
-                return await CreateFromMqttMessageAttempt(inspectionId, create);
+                return await CreateFromMqttMessageAttempt(inspectionId, inspectionType, create);
             });
     }
 
     private async Task<MqttInspectionRecordResult> CreateFromMqttMessageAttempt(
         string inspectionId,
+        string? inspectionType,
         Func<string, Task<InspectionRecord>> create
     )
     {
-        var existing = await ReadMqttDuplicate(inspectionId);
+        var existing = await ReadMqttDuplicate(inspectionId, inspectionType);
         if (existing is not null)
         {
             return new MqttInspectionRecordResult(existing, true);
@@ -155,13 +163,13 @@ public class InspectionRecordService(
                     is PostgresException
                     {
                         SqlState: PostgresErrorCodes.UniqueViolation,
-                        ConstraintName: "IX_InspectionRecords_InspectionId"
+                        ConstraintName: "IX_InspectionRecords_InspectionId_InspectionType"
                             or "IX_AnalysisGroups_GroupId"
                     }
             )
         {
             context.ChangeTracker.Clear();
-            existing = await ReadMqttDuplicate(inspectionId);
+            existing = await ReadMqttDuplicate(inspectionId, inspectionType);
             if (existing is null)
                 throw;
 
@@ -169,10 +177,15 @@ public class InspectionRecordService(
         }
     }
 
-    private Task<InspectionRecord?> ReadMqttDuplicate(string inspectionId) =>
+    private Task<InspectionRecord?> ReadMqttDuplicate(
+        string inspectionId,
+        string? inspectionType
+    ) =>
         context
             .InspectionRecords.AsNoTracking()
-            .FirstOrDefaultAsync(r => r.InspectionId == inspectionId);
+            .FirstOrDefaultAsync(r =>
+                r.InspectionId == inspectionId && r.InspectionType == inspectionType
+            );
 
     private async Task<InspectionRecord> CreateMqttRecord(
         IsarInspectionResultMessage message,
@@ -385,11 +398,11 @@ public class InspectionRecordService(
         return record;
     }
 
-    public async Task<bool> ExistsByInspectionId(string inspectionId)
+    public async Task<bool> ExistsByInspectionIdAndType(string inspectionId, string? inspectionType)
     {
         return await access
             .Filter(context.InspectionRecords, AccessLevel.Observer)
-            .AnyAsync(ir => ir.InspectionId == inspectionId);
+            .AnyAsync(ir => ir.InspectionId == inspectionId && ir.InspectionType == inspectionType);
     }
 
     public async Task<InspectionRecord> CreateAndTrigger(CreateInspectionRecordRequest request)
@@ -397,10 +410,10 @@ public class InspectionRecordService(
         access.RequireAccess(request.InstallationCode, AccessLevel.Admin);
         var inspectionId = Sanitize.SanitizeUserInput(request.InspectionId);
 
-        if (await ExistsByInspectionId(inspectionId))
+        if (await ExistsByInspectionIdAndType(inspectionId, request.InspectionType))
         {
             throw new InvalidOperationException(
-                $"Inspection record with inspection id {inspectionId} already exists"
+                $"Inspection record with inspection id {inspectionId} and inspection type {request.InspectionType} already exists"
             );
         }
 

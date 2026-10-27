@@ -17,7 +17,7 @@ namespace api.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.12")
+                .HasAnnotation("ProductVersion", "10.0.13")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -194,12 +194,14 @@ namespace api.Migrations
 
                     b.HasIndex("AnalysisGroupId");
 
-                    b.HasIndex("InspectionId")
-                        .IsUnique();
-
                     b.HasIndex("CreatedAt", "Id")
                         .IsDescending()
                         .HasDatabaseName("IX_InspectionRecord_CreatedAt_Id_Desc");
+
+                    b.HasIndex("InspectionId", "InspectionType")
+                        .IsUnique();
+
+                    NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("InspectionId", "InspectionType"), false);
 
                     b.ToTable("InspectionRecords");
                 });

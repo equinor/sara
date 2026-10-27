@@ -184,24 +184,31 @@ public class DatabaseUtilities(SaraDbContext context)
             BlobName = blobName ?? $"{Guid.NewGuid()}.jpg",
         };
 
-    public IsarInspectionValueMessage NewIsarInspectionValueMessage() =>
+    public IsarInspectionValueMessage NewIsarInspectionValueMessage(
+        string inspectionId = "test-value",
+        string inspectionType = "CO2Measurement",
+        string? blobName = null,
+        string inspectionDescription = "CO2 reading",
+        float value = 0,
+        string unit = "ppm"
+    ) =>
         new()
         {
             ISARID = "test-isar",
             RobotName = "test-robot",
-            InspectionId = "test-value",
+            InspectionId = inspectionId,
             InspectionDataPath = new InspectionPathMessage
             {
                 StorageAccount = "isarraw",
                 BlobContainer = "installation-container",
-                BlobName = "mission/CO2Measurement.json",
+                BlobName = blobName ?? $"mission/{inspectionType}.json",
             },
             InstallationCode = "TST",
             TagID = "test-tag",
-            InspectionType = "CO2Measurement",
-            InspectionDescription = "CO2 reading",
-            Value = 0,
-            Unit = "ppm",
+            InspectionType = inspectionType,
+            InspectionDescription = inspectionDescription,
+            Value = value,
+            Unit = unit,
             X = 1.95f,
             Y = 2.5f,
             Z = 3.5f,
