@@ -25,7 +25,11 @@ namespace api.Database.Context
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<InspectionRecord>().HasIndex(ir => ir.InspectionId).IsUnique();
+            modelBuilder
+                .Entity<InspectionRecord>()
+                .HasIndex(ir => new { ir.InspectionId, ir.InspectionType })
+                .IsUnique()
+                .AreNullsDistinct(false);
 
             modelBuilder
                 .Entity<InspectionRecord>()

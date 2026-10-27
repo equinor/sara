@@ -15,9 +15,14 @@ public class RecordingMqttPublisher : IMqttPublisherService
 {
     public Func<Guid, Task>? BeforePublish { get; set; }
 
+    private readonly ConcurrentQueue<SaraInspectionRecordAvailableMessage> _inspectionRecordAvailableMessages =
+        new();
     private readonly ConcurrentQueue<SaraVisualizationAvailableMessage> _visualizationMessages =
         new();
     private readonly ConcurrentQueue<SaraAnalysisResultMessage> _analysisResultMessages = new();
+
+    public IReadOnlyCollection<SaraInspectionRecordAvailableMessage> InspectionRecordAvailableMessages =>
+        _inspectionRecordAvailableMessages.ToArray();
 
     public IReadOnlyCollection<SaraVisualizationAvailableMessage> VisualizationMessages =>
         _visualizationMessages.ToArray();
@@ -27,7 +32,11 @@ public class RecordingMqttPublisher : IMqttPublisherService
 
     public Task PublishSaraInspectionRecordAvailable(
         SaraInspectionRecordAvailableMessage inspectionRecordAvailableMessage
-    ) => Task.CompletedTask;
+    )
+    {
+        _inspectionRecordAvailableMessages.Enqueue(inspectionRecordAvailableMessage);
+        return Task.CompletedTask;
+    }
 
     public async Task PublishSaraVisualizationAvailable(
         SaraVisualizationAvailableMessage visualizationAvailableMessage
@@ -49,6 +58,7 @@ public class RecordingMqttPublisher : IMqttPublisherService
 
     public void Reset()
     {
+        _inspectionRecordAvailableMessages.Clear();
         _visualizationMessages.Clear();
         _analysisResultMessages.Clear();
     }
