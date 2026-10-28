@@ -33,6 +33,8 @@ public interface IInspectionRecordService
         InspectionRecordParameters parameters
     );
 
+    public Task<List<string>> GetStidTags(InspectionRecordStidParameters parameters);
+
     public Task<PagedList<InspectionRecord>> GetInspectionRecordsBySourceAnalysisType(
         AnalysisTypeEnum sourceAnalysisType,
         int pageNumber,
@@ -45,6 +47,15 @@ public interface IInspectionRecordService
         Guid inspectionRecordId,
         AnalysisTypeEnum analysisName
     );
+}
+
+public class InspectionRecordStidParameters
+{
+    public List<string>? InspectionIds { get; set; }
+    public string? InstallationCode { get; set; }
+    public DateTime? MinCreationTime { get; set; }
+    public DateTime? MaxCreationTime { get; set; }
+    public List<AnalysisTypeEnum>? AnalysisTypes { get; set; } = [];
 }
 
 public class InspectionRecordParameters
@@ -560,6 +571,49 @@ public class InspectionRecordService(
             parameters.PageNumber,
             parameters.PageSize
         );
+    }
+
+    public async Task<List<string>> GetStidTags(InspectionRecordStidParameters parameters)
+    {
+        var query = GetRecords(AccessLevel.Observer);
+
+        if (parameters.InspectionIds != null && parameters.InspectionIds.Count > 0)
+            query = query.Where(ir =>
+                parameters
+                    .InspectionIds.Select((i) => i.ToLower())
+                    .Contains(ir.InspectionId.ToLower())
+            );
+
+        if (!string.IsNullOrWhiteSpace(parameters.InstallationCode))
+            query = query.Where(ir =>
+                ir.InstallationCode.ToLower().Contains(parameters.InstallationCode.ToLower())
+            );
+
+        if (parameters.MinCreationTime != null)
+            query = query.Where(ir => ir.CreatedAt > parameters.MinCreationTime);
+
+        if (parameters.MaxCreationTime != null)
+            query = query.Where(ir => ir.CreatedAt < parameters.MaxCreationTime);
+
+        if (parameters.AnalysisTypes != null && parameters.AnalysisTypes.Count > 0)
+        {
+            List<string> analysisTypeStrings =
+            [
+                .. parameters.AnalysisTypes.Select((a) => a.ToString()),
+            ];
+            var analysisIds = access
+                .Filter(context.Analyses, AccessLevel.Observer)
+                .Select(a => a.Id);
+            query = query.Where(ir =>
+                ir.Analyses.Any(a =>
+                    analysisIds.Contains(a.Id) && analysisTypeStrings.Contains(a.AnalysisType)
+                )
+            );
+        }
+
+        query = query.OrderByDescending(ir => ir.CreatedAt).ThenByDescending(ir => ir.Id);
+
+        return await query.Where(i => i.Tag != null).Select(i => i.Tag!).Distinct().ToListAsync();
     }
 
     public async Task<InspectionRecord> AddAnalysis(

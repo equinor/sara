@@ -72,6 +72,31 @@ public class InspectionRecordController(
 
     [HttpGet]
     [Authorize(Policy = InstallationAccess.ObserverPolicy)]
+    [Route("stid-tags")]
+    [ProducesResponseType(typeof(List<string>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<List<string>>> GetAllSTIDTags(
+        [FromQuery] InspectionRecordStidParameters parameters
+    )
+    {
+        try
+        {
+            var tags = await inspectionRecordService.GetStidTags(parameters);
+
+            return Ok(tags);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Error during GET of STID tags in inspection records");
+            throw;
+        }
+    }
+
+    [HttpGet]
+    [Authorize(Policy = InstallationAccess.ObserverPolicy)]
     [Route("id/{id:guid}")]
     [ProducesResponseType(typeof(InspectionRecord), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
