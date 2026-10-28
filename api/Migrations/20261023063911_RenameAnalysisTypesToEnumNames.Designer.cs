@@ -12,15 +12,15 @@ using api.Database.Context;
 namespace api.Migrations
 {
     [DbContext(typeof(SaraDbContext))]
-    [Migration("20261028132302_AddTimeseriesIdAndUniqueInspectionIdPerInspectionType")]
-    partial class AddTimeseriesIdAndUniqueInspectionIdPerInspectionType
+    [Migration("20261023063911_RenameAnalysisTypesToEnumNames")]
+    partial class RenameAnalysisTypesToEnumNames
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.13")
+                .HasAnnotation("ProductVersion", "10.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -190,9 +190,6 @@ namespace api.Migrations
                     b.Property<string>("Tag")
                         .HasColumnType("text");
 
-                    b.Property<string>("TimeseriesId")
-                        .HasColumnType("text");
-
                     b.Property<DateTime?>("Timestamp")
                         .HasColumnType("timestamp with time zone");
 
@@ -200,14 +197,12 @@ namespace api.Migrations
 
                     b.HasIndex("AnalysisGroupId");
 
+                    b.HasIndex("InspectionId")
+                        .IsUnique();
+
                     b.HasIndex("CreatedAt", "Id")
                         .IsDescending()
                         .HasDatabaseName("IX_InspectionRecord_CreatedAt_Id_Desc");
-
-                    b.HasIndex("InspectionId", "InspectionType")
-                        .IsUnique();
-
-                    NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("InspectionId", "InspectionType"), false);
 
                     b.ToTable("InspectionRecords");
                 });

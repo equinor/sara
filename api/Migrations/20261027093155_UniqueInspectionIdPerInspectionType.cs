@@ -5,7 +5,7 @@
 namespace api.Migrations
 {
     /// <inheritdoc />
-    public partial class AddTimeseriesIdAndUniqueInspectionIdPerInspectionType : Migration
+    public partial class UniqueInspectionIdPerInspectionType : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -13,12 +13,6 @@ namespace api.Migrations
             migrationBuilder.DropIndex(
                 name: "IX_InspectionRecords_InspectionId",
                 table: "InspectionRecords");
-
-            migrationBuilder.AddColumn<string>(
-                name: "TimeseriesId",
-                table: "InspectionRecords",
-                type: "text",
-                nullable: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_InspectionRecords_InspectionId_InspectionType",
@@ -33,10 +27,6 @@ namespace api.Migrations
         {
             migrationBuilder.DropIndex(
                 name: "IX_InspectionRecords_InspectionId_InspectionType",
-                table: "InspectionRecords");
-
-            migrationBuilder.DropColumn(
-                name: "TimeseriesId",
                 table: "InspectionRecords");
 
             migrationBuilder.CreateIndex(
