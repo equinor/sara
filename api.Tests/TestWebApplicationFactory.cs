@@ -53,7 +53,7 @@ public class TestWebApplicationFactory<TProgram>(
     {
         using var scope = Services.CreateScope();
         var options = scope.ServiceProvider.GetRequiredService<IOptions<AnalysisOptions>>().Value;
-        return options.Workflows[workflowType].WorkflowTemplateName;
+        return options.Workflows[workflowType].Template;
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)

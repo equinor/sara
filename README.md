@@ -23,13 +23,16 @@ When running locally the endpoint is reachable at https://localhost:8100
 - `AnalysisGroup` -- lets a single Analysis span multiple InspectionRecords. 
   The group is buffered until all expected records arrive or 
   `AnalysisGroupTimeoutMinutes` elapses.
-- Workflow chains run sequentially. By default each step's output blob
-  becomes the next step's input; per-workflow rewiring lives in the matching
-  `IWorkflowResultHandler`.
+- Workflow chains run sequentially and are defined in
+  `api/analysis-definitions.yaml`. SARA plans every step's output locations
+  when building the Argo DAG. A step reads the `result` of the last non-gate
+  step by default, or any named output of an earlier step via
+  `Input: <step>.<output>` (thermal-reading reads the anonymizer's TIFF).
 - The Argo trigger payload has a stable core (`workflowId`,
   `inputBlobStorageLocations`, `outputBlobStorageLocation`) plus an `extras`
-  object populated by `ITriggerPayloadEnricher` implementations matched on
-  workflow type.
+  object and optional extra parameters, both declared per workflow from a
+  fixed set of sources (planned outputs, reference metadata, inspection
+  metadata, constants).
 - The trigger's `outputBlobStorageLocation` is a requested destination, not a
   confirmed upload. Successful workflows report it in their JSON `result` only
   after uploading, with nonblank `storageAccount`, `blobContainer`, and `blobName`
@@ -137,17 +140,25 @@ make format         # CSharpier
 
 ## Creating a new workflow
 
-1. Register the workflow under `Analysis:Workflows` in `appsettings.json`
-   with its `WorkflowTemplateName`, `OutputStorageAccount`, `OutputBlobContainer` and
-   (optionally) `OutputFileExtension`.
-2. Reference it from one or more chains under `Analysis:Analyses`, e.g.
-   `"my-analysis": { "Workflows": ["anonymizer", "my-workflow"] }`.
-3. Add an `IWorkflowResultHandler` in
+1. Add the workflow under `Analysis:Workflows` in `api/analysis-definitions.yaml`:
+   its `Template`, its `Outputs` (a `result` output is required), and any
+   `Extras`/`Parameters`. `SkipChainIf` makes it a gate. The comment at the top
+   of the file describes the options.
+2. Each output's `StorageAccount` names a key in the `Storage` section
+   (`AnonStorageAccount`, `VisStorageAccount`), which is set per environment,
+   e.g. `Storage__VisStorageAccount`.
+   The YAML file is the lowest-precedence configuration source, so appsettings,
+   environment variables and Key Vault override it.
+3. Add it to one or more chains under `Analysis:Analyses`, e.g.
+   `Steps: [{ Workflow: anonymizer }, { Workflow: my-workflow }]`.
+   Invalid references fail startup.
+4. Add an `IWorkflowResultHandler` in
    `api/Services/ResultHandlers/WorkflowResultHandlers/` that matches the
    new workflow type.
-4. If the analyzer needs per-workflow parameters in the Argo Workflow arguments
-   payload, add an `ITriggerPayloadEnricher` that populates `extras`.
-5. Add the matching Argo `WorkflowTemplate` in
+5. If the analyzer needs data that none of the existing `ValueSource`s
+   provide, add a value to the enum and a case in
+   `AnalysisWorkflowGraphBuilder`.
+6. Add the matching Argo `WorkflowTemplate` in
    [robotics-infrastructure](https://github.com/equinor/robotics-infrastructure)
    and an analyzer image repo that implements the generic CLI contract
    (`--input-blob-storage-locations`, `--output-blob-storage-location`,
