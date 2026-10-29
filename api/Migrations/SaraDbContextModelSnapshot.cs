@@ -144,6 +144,9 @@ namespace api.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Note")
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.ToTable("CheckMigrationsWork");
