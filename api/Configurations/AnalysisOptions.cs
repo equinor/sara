@@ -58,6 +58,9 @@ public class WorkflowConfig
 
     public SkipRule? SkipChainIf { get; set; }
 
+    // Ignored. Still set in robotics-infrastructure; remove once the overlays drop it.
+    public string? OutputStorageAccount { get; set; }
+
     public bool IsGate => SkipChainIf is not null;
 }
 
