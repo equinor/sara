@@ -67,8 +67,7 @@ public class AnalysisTriggerService(
         IReadOnlyList<InspectionRecord> inspectionRecords
     )
     {
-        var analysisConfig = _options.Analyses[analysis.AnalysisType];
-        var workflowChain = analysisConfig.Workflows;
+        var workflowChain = GetWorkflowChain(analysis);
 
         if (workflowChain.Count == 0)
         {
@@ -93,6 +92,9 @@ public class AnalysisTriggerService(
         await analysisWorkflowService.BuildAndSubmitAsync(run.Id);
     }
 
+    private List<string> GetWorkflowChain(Analysis analysis) =>
+        [.. _options.Analyses[analysis.AnalysisType].Steps.Select(step => step.Workflow)];
+
     private async Task<AnalysisRun> CreateAnalysisRun(
         Analysis analysis,
         IReadOnlyList<InspectionRecord> inspectionRecords
@@ -104,8 +106,7 @@ public class AnalysisTriggerService(
         if (analysis.AnalysisGroup != null)
             context.Entry(analysis.AnalysisGroup).State = EntityState.Unchanged;
 
-        var analysisConfig = _options.Analyses[analysis.AnalysisType];
-        var workflowChain = analysisConfig.Workflows;
+        var workflowChain = GetWorkflowChain(analysis);
 
         var nextRunNumber =
             await context
