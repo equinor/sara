@@ -14,8 +14,15 @@ using Azure.Core;
 using k8s;
 using Microsoft.AspNetCore.Rewrite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using NetEscapades.Configuration.Yaml;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Configuration.Sources.Insert(
+    0,
+    new YamlConfigurationSource { Path = "analysis-definitions.yaml", Optional = false }
+);
 
 Console.WriteLine($"\nENVIRONMENT IS SET TO '{builder.Environment.EnvironmentName}'\n");
 
@@ -67,40 +74,16 @@ builder.Services.Configure<DashboardOptions>(
 );
 builder
     .Services.AddOptions<AnalysisOptions>()
-    .Bind(builder.Configuration.GetSection(AnalysisOptions.SectionName))
-    .Validate(
-        options => options.Workflows.Values.All(w => w.IsGate == (w.SkipChainIf is not null)),
-        "Invalid Analysis.Workflows configuration: IsGate and SkipChainIf must both be set or both be unset on every workflow."
+    .Bind(
+        builder.Configuration.GetSection(AnalysisOptions.SectionName),
+        binder => binder.ErrorOnUnknownConfiguration = true
     )
-    .Validate(
-        options =>
-            options.Workflows.Values.All(workflow =>
-                !string.IsNullOrWhiteSpace(workflow.WorkflowTemplateName)
-            ),
-        "Invalid Analysis.Workflows configuration: WorkflowTemplateName is required."
-    )
-    .Validate(
-        options =>
-            options.Workflows.Values.All(workflow =>
-                !string.IsNullOrWhiteSpace(workflow.OutputStorageAccount)
-            ),
-        "Invalid Analysis.Workflows configuration: OutputStorageAccount is required and must be set per environment."
-    )
-    .Validate(
-        options =>
-            options
-                .Analyses.Values.SelectMany(analysis => analysis.Workflows)
-                .All(options.Workflows.ContainsKey),
-        "Invalid Analysis configuration: every workflow in an analysis chain must exist in Analysis.Workflows."
-    )
-    .Validate(
-        options =>
-            options
-                .DefaultAnalysisByInspectionType.Values.SelectMany(analyses => analyses)
-                .All(options.Analyses.ContainsKey),
-        "Invalid Analysis.DefaultAnalysisByInspectionType configuration: every default analysis must exist in Analysis.Analyses."
+    .Configure<IConfiguration>(
+        (options, configuration) =>
+            configuration.GetSection("Storage").Bind(options.StorageAccounts)
     )
     .ValidateOnStart();
+builder.Services.AddSingleton<IValidateOptions<AnalysisOptions>, AnalysisOptionsValidator>();
 
 builder.Services.AddScoped<IReferencePolygonMetadataService, ReferencePolygonMetadataService>();
 
@@ -126,10 +109,6 @@ builder.Services.AddSingleton<IKubernetes>(_ => new Kubernetes(
 ));
 builder.Services.AddSingleton<IArgoWorkflowClient, ArgoWorkflowClient>();
 builder.Services.AddScoped<IArgoWorkflowEventProcessor, ArgoWorkflowEventProcessor>();
-builder.Services.AddScoped<ITriggerPayloadEnricher, AnonymizerPayloadEnricher>();
-builder.Services.AddScoped<ITriggerPayloadEnricher, ThermalReadingPayloadEnricher>();
-builder.Services.AddScoped<ITriggerPayloadEnricher, FencillaPayloadEnricher>();
-builder.Services.AddScoped<ITriggerPayloadEnricher, UtilitiesPayloadEnricher>();
 
 // Per-workflow result handlers — fire on each successful Workflow step.
 builder.Services.AddScoped<IWorkflowResultHandler, AnonymizerResultHandler>();
@@ -282,11 +261,11 @@ app.MapGet(
 
 app.MapGet(
         "/api/config/analyses",
-        (Microsoft.Extensions.Options.IOptions<AnalysisOptions> opts) =>
+        (IOptions<AnalysisOptions> opts) =>
             opts.Value.Analyses.Select(kvp => new
             {
                 Name = kvp.Key,
-                Workflows = kvp.Value.Workflows,
+                Workflows = kvp.Value.Steps.Select(step => step.Workflow),
             })
     )
     .RequireAuthorization(InstallationAccess.ObserverPolicy);
