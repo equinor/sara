@@ -3,7 +3,6 @@ using api.Configurations;
 using api.Database.Context;
 using api.Database.Models;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 
 namespace api.Services;
 
@@ -25,12 +24,10 @@ public class ArgoWorkflowEventProcessor(
     SaraDbContext context,
     IWorkflowService workflowService,
     IArgoWorkflowClient argoWorkflowClient,
-    IOptions<AnalysisOptions> analysisOptions,
+    AnalysisAndWorkflowDefinitions definitions,
     ILogger<ArgoWorkflowEventProcessor> logger
 ) : IArgoWorkflowEventProcessor
 {
-    private readonly AnalysisOptions _options = analysisOptions.Value;
-
     public async Task HandleWorkflowEventAsync(
         ArgoWorkflowResource resource,
         CancellationToken cancellationToken = default
@@ -314,8 +311,8 @@ public class ArgoWorkflowEventProcessor(
         foreach (var workflow in workflows.OrderBy(candidate => candidate.StepNumber))
         {
             if (
-                !_options.Workflows.TryGetValue(workflow.WorkflowType, out var config)
-                || config.SkipChainIf is null
+                !definitions.Workflows.TryGetValue(workflow.WorkflowType, out var definition)
+                || definition.SkipChainIf is not { } skipRule
                 || workflow.ResultJson is null
             )
             {
@@ -327,17 +324,17 @@ public class ArgoWorkflowEventProcessor(
                 using var result = JsonDocument.Parse(workflow.ResultJson);
                 if (
                     result.RootElement.TryGetProperty(
-                        config.SkipChainIf.ResultJsonKeyToCheckForSkipBoolean,
+                        skipRule.ResultJsonKeyToCheckForSkipBoolean,
                         out var value
                     )
                     && string.Equals(
                         value.ToString(),
-                        config.SkipChainIf.Value,
+                        skipRule.Value,
                         StringComparison.OrdinalIgnoreCase
                     )
                 )
                 {
-                    return $"{workflow.WorkflowType} gate matched: {config.SkipChainIf.ResultJsonKeyToCheckForSkipBoolean}={config.SkipChainIf.Value}";
+                    return $"{workflow.WorkflowType} gate matched: {skipRule.ResultJsonKeyToCheckForSkipBoolean}={skipRule.Value}";
                 }
             }
             catch (JsonException) { }

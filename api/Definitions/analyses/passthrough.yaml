@@ -1,0 +1,7 @@
+name: Passthrough
+
+steps:
+  - id: copy
+    workflow: copy-raw-to-visualized
+    inputs:
+      images: { source: InspectionImages }

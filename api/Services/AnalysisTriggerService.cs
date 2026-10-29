@@ -4,7 +4,6 @@ using api.Database.Models;
 using api.MQTT;
 using api.Utilities;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 
 namespace api.Services;
 
@@ -17,14 +16,12 @@ public interface IAnalysisTriggerService
 
 public class AnalysisTriggerService(
     SaraDbContext context,
-    IOptions<AnalysisOptions> analysisOptions,
+    AnalysisAndWorkflowDefinitions definitions,
     IAnalysisWorkflowService analysisWorkflowService,
     ILogger<AnalysisTriggerService> logger,
     InstallationAccess access
 ) : IAnalysisTriggerService
 {
-    private readonly AnalysisOptions _options = analysisOptions.Value;
-
     public async Task OnInspectionRecordCreated(InspectionRecord inspectionRecord)
     {
         var analysisTypes = inspectionRecord.Analyses.Select((a) => a.AnalysisType).ToList();
@@ -67,8 +64,7 @@ public class AnalysisTriggerService(
         IReadOnlyList<InspectionRecord> inspectionRecords
     )
     {
-        var analysisConfig = _options.Analyses[analysis.AnalysisType];
-        var workflowChain = analysisConfig.Workflows;
+        var workflowChain = GetWorkflowChain(analysis);
 
         if (workflowChain.Count == 0)
         {
@@ -93,6 +89,9 @@ public class AnalysisTriggerService(
         await analysisWorkflowService.BuildAndSubmitAsync(run.Id);
     }
 
+    private List<string> GetWorkflowChain(Analysis analysis) =>
+        [.. definitions.Analyses[analysis.AnalysisType].Steps.Select(step => step.Workflow)];
+
     private async Task<AnalysisRun> CreateAnalysisRun(
         Analysis analysis,
         IReadOnlyList<InspectionRecord> inspectionRecords
@@ -104,8 +103,7 @@ public class AnalysisTriggerService(
         if (analysis.AnalysisGroup != null)
             context.Entry(analysis.AnalysisGroup).State = EntityState.Unchanged;
 
-        var analysisConfig = _options.Analyses[analysis.AnalysisType];
-        var workflowChain = analysisConfig.Workflows;
+        var workflowChain = GetWorkflowChain(analysis);
 
         var nextRunNumber =
             await context
@@ -233,7 +231,7 @@ public class AnalysisTriggerService(
             throw new KeyNotFoundException($"Analysis with id {analysisId} not found");
         }
 
-        if (!_options.Analyses.ContainsKey(analysis.AnalysisType))
+        if (!definitions.Analyses.ContainsKey(analysis.AnalysisType))
         {
             throw new InvalidOperationException(
                 $"Analysis '{analysis.AnalysisType}' is not present in current configuration"

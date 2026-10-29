@@ -1,0 +1,7 @@
+name: Anonymize
+
+steps:
+  - id: anonymize
+    workflow: anonymizer
+    inputs:
+      images: { source: InspectionImages }

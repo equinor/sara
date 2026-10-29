@@ -10,7 +10,7 @@ public class AnalysisDto
     public AnalysisDto(
         Analysis analysis,
         IBlobStorageService blobService,
-        AnalysisOptions analysisOptions
+        AnalysisAndWorkflowDefinitions definitions
     )
     {
         this.Id = analysis.Id;
@@ -33,10 +33,7 @@ public class AnalysisDto
                 .TryCreateReadSasUriAsync(anonymizedWorkflow.OutputBlobStorageLocation)
                 .Result;
 
-        var analysisConfig = analysisOptions.Analyses[analysis.AnalysisType];
-        var workflowChain = analysisConfig.Workflows;
-
-        var lastWorkflowType = workflowChain.Last();
+        var lastWorkflowType = definitions.Analyses[analysis.AnalysisType].Steps.Last().Workflow;
 
         var visualizedWorkflow = workflows
             .Where(w => !w.WorkflowType.Equals("anonymizer", StringComparison.OrdinalIgnoreCase))

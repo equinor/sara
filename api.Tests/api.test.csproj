@@ -38,5 +38,6 @@
     <None Update="appsettings.Test.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="Definitions\**\*.yaml" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

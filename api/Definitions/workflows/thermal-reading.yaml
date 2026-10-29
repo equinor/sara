@@ -1,0 +1,21 @@
+name: thermal-reading
+templateName: thermal-reading-workflow-templates
+
+inputs:
+  images: { type: BlobStorageLocationList }
+  referenceImage: { type: BlobStorageLocation }
+  referencePolygon: { type: Polygon }
+
+outputs:
+  # The input is a TIFF, but the visualized result is a JPEG.
+  result: { fileExtension: .jpg }
+
+arguments:
+  - name: inputBlobStorageLocations
+    input: images
+  - name: outputBlobStorageLocation
+    output: result
+  - name: extras
+    object:
+      referenceImageBlobStorageLocation: { input: referenceImage }
+      referencePolygon: { input: referencePolygon }

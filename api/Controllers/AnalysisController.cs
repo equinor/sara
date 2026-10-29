@@ -4,7 +4,6 @@ using api.Database.Models;
 using api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 
 namespace api.Controllers;
 
@@ -15,7 +14,7 @@ public class AnalysisController(
     IAnalysisService analysisService,
     IAnalysisTriggerService analysisTriggerService,
     IBlobStorageService blobStorageService,
-    IOptions<AnalysisOptions> analysisOptions
+    AnalysisAndWorkflowDefinitions definitions
 ) : ControllerBase
 {
     [HttpGet]
@@ -32,9 +31,7 @@ public class AnalysisController(
         try
         {
             var page = await analysisService.GetAnalyses(parameters);
-            var pageDtos = page.Select(
-                    (p) => new AnalysisDto(p, blobStorageService, analysisOptions.Value)
-                )
+            var pageDtos = page.Select((p) => new AnalysisDto(p, blobStorageService, definitions))
                 .ToList();
             return Ok(
                 new PagedResponse<AnalysisDto>
@@ -71,7 +68,7 @@ public class AnalysisController(
             {
                 return NotFound($"Could not find analysis with id {id}");
             }
-            var analysisDto = new AnalysisDto(analysis, blobStorageService, analysisOptions.Value);
+            var analysisDto = new AnalysisDto(analysis, blobStorageService, definitions);
             return Ok(analysisDto);
         }
         catch (Exception e) when (e is not InstallationAccessException)

@@ -1,0 +1,14 @@
+name: ThermalReading
+
+steps:
+  - id: anonymize
+    workflow: anonymizer
+    inputs:
+      images: { source: InspectionImages }
+
+  - id: measure-temperature
+    workflow: thermal-reading
+    inputs:
+      images: { fromStep: anonymize, output: preprocessedTiff }
+      referenceImage: { source: ReferenceMetadata, field: ReferenceImageBlobStorageLocation }
+      referencePolygon: { source: ReferenceMetadata, field: Polygon }

@@ -3,7 +3,6 @@ using api.Configurations;
 using api.Database.Context;
 using api.Database.Models;
 using api.Utilities;
-using Microsoft.Extensions.Options;
 
 namespace api.Services;
 
@@ -15,191 +14,92 @@ public interface IAnalysisWorkflowGraphBuilder
 /// <summary>Builds the complete Argo DAG for one analysis run.</summary>
 public class AnalysisWorkflowGraphBuilder(
     SaraDbContext context,
-    IOptions<AnalysisOptions> analysisOptions,
-    IEnumerable<ITriggerPayloadEnricher> payloadEnrichers
+    AnalysisAndWorkflowDefinitions definitions,
+    AnalysisPlanner planner
 ) : IAnalysisWorkflowGraphBuilder
 {
     public const string Entrypoint = "analysis-pipeline";
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-    };
-    private readonly AnalysisOptions _options = analysisOptions.Value;
-    private readonly Dictionary<string, ITriggerPayloadEnricher> _enrichersByType =
-        payloadEnrichers.ToDictionary(
-            enricher => enricher.WorkflowType,
-            StringComparer.OrdinalIgnoreCase
-        );
 
     /// <summary>Builds the Argo resource and updates workflow inputs for the caller to persist.</summary>
     public async Task<ArgoWorkflowResource> BuildArgoWorkflowAsync(AnalysisRun run)
-    {
-        var workflows = GetOrderedWorkflows(run);
-        var inspectionRecords = await InspectionRecordResolver.GetInspectionRecords(
-            context,
-            workflows[0]
-        );
-        var requestedOutputs = BuildRequestedOutputs(run, workflows, inspectionRecords);
-        var tasks = await BuildDagTasksAsync(workflows, inspectionRecords, requestedOutputs);
-
-        return BuildArgoWorkflowResource(run, tasks);
-    }
-
-    private static List<Workflow> GetOrderedWorkflows(AnalysisRun run)
     {
         var workflows = run.Workflows.OrderBy(workflow => workflow.StepNumber).ToList();
         if (workflows.Count == 0)
         {
             throw new InvalidOperationException($"Analysis run {run.Id} has no workflows");
         }
-        return workflows;
-    }
 
-    private Dictionary<int, BlobStorageLocation> BuildRequestedOutputs(
-        AnalysisRun run,
-        IReadOnlyList<Workflow> workflows,
-        IReadOnlyList<InspectionRecord> inspectionRecords
-    )
-    {
-        Dictionary<int, BlobStorageLocation> requestedOutputs = [];
-        var currentInputs = workflows[0].InputBlobStorageLocations.ToList();
-        var tag = inspectionRecords[0].Tag ?? "no-tag"; // Assumes all records are for the same tag.
-        var date = run.StartedAt!.Value.ToString("yyyy-MM-dd");
-        var time = run.StartedAt.Value.ToString("HH-mm-ss");
-
-        foreach (var workflow in workflows)
+        if (!definitions.Analyses.TryGetValue(run.Analysis.AnalysisType, out var analysis))
         {
-            var config = GetWorkflowConfig(workflow);
-            if (workflow != workflows[0])
-            {
-                workflow.InputBlobStorageLocations.Clear();
-                workflow.InputBlobStorageLocations.AddRange(
-                    currentInputs.Select(input => input.Clone())
-                );
-            }
-
-            var input = currentInputs[0];
-            var extension = config.OutputFileExtension ?? Path.GetExtension(input.BlobName);
-            var output = new BlobStorageLocation
-            {
-                StorageAccount = config.OutputStorageAccount,
-                BlobContainer = input.BlobContainer,
-                BlobName =
-                    $"{date}/{time}/tag__{tag}__workflowtype__{workflow.WorkflowType}__analysisrunid__{run.Id}{extension}",
-            };
-            requestedOutputs.Add(workflow.StepNumber, output);
-
-            if (!config.IsGate)
-            {
-                currentInputs = [output];
-            }
+            throw new InvalidOperationException(
+                $"Unknown analysis type '{run.Analysis.AnalysisType}', no definition found"
+            );
         }
 
-        return requestedOutputs;
+        if (analysis.Steps.Count != workflows.Count)
+        {
+            throw new InvalidOperationException(
+                $"Analysis run {run.Id} has {workflows.Count} workflows but '{analysis.Name}' defines {analysis.Steps.Count} steps"
+            );
+        }
+
+        var inspectionRecords = await InspectionRecordResolver.GetInspectionRecords(
+            context,
+            workflows[0]
+        );
+        var plannedWorkflowSteps = await planner.PlanAsync(
+            analysis,
+            run.Id,
+            run.StartedAt!.Value,
+            inspectionRecords
+        );
+
+        return BuildArgoWorkflowResource(run, BuildDagTasks(workflows, plannedWorkflowSteps));
     }
 
-    /// <summary>
-    /// Builds the ordered DAG tasks while carrying gate conditions and enriched outputs forward.
-    /// </summary>
-    private async Task<List<ArgoDagTask>> BuildDagTasksAsync(
+    /// <summary>Builds the ordered DAG tasks while carrying gate conditions forward.</summary>
+    private List<ArgoDagTask> BuildDagTasks(
         IReadOnlyList<Workflow> workflows,
-        IReadOnlyList<InspectionRecord> inspectionRecords,
-        IReadOnlyDictionary<int, BlobStorageLocation> requestedOutputs
+        IReadOnlyList<PlannedWorkflowStep> plannedWorkflowSteps
     )
     {
         var gates = new List<(string TaskName, SkipRule Rule)>();
         var tasks = new List<ArgoDagTask>();
-        Dictionary<string, object>? previousExtras = null;
-        Workflow? previousWorkflow = null;
 
-        foreach (var workflow in workflows)
+        foreach (var (workflow, plannedWorkflowStep) in workflows.Zip(plannedWorkflowSteps))
         {
-            var config = GetWorkflowConfig(workflow);
-            var requestedOutput = requestedOutputs[workflow.StepNumber];
-            UseAnonymizerOutputForThermalReading(workflow, previousWorkflow, previousExtras);
+            var definition = plannedWorkflowStep.Definition;
+            var previousTaskName = tasks.LastOrDefault()?.Name;
 
-            var extras = _enrichersByType.TryGetValue(workflow.WorkflowType, out var enricher)
-                ? await enricher.EnrichAsync(workflow, inspectionRecords)
-                : [];
-            var task = BuildDagTask(
-                workflow,
-                config,
-                requestedOutput,
-                extras,
-                inspectionRecords,
-                tasks.LastOrDefault()?.Name,
-                gates
+            workflow.InputBlobStorageLocations.Clear();
+            workflow.InputBlobStorageLocations.AddRange(
+                plannedWorkflowStep.InputBlobStorageLocations
             );
+
+            var task = new ArgoDagTask
+            {
+                Name = GetTaskName(workflow),
+                TemplateRef = new ArgoTemplateRef
+                {
+                    Name = definition.TemplateName,
+                    Template = "main",
+                },
+                Depends = previousTaskName is null
+                    ? null
+                    : $"{previousTaskName}.Succeeded || {previousTaskName}.Skipped || {previousTaskName}.Omitted",
+                When = BuildGateExpression(gates),
+                Arguments = new ArgoArguments { Parameters = plannedWorkflowStep.Parameters },
+            };
             tasks.Add(task);
 
-            if (config.IsGate && config.SkipChainIf is not null)
+            if (definition.SkipChainIf is not null)
             {
-                gates.Add((task.Name, config.SkipChainIf));
+                gates.Add((task.Name, definition.SkipChainIf));
             }
-            previousExtras = extras;
-            previousWorkflow = workflow;
         }
 
         return tasks;
     }
-
-    private WorkflowConfig GetWorkflowConfig(Workflow workflow)
-    {
-        if (!_options.Workflows.TryGetValue(workflow.WorkflowType, out var config))
-        {
-            throw new InvalidOperationException(
-                $"Unknown workflow type '{workflow.WorkflowType}' - not found in configuration"
-            );
-        }
-        return config;
-    }
-
-    /// <summary>
-    /// Replaces thermal-reading input with the TIFF produced by the preceding anonymizer.
-    /// </summary>
-    private static void UseAnonymizerOutputForThermalReading(
-        Workflow workflow,
-        Workflow? previousWorkflow,
-        Dictionary<string, object>? previousExtras
-    )
-    {
-        if (
-            workflow.WorkflowType != "thermal-reading"
-            || previousWorkflow?.WorkflowType != "anonymizer"
-            || previousExtras?.TryGetValue("preProcessedBlobStorageLocation", out var value) != true
-            || value is not BlobStorageLocation preProcessed
-        )
-        {
-            return;
-        }
-
-        workflow.InputBlobStorageLocations.Clear();
-        workflow.InputBlobStorageLocations.Add(preProcessed.Clone());
-    }
-
-    private static ArgoDagTask BuildDagTask(
-        Workflow workflow,
-        WorkflowConfig config,
-        BlobStorageLocation requestedOutput,
-        Dictionary<string, object> extras,
-        IReadOnlyList<InspectionRecord> inspectionRecords,
-        string? previousTaskName,
-        IReadOnlyList<(string TaskName, SkipRule Rule)> gates
-    ) =>
-        new()
-        {
-            Name = GetTaskName(workflow),
-            TemplateRef = new ArgoTemplateRef
-            {
-                Name = config.WorkflowTemplateName,
-                Template = "main",
-            },
-            Depends = previousTaskName is null
-                ? null
-                : $"{previousTaskName}.Succeeded || {previousTaskName}.Skipped || {previousTaskName}.Omitted",
-            When = BuildGateExpression(gates),
-            Arguments = BuildArguments(workflow, requestedOutput, extras, inspectionRecords),
-        };
 
     private static ArgoWorkflowResource BuildArgoWorkflowResource(
         AnalysisRun run,
@@ -245,47 +145,6 @@ public class AnalysisWorkflowGraphBuilder(
                 .ToArray()
         ).Trim('-');
         return normalized.Length > 30 ? normalized[..30].TrimEnd('-') : normalized;
-    }
-
-    private static ArgoParameter Parameter(string name, string value) =>
-        new() { Name = name, Value = value };
-
-    private static ArgoArguments BuildArguments(
-        Workflow workflow,
-        BlobStorageLocation requestedOutput,
-        Dictionary<string, object> extras,
-        IReadOnlyList<InspectionRecord> inspectionRecords
-    )
-    {
-        var parameters = new List<ArgoParameter>
-        {
-            Parameter(
-                "inputBlobStorageLocations",
-                JsonSerializer.Serialize(workflow.InputBlobStorageLocations, JsonOptions)
-            ),
-            Parameter(
-                "outputBlobStorageLocation",
-                JsonSerializer.Serialize(requestedOutput, JsonOptions)
-            ),
-            Parameter("extras", JsonSerializer.Serialize(extras, JsonOptions)),
-        };
-        if (workflow.WorkflowType == "fencilla")
-        {
-            parameters.Add(
-                Parameter(
-                    "inspectionMetadata",
-                    JsonSerializer.Serialize(
-                        inspectionRecords.Select(record => new
-                        {
-                            record.MissionName,
-                            record.InspectionDescription,
-                        }),
-                        JsonOptions
-                    )
-                )
-            );
-        }
-        return new ArgoArguments { Parameters = parameters };
     }
 
     /// <summary>Combines preceding gate outputs into an Argo expression for a DAG task.</summary>

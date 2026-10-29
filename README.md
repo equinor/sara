@@ -23,13 +23,13 @@ When running locally the endpoint is reachable at https://localhost:8100
 - `AnalysisGroup` -- lets a single Analysis span multiple InspectionRecords. 
   The group is buffered until all expected records arrive or 
   `AnalysisGroupTimeoutMinutes` elapses.
-- Workflow chains run sequentially. By default each step's output blob
-  becomes the next step's input; per-workflow rewiring lives in the matching
-  `IWorkflowResultHandler`.
+- Workflow chains run sequentially. Each step's inputs, planned output
+  locations and Argo parameters are wired in YAML under
+  `api/Definitions/` (see "Creating a new workflow"); a step can read the
+  output of any earlier step.
 - The Argo trigger payload has a stable core (`workflowId`,
   `inputBlobStorageLocations`, `outputBlobStorageLocation`) plus an `extras`
-  object populated by `ITriggerPayloadEnricher` implementations matched on
-  workflow type.
+  object built from the workflow definition's `arguments`.
 - The trigger's `outputBlobStorageLocation` is a requested destination, not a
   confirmed upload. Successful workflows report it in their JSON `result` only
   after uploading, with nonblank `storageAccount`, `blobContainer`, and `blobName`
@@ -137,16 +137,20 @@ make format         # CSharpier
 
 ## Creating a new workflow
 
-1. Register the workflow under `Analysis:Workflows` in `appsettings.json`
-   with its `WorkflowTemplateName`, `OutputStorageAccount`, `OutputBlobContainer` and
-   (optionally) `OutputFileExtension`.
-2. Reference it from one or more chains under `Analysis:Analyses`, e.g.
-   `"my-analysis": { "Workflows": ["anonymizer", "my-workflow"] }`.
-3. Add an `IWorkflowResultHandler` in
+1. Add a workflow definition in `api/Definitions/workflows/<name>.yaml`:
+   `templateName`, typed `inputs`, `outputs` (optional `fileExtension`;
+   `naming: InputName` derives the name from the first input) and `arguments`
+   mapping them to the Argo parameters. `skipChainIf` makes it a gate.
+2. Set `Analysis:Workflows:<name>:OutputStorageAccount` for each environment
+   in `appsettings.json`.
+3. Use it in an analysis in `api/Definitions/analyses/<name>.yaml`, binding every
+   input from `InspectionImages`, `InspectionMetadata`, `ReferenceMetadata`
+   (`required: false` to leave it out when missing) or `fromStep`/`output`
+   (a planned output of any earlier step). Add the analysis to
+   `DefaultAnalysisBy...` if it should run by default.
+4. Add an `IWorkflowResultHandler` in
    `api/Services/ResultHandlers/WorkflowResultHandlers/` that matches the
    new workflow type.
-4. If the analyzer needs per-workflow parameters in the Argo Workflow arguments
-   payload, add an `ITriggerPayloadEnricher` that populates `extras`.
 5. Add the matching Argo `WorkflowTemplate` in
    [robotics-infrastructure](https://github.com/equinor/robotics-infrastructure)
    and an analyzer image repo that implements the generic CLI contract

@@ -14,6 +14,7 @@ using Azure.Core;
 using k8s;
 using Microsoft.AspNetCore.Rewrite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -69,40 +70,23 @@ builder
     .Services.AddOptions<AnalysisOptions>()
     .Bind(builder.Configuration.GetSection(AnalysisOptions.SectionName))
     .Validate(
-        options => options.Workflows.Values.All(w => w.IsGate == (w.SkipChainIf is not null)),
-        "Invalid Analysis.Workflows configuration: IsGate and SkipChainIf must both be set or both be unset on every workflow."
-    )
-    .Validate(
-        options =>
-            options.Workflows.Values.All(workflow =>
-                !string.IsNullOrWhiteSpace(workflow.WorkflowTemplateName)
-            ),
-        "Invalid Analysis.Workflows configuration: WorkflowTemplateName is required."
-    )
-    .Validate(
         options =>
             options.Workflows.Values.All(workflow =>
                 !string.IsNullOrWhiteSpace(workflow.OutputStorageAccount)
             ),
         "Invalid Analysis.Workflows configuration: OutputStorageAccount is required and must be set per environment."
     )
-    .Validate(
-        options =>
-            options
-                .Analyses.Values.SelectMany(analysis => analysis.Workflows)
-                .All(options.Workflows.ContainsKey),
-        "Invalid Analysis configuration: every workflow in an analysis chain must exist in Analysis.Workflows."
-    )
-    .Validate(
-        options =>
-            options
-                .DefaultAnalysisByInspectionType.Values.SelectMany(analyses => analyses)
-                .All(options.Analyses.ContainsKey),
-        "Invalid Analysis.DefaultAnalysisByInspectionType configuration: every default analysis must exist in Analysis.Analyses."
-    )
     .ValidateOnStart();
 
 builder.Services.AddScoped<IReferencePolygonMetadataService, ReferencePolygonMetadataService>();
+
+builder.Services.AddSingleton(_ =>
+    AnalysisAndWorkflowDefinitionsLoader.LoadFromDirectories(
+        Path.Combine(AppContext.BaseDirectory, "Definitions", "workflows"),
+        Path.Combine(AppContext.BaseDirectory, "Definitions", "analyses")
+    )
+);
+builder.Services.AddScoped<AnalysisPlanner>();
 
 // Singleton so the delegation key is shared across requests, not refetched per
 // scope. BlobStorageService stays scoped.
@@ -126,10 +110,6 @@ builder.Services.AddSingleton<IKubernetes>(_ => new Kubernetes(
 ));
 builder.Services.AddSingleton<IArgoWorkflowClient, ArgoWorkflowClient>();
 builder.Services.AddScoped<IArgoWorkflowEventProcessor, ArgoWorkflowEventProcessor>();
-builder.Services.AddScoped<ITriggerPayloadEnricher, AnonymizerPayloadEnricher>();
-builder.Services.AddScoped<ITriggerPayloadEnricher, ThermalReadingPayloadEnricher>();
-builder.Services.AddScoped<ITriggerPayloadEnricher, FencillaPayloadEnricher>();
-builder.Services.AddScoped<ITriggerPayloadEnricher, UtilitiesPayloadEnricher>();
 
 // Per-workflow result handlers — fire on each successful Workflow step.
 builder.Services.AddScoped<IWorkflowResultHandler, AnonymizerResultHandler>();
@@ -197,6 +177,19 @@ builder
     .AddFallbackPolicy("RequireAuthenticatedUser", policy => policy.RequireAuthenticatedUser());
 
 var app = builder.Build();
+
+// Resolve once so invalid definitions fail startup instead of the first analysis run.
+var definitions = app.Services.GetRequiredService<AnalysisAndWorkflowDefinitions>();
+var definitionErrors = AnalysisAndWorkflowDefinitionsValidator.ValidateAgainstConfiguration(
+    definitions,
+    app.Services.GetRequiredService<IOptions<AnalysisOptions>>().Value
+);
+if (definitionErrors.Count > 0)
+{
+    throw new InvalidOperationException(
+        "Invalid analysis configuration:\n- " + string.Join("\n- ", definitionErrors)
+    );
+}
 
 string basePath = builder.Configuration["ApiBaseRoute"] ?? "";
 app.UseSwagger(c =>
@@ -282,11 +275,11 @@ app.MapGet(
 
 app.MapGet(
         "/api/config/analyses",
-        (Microsoft.Extensions.Options.IOptions<AnalysisOptions> opts) =>
-            opts.Value.Analyses.Select(kvp => new
+        (AnalysisAndWorkflowDefinitions definitions) =>
+            definitions.Analyses.Values.Select(analysis => new
             {
-                Name = kvp.Key,
-                Workflows = kvp.Value.Workflows,
+                analysis.Name,
+                Workflows = analysis.Steps.Select(step => step.Workflow),
             })
     )
     .RequireAuthorization(InstallationAccess.ObserverPolicy);
