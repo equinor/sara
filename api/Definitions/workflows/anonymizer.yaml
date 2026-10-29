@@ -1,0 +1,19 @@
+name: anonymizer
+templateName: anonymizer-workflow-templates
+
+inputs:
+  images: { type: BlobStorageLocationList }
+
+outputs:
+  anonymizedImage: { fileExtension: .jpg }
+  # Only thermal images produce a TIFF; the anonymizer decides whether to write it.
+  preprocessedTiff: { fileExtension: .tiff, naming: InputName }
+
+arguments:
+  - name: inputBlobStorageLocations
+    input: images
+  - name: outputBlobStorageLocation
+    output: anonymizedImage
+  - name: extras
+    object:
+      preProcessedBlobStorageLocation: { output: preprocessedTiff }

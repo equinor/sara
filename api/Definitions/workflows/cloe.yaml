@@ -1,0 +1,16 @@
+name: cloe
+templateName: cloe-workflow-templates
+
+inputs:
+  images: { type: BlobStorageLocationList }
+
+outputs:
+  result: {}
+
+arguments:
+  - name: inputBlobStorageLocations
+    input: images
+  - name: outputBlobStorageLocation
+    output: result
+  - name: extras
+    object: {}

@@ -98,6 +98,7 @@ public class InspectionRecordService(
     SaraDbContext context,
     IAnalysisTriggerService analysisTriggerService,
     IOptions<AnalysisOptions> analysisOptions,
+    AnalysisAndWorkflowDefinitions definitions,
     ILogger<InspectionRecordService> logger,
     InstallationAccess access
 ) : IInspectionRecordService
@@ -637,11 +638,11 @@ public class InspectionRecordService(
     )
     {
         var analysisType = analysisName.ToString();
-        if (!_analysisOptions.Analyses.ContainsKey(analysisType))
+        if (!definitions.Analyses.ContainsKey(analysisType))
         {
             throw new InvalidOperationException(
                 $"Unknown analysis '{analysisType}'. Valid analyses are: "
-                    + string.Join(", ", _analysisOptions.Analyses.Keys)
+                    + string.Join(", ", definitions.Analyses.Keys)
             );
         }
 

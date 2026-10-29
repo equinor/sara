@@ -7,7 +7,6 @@ using api.Utilities;
 using Azure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 
 namespace api.Controllers;
 
@@ -18,7 +17,7 @@ public class InspectionRecordController(
     IInspectionRecordService inspectionRecordService,
     IThermalImageService thermalImageService,
     IBlobStorageService blobStorageService,
-    IOptions<AnalysisOptions> analysisOptions
+    AnalysisAndWorkflowDefinitions definitions
 ) : ControllerBase
 {
     // Workflow types whose output forms the visualization base layer for an
@@ -47,8 +46,7 @@ public class InspectionRecordController(
             var page = await inspectionRecordService.GetInspectionRecords(parameters);
 
             var pageDtos = page.Select(
-                    (record) =>
-                        new InspectionRecordDto(record, blobStorageService, analysisOptions.Value)
+                    (record) => new InspectionRecordDto(record, blobStorageService, definitions)
                 )
                 .ToList();
 
@@ -112,11 +110,7 @@ public class InspectionRecordController(
             {
                 return NotFound($"Could not find inspection record with id {id}");
             }
-            var recordDto = new InspectionRecordDto(
-                record,
-                blobStorageService,
-                analysisOptions.Value
-            );
+            var recordDto = new InspectionRecordDto(record, blobStorageService, definitions);
             return Ok(recordDto);
         }
         catch (Exception e) when (e is not InstallationAccessException)
@@ -148,11 +142,7 @@ public class InspectionRecordController(
                     $"Could not find inspection record with inspection id {inspectionId}"
                 );
             }
-            var recordDto = new InspectionRecordDto(
-                record,
-                blobStorageService,
-                analysisOptions.Value
-            );
+            var recordDto = new InspectionRecordDto(record, blobStorageService, definitions);
             return Ok(recordDto);
         }
         catch (Exception e) when (e is not InstallationAccessException)

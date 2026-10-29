@@ -15,7 +15,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
 
 namespace Api.Test;
 
@@ -47,14 +46,13 @@ public class TestWebApplicationFactory<TProgram>(
     public BlobStorageServiceMock BlobStorageService { get; } = new();
 
     /// <summary>
-    /// Returns the configured Argo WorkflowTemplate for the given workflow type.
+    /// Returns the Argo WorkflowTemplate name defined for the given workflow type.
     /// </summary>
-    public string WorkflowTemplateNameFor(string workflowType)
-    {
-        using var scope = Services.CreateScope();
-        var options = scope.ServiceProvider.GetRequiredService<IOptions<AnalysisOptions>>().Value;
-        return options.Workflows[workflowType].WorkflowTemplateName;
-    }
+    public string WorkflowTemplateNameFor(string workflowType) =>
+        Services
+            .GetRequiredService<AnalysisAndWorkflowDefinitions>()
+            .Workflows[workflowType]
+            .TemplateName;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {

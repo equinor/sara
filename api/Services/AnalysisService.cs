@@ -3,7 +3,6 @@ using api.Database.Context;
 using api.Database.Models;
 using api.Utilities;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 
 namespace api.Services;
 
@@ -29,12 +28,10 @@ public class AnalysisParameters
 
 public class AnalysisService(
     SaraDbContext context,
-    IOptions<AnalysisOptions> analysisOptions,
+    AnalysisAndWorkflowDefinitions definitions,
     InstallationAccess access
 ) : IAnalysisService
 {
-    private readonly AnalysisOptions _analysisOptions = analysisOptions.Value;
-
     public async Task<Analysis?> ReadById(Guid id)
     {
         var analysis = await access
@@ -117,6 +114,6 @@ public class AnalysisService(
 
     public Task<List<string>> GetAvailableAnalyses()
     {
-        return Task.FromResult(_analysisOptions.Analyses.Keys.ToList());
+        return Task.FromResult(definitions.Analyses.Keys.ToList());
     }
 }

@@ -1,0 +1,16 @@
+name: test-workflow-1
+templateName: test-1
+
+inputs:
+  images: { type: BlobStorageLocationList }
+
+outputs:
+  result: { fileExtension: .json }
+
+arguments:
+  - name: inputBlobStorageLocations
+    input: images
+  - name: outputBlobStorageLocation
+    output: result
+  - name: extras
+    object: {}

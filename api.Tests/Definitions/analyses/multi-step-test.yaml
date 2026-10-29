@@ -1,0 +1,12 @@
+name: multi-step-test
+
+steps:
+  - id: first
+    workflow: test-workflow-1
+    inputs:
+      images: { source: InspectionImages }
+
+  - id: second
+    workflow: test-workflow-2
+    inputs:
+      images: { fromStep: first, output: result }

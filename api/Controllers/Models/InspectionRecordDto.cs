@@ -7,7 +7,7 @@ namespace api.Controllers.Models;
 public class InspectionRecordDto(
     InspectionRecord record,
     IBlobStorageService blobService,
-    AnalysisOptions analysisOptions
+    AnalysisAndWorkflowDefinitions definitions
 )
 {
     public Guid Id { get; set; } = record.Id;
@@ -21,7 +21,7 @@ public class InspectionRecordDto(
     public Position? TargetPosition { get; set; } = record.TargetPosition;
     public Pose? RobotPose { get; set; } = record.RobotPose;
     public List<AnalysisDto> Analyses { get; set; } =
-    [.. record.Analyses.Select((a) => new AnalysisDto(a, blobService, analysisOptions))];
+    [.. record.Analyses.Select((a) => new AnalysisDto(a, blobService, definitions))];
     public string? InspectionDescription { get; set; } = record.InspectionDescription;
     public string? MissionName { get; set; } = record.MissionName;
     public string? RobotName { get; set; } = record.RobotName;

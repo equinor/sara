@@ -62,6 +62,10 @@ public class MqttDuplicateTests : IAsyncLifetime
             context,
             Mock.Of<IAnalysisTriggerService>(),
             Options.Create(new AnalysisOptions()),
+            new AnalysisAndWorkflowDefinitions(
+                new Dictionary<string, WorkflowDefinition>(),
+                new Dictionary<string, AnalysisDefinition>()
+            ),
             NullLogger<InspectionRecordService>.Instance,
             new InstallationAccess(
                 new HttpContextAccessor(),

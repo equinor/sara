@@ -1,0 +1,17 @@
+name: multi-step-gated-test
+
+steps:
+  - id: first
+    workflow: test-workflow-1
+    inputs:
+      images: { source: InspectionImages }
+
+  - id: gate
+    workflow: test-gate
+    inputs:
+      images: { fromStep: first, output: result }
+
+  - id: third
+    workflow: test-workflow-2
+    inputs:
+      images: { fromStep: first, output: result }

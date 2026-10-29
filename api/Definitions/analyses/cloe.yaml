@@ -1,0 +1,17 @@
+name: CLOE
+
+steps:
+  - id: anonymize
+    workflow: anonymizer
+    inputs:
+      images: { source: InspectionImages }
+
+  - id: check-rain
+    workflow: rain-drop
+    inputs:
+      images: { fromStep: anonymize, output: anonymizedImage }
+
+  - id: measure-level
+    workflow: cloe
+    inputs:
+      images: { fromStep: anonymize, output: anonymizedImage }

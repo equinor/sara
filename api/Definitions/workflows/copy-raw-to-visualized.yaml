@@ -1,0 +1,17 @@
+name: copy-raw-to-visualized
+templateName: utilities-workflow-templates
+
+inputs:
+  images: { type: BlobStorageLocationList }
+
+outputs:
+  result: {}
+
+arguments:
+  - name: inputBlobStorageLocations
+    input: images
+  - name: outputBlobStorageLocation
+    output: result
+  - name: extras
+    object:
+      operation: { value: copy-raw-to-visualized }

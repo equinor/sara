@@ -1,0 +1,19 @@
+name: rain-drop
+templateName: rain-drop-detector-workflow-templates
+
+inputs:
+  images: { type: BlobStorageLocationList }
+
+outputs:
+  result: { fileExtension: .json }
+
+# Gate: the rest of the chain is skipped when the result reports rain.
+skipChainIf: { resultJsonKeyToCheckForSkipBoolean: rain, value: "true" }
+
+arguments:
+  - name: inputBlobStorageLocations
+    input: images
+  - name: outputBlobStorageLocation
+    output: result
+  - name: extras
+    object: {}

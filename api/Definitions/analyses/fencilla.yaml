@@ -1,0 +1,22 @@
+name: Fencilla
+
+steps:
+  - id: anonymize
+    workflow: anonymizer
+    inputs:
+      images: { source: InspectionImages }
+
+  - id: check-rain
+    workflow: rain-drop
+    inputs:
+      images: { fromStep: anonymize, output: anonymizedImage }
+
+  - id: detect-fence
+    workflow: fencilla
+    inputs:
+      images: { fromStep: anonymize, output: anonymizedImage }
+      # Not every fencilla tag has reference metadata.
+      referenceImage:
+        { source: ReferenceMetadata, field: ReferenceImageBlobStorageLocation, required: false }
+      referencePolygon: { source: ReferenceMetadata, field: Polygon, required: false }
+      inspectionMetadata: { source: InspectionMetadata }

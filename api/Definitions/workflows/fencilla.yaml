@@ -1,0 +1,23 @@
+name: fencilla
+templateName: fencilla-workflow-templates
+
+inputs:
+  images: { type: BlobStorageLocationList }
+  referenceImage: { type: BlobStorageLocation }
+  referencePolygon: { type: Polygon }
+  inspectionMetadata: { type: InspectionMetadataList }
+
+outputs:
+  result: {}
+
+arguments:
+  - name: inputBlobStorageLocations
+    input: images
+  - name: outputBlobStorageLocation
+    output: result
+  - name: extras
+    object:
+      referenceImageBlobStorageLocation: { input: referenceImage }
+      referencePolygon: { input: referencePolygon }
+  - name: inspectionMetadata
+    input: inspectionMetadata
