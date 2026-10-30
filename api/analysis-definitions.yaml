@@ -1,0 +1,104 @@
+# Analysis chains and the Argo workflows they run. Loaded as the lowest-precedence
+# configuration source, so appsettings, environment variables and Key Vault override it.
+# Output StorageAccount names a key in the Storage section, e.g. Storage__VisStorageAccount.
+#
+# Every workflow receives inputBlobStorageLocations, outputBlobStorageLocation (its `result`
+# output) and `extras`. Extras are the members of that extras object (the analyzer's --extras);
+# Parameters are additional top-level Argo parameters. Both are inputs to the workflow, and each
+# value is one of Output (a planned location of this workflow's outputs), Source or Value.
+
+Analysis:
+  Analyses:
+    Anonymize:
+      Steps:
+        - Workflow: anonymizer
+    Fencilla:
+      Steps:
+        - Workflow: anonymizer
+        - Workflow: rain-drop
+        - Workflow: fencilla
+    CLOE:
+      Steps:
+        - Workflow: anonymizer
+        - Workflow: rain-drop
+        - Workflow: cloe
+    ThermalReading:
+      Steps:
+        - Workflow: anonymizer
+        - Workflow: thermal-reading
+          Input: anonymizer.tiff
+    Passthrough:
+      Steps:
+        - Workflow: copy-raw-to-visualized
+
+  Workflows:
+    anonymizer:
+      Template: anonymizer-workflow-templates
+      Outputs:
+        result:
+          StorageAccount: AnonStorageAccount
+          Extension: .jpg
+        # Only thermal images produce a TIFF; the anonymizer decides whether to write it.
+        tiff:
+          StorageAccount: AnonStorageAccount
+          Extension: .tiff
+          KeepInputName: true
+      Extras:
+        preProcessedBlobStorageLocation:
+          Output: tiff
+
+    rain-drop:
+      Template: rain-drop-detector-workflow-templates
+      Outputs:
+        result:
+          StorageAccount: VisStorageAccount
+          Extension: .json
+      SkipChainIf:
+        ResultJsonKeyToCheckForSkipBoolean: rain
+        Value: "true"
+
+    fencilla:
+      Template: fencilla-workflow-templates
+      Outputs:
+        result:
+          StorageAccount: VisStorageAccount
+      Extras:
+        # Not every fencilla tag has reference metadata.
+        referenceImageBlobStorageLocation:
+          Source: ReferenceImage
+          Optional: true
+        referencePolygon:
+          Source: ReferencePolygon
+          Optional: true
+      # Unused by fencilla but still required by its template; remove once the template drops it.
+      Parameters:
+        inspectionMetadata:
+          Source: InspectionMetadata
+
+    cloe:
+      Template: cloe-workflow-templates
+      Outputs:
+        result:
+          StorageAccount: VisStorageAccount
+
+    thermal-reading:
+      Template: thermal-reading-workflow-templates
+      Outputs:
+        result:
+          StorageAccount: VisStorageAccount
+          Extension: .jpg
+      Extras:
+        referenceImageBlobStorageLocation:
+          Source: ReferenceImage
+        referencePolygon:
+          Source: ReferencePolygon
+
+    copy-raw-to-visualized:
+      Template: utilities-workflow-templates
+      Outputs:
+        # Deployed environments write the copy to the anonymized account.
+        result:
+          StorageAccount: AnonStorageAccount
+      Extras:
+        operation:
+          Value: copy-raw-to-visualized

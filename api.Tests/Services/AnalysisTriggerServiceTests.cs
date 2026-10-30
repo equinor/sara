@@ -138,6 +138,28 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task OnInspectionRecordCreated_ThermalReading_StoresAnonymizerTiffAsThermalInput()
+    {
+        await _db.NewReferencePolygonMetadata("TST", "test-tag", "Spot 1");
+        var analysis = await _db.NewAnalysis(type: "ThermalReading");
+        var record = await _db.NewInspectionRecord(
+            analyses: [analysis],
+            blobContainer: "raw-container",
+            blobName: "raw.jpg",
+            tag: "test-tag",
+            inspectionDescription: "Spot 1"
+        );
+
+        await OnInspectionRecordCreatedInScope(record);
+
+        var run = (await LoadAnalysisByNameAsync("ThermalReading")).Runs.Single();
+        var thermalInput = Assert.Single(
+            run.Workflows.Single(w => w.WorkflowType == "thermal-reading").InputBlobStorageLocations
+        );
+        Assert.Equal("anonstore/raw-container/raw.tiff", thermalInput.ToString());
+    }
+
+    [Fact]
     public async Task OnInspectionRecordCreated_MultiStepChain_SubmitsOneArgoDag()
     {
         const string analysisName = "multi-step-test";
@@ -212,7 +234,7 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
 
         var task = Assert
             .Single(_factory.ArgoWorkflowClient.Requests)
-            .Tasks.Single(candidate => candidate.TemplateRef.Name == "fencilla");
+            .Tasks.Single(candidate => candidate.TemplateRef.Name == "fencilla-workflow-templates");
         Assert.Equal(
             [
                 "extras",
