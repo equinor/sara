@@ -173,6 +173,14 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
             request.Tasks.Select(task => task.TemplateRef.Name)
         );
         Assert.All(request.Tasks, task => Assert.Equal("main", task.TemplateRef.Template));
+        Assert.All(
+            request.Tasks,
+            task =>
+                Assert.Equal(
+                    ["extras", "inputBlobStorageLocations", "outputBlobStorageLocation"],
+                    task.Arguments.Parameters.Select(parameter => parameter.Name).Order()
+                )
+        );
         Assert.Null(request.Tasks[0].Depends);
         Assert.Contains(request.Tasks[0].Name, request.Tasks[1].Depends);
         var argoNames = await _context
@@ -195,40 +203,6 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
         Assert.Matches("^test-workflow-1-[0-9a-f]{32}$", tasks[0].Name);
         Assert.Matches("^test-gate-[0-9a-f]{32}$", tasks[1].Name);
         Assert.Matches("^test-workflow-2-[0-9a-f]{32}$", tasks[2].Name);
-    }
-
-    [Fact]
-    public async Task OnInspectionRecordCreated_FencillaTaskPassesInspectionMetadata()
-    {
-        var analysis = await _db.NewAnalysis(type: "Fencilla");
-        var record = await _db.NewInspectionRecord(
-            analyses: [analysis],
-            tag: "test-tag",
-            missionName: "Perimeterrunde - Nordsiden",
-            inspectionDescription: "Perimeter 1"
-        );
-
-        await OnInspectionRecordCreatedInScope(record);
-
-        var task = Assert
-            .Single(_factory.ArgoWorkflowClient.Requests)
-            .Tasks.Single(candidate => candidate.TemplateRef.Name == "fencilla");
-        Assert.Equal(
-            [
-                "extras",
-                "inputBlobStorageLocations",
-                "inspectionMetadata",
-                "outputBlobStorageLocation",
-            ],
-            task.Arguments.Parameters.Select(parameter => parameter.Name).Order()
-        );
-        var metadataJson = task
-            .Arguments.Parameters.Single(parameter => parameter.Name == "inspectionMetadata")
-            .Value;
-        using var metadata = JsonDocument.Parse(metadataJson!);
-        var item = Assert.Single(metadata.RootElement.EnumerateArray());
-        Assert.Equal("Perimeterrunde - Nordsiden", item.GetProperty("missionName").GetString());
-        Assert.Equal("Perimeter 1", item.GetProperty("inspectionDescription").GetString());
     }
 
     [Fact]
