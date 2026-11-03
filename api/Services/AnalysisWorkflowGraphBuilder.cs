@@ -126,7 +126,6 @@ public class AnalysisWorkflowGraphBuilder(
                 config,
                 requestedOutput,
                 extras,
-                inspectionRecords,
                 tasks.LastOrDefault()?.Name,
                 gates
             );
@@ -182,7 +181,6 @@ public class AnalysisWorkflowGraphBuilder(
         WorkflowConfig config,
         BlobStorageLocation requestedOutput,
         Dictionary<string, object> extras,
-        IReadOnlyList<InspectionRecord> inspectionRecords,
         string? previousTaskName,
         IReadOnlyList<(string TaskName, SkipRule Rule)> gates
     ) =>
@@ -198,7 +196,7 @@ public class AnalysisWorkflowGraphBuilder(
                 ? null
                 : $"{previousTaskName}.Succeeded || {previousTaskName}.Skipped || {previousTaskName}.Omitted",
             When = BuildGateExpression(gates),
-            Arguments = BuildArguments(workflow, requestedOutput, extras, inspectionRecords),
+            Arguments = BuildArguments(workflow, requestedOutput, extras),
         };
 
     private static ArgoWorkflowResource BuildArgoWorkflowResource(
@@ -253,8 +251,7 @@ public class AnalysisWorkflowGraphBuilder(
     private static ArgoArguments BuildArguments(
         Workflow workflow,
         BlobStorageLocation requestedOutput,
-        Dictionary<string, object> extras,
-        IReadOnlyList<InspectionRecord> inspectionRecords
+        Dictionary<string, object> extras
     )
     {
         var parameters = new List<ArgoParameter>
@@ -269,22 +266,6 @@ public class AnalysisWorkflowGraphBuilder(
             ),
             Parameter("extras", JsonSerializer.Serialize(extras, JsonOptions)),
         };
-        if (workflow.WorkflowType == "fencilla")
-        {
-            parameters.Add(
-                Parameter(
-                    "inspectionMetadata",
-                    JsonSerializer.Serialize(
-                        inspectionRecords.Select(record => new
-                        {
-                            record.MissionName,
-                            record.InspectionDescription,
-                        }),
-                        JsonOptions
-                    )
-                )
-            );
-        }
         return new ArgoArguments { Parameters = parameters };
     }
 
