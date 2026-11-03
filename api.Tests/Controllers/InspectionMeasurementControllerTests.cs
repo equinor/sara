@@ -40,17 +40,20 @@ public class InspectionMeasurementControllerTests : IAsyncLifetime
         await _container.DisposeAsync();
     }
 
-    [Fact]
-    public async Task GetMeasurement_ReturnsValueAndUnit()
+    [Theory]
+    [InlineData("""{"value":412.5,"unit":"ppm"}""", null)]
+    [InlineData("""{"value":412.5,"unit":"ppm","decimal_places":1}""", 1)]
+    [InlineData("""{"value":412.5,"unit":"ppm","decimal_places":-1}""", null)]
+    public async Task GetMeasurement_ReturnsValueAndUnit(string blobContent, int? decimalPlaces)
     {
-        _factory.BlobStorageService.BlobContent = """{"value":412.5,"unit":"ppm"}""";
+        _factory.BlobStorageService.BlobContent = blobContent;
 
         var measurement = await _client.GetFromJsonAsync<InspectionMeasurementDto>(
             _measurementUrl,
             TestContext.Current.CancellationToken
         );
 
-        Assert.Equal(new InspectionMeasurementDto(412.5, "ppm"), measurement);
+        Assert.Equal(new InspectionMeasurementDto(412.5, "ppm", decimalPlaces), measurement);
     }
 
     [Fact]

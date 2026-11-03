@@ -497,7 +497,15 @@ public class InspectionRecordController(
         if (!root.TryGetProperty("unit", out var unit) || unit.ValueKind != JsonValueKind.String)
             throw new JsonException("Expected a string unit");
 
-        return new InspectionMeasurementDto(number, unit.GetString()!);
+        int? decimalPlaces =
+            root.TryGetProperty("decimal_places", out var places)
+            && places.ValueKind == JsonValueKind.Number
+            && places.TryGetInt32(out var parsedPlaces)
+            && parsedPlaces >= 0
+                ? parsedPlaces
+                : null;
+
+        return new InspectionMeasurementDto(number, unit.GetString()!, decimalPlaces);
     }
 
     private static BlobStorageLocation? FindLatestWorkflowInputBlobLocation(
