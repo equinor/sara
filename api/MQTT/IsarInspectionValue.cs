@@ -37,6 +37,9 @@ public class IsarInspectionValueMessage : MqttMessage
     [JsonPropertyName("unit")]
     public string Unit { get; set; }
 
+    [JsonPropertyName("decimal_places")]
+    public int? DecimalPlaces { get; set; }
+
     [JsonPropertyName("x")]
     public float X { get; set; }
 

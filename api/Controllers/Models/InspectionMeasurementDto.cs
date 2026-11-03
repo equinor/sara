@@ -1,3 +1,3 @@
 namespace api.Controllers.Models;
 
-public record InspectionMeasurementDto(double Value, string Unit);
+public record InspectionMeasurementDto(double Value, string Unit, int? DecimalPlaces);
