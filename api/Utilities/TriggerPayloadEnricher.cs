@@ -92,8 +92,8 @@ public class ThermalReadingPayloadEnricher(
             var errorMessage =
                 $"Could not find thermal reference metadata for installationCode '{inspectionRecord.InstallationCode}', "
                 + $"tagId '{inspectionRecord.Tag}', inspectionDescription '{inspectionRecord.InspectionDescription}'";
-            logger.LogError(errorMessage);
-            throw new InvalidOperationException(errorMessage);
+            logger.LogWarning(errorMessage);
+            return [];
         }
 
         return new Dictionary<string, object>
