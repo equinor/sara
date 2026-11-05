@@ -111,7 +111,7 @@ public class ThermalReadingPayloadEnricherTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task EnrichAsync_NoMatchingMetadata_Throws()
+    public async Task EnrichAsync_NoMatchingMetadata_ReturnsEmptyPayload()
     {
         var record = await _db.NewInspectionRecord(
             installationCode: "HUA",
@@ -125,8 +125,8 @@ public class ThermalReadingPayloadEnricherTests : IAsyncLifetime
         using var scope = _factory.Services.CreateScope();
         var enricher = ResolveEnricher(scope);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            enricher.EnrichAsync(workflow, [record])
-        );
+        var result = await enricher.EnrichAsync(workflow, [record]);
+
+        Assert.Empty(result);
     }
 }
