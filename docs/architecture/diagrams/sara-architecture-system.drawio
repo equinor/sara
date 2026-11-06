@@ -1,0 +1,319 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="Electron">
+  <diagram id="sara-architecture-system" name="SARA | System context and data flows">
+    <mxGraphModel dx="3334" dy="1402" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1900" pageHeight="1490" background="#ffffff" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=28;fontColor=#334E68;fontStyle=1;" value="SARA | System context and data flows" vertex="1">
+          <mxGeometry height="45" width="1800" x="50" y="25" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" parent="1" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=14;fontColor=#52667A;fontStyle=0;" value="Application boundaries and integration paths. Arrows label the interaction; not every response is drawn." vertex="1">
+          <mxGeometry height="36" width="1800" x="50" y="78" as="geometry" />
+        </mxCell>
+        <mxCell id="supporting" parent="1" style="swimlane;html=1;startSize=40;rounded=1;arcSize=8;collapsible=0;fillColor=#F5F7FA;swimlaneFillColor=#FFFFFF;strokeColor=#B6C2CE;fontColor=#334E68;fontFamily=Helvetica;fontSize=14;fontStyle=1;dashed=1;" value="SUPPORTING DEPENDENCIES - not inspection-data flow" vertex="1">
+          <mxGeometry height="125" width="1790" x="50" y="130" as="geometry" />
+        </mxCell>
+        <object label="&lt;b&gt;Microsoft Entra ID&lt;/b&gt;&lt;br&gt;Browser sign-in; API JWT validation + installation-role filters.&lt;br&gt;Generic OIDC is available for local/test API authentication." source="sara/api/Configurations/AuthenticationConfigurations.cs&#10;sara/api/Services/InstallationAccess.cs&#10;sara/frontend/src/api/client.ts&#10;flotilla/frontend/src/api/UseSaraApi.tsx" evidence="Verified from working-copy implementation; see sara-architecture-evidence.json" id="identity">
+          <mxCell parent="1" style="rounded=1;arcSize=5;whiteSpace=wrap;html=1;align=left;verticalAlign=middle;fillColor=#F5F7FA;strokeColor=#B6C2CE;fontColor=#334E68;fontFamily=Helvetica;fontSize=13;spacing=14;" vertex="1">
+            <mxGeometry height="60" width="850" x="70" y="180" as="geometry" />
+          </mxCell>
+        </object>
+        <object label="&lt;b&gt;Azure Key Vault / runtime credentials&lt;/b&gt;&lt;br&gt;SARA loads Key Vault configuration when enabled.&lt;br&gt;Azure service credentials are separate from browser sign-in." source="sara/api/Program.cs&#10;sara/api/Configurations/CustomServiceConfigurations.cs" evidence="Verified from working-copy implementation; see sara-architecture-evidence.json" id="keyvault">
+          <mxCell parent="1" style="rounded=1;arcSize=5;whiteSpace=wrap;html=1;align=left;verticalAlign=middle;fillColor=#F5F7FA;strokeColor=#B6C2CE;fontColor=#334E68;fontFamily=Helvetica;fontSize=13;spacing=14;" vertex="1">
+            <mxGeometry height="60" width="870" x="950" y="180" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="execution" parent="1" style="swimlane;html=1;startSize=40;rounded=1;arcSize=8;collapsible=0;fillColor=#FFF5E8;swimlaneFillColor=#FFFFFF;strokeColor=#D99A57;fontColor=#793E13;fontFamily=Helvetica;fontSize=14;fontStyle=1;dashed=1;" value="KUBERNETES / ARGO WORKFLOWS" vertex="1">
+          <mxGeometry height="510" width="520" x="1320" y="490" as="geometry" />
+        </mxCell>
+        <object label="&lt;b&gt;ISAR&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:13px&quot;&gt;Uploads inspection data&lt;br&gt;then publishes metadata&lt;/font&gt;" source="isar/src/isar/storage/uploader.py" evidence="Verified from working-copy implementation; see sara-architecture-evidence.json" id="isar">
+          <mxCell parent="1" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#8FABCD;strokeWidth=1.5;fontColor=#173653;fontFamily=Helvetica;fontSize=18;spacingLeft=10;spacingRight=10;spacingTop=7;spacingBottom=7;" vertex="1">
+            <mxGeometry height="130" width="250" x="50" y="550" as="geometry" />
+          </mxCell>
+        </object>
+        <object label="&lt;b&gt;MQTT broker&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:13px&quot;&gt;Inspection events&lt;br&gt;Availability notifications&lt;/font&gt;" source="sara/api/appsettings.json&#10;sara/api/MQTT/MqttPublisher.cs&#10;flotilla/backend/api/MQTT/MqttTopics.cs" evidence="Verified from working-copy implementation; see sara-architecture-evidence.json" id="mqtt">
+          <mxCell parent="1" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#8FABCD;strokeWidth=1.5;fontColor=#173653;fontFamily=Helvetica;fontSize=18;spacingLeft=10;spacingRight=10;spacingTop=7;spacingBottom=7;" vertex="1">
+            <mxGeometry height="130" width="280" x="430" y="550" as="geometry" />
+          </mxCell>
+        </object>
+        <object label="&lt;b&gt;SARA API&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:13px&quot;&gt;Index and query inspections&lt;br&gt;Build analysis DAGs&lt;br&gt;Reconcile node results&lt;/font&gt;" source="sara/api/Program.cs&#10;sara/api/Services/InspectionRecordService.cs&#10;sara/api/Services/AnalysisWorkflowGraphBuilder.cs&#10;sara/api/Services/ArgoWorkflowEventProcessor.cs" evidence="Verified from working-copy implementation; see sara-architecture-evidence.json" id="sara-api">
+          <mxCell parent="1" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#E0F2F1;strokeColor=#198A83;strokeWidth=1.5;fontColor=#104C49;fontFamily=Helvetica;fontSize=18;spacingLeft=10;spacingRight=10;spacingTop=7;spacingBottom=7;" vertex="1">
+            <mxGeometry height="130" width="300" x="850" y="550" as="geometry" />
+          </mxCell>
+        </object>
+        <object label="&lt;b&gt;SARA frontend&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:13px&quot;&gt;React + MSAL&lt;br&gt;Inspect / create / rerun&lt;br&gt;Feedback / reference data&lt;br&gt;Downloads via read SAS&lt;/font&gt;" source="sara/frontend/src/api/client.ts&#10;sara/api/Program.cs" evidence="Verified from working-copy implementation; see sara-architecture-evidence.json" id="sara-ui">
+          <mxCell parent="1" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#E0F2F1;strokeColor=#198A83;strokeWidth=1.5;fontColor=#104C49;fontFamily=Helvetica;fontSize=18;spacingLeft=10;spacingRight=10;spacingTop=7;spacingBottom=7;" vertex="1">
+            <mxGeometry height="120" width="300" x="850" y="300" as="geometry" />
+          </mxCell>
+        </object>
+        <object label="&lt;b&gt;Argo Workflows&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:13px&quot;&gt;Workflow CRs + controller&lt;br&gt;One DAG per analysis run&lt;br&gt;Kubernetes API; no HTTP callback&lt;/font&gt;" source="sara/api/Services/AnalysisWorkflowGraphBuilder.cs&#10;sara/api/Services/ArgoWorkflowClient.cs&#10;sara/api/Services/AnalysisWorkflowService.cs" evidence="Verified from working-copy implementation; see sara-architecture-evidence.json" id="argo">
+          <mxCell parent="1" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#FFF5E8;strokeColor=#D99A57;strokeWidth=1.5;fontColor=#793E13;fontFamily=Helvetica;fontSize=18;spacingLeft=60;spacingRight=10;spacingTop=7;spacingBottom=7;" vertex="1">
+            <mxGeometry height="130" width="400" x="1380" y="550" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="argo-icon" assetSource="https://github.com/cncf/artwork/tree/main/projects/argo" assetUsage="CNCF Argo project artwork; Linux Foundation trademark policy applies. Not the Argo CD mascot." parent="argo" style="shape=image;imageAspect=1;aspect=fixed;image=data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20xmlns%3Axlink%3D%22http%3A%2F%2Fwww.w3.org%2F1999%2Fxlink%22%20fill%3D%22none%22%20viewBox%3D%220%200%20581%20747%22%3E%0A%20%20%3Cpath%20id%3D%22a%22%20fill%3D%22%23fff%22%20d%3D%22M336.76%20437.61c0%2028.31-18.83%2043.36-49.29%2043.36-30.45%200-47.2-17.84-47.2-43.36%200%200%2016.75%2023.65%2047.2%2023.65%2030.46%200%2049.3-23.65%2049.3-23.65Z%22%2F%3E%0A%20%20%3Cpath%20fill%3D%22%23E2F5FC%22%20d%3D%22M290.5%20547.98c148.47%200%20268.84-120.45%20268.84-269.04%200-148.58-120.37-269.03-268.84-269.03-148.47%200-268.84%20120.45-268.84%20269.03%200%20148.59%20120.37%20269.04%20268.84%20269.04Z%22%2F%3E%0A%20%20%3Cpath%20fill%3D%22%23CDECF6%22%20d%3D%22M290.5%20504.04c121.36%200%20219.74-98.45%20219.74-219.9S411.86%2064.24%20290.5%2064.24c-121.36%200-219.74%2098.45-219.74%20219.9s98.38%20219.9%20219.74%20219.9Z%22%2F%3E%0A%20%20%3Cpath%20fill%3D%22%23fff%22%20d%3D%22M208.31%2091.51a12.98%2012.98%200%201%200%200-25.96%2012.98%2012.98%200%200%200%200%2025.96Zm-96.57%20325.82a4.5%204.5%200%201%200%207.08-5.54c-87.8-112.21-37.15-257.65%2062.5-314.74a4.5%204.5%200%200%200-4.47-7.8C73.23%20148.6%2020.03%20300.12%20111.74%20417.33Z%22%2F%3E%0A%20%20%3Cpath%20fill%3D%22%23B5D2F3%22%20d%3D%22M19.26%20225.54a3.5%203.5%200%201%200-7%200h7Zm-7%20105.38a3.5%203.5%200%201%200%207%200h-7Zm555.07-105.88a3.5%203.5%200%201%200-7%200h7Zm-7%20105.38a3.5%203.5%200%201%200%207%200h-7ZM289.79%20555.97c153.28%200%20277.54-124.35%20277.54-277.73h-7c0%20149.52-121.13%20270.73-270.54%20270.73v7Zm277.54-277.73C567.33%20124.84%20443.07.5%20289.79.5v7c149.41%200%20270.54%20121.21%20270.54%20270.74h7ZM289.79.5C136.51.5%2012.26%20124.85%2012.26%20278.24h7C19.26%20128.7%20140.38%207.5%20289.79%207.5v-7ZM12.26%20278.24c0%20153.38%20124.25%20277.73%20277.53%20277.73v-7c-149.4%200-270.53-121.2-270.53-270.73h-7Zm0-52.7v105.38h7V225.54h-7Zm548.07-.5v105.38h7V225.04h-7Z%22%2F%3E%0A%20%20%3Cpath%20fill%3D%22%23B5D2F3%22%20d%3D%22M21.66%20225.73a10.84%2010.84%200%201%200-21.66%200v106.43a10.84%2010.84%200%201%200%2021.66%200V225.73Zm559.34%200a10.84%2010.84%200%201%200-21.66%200v106.43a10.84%2010.84%200%201%200%2021.66%200V225.73Z%22%2F%3E%0A%20%20%3Cpath%20fill%3D%22%23FE733E%22%20d%3D%22M171.17%20687.76c12.53-5.1%209.98-10.2%209.98-12.74l-6.1-92.55-5.37-46.3-8.12-289.07c0-68.6%2050.73-132.72%20127.3-132.72s130.76%2061.71%20130.88%20132.77c-2.2%20137.24-5.9%20189.47-11.07%20288.02-.63%2013.47-2.38%2033.86-2.96%2046.32-2.88%2061.66-6.14%2091.87-6.14%2093.53%200%202.55-2.54%207.64%209.98%2012.74%2012.52%205.1%2041.46%2011.71%2041.46%2013.33%200%201.6-48.89%200-48.89%200-28.02%200-28.02-20.98-28.02-26.07%200-5.1-7.64-92.6-7.64-92.6l-2.55%20112.99c0%205.1%202.55%2012.74%2020.38%2017.84%200%200%2038.91%205.89%2038.91%208.01%200%202.13-46.55%200-46.55%200-35.45%200-35.45-20.75-35.45-20.75l-7.64-92.6S331%20700.5%20331%20713.24c0%209.99%201.73%2017.63%2029.54%2022.73%2013.43%203.73%2040.54%208.35%2040.54%2010.2%200%201.85-61.86%200-61.86%200-33.11-2.55-36.24-25.5-36.24-25.5l-12.55-46.14-12.5%2046.15s-5.09%2022.94-38.2%2025.49c0%200-56.17%201.85-56.17%200s22.5-5.99%2036.81-10.2c19.36-5.69%2029.55-12.74%2029.55-22.73%200-12.74-2.55-105.35-2.55-105.35l-7.64%2092.6s0%2022.74-35.45%2022.74c0%200-50.5.15-50.5-1.98%200-2.12%2042.64-8%2042.64-8%2017.83-5.1%2020.38-12.75%2020.38-17.85l-2.55-113s-7.64%2087.5-7.64%2092.6c0%205.1%200%2028.05-28.02%2028.05%200%200-47.13-2.33-47.13-3.95%200-1.6%2027.18-6.25%2039.7-11.35Z%22%2F%3E%0A%20%20%3Cpath%20fill%3D%22%23FE6446%22%20d%3D%22M169.68%20536.16s-5.23%2012.8-17.05%2019.7c-11.81%206.9-25.51%209.14-38.4%2010.84%200%200%2017.72%208.87%2039.39%206.9%2013.58-1.1%2019.28%202.36%2021.42%208.87l-5.36-46.3Zm238.99-.99s7.63%2012.8%2019.45%2019.7c11.82%206.9%2025.51%209.15%2038.4%2010.85%200%200-17.72%208.87-39.38%206.9-13.58-1.1-19.29%202.35-21.43%208.87l2.96-46.32Z%22%2F%3E%0A%20%20%3Cpath%20fill%3D%22%23FE6446%22%20d%3D%22m408.81%20533%20.99-16.02c-62.56%2029.54-120.7%2026.43-120.7%2026.43s-58.49%202.45-119.92-26.57l.4%2015.57s43.82%2026.94%20119.52%2026.94c75.7%200%20119.71-26.35%20119.71-26.35Z%22%20opacity%3D%22.3%22%2F%3E%0A%20%20%3Cpath%20fill%3D%22%23FEA777%22%20d%3D%22M238.78%20194.25a17.84%2017.84%200%201%200-.01-35.67%2017.84%2017.84%200%200%200%20.01%2035.67Z%22%20opacity%3D%22.5%22%2F%3E%0A%20%20%3Cpath%20fill%3D%22%23FE6B3C%22%20d%3D%22M419.5%20249.06s1.88-22.34-7.88-48.94c-26.77-73.01-92.56-87.71-128.02-85.64%200%200%2050.28%2023.76%2052.61%2099.8%201.06%2033.72%201.06%2034.78%201.06%2034.78h82.23Z%22%2F%3E%0A%20%20%3Cuse%20xlink%3Ahref%3D%22%23a%22%2F%3E%0A%20%20%3Cuse%20xlink%3Ahref%3D%22%23a%22%2F%3E%0A%20%20%3Cpath%20fill%3D%22%23fff%22%20d%3D%22M336.76%20437.61c0%2028.31-11.39%2072.92-49.29%2072.92s-47.2-47.4-47.2-72.92c0%200%200%2043.36%2047.2%2043.36%2051.62%200%2049.3-43.36%2049.3-43.36Z%22%2F%3E%0A%20%20%3Cpath%20fill%3D%22%23070909%22%20d%3D%22M336.76%20437.61c0%2028.31-11.39%2072.92-49.29%2072.92s-47.2-47.4-47.2-72.92c0%200%200%2043.36%2047.2%2043.36%2051.62%200%2049.3-43.36%2049.3-43.36Z%22%2F%3E%0A%20%20%3Cpath%20fill%3D%22%23FE6446%22%20d%3D%22M197.93%20394.25a77.82%2077.82%200%200%200%2077.8-77.85c0-43-34.83-77.85-77.8-77.85a77.82%2077.82%200%200%200-77.8%2077.85c0%2043%2034.84%2077.85%2077.8%2077.85Z%22%2F%3E%0A%20%20%3Cpath%20fill%3D%22%23fff%22%20d%3D%22M197.73%20378.32a60.94%2060.94%200%200%200%2060.92-60.96%2060.94%2060.94%200%200%200-60.92-60.97%2060.94%2060.94%200%200%200-60.92%2060.97%2060.94%2060.94%200%200%200%2060.92%2060.96Z%22%2F%3E%0A%20%20%3Cpath%20fill%3D%22%23090B0B%22%20d%3D%22M195.96%20325.27a18.72%2018.72%200%201%200-.01-37.44%2018.72%2018.72%200%200%200%20.01%2037.44Z%22%2F%3E%0A%20%20%3Cpath%20fill%3D%22%23FE6446%22%20d%3D%22M381.1%20394.25a77.82%2077.82%200%200%200%2077.79-77.85c0-43-34.83-77.85-77.8-77.85a77.82%2077.82%200%200%200-77.79%2077.85c0%2043%2034.83%2077.85%2077.8%2077.85Z%22%2F%3E%0A%20%20%3Cpath%20fill%3D%22%23fff%22%20d%3D%22M378%20378.21a60.94%2060.94%200%200%200%2060.93-60.96A60.94%2060.94%200%200%200%20378%20256.29a60.94%2060.94%200%200%200-60.92%2060.96A60.94%2060.94%200%200%200%20378%20378.21Z%22%2F%3E%0A%20%20%3Cpath%20fill%3D%22%23090B0B%22%20d%3D%22M379.13%20325.27a18.72%2018.72%200%201%200-.02-37.44%2018.72%2018.72%200%200%200%20.01%2037.44Z%22%2F%3E%0A%3C%2Fsvg%3E;" value="" vertex="1">
+          <mxGeometry height="48" width="40" x="12" y="41" as="geometry" />
+        </mxCell>
+        <object label="&lt;b&gt;Analyzer pods&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:13px&quot;&gt;Anonymizer / rain-drop gate&lt;br&gt;Fencilla / CLOE / thermal&lt;br&gt;Utilities: copy raw to visualized&lt;/font&gt;" source="sara/api/appsettings.json&#10;robotics-infrastructure/k8s_kustomize/analytics/base/workflows/fencilla-template.yaml&#10;robotics-infrastructure/k8s_kustomize/analytics/base/workflows/rain-drop-detector-template.yaml" evidence="Verified from working-copy implementation; see sara-architecture-evidence.json" id="analyzers">
+          <mxCell parent="1" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#FFF5E8;strokeColor=#D99A57;strokeWidth=1.5;fontColor=#793E13;fontFamily=Helvetica;fontSize=18;spacingLeft=10;spacingRight=10;spacingTop=7;spacingBottom=7;" vertex="1">
+            <mxGeometry height="130" width="400" x="1380" y="850" as="geometry" />
+          </mxCell>
+        </object>
+        <object label="&lt;b&gt;Flotilla&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:13px&quot;&gt;Consumes availability notifications&lt;br&gt;Reads inspections / analysis results&lt;br&gt;Creates or updates feedback&lt;/font&gt;" source="flotilla/backend/api/EventHandlers/MqttEventHandler.cs&#10;flotilla/frontend/src/api/SaraApi.tsx&#10;flotilla/frontend/src/contexts/InspectionsContext.tsx&#10;flotilla/frontend/src/api/UseSaraApi.tsx&#10;sara/api/Controllers/FeedbackController.cs" evidence="Verified from working-copy implementation; see sara-architecture-evidence.json" id="flotilla">
+          <mxCell parent="1" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#8FABCD;strokeWidth=1.5;fontColor=#173653;fontFamily=Helvetica;fontSize=18;spacingLeft=10;spacingRight=10;spacingTop=7;spacingBottom=7;" vertex="1">
+            <mxGeometry height="130" width="280" x="430" y="850" as="geometry" />
+          </mxCell>
+        </object>
+        <object label="&lt;b&gt;Azure Blob Storage&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:13px&quot;&gt;Raw data / visualizations&lt;br&gt;Analyzer outputs / references&lt;/font&gt;" source="sara/api/Services/BlobStorageService.cs&#10;isar/src/isar/storage/uploader.py&#10;sara-anonymizer/sara_anonymizer/main_workflow.py&#10;sara-fence-detection/sara_fence_detection/main.py" evidence="Verified from working-copy implementation; see sara-architecture-evidence.json" id="blob">
+          <mxCell parent="1" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#8FABCD;strokeWidth=1.5;fontColor=#173653;fontFamily=Helvetica;fontSize=18;spacingLeft=60;spacingRight=10;spacingTop=7;spacingBottom=7;" vertex="1">
+            <mxGeometry height="130" width="290" x="50" y="850" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="blob-icon" assetSource="https://github.com/jgraph/drawio/blob/dev/src/main/webapp/img/lib/azure2/storage/Storage_Accounts.svg" assetUsage="Microsoft Azure architecture icon; Microsoft icon usage terms apply." parent="blob" style="shape=image;imageAspect=1;aspect=fixed;image=data:image/svg+xml,%3C%3Fxml%20version%3D%221.0%22%20encoding%3D%22UTF-8%22%20standalone%3D%22no%22%3F%3E%0A%3Csvg%0A%20%20%20xmlns%3Adc%3D%22http%3A%2F%2Fpurl.org%2Fdc%2Felements%2F1.1%2F%22%0A%20%20%20xmlns%3Acc%3D%22http%3A%2F%2Fcreativecommons.org%2Fns%23%22%0A%20%20%20xmlns%3Ardf%3D%22http%3A%2F%2Fwww.w3.org%2F1999%2F02%2F22-rdf-syntax-ns%23%22%0A%20%20%20xmlns%3Asvg%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%0A%20%20%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%0A%20%20%20xmlns%3Asodipodi%3D%22http%3A%2F%2Fsodipodi.sourceforge.net%2FDTD%2Fsodipodi-0.dtd%22%0A%20%20%20xmlns%3Ainkscape%3D%22http%3A%2F%2Fwww.inkscape.org%2Fnamespaces%2Finkscape%22%0A%20%20%20id%3D%22f2f04349-8aee-4413-84c9-a9053611b319%22%0A%20%20%20width%3D%2217%22%0A%20%20%20height%3D%2213.67%22%0A%20%20%20viewBox%3D%220%200%2017%2013.67%22%0A%20%20%20version%3D%221.1%22%0A%20%20%20sodipodi%3Adocname%3D%22Storage_Accounts.svg%22%0A%20%20%20inkscape%3Aversion%3D%220.92.3%20%282405546%2C%202018-03-11%29%22%3E%0A%20%20%3Csodipodi%3Anamedview%0A%20%20%20%20%20pagecolor%3D%22%23ffffff%22%0A%20%20%20%20%20bordercolor%3D%22%23666666%22%0A%20%20%20%20%20borderopacity%3D%221%22%0A%20%20%20%20%20objecttolerance%3D%2210%22%0A%20%20%20%20%20gridtolerance%3D%2210%22%0A%20%20%20%20%20guidetolerance%3D%2210%22%0A%20%20%20%20%20inkscape%3Apageopacity%3D%220%22%0A%20%20%20%20%20inkscape%3Apageshadow%3D%222%22%0A%20%20%20%20%20inkscape%3Awindow-width%3D%221920%22%0A%20%20%20%20%20inkscape%3Awindow-height%3D%221017%22%0A%20%20%20%20%20id%3D%22namedview75544%22%0A%20%20%20%20%20showgrid%3D%22false%22%0A%20%20%20%20%20fit-margin-top%3D%220%22%0A%20%20%20%20%20fit-margin-left%3D%220%22%0A%20%20%20%20%20fit-margin-right%3D%220%22%0A%20%20%20%20%20fit-margin-bottom%3D%220%22%0A%20%20%20%20%20inkscape%3Azoom%3D%2248.111111%22%0A%20%20%20%20%20inkscape%3Acx%3D%228.5%22%0A%20%20%20%20%20inkscape%3Acy%3D%226.84%22%0A%20%20%20%20%20inkscape%3Awindow-x%3D%22-8%22%0A%20%20%20%20%20inkscape%3Awindow-y%3D%22-8%22%0A%20%20%20%20%20inkscape%3Awindow-maximized%3D%221%22%0A%20%20%20%20%20inkscape%3Acurrent-layer%3D%22f2f04349-8aee-4413-84c9-a9053611b319%22%20%2F%3E%0A%20%20%3Cdefs%0A%20%20%20%20%20id%3D%22defs75527%22%3E%0A%20%20%20%20%3ClinearGradient%0A%20%20%20%20%20%20%20id%3D%22ad4c4f96-09aa-4f91-ba10-5cb8ad530f74%22%0A%20%20%20%20%20%20%20x1%3D%229%22%0A%20%20%20%20%20%20%20y1%3D%2215.83%22%0A%20%20%20%20%20%20%20x2%3D%229%22%0A%20%20%20%20%20%20%20y2%3D%225.79%22%0A%20%20%20%20%20%20%20gradientUnits%3D%22userSpaceOnUse%22%3E%0A%20%20%20%20%20%20%3Cstop%0A%20%20%20%20%20%20%20%20%20offset%3D%220%22%0A%20%20%20%20%20%20%20%20%20stop-color%3D%22%23b3b3b3%22%0A%20%20%20%20%20%20%20%20%20id%3D%22stop75520%22%20%2F%3E%0A%20%20%20%20%20%20%3Cstop%0A%20%20%20%20%20%20%20%20%20offset%3D%220.26%22%0A%20%20%20%20%20%20%20%20%20stop-color%3D%22%23c1c1c1%22%0A%20%20%20%20%20%20%20%20%20id%3D%22stop75522%22%20%2F%3E%0A%20%20%20%20%20%20%3Cstop%0A%20%20%20%20%20%20%20%20%20offset%3D%221%22%0A%20%20%20%20%20%20%20%20%20stop-color%3D%22%23e6e6e6%22%0A%20%20%20%20%20%20%20%20%20id%3D%22stop75524%22%20%2F%3E%0A%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%3C%2Fdefs%3E%0A%20%20%3Ctitle%0A%20%20%20%20%20id%3D%22title75529%22%3EIcon-storage-86%3C%2Ftitle%3E%0A%20%20%3Cpath%0A%20%20%20%20%20d%3D%22m%200%2C3.62%20h%2017%20v%209.48%20a%200.57%2C0.57%200%200%201%20-0.57%2C0.57%20H%200.57%20A%200.57%2C0.57%200%200%201%200%2C13.1%20Z%22%0A%20%20%20%20%20id%3D%22path75531%22%0A%20%20%20%20%20inkscape%3Aconnector-curvature%3D%220%22%0A%20%20%20%20%20style%3D%22fill%3Aurl%28%23ad4c4f96-09aa-4f91-ba10-5cb8ad530f74%29%22%20%2F%3E%0A%20%20%3Cpath%0A%20%20%20%20%20d%3D%22M%200.57%2C0%20H%2016.43%20A%200.57%2C0.57%200%200%201%2017%2C0.57000001%20V%203.62%20H%200%20V%200.56000001%20A%200.57%2C0.57%200%200%201%200.57%2C0%20Z%22%0A%20%20%20%20%20id%3D%22path75533%22%0A%20%20%20%20%20inkscape%3Aconnector-curvature%3D%220%22%0A%20%20%20%20%20style%3D%22fill%3A%2337c2b1%22%20%2F%3E%0A%20%20%3Cpath%0A%20%20%20%20%20d%3D%22m%202.31%2C4.72%20h%2012.37%20a%200.27%2C0.27%200%200%201%200.26%2C0.27%20v%201.4%20A%200.27%2C0.27%200%200%201%2014.68%2C6.66%20H%202.31%20A%200.27%2C0.27%200%200%201%202.05%2C6.39%20V%204.99%20A%200.27%2C0.27%200%200%201%202.31%2C4.72%20Z%22%0A%20%20%20%20%20id%3D%22path75535%22%0A%20%20%20%20%20inkscape%3Aconnector-curvature%3D%220%22%0A%20%20%20%20%20style%3D%22fill%3A%23ffffff%22%20%2F%3E%0A%20%20%3Cpath%0A%20%20%20%20%20d%3D%22m%202.32%2C7.51%20h%2012.37%20a%200.27%2C0.27%200%200%201%200.26%2C0.27%20V%209.19%20A%200.27%2C0.27%200%200%201%2014.69%2C9.46%20H%202.32%20A%200.27%2C0.27%200%200%201%202.06%2C9.19%20V%207.83%20A%200.27%2C0.27%200%200%201%202.32%2C7.51%20Z%22%0A%20%20%20%20%20id%3D%22path75537%22%0A%20%20%20%20%20inkscape%3Aconnector-curvature%3D%220%22%0A%20%20%20%20%20style%3D%22fill%3A%2337c2b1%22%20%2F%3E%0A%20%20%3Cpath%0A%20%20%20%20%20d%3D%22m%202.32%2C10.33%20h%2012.37%20a%200.27%2C0.27%200%200%201%200.26%2C0.27%20v%201.41%20a%200.27%2C0.27%200%200%201%20-0.26%2C0.27%20H%202.32%20A%200.27%2C0.27%200%200%201%202.06%2C12.01%20V%2010.6%20a%200.27%2C0.27%200%200%201%200.26%2C-0.27%20z%22%0A%20%20%20%20%20id%3D%22path75539%22%0A%20%20%20%20%20inkscape%3Aconnector-curvature%3D%220%22%0A%20%20%20%20%20style%3D%22fill%3A%23258277%22%20%2F%3E%0A%20%20%3Cmetadata%0A%20%20%20%20%20id%3D%22metadata75541%22%3E%0A%20%20%20%20%3Crdf%3ARDF%3E%0A%20%20%20%20%20%20%3Crdf%3Ali%3Epublic%3Atrue%3C%2Frdf%3Ali%3E%0A%20%20%20%20%20%20%3Crdf%3Ali%3Esdk%3AMsPortalFx.Base.Images.Polychromatic.Storage%28%29%3C%2Frdf%3Ali%3E%0A%20%20%20%20%20%20%3Crdf%3Ali%3Ecategory%3A%20Storage%3C%2Frdf%3Ali%3E%0A%20%20%20%20%20%20%3Ccc%3AWork%0A%20%20%20%20%20%20%20%20%20rdf%3Aabout%3D%22%22%3E%0A%20%20%20%20%20%20%20%20%3Cdc%3Aformat%3Eimage%2Fsvg%2Bxml%3C%2Fdc%3Aformat%3E%0A%20%20%20%20%20%20%20%20%3Cdc%3Atype%0A%20%20%20%20%20%20%20%20%20%20%20rdf%3Aresource%3D%22http%3A%2F%2Fpurl.org%2Fdc%2Fdcmitype%2FStillImage%22%20%2F%3E%0A%20%20%20%20%20%20%20%20%3Cdc%3Atitle%3EIcon-storage-86%3C%2Fdc%3Atitle%3E%0A%20%20%20%20%20%20%3C%2Fcc%3AWork%3E%0A%20%20%20%20%3C%2Frdf%3ARDF%3E%0A%20%20%3C%2Fmetadata%3E%0A%3C%2Fsvg%3E%0A;" value="" vertex="1">
+          <mxGeometry height="48" width="40" x="12" y="41" as="geometry" />
+        </mxCell>
+        <object label="&lt;b&gt;PostgreSQL&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:13px&quot;&gt;Inspection records + analyses&lt;br&gt;Runs / step results / feedback&lt;br&gt;Reference metadata and polygons&lt;/font&gt;" source="sara/api/Database/Context/SaraDbContext.cs&#10;sara/api/Configurations/CustomServiceConfigurations.cs" evidence="Verified from working-copy implementation; see sara-architecture-evidence.json" id="postgres">
+          <mxCell parent="1" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#8FABCD;strokeWidth=1.5;fontColor=#173653;fontFamily=Helvetica;fontSize=18;spacingLeft=60;spacingRight=10;spacingTop=7;spacingBottom=7;" vertex="1">
+            <mxGeometry height="130" width="300" x="850" y="850" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="postgres-icon" assetSource="https://github.com/jgraph/drawio/blob/dev/src/main/webapp/img/lib/azure2/databases/Azure_Database_PostgreSQL_Server.svg" assetUsage="Microsoft Azure architecture icon; icon does not assert an Azure SKU." parent="postgres" style="shape=image;imageAspect=1;aspect=fixed;image=data:image/svg+xml,%3C%3Fxml%20version%3D%221.0%22%20encoding%3D%22UTF-8%22%20standalone%3D%22no%22%3F%3E%0A%3Csvg%0A%20%20%20xmlns%3Adc%3D%22http%3A%2F%2Fpurl.org%2Fdc%2Felements%2F1.1%2F%22%0A%20%20%20xmlns%3Acc%3D%22http%3A%2F%2Fcreativecommons.org%2Fns%23%22%0A%20%20%20xmlns%3Ardf%3D%22http%3A%2F%2Fwww.w3.org%2F1999%2F02%2F22-rdf-syntax-ns%23%22%0A%20%20%20xmlns%3Asvg%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%0A%20%20%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%0A%20%20%20xmlns%3Asodipodi%3D%22http%3A%2F%2Fsodipodi.sourceforge.net%2FDTD%2Fsodipodi-0.dtd%22%0A%20%20%20xmlns%3Ainkscape%3D%22http%3A%2F%2Fwww.inkscape.org%2Fnamespaces%2Finkscape%22%0A%20%20%20id%3D%22fc890127-728b-4ac0-b5da-86cdfc191e86%22%0A%20%20%20width%3D%2212.82%22%0A%20%20%20height%3D%2217%22%0A%20%20%20viewBox%3D%220%200%2012.82%2017%22%0A%20%20%20version%3D%221.1%22%0A%20%20%20sodipodi%3Adocname%3D%22Azure_Database_PostgreSQL_Server.svg%22%0A%20%20%20inkscape%3Aversion%3D%220.92.3%20%282405546%2C%202018-03-11%29%22%3E%0A%20%20%3Csodipodi%3Anamedview%0A%20%20%20%20%20pagecolor%3D%22%23ffffff%22%0A%20%20%20%20%20bordercolor%3D%22%23666666%22%0A%20%20%20%20%20borderopacity%3D%221%22%0A%20%20%20%20%20objecttolerance%3D%2210%22%0A%20%20%20%20%20gridtolerance%3D%2210%22%0A%20%20%20%20%20guidetolerance%3D%2210%22%0A%20%20%20%20%20inkscape%3Apageopacity%3D%220%22%0A%20%20%20%20%20inkscape%3Apageshadow%3D%222%22%0A%20%20%20%20%20inkscape%3Awindow-width%3D%221920%22%0A%20%20%20%20%20inkscape%3Awindow-height%3D%221017%22%0A%20%20%20%20%20id%3D%22namedview12127%22%0A%20%20%20%20%20showgrid%3D%22false%22%0A%20%20%20%20%20fit-margin-top%3D%220%22%0A%20%20%20%20%20fit-margin-left%3D%220%22%0A%20%20%20%20%20fit-margin-right%3D%220%22%0A%20%20%20%20%20fit-margin-bottom%3D%220%22%0A%20%20%20%20%20inkscape%3Azoom%3D%2248.111111%22%0A%20%20%20%20%20inkscape%3Acx%3D%226.41%22%0A%20%20%20%20%20inkscape%3Acy%3D%228.5%22%0A%20%20%20%20%20inkscape%3Awindow-x%3D%22-8%22%0A%20%20%20%20%20inkscape%3Awindow-y%3D%22-8%22%0A%20%20%20%20%20inkscape%3Awindow-maximized%3D%221%22%0A%20%20%20%20%20inkscape%3Acurrent-layer%3D%22fc890127-728b-4ac0-b5da-86cdfc191e86%22%20%2F%3E%0A%20%20%3Cdefs%0A%20%20%20%20%20id%3D%22defs12110%22%3E%0A%20%20%20%20%3ClinearGradient%0A%20%20%20%20%20%20%20id%3D%22a28dee20-4c71-46b5-b957-804c67da725a%22%0A%20%20%20%20%20%20%20x1%3D%222.4400001%22%0A%20%20%20%20%20%20%20y1%3D%2210.67%22%0A%20%20%20%20%20%20%20x2%3D%2215.27%22%0A%20%20%20%20%20%20%20y2%3D%2210.67%22%0A%20%20%20%20%20%20%20gradientTransform%3D%22rotate%28-0.01%2C-2864.719%2C-802.36945%29%22%0A%20%20%20%20%20%20%20gradientUnits%3D%22userSpaceOnUse%22%3E%0A%20%20%20%20%20%20%3Cstop%0A%20%20%20%20%20%20%20%20%20offset%3D%220%22%0A%20%20%20%20%20%20%20%20%20stop-color%3D%22%23005ba1%22%0A%20%20%20%20%20%20%20%20%20id%3D%22stop12095%22%20%2F%3E%0A%20%20%20%20%20%20%3Cstop%0A%20%20%20%20%20%20%20%20%20offset%3D%220.07%22%0A%20%20%20%20%20%20%20%20%20stop-color%3D%22%230060a9%22%0A%20%20%20%20%20%20%20%20%20id%3D%22stop12097%22%20%2F%3E%0A%20%20%20%20%20%20%3Cstop%0A%20%20%20%20%20%20%20%20%20offset%3D%220.36%22%0A%20%20%20%20%20%20%20%20%20stop-color%3D%22%230071c8%22%0A%20%20%20%20%20%20%20%20%20id%3D%22stop12099%22%20%2F%3E%0A%20%20%20%20%20%20%3Cstop%0A%20%20%20%20%20%20%20%20%20offset%3D%220.52%22%0A%20%20%20%20%20%20%20%20%20stop-color%3D%22%230078d4%22%0A%20%20%20%20%20%20%20%20%20id%3D%22stop12101%22%20%2F%3E%0A%20%20%20%20%20%20%3Cstop%0A%20%20%20%20%20%20%20%20%20offset%3D%220.64%22%0A%20%20%20%20%20%20%20%20%20stop-color%3D%22%230074cd%22%0A%20%20%20%20%20%20%20%20%20id%3D%22stop12103%22%20%2F%3E%0A%20%20%20%20%20%20%3Cstop%0A%20%20%20%20%20%20%20%20%20offset%3D%220.82%22%0A%20%20%20%20%20%20%20%20%20stop-color%3D%22%23006abb%22%0A%20%20%20%20%20%20%20%20%20id%3D%22stop12105%22%20%2F%3E%0A%20%20%20%20%20%20%3Cstop%0A%20%20%20%20%20%20%20%20%20offset%3D%221%22%0A%20%20%20%20%20%20%20%20%20stop-color%3D%22%23005ba1%22%0A%20%20%20%20%20%20%20%20%20id%3D%22stop12107%22%20%2F%3E%0A%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%3C%2Fdefs%3E%0A%20%20%3Ctitle%0A%20%20%20%20%20id%3D%22title12112%22%3EIcon-databases-131%3C%2Ftitle%3E%0A%20%20%3Cpath%0A%20%20%20%20%20d%3D%22M%206.41%2C4.64%20C%202.87%2C4.64%200%2C3.64%200%2C2.32%20v%2012.36%20c%200%2C1.27%202.82%2C2.3%206.32%2C2.32%20h%200.09%20c%203.54%2C0%206.41%2C-1%206.41%2C-2.32%20V%202.32%20c%200%2C1.28%20-2.87%2C2.32%20-6.41%2C2.32%20z%22%0A%20%20%20%20%20id%3D%22path12114%22%0A%20%20%20%20%20inkscape%3Aconnector-curvature%3D%220%22%0A%20%20%20%20%20style%3D%22fill%3Aurl%28%23a28dee20-4c71-46b5-b957-804c67da725a%29%22%20%2F%3E%0A%20%20%3Cpath%0A%20%20%20%20%20d%3D%22M%2012.82%2C2.32%20C%2012.82%2C3.6%209.95%2C4.64%206.41%2C4.64%202.87%2C4.64%200%2C3.64%200%2C2.32%200%2C1%202.87%2C0%206.41%2C0%20c%203.54%2C0%206.41%2C1%206.41%2C2.32%22%0A%20%20%20%20%20id%3D%22path12116%22%0A%20%20%20%20%20inkscape%3Aconnector-curvature%3D%220%22%0A%20%20%20%20%20style%3D%22fill%3A%23e8e8e8%22%20%2F%3E%0A%20%20%3Cpath%0A%20%20%20%20%20d%3D%22m%2011.32%2C2.13%20c%200%2C0.82%20-2.2%2C1.48%20-4.91%2C1.48%20-2.71%2C0%20-4.92%2C-0.66%20-4.92%2C-1.47%200%2C-0.81%202.2%2C-1.48%204.92%2C-1.48%202.72%2C0%204.91%2C0.66%204.91%2C1.47%22%0A%20%20%20%20%20id%3D%22path12118%22%0A%20%20%20%20%20inkscape%3Aconnector-curvature%3D%220%22%0A%20%20%20%20%20style%3D%22fill%3A%2350e6ff%22%20%2F%3E%0A%20%20%3Cpath%0A%20%20%20%20%20d%3D%22M%206.41%2C2.5%20A%2011.65%2C11.65%200%200%200%202.51%2C3.07%2011.53%2C11.53%200%200%200%206.41%2C3.61%2011.47%2C11.47%200%200%200%2010.3%2C3.03%2011.93%2C11.93%200%200%200%206.41%2C2.5%20Z%22%0A%20%20%20%20%20id%3D%22path12120%22%0A%20%20%20%20%20inkscape%3Aconnector-curvature%3D%220%22%0A%20%20%20%20%20style%3D%22fill%3A%23198ab3%22%20%2F%3E%0A%20%20%3Cpath%0A%20%20%20%20%20d%3D%22m%209.41%2C8.5%20c%200%2C0.08%200%2C0.24%200%2C0.42%20A%205.12%2C5.12%200%200%200%209.33%2C9.55%20c%200%2C0.12%200%2C0.3%200.05%2C0.46%200.05%2C0.16%200%2C0.27%200%2C0.36%20a%201.68%2C1.68%200%200%201%20-0.25%2C0.86%200.43%2C0.43%200%200%200%200%2C0.07%20l%200.1%2C0.12%20a%2010.55%2C10.55%200%200%200%201.06%2C-2.38%20v%200%20C%2010.57%2C8.09%2010.6%2C7.41%2010.38%2C7.12%20A%202.58%2C2.58%200%200%200%207.7%2C6.26%203.29%2C3.29%200%200%201%208.61%2C6.93%202.28%2C2.28%200%200%201%209.41%2C8.5%20Z%20M%209.1%2C8.58%20A%201.15%2C1.15%200%200%200%208.31%2C8.67%20c%20-0.29%2C0.18%20-0.2%2C0.55%200%2C1%20a%207.77%2C7.77%200%200%200%200.35%2C0.85%20l%200.09%2C0.16%20v%200%20c%200.05%2C0.08%200.08%2C0.15%200.11%2C0.2%20l%200.08%2C0.13%20a%201.28%2C1.28%200%200%200%200.18%2C-0.65%202.86%2C2.86%200%200%200%200%2C-0.33%20c%200%2C-0.17%200%2C-0.36%20-0.05%2C-0.49%20A%206.1%2C6.1%200%200%201%209.15%2C8.85%20C%209.12%2C8.74%209.13%2C8.63%209.14%2C8.55%20Z%20M%208.8%2C8.99%20a%200.4%2C0.4%200%200%201%20-0.18%2C0.1%20v%200%20A%200.33%2C0.33%200%200%201%208.48%2C9.09%200.23%2C0.23%200%200%201%208.41%2C8.9%20v%200%20c%200%2C-0.07%200.11%2C-0.13%200.24%2C-0.15%20h%200.19%20c%200%2C0%200.09%2C0%200.09%2C0.08%20A%200.2%2C0.2%200%200%201%208.84%2C8.96%20Z%20M%204.11%2C9.88%20c%200%2C-0.07%200%2C-0.13%200%2C-0.17%20a%201%2C1%200%200%200%200%2C-0.17%205.55%2C5.55%200%200%201%200%2C-1%205.22%2C5.22%200%200%201%200.3%2C-1.1%20A%202.41%2C2.41%200%200%201%204.99%2C6.5%204.78%2C4.78%200%200%200%203.64%2C6.3%201.87%2C1.87%200%200%200%202.54%2C6.6%202%2C2%200%200%200%201.91%2C8.42%20a%2012.27%2C12.27%200%200%200%200.5%2C2.24%20c%200.34%2C1.14%200.73%2C1.84%201.07%2C1.95%20v%200%20c%200.15%2C0.05%200.31%2C0%200.47%2C-0.21%200.28%2C-0.34%200.54%2C-0.63%200.69%2C-0.8%20A%201.88%2C1.88%200%200%201%204.15%2C9.85%20Z%20m%200.26%2C0.4%20a%202.18%2C2.18%200%200%200%200.06%2C0.56%201.5%2C1.5%200%200%200%200.26%2C0.44%201.07%2C1.07%200%200%200%200.35%2C0.25%201.09%2C1.09%200%200%200%200.39%2C0.08%20c%200%2C-0.17%200.14%2C-0.38%200.23%2C-0.6%20a%204.35%2C4.35%200%200%200%200.21%2C-0.59%206.61%2C6.61%200%200%200%200%2C-1.11%20c%200%2C-0.09%200%2C-0.19%20-0.06%2C-0.3%20A%200.45%2C0.45%200%200%200%205.69%2C8.74%20v%200%20A%200.66%2C0.66%200%200%200%205.41%2C8.58%20H%205.21%20A%201.56%2C1.56%200%200%200%204.73%2C8.72%202%2C2%200%200%200%204.41%2C8.91%20v%200.11%20c%200%2C0.2%200%2C0.41%200%2C0.61%20v%200%20a%200.86%2C0.86%200%200%201%200%2C0.15%20v%200.39%200%20z%20M%205.03%2C8.94%20v%200%20a%200.46%2C0.46%200%200%201%200.28%2C0%20A%200.6%2C0.6%200%200%201%205.5%2C9%20c%200.09%2C0%200.1%2C0.11%200.09%2C0.14%20v%200%20A%200.37%2C0.37%200%200%201%205.47%2C9.27%200.3%2C0.3%200%200%201%205.41%2C9.23%20v%200%20A%200.34%2C0.34%200%200%201%205.13%2C8.95%20Z%20m%200.74%2C3%20A%200.23%2C0.23%200%200%200%205.64%2C12%20L%205.5%2C12.17%20c%20-0.17%2C0.21%20-0.24%2C0.28%20-0.73%2C0.38%20a%200.52%2C0.52%200%200%200%20-0.26%2C0.1%200.58%2C0.58%200%200%200%200.24%2C0.11%201.18%2C1.18%200%200%200%200.72%2C0%201.7%2C1.7%200%200%200%200.39%2C-0.26%200.61%2C0.61%200%200%200%200.2%2C-0.31%200.36%2C0.36%200%200%200%20-0.1%2C-0.28%200.15%2C0.15%200%200%200%20-0.15%2C-0.02%20z%20m%204.61%2C0%20a%201.63%2C1.63%200%200%201%20-1.13%2C0%200.22%2C0.22%200%200%200%20-0.14%2C0%200.3%2C0.3%200%200%200%20-0.17%2C0.14%201.09%2C1.09%200%200%200%200%2C0.31%201.8%2C1.8%200%200%200%201.1%2C-0.1%201.36%2C1.36%200%200%200%200.48%2C-0.34%20z%20M%207.98%2C9.8%20C%207.84%2C9.39%207.64%2C8.8%208.16%2C8.44%20A%201.35%2C1.35%200%200%201%209.05%2C8.29%203.18%2C3.18%200%200%200%208.41%2C7.14%20L%208.31%2C7.04%208.25%2C6.98%20v%200%20A%200.34%2C0.34%200%200%200%208.19%2C6.92%20v%200%200%20A%202.34%2C2.34%200%200%200%207.52%2C6.5%202.63%2C2.63%200%200%200%206.41%2C6.28%201.52%2C1.52%200%200%200%205.71%2C6.39%201.77%2C1.77%200%200%200%205.41%2C6.5%20a%202.1%2C2.1%200%200%200%20-0.74%2C1%205.84%2C5.84%200%200%200%20-0.21%2C1%201.66%2C1.66%200%200%201%201%2C-0.23%200.84%2C0.84%200%200%201%200.77%2C0.91%207.26%2C7.26%200%200%201%200%2C1.27%20A%203.87%2C3.87%200%200%201%206%2C11.08%20c%20-0.06%2C0.17%20-0.14%2C0.35%20-0.18%2C0.49%20a%200.5%2C0.5%200%200%201%200.38%2C0.14%200.66%2C0.66%200%200%201%200.19%2C0.53%20h%200.02%20c%200%2C0.08%200%2C0.16%200%2C0.24%20a%206.55%2C6.55%200%200%200%200.24%2C2.44%200.54%2C0.54%200%200%200%200.24%2C0.21%200.6%2C0.6%200%200%200%200.31%2C0.1%201.3%2C1.3%200%200%200%201%2C-0.34%201.05%2C1.05%200%200%200%200.29%2C-0.66%20c%200.07%2C-0.45%200.22%2C-1.7%200.24%2C-2%20v%200%20A%200.72%2C0.72%200%200%201%208.82%2C11.79%200.63%2C0.63%200%200%201%209.09%2C11.55%205.36%2C5.36%200%200%201%208.02%2C9.74%20Z%22%0A%20%20%20%20%20id%3D%22path12122%22%0A%20%20%20%20%20inkscape%3Aconnector-curvature%3D%220%22%0A%20%20%20%20%20style%3D%22fill%3A%23f2f2f2%22%20%2F%3E%0A%20%20%3Cmetadata%0A%20%20%20%20%20id%3D%22metadata12124%22%3E%0A%20%20%20%20%3Crdf%3ARDF%3E%0A%20%20%20%20%20%20%3Crdf%3Ali%3Epublic%3Atrue%3C%2Frdf%3Ali%3E%0A%20%20%20%20%20%20%3Crdf%3Ali%3Esdk%3Afalse%3C%2Frdf%3Ali%3E%0A%20%20%20%20%20%20%3Crdf%3Ali%3Ecategory%3A%20Databases%3C%2Frdf%3Ali%3E%0A%20%20%20%20%20%20%3Ccc%3AWork%0A%20%20%20%20%20%20%20%20%20rdf%3Aabout%3D%22%22%3E%0A%20%20%20%20%20%20%20%20%3Cdc%3Aformat%3Eimage%2Fsvg%2Bxml%3C%2Fdc%3Aformat%3E%0A%20%20%20%20%20%20%20%20%3Cdc%3Atype%0A%20%20%20%20%20%20%20%20%20%20%20rdf%3Aresource%3D%22http%3A%2F%2Fpurl.org%2Fdc%2Fdcmitype%2FStillImage%22%20%2F%3E%0A%20%20%20%20%20%20%20%20%3Cdc%3Atitle%3EIcon-databases-131%3C%2Fdc%3Atitle%3E%0A%20%20%20%20%20%20%3C%2Fcc%3AWork%3E%0A%20%20%20%20%3C%2Frdf%3ARDF%3E%0A%20%20%3C%2Fmetadata%3E%0A%3C%2Fsvg%3E%0A;" value="" vertex="1">
+          <mxGeometry height="48" width="40" x="12" y="41" as="geometry" />
+        </mxCell>
+        <object label="&lt;b&gt;sara-timeseries&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:13px&quot;&gt;HTTP companion service&lt;br&gt;Measurement ingestion and retrieval&lt;/font&gt;" source="sara/api/Services/TimeseriesService.cs&#10;sara/api/Controllers/TimeSeriesDataController.cs&#10;sara-timeseries/sara_timeseries/modules/sara_timeseries_api/timeseries_controller.py" evidence="Verified from working-copy implementation; see sara-architecture-evidence.json" id="timeseries">
+          <mxCell parent="1" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#8FABCD;strokeWidth=1.5;fontColor=#173653;fontFamily=Helvetica;fontSize=18;spacingLeft=10;spacingRight=10;spacingTop=7;spacingBottom=7;" vertex="1">
+            <mxGeometry height="120" width="400" x="50" y="1150" as="geometry" />
+          </mxCell>
+        </object>
+        <object label="&lt;b&gt;Omnia Timeseries&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:13px&quot;&gt;Stores measurement history&lt;br&gt;Serves datapoint queries&lt;/font&gt;" source="sara-timeseries/sara_timeseries/modules/sara_timeseries_api/omnia_service.py" evidence="Verified from working-copy implementation; see sara-architecture-evidence.json" id="omnia">
+          <mxCell parent="1" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#8FABCD;strokeWidth=1.5;fontColor=#173653;fontFamily=Helvetica;fontSize=18;spacingLeft=10;spacingRight=10;spacingTop=7;spacingBottom=7;" vertex="1">
+            <mxGeometry height="120" width="400" x="650" y="1150" as="geometry" />
+          </mxCell>
+        </object>
+        <object label="&lt;b&gt;Microsoft Graph&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:13px&quot;&gt;External email delivery API&lt;/font&gt;" source="sara/api/Services/ResultHandlers/WorkflowResultHandlers/FencillaResultHandler.cs&#10;sara/api/Services/EmailService.cs" evidence="Verified from working-copy implementation; see sara-architecture-evidence.json" id="graph">
+          <mxCell parent="1" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#8FABCD;strokeWidth=1.5;fontColor=#173653;fontFamily=Helvetica;fontSize=18;spacingLeft=10;spacingRight=10;spacingTop=7;spacingBottom=7;" vertex="1">
+            <mxGeometry height="120" width="400" x="1380" y="1150" as="geometry" />
+          </mxCell>
+        </object>
+        <object label="Inspection&lt;br&gt;events" source="isar/src/isar/storage/uploader.py&#10;sara/api/appsettings.json" evidence="Verified from working-copy implementation; see sara-architecture-evidence.json" id="publish-inspection">
+          <mxCell edge="1" parent="1" source="isar" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;startArrow=none;strokeColor=#41688B;strokeWidth=1.7;dashed=0;fontFamily=Helvetica;fontSize=12;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;jumpStyle=arc;jumpSize=8;" target="mqtt">
+            <mxGeometry relative="1" as="geometry">
+              <mxPoint y="-20" as="offset" />
+            </mxGeometry>
+          </mxCell>
+        </object>
+        <object label="Subscribe to&lt;br&gt;inspection events" source="sara/api/MQTT/MqttEventHandler.cs" evidence="Verified from working-copy implementation; see sara-architecture-evidence.json" id="consume-inspection">
+          <mxCell edge="1" parent="1" source="mqtt" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;startArrow=none;strokeColor=#41688B;strokeWidth=1.7;dashed=0;fontFamily=Helvetica;fontSize=12;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;jumpStyle=arc;jumpSize=8;" target="sara-api">
+            <mxGeometry relative="1" as="geometry">
+              <mxPoint y="-23" as="offset" />
+            </mxGeometry>
+          </mxCell>
+        </object>
+        <object label="Publish availability notifications" source="sara/api/MQTT/MqttPublisher.cs" evidence="Verified from working-copy implementation; see sara-architecture-evidence.json" id="publish-availability">
+          <mxCell edge="1" parent="1" source="sara-api" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;startArrow=none;strokeColor=#41688B;strokeWidth=1.7;dashed=0;fontFamily=Helvetica;fontSize=12;labelBackgroundColor=#FFFFFF;exitX=0.4;exitY=0;entryX=0.5;entryY=0;jumpStyle=arc;jumpSize=8;" target="mqtt">
+            <mxGeometry relative="1" as="geometry">
+              <mxPoint y="-16" as="offset" />
+              <Array as="points">
+                <mxPoint x="970" y="470" />
+                <mxPoint x="570" y="470" />
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </object>
+        <object label="Submit workflow&lt;br&gt;DAG" source="sara/api/Services/AnalysisWorkflowService.cs&#10;sara/api/Services/ArgoWorkflowClient.cs" evidence="Verified from working-copy implementation; see sara-architecture-evidence.json" id="create-dag">
+          <mxCell edge="1" parent="1" source="sara-api" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;startArrow=none;strokeColor=#B76A26;strokeWidth=1.7;dashed=0;fontFamily=Helvetica;fontSize=12;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.22;entryX=0;entryY=0.22;jumpStyle=arc;jumpSize=8;" target="argo">
+            <mxGeometry relative="1" as="geometry">
+              <mxPoint x="-15" y="-25" as="offset" />
+            </mxGeometry>
+          </mxCell>
+        </object>
+        <object label="Workflow status +&lt;br&gt;result updates" source="sara/api/Services/ArgoWorkflowClient.cs&#10;sara/api/Services/HostedServices/ArgoWorkflowWatcherService.cs" evidence="Verified from working-copy implementation; see sara-architecture-evidence.json" id="watch-results">
+          <mxCell edge="1" parent="1" source="argo" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;startArrow=none;strokeColor=#B76A26;strokeWidth=1.7;dashed=0;fontFamily=Helvetica;fontSize=12;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.78;entryX=1;entryY=0.78;jumpStyle=arc;jumpSize=8;" target="sara-api">
+            <mxGeometry relative="1" as="geometry">
+              <mxPoint y="-25" as="offset" />
+            </mxGeometry>
+          </mxCell>
+        </object>
+        <object label="" source="sara/api/Services/AnalysisWorkflowGraphBuilder.cs&#10;robotics-infrastructure/k8s_kustomize/analytics/base/workflows/fencilla-template.yaml" evidence="Verified from working-copy implementation; see sara-architecture-evidence.json" id="execute">
+          <mxCell edge="1" parent="1" source="argo" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;startArrow=block;strokeColor=#B76A26;strokeWidth=1.7;dashed=0;fontFamily=Helvetica;fontSize=12;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;jumpStyle=arc;jumpSize=8;" target="analyzers">
+            <mxGeometry relative="1" as="geometry">
+              <mxPoint x="0" y="0" as="offset" />
+            </mxGeometry>
+          </mxCell>
+        </object>
+        <object label="Availability&lt;br&gt;events" source="flotilla/backend/api/EventHandlers/MqttEventHandler.cs&#10;flotilla/backend/api/MQTT/MqttTopics.cs" evidence="Verified from working-copy implementation; see sara-architecture-evidence.json" id="mqtt-flotilla">
+          <mxCell edge="1" parent="1" source="mqtt" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;startArrow=none;strokeColor=#41688B;strokeWidth=1.7;dashed=0;fontFamily=Helvetica;fontSize=12;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;jumpStyle=arc;jumpSize=8;" target="flotilla">
+            <mxGeometry relative="1" as="geometry">
+              <mxPoint y="25" as="offset" />
+            </mxGeometry>
+          </mxCell>
+        </object>
+        <object label="" source="flotilla/frontend/src/api/SaraApi.tsx&#10;flotilla/frontend/src/api/UseSaraApi.tsx" evidence="Verified from working-copy implementation; see sara-architecture-evidence.json" id="flotilla-api">
+          <mxCell edge="1" parent="1" source="flotilla" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;startArrow=none;strokeColor=#41688B;strokeWidth=1.7;dashed=0;fontFamily=Helvetica;fontSize=12;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.8;jumpStyle=arc;jumpSize=8;" target="sara-api">
+            <mxGeometry relative="1" as="geometry">
+              <mxPoint y="-16" as="offset" />
+              <Array as="points">
+                <mxPoint x="780" y="915" />
+                <mxPoint x="780" y="654" />
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </object>
+        <mxCell id="flotilla-api-label" connectable="0" parent="flotilla-api" style="edgeLabel;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=12;fontColor=#000000;labelBackgroundColor=#FFFFFF;" value="Browser: read results /&lt;br&gt;write feedback" vertex="1">
+          <mxGeometry height="50" relative="1" width="135" as="geometry">
+            <mxPoint x="-67.5" y="-40" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <object label="" source="sara/frontend/src/api/client.ts" evidence="Verified from working-copy implementation; see sara-architecture-evidence.json" id="sara-ui-api">
+          <mxCell edge="1" parent="1" source="sara-ui" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;startArrow=none;strokeColor=#41688B;strokeWidth=1.7;dashed=0;fontFamily=Helvetica;fontSize=12;labelBackgroundColor=#FFFFFF;exitX=0.8;exitY=1;entryX=0.8;entryY=0;jumpStyle=arc;jumpSize=8;" target="sara-api">
+            <mxGeometry relative="1" as="geometry">
+              <mxPoint x="0" y="0" as="offset" />
+            </mxGeometry>
+          </mxCell>
+        </object>
+        <object label="" source="sara/api/Configurations/CustomServiceConfigurations.cs&#10;sara/api/Services/ArgoWorkflowEventProcessor.cs" evidence="Verified from working-copy implementation; see sara-architecture-evidence.json" id="state">
+          <mxCell edge="1" parent="1" source="sara-api" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;startArrow=block;strokeColor=#41688B;strokeWidth=1.7;dashed=0;fontFamily=Helvetica;fontSize=12;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;jumpStyle=arc;jumpSize=8;" target="postgres">
+            <mxGeometry relative="1" as="geometry">
+              <mxPoint x="0" y="0" as="offset" />
+            </mxGeometry>
+          </mxCell>
+        </object>
+        <object label="" source="isar/src/isar/storage/uploader.py" evidence="Verified from working-copy implementation; see sara-architecture-evidence.json" id="raw-upload">
+          <mxCell edge="1" parent="1" source="isar" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;startArrow=none;strokeColor=#14847B;strokeWidth=1.7;dashed=1;fontFamily=Helvetica;fontSize=12;labelBackgroundColor=#FFFFFF;exitX=0.232;exitY=1;entryX=0.2;entryY=0;jumpStyle=arc;jumpSize=8;" target="blob">
+            <mxGeometry relative="1" as="geometry">
+              <mxPoint x="0" y="0" as="offset" />
+            </mxGeometry>
+          </mxCell>
+        </object>
+        <object label="" source="sara/api/Services/BlobStorageService.cs&#10;sara/api/MQTT/MqttEventHandler.cs&#10;sara/api/Controllers/InspectionRecordController.cs" evidence="Verified from working-copy implementation; see sara-architecture-evidence.json" id="sara-blob">
+          <mxCell edge="1" parent="1" source="sara-api" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;startArrow=none;strokeColor=#14847B;strokeWidth=1.7;dashed=1;fontFamily=Helvetica;fontSize=12;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.96;entryX=0.8;entryY=0;jumpStyle=arc;jumpSize=8;" target="blob">
+            <mxGeometry relative="1" as="geometry">
+              <mxPoint x="30" y="-20" as="offset" />
+              <Array as="points">
+                <mxPoint x="820" y="675" />
+                <mxPoint x="820" y="730" />
+                <mxPoint x="282" y="730" />
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </object>
+        <mxCell id="sara-blob-label" connectable="0" parent="sara-blob" style="edgeLabel;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=12;fontColor=#000000;labelBackgroundColor=#FFFFFF;" value="Verify / read blobs;&lt;br&gt;create read SAS" vertex="1">
+          <mxGeometry height="38" relative="1" width="170" x="0.35" as="geometry">
+            <mxPoint x="-85" y="-19" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <object label="" source="sara-fence-detection/sara_fence_detection/main.py&#10;sara-anonymizer/sara_anonymizer/main_workflow.py" evidence="Verified from working-copy implementation; see sara-architecture-evidence.json" id="pod-blob">
+          <mxCell edge="1" parent="1" source="analyzers" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;startArrow=block;strokeColor=#14847B;strokeWidth=1.7;dashed=1;fontFamily=Helvetica;fontSize=12;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=1;jumpStyle=arc;jumpSize=8;" target="blob">
+            <mxGeometry relative="1" as="geometry">
+              <mxPoint y="20" as="offset" />
+              <Array as="points">
+                <mxPoint x="1580" y="1060" />
+                <mxPoint x="195" y="1060" />
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </object>
+        <mxCell id="pod-blob-label" connectable="0" parent="pod-blob" style="edgeLabel;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=12;fontColor=#000000;labelBackgroundColor=#FFFFFF;" value="Read inputs + references / upload outputs" vertex="1">
+          <mxGeometry height="25" relative="1" width="330" as="geometry">
+            <mxPoint x="-165" y="-12.5" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <object label="" source="sara/api/Services/TimeseriesService.cs&#10;sara/api/Controllers/TimeSeriesDataController.cs" evidence="Verified from working-copy implementation; see sara-architecture-evidence.json" id="sara-ts">
+          <mxCell edge="1" parent="1" source="sara-api" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;startArrow=none;strokeColor=#41688B;strokeWidth=1.7;dashed=0;fontFamily=Helvetica;fontSize=12;labelBackgroundColor=#FFFFFF;exitX=0.9;exitY=1;entryX=0.5;entryY=0;jumpStyle=arc;jumpSize=8;" target="timeseries">
+            <mxGeometry relative="1" as="geometry">
+              <mxPoint y="-16" as="offset" />
+              <Array as="points">
+                <mxPoint x="1120" y="710" />
+                <mxPoint x="1210" y="710" />
+                <mxPoint x="1210" y="1120" />
+                <mxPoint x="250" y="1120" />
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </object>
+        <mxCell id="sara-ts-label" connectable="0" parent="sara-ts" style="edgeLabel;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=12;fontColor=#000000;labelBackgroundColor=#FFFFFF;" value="Write / retrieve measurement data" vertex="1">
+          <mxGeometry height="25" relative="1" width="210" x="0.55" as="geometry">
+            <mxPoint x="-105" y="-12.5" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <object label="Omnia client" source="sara-timeseries/sara_timeseries/modules/sara_timeseries_api/omnia_service.py" evidence="Verified from working-copy implementation; see sara-architecture-evidence.json" id="ts-omnia">
+          <mxCell edge="1" parent="1" source="timeseries" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;startArrow=none;strokeColor=#41688B;strokeWidth=1.7;dashed=0;fontFamily=Helvetica;fontSize=12;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;jumpStyle=arc;jumpSize=8;" target="omnia">
+            <mxGeometry relative="1" as="geometry">
+              <mxPoint y="-18" as="offset" />
+            </mxGeometry>
+          </mxCell>
+        </object>
+        <object label="" source="sara/api/Services/ResultHandlers/WorkflowResultHandlers/FencillaResultHandler.cs&#10;sara/api/Services/EmailService.cs" evidence="Verified from working-copy implementation; see sara-architecture-evidence.json" id="sara-graph">
+          <mxCell edge="1" parent="1" source="sara-api" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;startArrow=none;strokeColor=#41688B;strokeWidth=1.7;dashed=0;fontFamily=Helvetica;fontSize=12;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.98;entryX=0;entryY=0.5;jumpStyle=arc;jumpSize=8;" target="graph">
+            <mxGeometry relative="1" as="geometry">
+              <mxPoint y="-16" as="offset" />
+              <Array as="points">
+                <mxPoint x="1280" y="677" />
+                <mxPoint x="1280" y="1210" />
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </object>
+        <mxCell id="sara-graph-label" connectable="0" parent="sara-graph" style="edgeLabel;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=12;fontColor=#000000;labelBackgroundColor=#FFFFFF;" value="Send email" vertex="1">
+          <mxGeometry height="25" relative="1" width="85" x="0.88" as="geometry">
+            <mxPoint x="-42.5" y="-12.5" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="legend-blue-arrow" edge="1" parent="1" style="html=1;endArrow=block;rounded=0;strokeColor=#41688B;strokeWidth=1.7;dashed=0;fontFamily=Helvetica;fontSize=13;labelBackgroundColor=#FFFFFF;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint y="-14" as="offset" />
+            <mxPoint x="70" y="1350" as="sourcePoint" />
+            <mxPoint x="135" y="1350" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="legend-blue-label" parent="1" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=15;fontColor=#000000;fontStyle=0;" value="Application interactions" vertex="1">
+          <mxGeometry height="34" width="480" x="150" y="1333" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-orange-arrow" edge="1" parent="1" style="html=1;endArrow=block;rounded=0;strokeColor=#B76A26;strokeWidth=1.7;dashed=0;fontFamily=Helvetica;fontSize=13;labelBackgroundColor=#FFFFFF;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint y="-14" as="offset" />
+            <mxPoint x="670" y="1350" as="sourcePoint" />
+            <mxPoint x="735" y="1350" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="legend-orange-label" parent="1" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=15;fontColor=#000000;fontStyle=0;" value="Workflow control / status / results" vertex="1">
+          <mxGeometry height="34" width="480" x="750" y="1333" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-teal-arrow" edge="1" parent="1" style="html=1;endArrow=block;rounded=0;strokeColor=#14847B;strokeWidth=1.7;dashed=0;fontFamily=Helvetica;fontSize=13;labelBackgroundColor=#FFFFFF;dashed=1;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint y="-14" as="offset" />
+            <mxPoint x="1270" y="1350" as="sourcePoint" />
+            <mxPoint x="1335" y="1350" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="legend-teal-label" parent="1" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=15;fontColor=#000000;fontStyle=0;" value="Blob operations" vertex="1">
+          <mxGeometry height="34" width="480" x="1350" y="1333" as="geometry" />
+        </mxCell>
+        <mxCell id="footer" parent="1" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=12;fontColor=#52667A;fontStyle=0;" value="Icons: Microsoft Azure architecture artwork and CNCF Argo project artwork. Labels distinguish Argo Workflows from Argo CD.&lt;br&gt;Local code snapshot, not live deployment verification. Edit Data exposes source paths. See sara-architecture-evidence.json for hashes and review notes." vertex="1">
+          <mxGeometry height="55" width="1800" x="50" y="1415" as="geometry" />
+        </mxCell>
+        <mxCell id="raw-upload-label" value="Upload raw data&lt;br&gt;before MQTT" parent="raw-upload" vertex="1" connectable="0" style="edgeLabel;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=12;fontColor=#000000;labelBackgroundColor=#FFFFFF;spacing=0;">
+          <mxGeometry x="0" y="0" width="135" height="34" relative="1" as="geometry">
+            <mxPoint x="8" y="-17.0" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sara-ui-api-label" value="HTTPS API" parent="sara-ui-api" vertex="1" connectable="0" style="edgeLabel;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=12;fontColor=#000000;labelBackgroundColor=#FFFFFF;spacing=0;">
+          <mxGeometry x="0" y="0" width="110" height="24" relative="1" as="geometry">
+            <mxPoint x="8" y="-12.0" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="state-label" value="EF Core" parent="state" vertex="1" connectable="0" style="edgeLabel;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=12;fontColor=#000000;labelBackgroundColor=#FFFFFF;spacing=0;">
+          <mxGeometry x="0" y="0" width="100" height="24" relative="1" as="geometry">
+            <mxPoint x="8" y="-12.0" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="execute-label" value="Execute templates /&lt;br&gt;collect JSON" parent="execute" vertex="1" connectable="0" style="edgeLabel;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=12;fontColor=#000000;labelBackgroundColor=#FFFFFF;spacing=0;">
+          <mxGeometry x="0" y="0" width="190" height="34" relative="1" as="geometry">
+            <mxPoint x="8" y="-17.0" as="offset" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
