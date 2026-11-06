@@ -1,0 +1,1403 @@
+{
+  "scope": "Current local implementation and checked-in configuration, not verified live environment state.",
+  "files": {
+    "composition": {
+      "path": "sara/api/Program.cs",
+      "sha256": "6893f15a439a51407a7eea7d89e178a08fa839bfa3a35aefe6ddc18d8cc1f305"
+    },
+    "mqtt": {
+      "path": "sara/api/MQTT/MqttEventHandler.cs",
+      "sha256": "74eae04bf9d84ae0d93d3692f84a6589c83992ab3eee15c7e04a8f9773103009"
+    },
+    "topics": {
+      "path": "sara/api/appsettings.json",
+      "sha256": "0033891ab53e56249bf9202dab690cd3f74cfaf8ef1e36c4ab12b74078a8eb54"
+    },
+    "publisher": {
+      "path": "sara/api/MQTT/MqttPublisher.cs",
+      "sha256": "6fa01c951cf2d08f0b92c5d37d660fa8936152629224dd7616ae2b3efef99ccc"
+    },
+    "records": {
+      "path": "sara/api/Services/InspectionRecordService.cs",
+      "sha256": "b0aa24b0f2a035a8f61e0665890d62400a405bb1a70b8cc05f4b9f933f4ecdc5"
+    },
+    "trigger": {
+      "path": "sara/api/Services/AnalysisTriggerService.cs",
+      "sha256": "2e03d84bad47ec2964641a555e57bfacd1d57efaca16252ac89a36c1c5c3e7f6"
+    },
+    "timeout": {
+      "path": "sara/api/Services/AnalysisGroupTimeoutProcessor.cs",
+      "sha256": "4f6982b31f98d5003dbba4b3bd8cfab5dd46df2973a37c7e557517bd5281d94e"
+    },
+    "timer": {
+      "path": "sara/api/Services/HostedServices/AnalysisGroupTimeoutService.cs",
+      "sha256": "f2ef63b2512410597e947fcfa20462bc413e14099f03f3f623c4ecc6dddd7641"
+    },
+    "submit": {
+      "path": "sara/api/Services/AnalysisWorkflowService.cs",
+      "sha256": "82d2f859e20e3991ff406a5a715865e9d2bb578cf7bfe3a93fa184000f7e6b28"
+    },
+    "builder": {
+      "path": "sara/api/Services/AnalysisWorkflowGraphBuilder.cs",
+      "sha256": "9c526418a25655cee9e6290ffec81c7aa55b13cb18246a865c9291afcfaa6c0e"
+    },
+    "client": {
+      "path": "sara/api/Services/ArgoWorkflowClient.cs",
+      "sha256": "ccd090e965dc11655dde77ad8031b90bbe3752f5b9918fff059a21f40107401d"
+    },
+    "watcher": {
+      "path": "sara/api/Services/HostedServices/ArgoWorkflowWatcherService.cs",
+      "sha256": "07b476253187571a294a27998f2dac73792177da3df40447eeebd4815cff05f6"
+    },
+    "processor": {
+      "path": "sara/api/Services/ArgoWorkflowEventProcessor.cs",
+      "sha256": "ed3a1b0bcff324dc4fa0371891fa4dcd1bfaedd8d510ea95ebe593e08264d77a"
+    },
+    "dispatch": {
+      "path": "sara/api/Services/WorkflowService.cs",
+      "sha256": "15e97365d9791ad17507f6224c8581224eab8aab1af6d4ce4da822c852891893"
+    },
+    "resolver": {
+      "path": "sara/api/Utilities/InspectionRecordResolver.cs",
+      "sha256": "ab214848a53a48e0e8ddcefc635eb1467e7f03931e43fc8ed91c61dfbe274526"
+    },
+    "enrichers": {
+      "path": "sara/api/Utilities/TriggerPayloadEnricher.cs",
+      "sha256": "2af1babb6342901a02157dc869633b64a971b78a4d854448b168c08f239484a7"
+    },
+    "anon-extras": {
+      "path": "sara/api/Utilities/AnonymizerPayloadEnricher.cs",
+      "sha256": "acc650a871c2cc66cbb8e0eeaa8b743fdbebce978b50734bc9bdc96dd42131c3"
+    },
+    "anon-handler": {
+      "path": "sara/api/Services/ResultHandlers/WorkflowResultHandlers/AnonymizerResultHandler.cs",
+      "sha256": "9f9bbf96a96c642567a9d91fb7f02c393c9c57321f93b83fa928c7d3aad7717a"
+    },
+    "copy-handler": {
+      "path": "sara/api/Services/ResultHandlers/WorkflowResultHandlers/CopyRawToVisualizedResultHandler.cs",
+      "sha256": "e49dfc4ef7c7bcfb220c405b36e2c3c4601576925c89fb5181df1470fea115a6"
+    },
+    "fence-handler": {
+      "path": "sara/api/Services/ResultHandlers/WorkflowResultHandlers/FencillaResultHandler.cs",
+      "sha256": "517af1eead91470b8938d38e37a1f7071c8cc9a93315d8a6a3930bb6b2c65336"
+    },
+    "cloe-handler": {
+      "path": "sara/api/Services/ResultHandlers/WorkflowResultHandlers/CLOEResultHandler.cs",
+      "sha256": "b09f650c463bb5d3528cf9690c81bef3f326219521fac95d5ae8d807fadb1911"
+    },
+    "thermal-handler": {
+      "path": "sara/api/Services/ResultHandlers/WorkflowResultHandlers/ThermalReadingResultHandler.cs",
+      "sha256": "6a87c4fedf2a2fdfee6ae281e3380fe7cd29b24acf47af88faf99269f067ce10"
+    },
+    "blob": {
+      "path": "sara/api/Services/BlobStorageService.cs",
+      "sha256": "1d54dbc33e02cb13fd872af0313ce87665c2e5227c531fff803567c1689154cc"
+    },
+    "email": {
+      "path": "sara/api/Services/EmailService.cs",
+      "sha256": "7e3fe0c35a3f9e80c72813d24b2579cbf8c2d563b721a8f5005515965937d894"
+    },
+    "timeseries": {
+      "path": "sara/api/Services/TimeseriesService.cs",
+      "sha256": "2d749dbcb1c783886940f25fd3e4caebf1fe32b2b6b2debd503d5c7b75ce7bf3"
+    },
+    "db": {
+      "path": "sara/api/Database/Context/SaraDbContext.cs",
+      "sha256": "df95435eacabb48e076af60136ea2995d3b5650ed16cba216128c2bd731f3a27"
+    },
+    "db-config": {
+      "path": "sara/api/Configurations/CustomServiceConfigurations.cs",
+      "sha256": "1a4c01fff419b9639c0b5f65e0fa90747fd943c903d1991e2bdb668de04dd34b"
+    },
+    "auth": {
+      "path": "sara/api/Configurations/AuthenticationConfigurations.cs",
+      "sha256": "3061b90a41ee252d444c1cec26596bec0eedb953a3350072aad4dc5348318cd6"
+    },
+    "access": {
+      "path": "sara/api/Services/InstallationAccess.cs",
+      "sha256": "344c348f21b1f66957c316c3e57e4e70ffa1f8bb05e39ee4aba1eb4a1eaecb26"
+    },
+    "http": {
+      "path": "sara/api/Controllers/InspectionRecordController.cs",
+      "sha256": "6bb620419e099881bc07b111a70a5e91f85b8682cf39f792b768ce77503ef4dd"
+    },
+    "workflow-http": {
+      "path": "sara/api/Controllers/WorkflowController.cs",
+      "sha256": "d0e569321fc5a6089750cbdb24b74720f19fed7533c8a17b00839027706af05f"
+    },
+    "co2": {
+      "path": "sara/api/Controllers/TimeSeriesDataController.cs",
+      "sha256": "368e525b6983e9abf12b628e52581dc1aed75876ebb1889192866dceaa763772"
+    },
+    "sara-ui": {
+      "path": "sara/frontend/src/api/client.ts",
+      "sha256": "03601371ed40feb9521390666958c04b453741ac4e0d9d649072af182cf048ed"
+    },
+    "flotilla-ui": {
+      "path": "flotilla/frontend/src/api/SaraApi.tsx",
+      "sha256": "ce0ad5b2ec093b277d85236622fcd0e6f13e138aa1c070252bf256b46969d6d2"
+    },
+    "flotilla-auth": {
+      "path": "flotilla/frontend/src/api/UseSaraApi.tsx",
+      "sha256": "612d21f1ee12f62475b9c1ba95d8653033504a1abe54c182b290df6992e3f042"
+    },
+    "flotilla-refresh": {
+      "path": "flotilla/frontend/src/contexts/InspectionsContext.tsx",
+      "sha256": "cc59a576961b3e867fa12abaef33aeb1507279ae14c02aa0123993e3be607e37"
+    },
+    "flotilla-events": {
+      "path": "flotilla/backend/api/EventHandlers/MqttEventHandler.cs",
+      "sha256": "0a29f0029eb523eb5e22ea6ad9617adbfffb11f7dc14946dd81019b2bdf5a5e2"
+    },
+    "flotilla-topics": {
+      "path": "flotilla/backend/api/MQTT/MqttTopics.cs",
+      "sha256": "a8c042de4f74ae6ed0689279b700715e870512c4ca55d697eb4dce84ef13d2e2"
+    },
+    "isar": {
+      "path": "isar/src/isar/storage/uploader.py",
+      "sha256": "bfbc732bb3f22030bdeaae453e0d23ab95270b035b5d658f4f8f5a8a2c192466"
+    },
+    "anonymizer": {
+      "path": "sara-anonymizer/sara_anonymizer/main_workflow.py",
+      "sha256": "ec64725347e03c4ac48959dff83928c04ba88c138c38661e82937f3a6fb33130"
+    },
+    "fencilla": {
+      "path": "sara-fence-detection/sara_fence_detection/main.py",
+      "sha256": "55cdf0c42b6dee4803978ce2df968ab18f0b65e9e14eb03fc3b1b89911259026"
+    },
+    "fencilla-result": {
+      "path": "sara-fence-detection/sara_fence_detection/result_io.py",
+      "sha256": "2b65a75743bc9fd29b954cf52429b507597864825c335efee5b8b672c6969010"
+    },
+    "template": {
+      "path": "robotics-infrastructure/k8s_kustomize/analytics/base/workflows/fencilla-template.yaml",
+      "sha256": "1457a977993bade575428f9e12e60181fe051e2f45ae35d831c9d211d8e22dca"
+    },
+    "rain-template": {
+      "path": "robotics-infrastructure/k8s_kustomize/analytics/base/workflows/rain-drop-detector-template.yaml",
+      "sha256": "bb3a0eb3a0dcfef456e08e78313f627beb229ed74464b849bb9b1386bfd30941"
+    },
+    "deployment": {
+      "path": "robotics-infrastructure/k8s_kustomize/analytics/base/sara.yaml",
+      "sha256": "0791645772184d548ab9c591c07557129929faa5815987dec15dec1b73addbb9"
+    },
+    "dev-overlay": {
+      "path": "robotics-infrastructure/k8s_kustomize/analytics/overlays/development/patches/sara.yaml",
+      "sha256": "d7ff15abf7f6653144d08a5870a0de11ded80ce1b8086e34c9da11d45c7b20e2"
+    },
+    "staging-overlay": {
+      "path": "robotics-infrastructure/k8s_kustomize/analytics/overlays/staging/patches/sara.yaml",
+      "sha256": "43005413628611aed34e6117c60f0ed2afed6e09211ae5f4d96801efd4d598dc"
+    },
+    "prod-overlay": {
+      "path": "robotics-infrastructure/k8s_kustomize/analytics/overlays/production/patches/sara.yaml",
+      "sha256": "dbfd2c1fd7eb82cbf9aca4872b94f4fac05194845e5d4eae7eabfd99131c9e82"
+    },
+    "ts-http": {
+      "path": "sara-timeseries/sara_timeseries/modules/sara_timeseries_api/timeseries_controller.py",
+      "sha256": "b6eca7a17268289f19ccb4ae37ce8f6581c0c4ce3d18a16b787fcec54fd563cb"
+    },
+    "omnia": {
+      "path": "sara-timeseries/sara_timeseries/modules/sara_timeseries_api/omnia_service.py",
+      "sha256": "97b7b6aad3b3bdead718a85694dd81bc762922bc6b6fa0b248ae35a476473747"
+    },
+    "feedback-http": {
+      "path": "sara/api/Controllers/FeedbackController.cs",
+      "sha256": "48438797cadd919a8adb8091835100933b5f473c7c95c7ab4c434e28c0e8d17f"
+    },
+    "feedback-service": {
+      "path": "sara/api/Services/FeedbackService.cs",
+      "sha256": "9d5755ad78e9f142b9947675c3ebdd685a5c1f76905d185453d63e6239fa6c5d"
+    },
+    "analysis-http": {
+      "path": "sara/api/Controllers/AnalysisController.cs",
+      "sha256": "938d19d22f8e4ed824c0dd097c7bec86d6345abdf7c420ddad2035a5ec5206d8"
+    },
+    "group-http": {
+      "path": "sara/api/Controllers/AnalysisGroupController.cs",
+      "sha256": "8bb5faf5fb0eda24a6e462e3da04ee6d6e11812365487c2a71b96db9afaba4b2"
+    },
+    "run-http": {
+      "path": "sara/api/Controllers/AnalysisRunController.cs",
+      "sha256": "aef1ec65a10dbf992f81f3aeaa3937098d27a94b81a518cff7476932a208d516"
+    },
+    "dashboard-http": {
+      "path": "sara/api/Controllers/DashboardController.cs",
+      "sha256": "2269ec7074aa5c09dcb8135a3fbcafbaab3f5497a2238434ddd620fd9b6533a5"
+    },
+    "reference-http": {
+      "path": "sara/api/Controllers/ReferencePolygonMetadataController.cs",
+      "sha256": "c19da677e25f5aa4fb0f6a8cdf3a996f09cc0bc9928770faeac94370786798cd"
+    },
+    "access-filter": {
+      "path": "sara/api/Controllers/InstallationAccessExceptionFilter.cs",
+      "sha256": "78cbf984d9547c5095ae51f6e41f158b2e75738bfbc67fd698511af0dc8ae860"
+    },
+    "access-tests": {
+      "path": "sara/api.Tests/Controllers/AnalysisRunControllerTests.cs",
+      "sha256": "2b6b62906675fe07967b4e61aaf0aae600ba7f59bd1e13cc1704a568644888eb"
+    },
+    "feedback-tests": {
+      "path": "sara/api.Tests/Controllers/FeedbackControllerTests.cs",
+      "sha256": "a7e3cfd297bf18d6d7582c26ab0bcfad7f9d91ddeff20703f14e975e2ff6c7cb"
+    },
+    "record-controller": {
+      "path": "sara/api/Controllers/InspectionRecordController.cs",
+      "sha256": "6bb620419e099881bc07b111a70a5e91f85b8682cf39f792b768ce77503ef4dd"
+    },
+    "analysis-controller": {
+      "path": "sara/api/Controllers/AnalysisController.cs",
+      "sha256": "938d19d22f8e4ed824c0dd097c7bec86d6345abdf7c420ddad2035a5ec5206d8"
+    },
+    "workflow-controller": {
+      "path": "sara/api/Controllers/WorkflowController.cs",
+      "sha256": "d0e569321fc5a6089750cbdb24b74720f19fed7533c8a17b00839027706af05f"
+    }
+  },
+  "repositories": {
+    "flotilla": {
+      "head": "76439f306d4310ffc0e93117415a2fbed05b7960",
+      "working_copy_status": []
+    },
+    "isar": {
+      "head": "805b5def39db2fedebe05c57916484741edc11b9",
+      "working_copy_status": []
+    },
+    "robotics-infrastructure": {
+      "head": "baad037742ccb4c21df7b3efd7847bb75037e87b",
+      "working_copy_status": [
+        " M k8s_kustomize/analytics/overlays/local/local-workflows/patches/fencilla.yaml"
+      ]
+    },
+    "sara": {
+      "head": "301cea5c6e7074e61819af628c75d1bc006c432d",
+      "working_copy_status": []
+    },
+    "sara-anonymizer": {
+      "head": "2bc9729bb11e3407dd039344cf5af494f3dc3326",
+      "working_copy_status": []
+    },
+    "sara-fence-detection": {
+      "head": "135fc89640b346d022004a2e5d2b5e66a555a56b",
+      "working_copy_status": []
+    },
+    "sara-timeseries": {
+      "head": "a7ce3142b8a3f90eb7cd47359c614321780340a1",
+      "working_copy_status": []
+    }
+  },
+  "elements": {
+    "sara-architecture-system": {
+      "identity": [
+        "sara/api/Configurations/AuthenticationConfigurations.cs",
+        "sara/api/Services/InstallationAccess.cs",
+        "sara/frontend/src/api/client.ts",
+        "flotilla/frontend/src/api/UseSaraApi.tsx"
+      ],
+      "keyvault": [
+        "sara/api/Program.cs",
+        "sara/api/Configurations/CustomServiceConfigurations.cs"
+      ],
+      "isar": [
+        "isar/src/isar/storage/uploader.py"
+      ],
+      "mqtt": [
+        "sara/api/appsettings.json",
+        "sara/api/MQTT/MqttPublisher.cs",
+        "flotilla/backend/api/MQTT/MqttTopics.cs"
+      ],
+      "sara-api": [
+        "sara/api/Program.cs",
+        "sara/api/Services/InspectionRecordService.cs",
+        "sara/api/Services/AnalysisWorkflowGraphBuilder.cs",
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "sara-ui": [
+        "sara/frontend/src/api/client.ts",
+        "sara/api/Program.cs"
+      ],
+      "argo": [
+        "sara/api/Services/AnalysisWorkflowGraphBuilder.cs",
+        "sara/api/Services/ArgoWorkflowClient.cs",
+        "sara/api/Services/AnalysisWorkflowService.cs"
+      ],
+      "analyzers": [
+        "sara/api/appsettings.json",
+        "robotics-infrastructure/k8s_kustomize/analytics/base/workflows/fencilla-template.yaml",
+        "robotics-infrastructure/k8s_kustomize/analytics/base/workflows/rain-drop-detector-template.yaml"
+      ],
+      "flotilla": [
+        "flotilla/backend/api/EventHandlers/MqttEventHandler.cs",
+        "flotilla/frontend/src/api/SaraApi.tsx",
+        "flotilla/frontend/src/contexts/InspectionsContext.tsx",
+        "flotilla/frontend/src/api/UseSaraApi.tsx",
+        "sara/api/Controllers/FeedbackController.cs"
+      ],
+      "blob": [
+        "sara/api/Services/BlobStorageService.cs",
+        "isar/src/isar/storage/uploader.py",
+        "sara-anonymizer/sara_anonymizer/main_workflow.py",
+        "sara-fence-detection/sara_fence_detection/main.py"
+      ],
+      "postgres": [
+        "sara/api/Database/Context/SaraDbContext.cs",
+        "sara/api/Configurations/CustomServiceConfigurations.cs"
+      ],
+      "timeseries": [
+        "sara/api/Services/TimeseriesService.cs",
+        "sara/api/Controllers/TimeSeriesDataController.cs",
+        "sara-timeseries/sara_timeseries/modules/sara_timeseries_api/timeseries_controller.py"
+      ],
+      "omnia": [
+        "sara-timeseries/sara_timeseries/modules/sara_timeseries_api/omnia_service.py"
+      ],
+      "graph": [
+        "sara/api/Services/ResultHandlers/WorkflowResultHandlers/FencillaResultHandler.cs",
+        "sara/api/Services/EmailService.cs"
+      ],
+      "publish-inspection": [
+        "isar/src/isar/storage/uploader.py",
+        "sara/api/appsettings.json"
+      ],
+      "consume-inspection": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "publish-availability": [
+        "sara/api/MQTT/MqttPublisher.cs"
+      ],
+      "create-dag": [
+        "sara/api/Services/AnalysisWorkflowService.cs",
+        "sara/api/Services/ArgoWorkflowClient.cs"
+      ],
+      "watch-results": [
+        "sara/api/Services/ArgoWorkflowClient.cs",
+        "sara/api/Services/HostedServices/ArgoWorkflowWatcherService.cs"
+      ],
+      "execute": [
+        "sara/api/Services/AnalysisWorkflowGraphBuilder.cs",
+        "robotics-infrastructure/k8s_kustomize/analytics/base/workflows/fencilla-template.yaml"
+      ],
+      "mqtt-flotilla": [
+        "flotilla/backend/api/EventHandlers/MqttEventHandler.cs",
+        "flotilla/backend/api/MQTT/MqttTopics.cs"
+      ],
+      "flotilla-api": [
+        "flotilla/frontend/src/api/SaraApi.tsx",
+        "flotilla/frontend/src/api/UseSaraApi.tsx"
+      ],
+      "sara-ui-api": [
+        "sara/frontend/src/api/client.ts"
+      ],
+      "state": [
+        "sara/api/Configurations/CustomServiceConfigurations.cs",
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "raw-upload": [
+        "isar/src/isar/storage/uploader.py"
+      ],
+      "sara-blob": [
+        "sara/api/Services/BlobStorageService.cs",
+        "sara/api/MQTT/MqttEventHandler.cs",
+        "sara/api/Controllers/InspectionRecordController.cs"
+      ],
+      "pod-blob": [
+        "sara-fence-detection/sara_fence_detection/main.py",
+        "sara-anonymizer/sara_anonymizer/main_workflow.py"
+      ],
+      "sara-ts": [
+        "sara/api/Services/TimeseriesService.cs",
+        "sara/api/Controllers/TimeSeriesDataController.cs"
+      ],
+      "ts-omnia": [
+        "sara-timeseries/sara_timeseries/modules/sara_timeseries_api/omnia_service.py"
+      ],
+      "sara-graph": [
+        "sara/api/Services/ResultHandlers/WorkflowResultHandlers/FencillaResultHandler.cs",
+        "sara/api/Services/EmailService.cs"
+      ]
+    },
+    "sara-architecture-components": {
+      "http": [
+        "sara/api/Program.cs",
+        "sara/api/Configurations/AuthenticationConfigurations.cs",
+        "sara/api/Services/InstallationAccess.cs",
+        "sara/api/Controllers/InspectionRecordController.cs",
+        "sara/api/Controllers/WorkflowController.cs"
+      ],
+      "mqtt-ingest": [
+        "sara/api/MQTT/MqttEventHandler.cs",
+        "sara/api/appsettings.json"
+      ],
+      "records": [
+        "sara/api/Services/InspectionRecordService.cs"
+      ],
+      "mqtt-records": [
+        "sara/api/Services/InspectionRecordService.cs"
+      ],
+      "trigger": [
+        "sara/api/Services/AnalysisTriggerService.cs",
+        "sara/api/Services/WorkflowService.cs"
+      ],
+      "graph": [
+        "sara/api/Services/AnalysisWorkflowService.cs",
+        "sara/api/Services/AnalysisWorkflowGraphBuilder.cs",
+        "sara/api/Utilities/TriggerPayloadEnricher.cs",
+        "sara/api/Utilities/AnonymizerPayloadEnricher.cs"
+      ],
+      "client": [
+        "sara/api/Services/ArgoWorkflowClient.cs",
+        "sara/api/Services/AnalysisWorkflowService.cs"
+      ],
+      "watcher": [
+        "sara/api/Services/HostedServices/ArgoWorkflowWatcherService.cs"
+      ],
+      "processor": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "handlers": [
+        "sara/api/Services/WorkflowService.cs",
+        "sara/api/Services/ResultHandlers/WorkflowResultHandlers/AnonymizerResultHandler.cs",
+        "sara/api/Services/ResultHandlers/WorkflowResultHandlers/CopyRawToVisualizedResultHandler.cs",
+        "sara/api/Services/ResultHandlers/WorkflowResultHandlers/FencillaResultHandler.cs",
+        "sara/api/Services/ResultHandlers/WorkflowResultHandlers/CLOEResultHandler.cs",
+        "sara/api/Services/ResultHandlers/WorkflowResultHandlers/ThermalReadingResultHandler.cs",
+        "sara/api/Utilities/InspectionRecordResolver.cs"
+      ],
+      "timeout": [
+        "sara/api/Services/HostedServices/AnalysisGroupTimeoutService.cs",
+        "sara/api/Services/AnalysisGroupTimeoutProcessor.cs"
+      ],
+      "broker": [
+        "sara/api/MQTT/MqttEventHandler.cs",
+        "sara/api/MQTT/MqttPublisher.cs"
+      ],
+      "http-create": [
+        "sara/api/Controllers/InspectionRecordController.cs",
+        "sara/api/Services/InspectionRecordService.cs"
+      ],
+      "ingest-record": [
+        "sara/api/MQTT/MqttEventHandler.cs",
+        "sara/api/Services/InspectionRecordService.cs"
+      ],
+      "http-trigger": [
+        "sara/api/Services/InspectionRecordService.cs"
+      ],
+      "trigger-build": [
+        "sara/api/Services/AnalysisTriggerService.cs",
+        "sara/api/Services/AnalysisWorkflowService.cs"
+      ],
+      "build-client": [
+        "sara/api/Services/AnalysisWorkflowService.cs"
+      ],
+      "client-watch": [
+        "sara/api/Services/HostedServices/ArgoWorkflowWatcherService.cs"
+      ],
+      "watch-processor": [
+        "sara/api/Services/HostedServices/ArgoWorkflowWatcherService.cs"
+      ],
+      "processor-handler": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "broker-ingest": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "handler-publish": [
+        "sara/api/MQTT/MqttPublisher.cs",
+        "sara/api/Services/ResultHandlers/WorkflowResultHandlers/AnonymizerResultHandler.cs",
+        "sara/api/Services/ResultHandlers/WorkflowResultHandlers/FencillaResultHandler.cs"
+      ],
+      "shared-deps": [
+        "sara/api/Database/Context/SaraDbContext.cs",
+        "sara/api/Program.cs"
+      ],
+      "db": [
+        "sara/api/Database/Context/SaraDbContext.cs",
+        "sara/api/Configurations/CustomServiceConfigurations.cs"
+      ],
+      "blob-adapter": [
+        "sara/api/Services/BlobStorageService.cs",
+        "sara/api/Utilities/TriggerPayloadEnricher.cs",
+        "sara/api/Program.cs"
+      ],
+      "outbound": [
+        "sara/api/MQTT/MqttPublisher.cs",
+        "sara/api/Services/TimeseriesService.cs",
+        "sara/api/Services/EmailService.cs"
+      ],
+      "queries": [
+        "sara/api/Program.cs",
+        "sara/api/Services/InstallationAccess.cs"
+      ],
+      "mqtt-record-trigger": [
+        "sara/api/MQTT/MqttEventHandler.cs",
+        "sara/api/Services/InspectionRecordService.cs"
+      ],
+      "http-rerun": [
+        "sara/api/Controllers/AnalysisController.cs"
+      ]
+    },
+    "sara-architecture-runtime": {
+      "isar": [
+        "isar/src/isar/storage/uploader.py"
+      ],
+      "broker": [
+        "sara/api/appsettings.json",
+        "sara/api/MQTT/MqttPublisher.cs"
+      ],
+      "sara": [
+        "sara/api/MQTT/MqttEventHandler.cs",
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "db": [
+        "sara/api/Database/Context/SaraDbContext.cs"
+      ],
+      "argo": [
+        "sara/api/Services/ArgoWorkflowClient.cs"
+      ],
+      "pods": [
+        "robotics-infrastructure/k8s_kustomize/analytics/base/workflows/fencilla-template.yaml"
+      ],
+      "blobs": [
+        "sara/api/Services/BlobStorageService.cs"
+      ],
+      "flotilla": [
+        "flotilla/backend/api/EventHandlers/MqttEventHandler.cs",
+        "flotilla/frontend/src/contexts/InspectionsContext.tsx"
+      ],
+      "upload-raw": [
+        "isar/src/isar/storage/uploader.py"
+      ],
+      "publish-metadata": [
+        "isar/src/isar/storage/uploader.py"
+      ],
+      "receive-inspection": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "verify-blob": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "persist-inspection": [
+        "sara/api/Services/InspectionRecordService.cs"
+      ],
+      "persist-run": [
+        "sara/api/Services/AnalysisTriggerService.cs"
+      ],
+      "submit-dag": [
+        "sara/api/Services/AnalysisWorkflowService.cs",
+        "sara/api/Services/AnalysisWorkflowGraphBuilder.cs"
+      ],
+      "execute-templates": [
+        "robotics-infrastructure/k8s_kustomize/analytics/base/workflows/fencilla-template.yaml",
+        "sara/api/Services/AnalysisWorkflowGraphBuilder.cs"
+      ],
+      "analyzer-blob-io": [
+        "sara-anonymizer/sara_anonymizer/main_workflow.py",
+        "sara-fence-detection/sara_fence_detection/main.py"
+      ],
+      "analyzer-result": [
+        "robotics-infrastructure/k8s_kustomize/analytics/base/workflows/fencilla-template.yaml",
+        "sara-fence-detection/sara_fence_detection/result_io.py"
+      ],
+      "watch-nodes": [
+        "sara/api/Services/HostedServices/ArgoWorkflowWatcherService.cs",
+        "sara/api/Services/ArgoWorkflowClient.cs"
+      ],
+      "commit-step": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "publish-result": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs",
+        "sara/api/Services/WorkflowService.cs",
+        "sara/api/MQTT/MqttPublisher.cs"
+      ],
+      "notify-flotilla": [
+        "flotilla/backend/api/MQTT/MqttTopics.cs",
+        "flotilla/backend/api/EventHandlers/MqttEventHandler.cs"
+      ],
+      "read-api": [
+        "flotilla/backend/api/EventHandlers/MqttEventHandler.cs",
+        "flotilla/frontend/src/api/SaraApi.tsx"
+      ],
+      "finalize-run": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ]
+    },
+    "sara-architecture-access": {
+      "identity": [
+        "sara/api/Configurations/AuthenticationConfigurations.cs"
+      ],
+      "authentication": [
+        "sara/api/Configurations/AuthenticationConfigurations.cs",
+        "sara/api/Program.cs"
+      ],
+      "policy": [
+        "sara/api/Program.cs",
+        "sara/api/Controllers/InspectionRecordController.cs",
+        "sara/api/Controllers/FeedbackController.cs"
+      ],
+      "data-scope": [
+        "sara/api/Services/InstallationAccess.cs",
+        "sara/api/Services/FeedbackService.cs",
+        "sara/api/Controllers/TimeSeriesDataController.cs"
+      ],
+      "token-validation": [
+        "sara/api/Configurations/AuthenticationConfigurations.cs"
+      ],
+      "policy-check": [
+        "sara/api/Program.cs"
+      ],
+      "installation-check": [
+        "sara/api/Services/InstallationAccess.cs"
+      ],
+      "observer": [
+        "sara/api/Services/InstallationAccess.cs"
+      ],
+      "admin": [
+        "sara/api/Services/InstallationAccess.cs",
+        "sara/api/Program.cs"
+      ],
+      "unassigned": [
+        "sara/api/Services/InstallationAccess.cs",
+        "sara/api/Program.cs",
+        "sara/api.Tests/Controllers/AnalysisRunControllerTests.cs"
+      ],
+      "read-operation": [
+        "sara/api/Controllers/InspectionRecordController.cs",
+        "sara/api/Controllers/AnalysisController.cs",
+        "sara/api/Controllers/AnalysisRunController.cs",
+        "sara/api/Controllers/WorkflowController.cs",
+        "sara/api/Controllers/AnalysisGroupController.cs",
+        "sara/api/Controllers/TimeSeriesDataController.cs"
+      ],
+      "read-observer": [
+        "sara/api/Controllers/InspectionRecordController.cs",
+        "sara/api/Controllers/AnalysisController.cs",
+        "sara/api/Controllers/AnalysisRunController.cs",
+        "sara/api/Controllers/WorkflowController.cs",
+        "sara/api/Controllers/AnalysisGroupController.cs"
+      ],
+      "read-admin": [
+        "sara/api/Controllers/InspectionRecordController.cs",
+        "sara/api/Controllers/AnalysisController.cs",
+        "sara/api/Controllers/AnalysisRunController.cs",
+        "sara/api/Controllers/WorkflowController.cs",
+        "sara/api/Controllers/AnalysisGroupController.cs"
+      ],
+      "report-operation": [
+        "sara/api/Controllers/DashboardController.cs",
+        "sara/api/Controllers/FeedbackController.cs",
+        "sara/api/Controllers/ReferencePolygonMetadataController.cs"
+      ],
+      "report-observer": [
+        "sara/api/Controllers/DashboardController.cs",
+        "sara/api/Controllers/FeedbackController.cs",
+        "sara/api/Controllers/ReferencePolygonMetadataController.cs"
+      ],
+      "report-admin": [
+        "sara/api/Controllers/DashboardController.cs",
+        "sara/api/Controllers/FeedbackController.cs",
+        "sara/api/Controllers/ReferencePolygonMetadataController.cs"
+      ],
+      "feedback-operation": [
+        "sara/api/Controllers/FeedbackController.cs",
+        "sara/api/Services/FeedbackService.cs",
+        "sara/api.Tests/Controllers/FeedbackControllerTests.cs"
+      ],
+      "feedback-observer": [
+        "sara/api/Controllers/FeedbackController.cs",
+        "sara/api/Services/FeedbackService.cs",
+        "sara/api.Tests/Controllers/FeedbackControllerTests.cs"
+      ],
+      "feedback-admin": [
+        "sara/api/Controllers/FeedbackController.cs",
+        "sara/api/Services/FeedbackService.cs",
+        "sara/api.Tests/Controllers/FeedbackControllerTests.cs"
+      ],
+      "execute-operation": [
+        "sara/api/Controllers/InspectionRecordController.cs",
+        "sara/api/Controllers/AnalysisController.cs",
+        "sara/api/Controllers/WorkflowController.cs"
+      ],
+      "execute-observer": [
+        "sara/api/Controllers/InspectionRecordController.cs",
+        "sara/api/Controllers/AnalysisController.cs",
+        "sara/api/Controllers/WorkflowController.cs"
+      ],
+      "execute-admin": [
+        "sara/api/Controllers/InspectionRecordController.cs",
+        "sara/api/Controllers/AnalysisController.cs",
+        "sara/api/Controllers/WorkflowController.cs"
+      ],
+      "reference-operation": [
+        "sara/api/Controllers/ReferencePolygonMetadataController.cs"
+      ],
+      "reference-observer": [
+        "sara/api/Controllers/ReferencePolygonMetadataController.cs"
+      ],
+      "reference-admin": [
+        "sara/api/Controllers/ReferencePolygonMetadataController.cs"
+      ],
+      "delete-operation": [
+        "sara/api/Controllers/InspectionRecordController.cs",
+        "sara/api/Controllers/AnalysisController.cs",
+        "sara/api/Controllers/AnalysisRunController.cs",
+        "sara/api/Controllers/WorkflowController.cs",
+        "sara/api/Controllers/AnalysisGroupController.cs",
+        "sara/api/Controllers/FeedbackController.cs"
+      ],
+      "delete-observer": [
+        "sara/api/Controllers/InspectionRecordController.cs",
+        "sara/api/Controllers/AnalysisController.cs",
+        "sara/api/Controllers/AnalysisRunController.cs",
+        "sara/api/Controllers/WorkflowController.cs",
+        "sara/api/Controllers/AnalysisGroupController.cs",
+        "sara/api/Controllers/FeedbackController.cs"
+      ],
+      "delete-admin": [
+        "sara/api/Controllers/InspectionRecordController.cs",
+        "sara/api/Controllers/AnalysisController.cs",
+        "sara/api/Controllers/AnalysisRunController.cs",
+        "sara/api/Controllers/WorkflowController.cs",
+        "sara/api/Controllers/AnalysisGroupController.cs",
+        "sara/api/Controllers/FeedbackController.cs"
+      ],
+      "scope-rule": [
+        "sara/api/Services/InstallationAccess.cs",
+        "sara/api.Tests/Controllers/AnalysisRunControllerTests.cs",
+        "sara/api.Tests/Controllers/FeedbackControllerTests.cs"
+      ],
+      "enforcement": [
+        "sara/api/Services/InstallationAccess.cs",
+        "sara/api/Controllers/InstallationAccessExceptionFilter.cs",
+        "sara/api.Tests/Controllers/AnalysisRunControllerTests.cs",
+        "sara/api/Program.cs"
+      ],
+      "background": [
+        "sara/api/Services/InstallationAccess.cs",
+        "sara/api/Program.cs",
+        "sara/api/MQTT/MqttEventHandler.cs",
+        "sara/api/Services/HostedServices/ArgoWorkflowWatcherService.cs"
+      ]
+    },
+    "sara-architecture-runtime-alternates": {
+      "a1-entry": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "a1-validate": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "a1-dup": [
+        "sara/api/Services/InspectionRecordService.cs"
+      ],
+      "a1-create": [
+        "sara/api/Services/InspectionRecordService.cs"
+      ],
+      "a2-entry": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "a2-validate": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "a2-dup": [
+        "sara/api/Services/InspectionRecordService.cs"
+      ],
+      "a2-create": [
+        "sara/api/Services/InspectionRecordService.cs"
+      ],
+      "a2-publish": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "a2-timeseries": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "a3-entry": [
+        "sara/api/Controllers/InspectionRecordController.cs",
+        "sara/api/Services/InspectionRecordService.cs"
+      ],
+      "a3-validate": [
+        "sara/api/Controllers/InspectionRecordController.cs"
+      ],
+      "a3-dup": [
+        "sara/api/Services/InspectionRecordService.cs"
+      ],
+      "a3-create": [
+        "sara/api/Services/InspectionRecordService.cs"
+      ],
+      "a4-entry": [
+        "sara/api/Controllers/InspectionRecordController.cs",
+        "sara/api/Services/InspectionRecordService.cs"
+      ],
+      "a4-validate": [
+        "sara/api/Services/InspectionRecordService.cs"
+      ],
+      "a4-attach": [
+        "sara/api/Services/InspectionRecordService.cs"
+      ],
+      "a4-warning": [
+        "sara/api/Services/InspectionRecordService.cs"
+      ],
+      "a6-entry": [
+        "sara/api/Controllers/WorkflowController.cs",
+        "sara/api/Services/WorkflowService.cs"
+      ],
+      "a5-entry": [
+        "sara/api/Controllers/AnalysisController.cs",
+        "sara/api/Services/AnalysisTriggerService.cs"
+      ],
+      "a5-validate": [
+        "sara/api/Services/AnalysisTriggerService.cs"
+      ],
+      "a5-note": [
+        "sara/api/Services/AnalysisTriggerService.cs"
+      ],
+      "t-any": [
+        "sara/api/Services/AnalysisTriggerService.cs"
+      ],
+      "t-none": [
+        "sara/api/Services/AnalysisTriggerService.cs"
+      ],
+      "t-grouped": [
+        "sara/api/Services/AnalysisTriggerService.cs"
+      ],
+      "t-now": [
+        "sara/api/Services/AnalysisTriggerService.cs"
+      ],
+      "t-defer": [
+        "sara/api/Services/InspectionRecordService.cs"
+      ],
+      "t-size": [
+        "sara/api/Services/AnalysisTriggerService.cs"
+      ],
+      "t-wait": [
+        "sara/api/Services/AnalysisTriggerService.cs"
+      ],
+      "t-complete": [
+        "sara/api/Services/AnalysisTriggerService.cs"
+      ],
+      "t-submit": [
+        "sara/api/Services/AnalysisWorkflowService.cs",
+        "sara/api/Services/AnalysisWorkflowGraphBuilder.cs"
+      ],
+      "x-running": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "x-gate": [
+        "sara/api/Services/AnalysisWorkflowGraphBuilder.cs",
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "x-skipped": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "x-succeeded": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "x-handler": [
+        "sara/api/Services/WorkflowService.cs"
+      ],
+      "x-nohandler": [
+        "sara/api/Services/WorkflowService.cs"
+      ],
+      "x-single": [
+        "sara/api/Services/ResultHandlers/WorkflowResultHandlers"
+      ],
+      "x-grouped": [
+        "sara/api/Services/ResultHandlers/WorkflowResultHandlers"
+      ],
+      "x-publish": [
+        "sara/api/Services/ResultHandlers/WorkflowResultHandlers"
+      ],
+      "x-finalize": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ]
+    },
+    "sara-architecture-runtime-failures": {
+      "c1-fail": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "c1-where": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "c1-state": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "c1-told": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "c1-next": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "c2-fail": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "c2-where": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "c2-state": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "c2-told": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "c2-next": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "c4-fail": [
+        "sara/api/MQTT/MqttEventHandler.cs",
+        "sara/api/Services/InspectionRecordService.cs"
+      ],
+      "c4-where": [
+        "sara/api/MQTT/MqttEventHandler.cs",
+        "sara/api/Services/InspectionRecordService.cs"
+      ],
+      "c4-state": [
+        "sara/api/MQTT/MqttEventHandler.cs",
+        "sara/api/Services/InspectionRecordService.cs"
+      ],
+      "c4-told": [
+        "sara/api/MQTT/MqttEventHandler.cs",
+        "sara/api/Services/InspectionRecordService.cs"
+      ],
+      "c4-next": [
+        "sara/api/MQTT/MqttEventHandler.cs",
+        "sara/api/Services/InspectionRecordService.cs"
+      ],
+      "c19-fail": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "c19-where": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "c19-state": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "c19-told": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "c19-next": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "c20-fail": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "c20-where": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "c20-state": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "c20-told": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "c20-next": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "c21-fail": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "c21-where": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "c21-state": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "c21-told": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "c21-next": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "c7-fail": [
+        "sara/api/Services/AnalysisTriggerService.cs"
+      ],
+      "c7-where": [
+        "sara/api/Services/AnalysisTriggerService.cs"
+      ],
+      "c7-state": [
+        "sara/api/Services/AnalysisTriggerService.cs"
+      ],
+      "c7-told": [
+        "sara/api/Services/AnalysisTriggerService.cs"
+      ],
+      "c7-next": [
+        "sara/api/Services/AnalysisTriggerService.cs"
+      ],
+      "c6-fail": [
+        "sara/api/Services/AnalysisWorkflowService.cs",
+        "sara/api/Controllers/InspectionRecordController.cs",
+        "sara/api/Controllers/AnalysisController.cs"
+      ],
+      "c6-where": [
+        "sara/api/Services/AnalysisWorkflowService.cs",
+        "sara/api/Controllers/InspectionRecordController.cs",
+        "sara/api/Controllers/AnalysisController.cs"
+      ],
+      "c6-state": [
+        "sara/api/Services/AnalysisWorkflowService.cs",
+        "sara/api/Controllers/InspectionRecordController.cs",
+        "sara/api/Controllers/AnalysisController.cs"
+      ],
+      "c6-told": [
+        "sara/api/Services/AnalysisWorkflowService.cs",
+        "sara/api/Controllers/InspectionRecordController.cs",
+        "sara/api/Controllers/AnalysisController.cs"
+      ],
+      "c6-next": [
+        "sara/api/Services/AnalysisWorkflowService.cs",
+        "sara/api/Controllers/InspectionRecordController.cs",
+        "sara/api/Controllers/AnalysisController.cs"
+      ],
+      "c5-fail": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "c5-where": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "c5-state": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "c5-told": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "c5-next": [
+        "sara/api/MQTT/MqttEventHandler.cs"
+      ],
+      "c22-fail": [
+        "sara/api/Services/AnalysisTriggerService.cs",
+        "sara/api/Controllers/AnalysisController.cs"
+      ],
+      "c22-where": [
+        "sara/api/Services/AnalysisTriggerService.cs",
+        "sara/api/Controllers/AnalysisController.cs"
+      ],
+      "c22-state": [
+        "sara/api/Services/AnalysisTriggerService.cs",
+        "sara/api/Controllers/AnalysisController.cs"
+      ],
+      "c22-told": [
+        "sara/api/Services/AnalysisTriggerService.cs",
+        "sara/api/Controllers/AnalysisController.cs"
+      ],
+      "c22-next": [
+        "sara/api/Services/AnalysisTriggerService.cs",
+        "sara/api/Controllers/AnalysisController.cs"
+      ],
+      "c8-fail": [
+        "sara/api/Services/AnalysisGroupTimeoutProcessor.cs"
+      ],
+      "c8-where": [
+        "sara/api/Services/AnalysisGroupTimeoutProcessor.cs"
+      ],
+      "c8-state": [
+        "sara/api/Services/AnalysisGroupTimeoutProcessor.cs"
+      ],
+      "c8-told": [
+        "sara/api/Services/AnalysisGroupTimeoutProcessor.cs"
+      ],
+      "c8-next": [
+        "sara/api/Services/AnalysisGroupTimeoutProcessor.cs"
+      ],
+      "c9-fail": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "c9-where": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "c9-state": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "c9-told": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "c9-next": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "c10-fail": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "c10-where": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "c10-state": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "c10-told": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "c10-next": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "c11-fail": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "c11-where": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "c11-state": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "c11-told": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "c11-next": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "c13-fail": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "c13-where": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "c13-state": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "c13-told": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "c13-next": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "c14-fail": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "c14-where": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "c14-state": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "c14-told": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "c14-next": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "c15-fail": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "c15-where": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "c15-state": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "c15-told": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "c15-next": [
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "c12-fail": [
+        "sara/api/Services/WorkflowService.cs"
+      ],
+      "c12-where": [
+        "sara/api/Services/WorkflowService.cs"
+      ],
+      "c12-state": [
+        "sara/api/Services/WorkflowService.cs"
+      ],
+      "c12-told": [
+        "sara/api/Services/WorkflowService.cs"
+      ],
+      "c12-next": [
+        "sara/api/Services/WorkflowService.cs"
+      ],
+      "c16-fail": [
+        "sara/api/Services/HostedServices/ArgoWorkflowWatcherService.cs"
+      ],
+      "c16-where": [
+        "sara/api/Services/HostedServices/ArgoWorkflowWatcherService.cs"
+      ],
+      "c16-state": [
+        "sara/api/Services/HostedServices/ArgoWorkflowWatcherService.cs"
+      ],
+      "c16-told": [
+        "sara/api/Services/HostedServices/ArgoWorkflowWatcherService.cs"
+      ],
+      "c16-next": [
+        "sara/api/Services/HostedServices/ArgoWorkflowWatcherService.cs"
+      ],
+      "c17-fail": [
+        "sara/api/Services/HostedServices/ArgoWorkflowWatcherService.cs"
+      ],
+      "c17-where": [
+        "sara/api/Services/HostedServices/ArgoWorkflowWatcherService.cs"
+      ],
+      "c17-state": [
+        "sara/api/Services/HostedServices/ArgoWorkflowWatcherService.cs"
+      ],
+      "c17-told": [
+        "sara/api/Services/HostedServices/ArgoWorkflowWatcherService.cs"
+      ],
+      "c17-next": [
+        "sara/api/Services/HostedServices/ArgoWorkflowWatcherService.cs"
+      ],
+      "c18-fail": [
+        "sara/api/Services/HostedServices/ArgoWorkflowWatcherService.cs",
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "c18-where": [
+        "sara/api/Services/HostedServices/ArgoWorkflowWatcherService.cs",
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "c18-state": [
+        "sara/api/Services/HostedServices/ArgoWorkflowWatcherService.cs",
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "c18-told": [
+        "sara/api/Services/HostedServices/ArgoWorkflowWatcherService.cs",
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ],
+      "c18-next": [
+        "sara/api/Services/HostedServices/ArgoWorkflowWatcherService.cs",
+        "sara/api/Services/ArgoWorkflowEventProcessor.cs"
+      ]
+    }
+  },
+  "decisions": [
+    {
+      "view": "all",
+      "decision": "Six native draw.io files under diagrams/, one question per view (system context, internal components, runtime main path, runtime alternate paths, runtime failure handling, roles and access). SVG under images/ is the only derived preview format. The .drawio files are hand-maintained; no generator is kept in the repository."
+    },
+    {
+      "view": "all",
+      "decision": "Paths in source attributes are relative to the equinor/robotics workspace root so cross-repo references (flotilla/, isar/, robotics-infrastructure/) resolve alongside sara/."
+    },
+    {
+      "view": "system",
+      "decision": "Retain supporting dependencies and established IT terminology; show Flotilla as one consolidated system; colored arrows replace prose notation; MQTT topic names, Graph alert conditions and the scope panel are left to the evidence file."
+    },
+    {
+      "view": "system",
+      "decision": "Measurement ingestion/retrieval is described generically without highlighting CO2; the CO2-specific API constraints remain in code and are not drawn."
+    },
+    {
+      "view": "system",
+      "decision": "No direct browser-to-Blob download edge: it is a user-clicked read-SAS link rendered by the SARA frontend only, so the SARA frontend box carries a one-line 'Downloads via read SAS' note instead."
+    },
+    {
+      "view": "components",
+      "decision": "Sequential MQTT persistence and conditional trigger calls are numbered; input groups and the group timeout are named explicitly; analysis-pipeline terminology is used; DI lifetimes and unregistered hooks are not drawn."
+    },
+    {
+      "view": "components",
+      "decision": "MQTT and HTTP processing are separate lanes with MQTT above HTTP. InspectionRecordService appears once per lane as a visual occurrence of the same service, not another instance. MQTT ingestion coordinates persistence then triggering for new records only; HTTP create/add trigger internally; HTTP rerun enters AnalysisTriggerService directly. The MQTT new-record path is routed outside the HTTP lane."
+    },
+    {
+      "view": "components",
+      "decision": "Argo status/result events point from Argo to SARA; per-step result persistence is drawn separately from terminal AnalysisRun reconciliation; grouped-input handling is described as deferred, not blocking."
+    },
+    {
+      "view": "runtime",
+      "decision": "The lifecycle view is a numbered sequence of the main successful-analysis path only (new valid inspection, analysis selected, required group complete). No alt/opt frames or prose panels; branching and failures live in the two companion runtime views."
+    },
+    {
+      "view": "runtime",
+      "decision": "Ordering follows ArgoWorkflowEventProcessor: per terminal node, step status/result JSON is persisted and the step result handler publishes readiness immediately (steps 12-13); Flotilla delivery and refetch follow (14-15); AnalysisRun finalisation happens only on the terminal Workflow event, after step processing (16). Flotilla is a single participant; its SignalR/browser internals are out of scope."
+    },
+    {
+      "view": "runtime-alternates",
+      "decision": "Drawn as a flowchart in three lane sections (entry points, trigger decisions, execute/reconcile) because the view is about branching, not ordering. Entry points: A1 MQTT inspection_result, A2 MQTT inspection_value, A3 HTTP create record, A4 HTTP add analysis, A5/A6 HTTP rerun and retry, converging on the shared trigger chain (any analyses, grouped, ExpectedSize, group completion) and the execute stage (gate skip rule, result handler lookup, single vs grouped readiness publishing)."
+    },
+    {
+      "view": "runtime-alternates",
+      "decision": "A4 (POST /inspection-record/id/{id}/analyses) is drawn as intended, i.e. triggering only the named analysis for that record, and flagged with a warning note: the working copy re-raises OnInspectionRecordCreated for the whole record, so every non-grouped analysis is re-triggered. Tracked as equinor/sara#636; remove the note when the fix lands."
+    },
+    {
+      "view": "runtime-alternates",
+      "decision": "A5/A6 share one column: workflow/{id}/retry resolves the workflow to its parent analysis and calls the same RerunAnalysis, so retry is a chain-level rerun (new AnalysisRun, RunNumber + 1, all linked records), not a single-step retry."
+    },
+    {
+      "view": "runtime-alternates",
+      "decision": "Argo watch events crossing from the trigger section to the execute section use off-page connector boxes (s2-out / s3-in) rather than a long edge across the lanes."
+    },
+    {
+      "view": "runtime-failures",
+      "decision": "A table rather than a flowchart: one row per SARA-side failure path, grouped by lifecycle stage, with columns failure / detected in / state left in SARA / what happens (colour-coded by log level) / what happens next. Blob-check failures are merged into one row."
+    },
+    {
+      "view": "runtime-failures",
+      "decision": "The view does not judge who is notified: log lines feed the shared Grafana dashboards and Teams alerts, which are operated outside this repository, and Flotilla users are not expected to reason about SARA internals. Alert rules, Argo-side retries and MQTT broker QoS are out of scope."
+    },
+    {
+      "view": "access",
+      "decision": "Documents the current API authorization policies, installation scoping, the feedback-upsert exception and trusted background processing as implemented in code, not actual identity-provider role assignments. The CO2 permission is folded into reading measurement data."
+    }
+  ],
+  "important_code_observations": [
+    "One generated Argo Workflow per AnalysisRun; all ordered SARA Workflow step rows share its identity.",
+    "Kubernetes custom objects API creates/lists/watches Workflow resources. No analyzer HTTP callback to SARA.",
+    "Input paths for later tasks are planned by the graph builder; gate outputs do not replace the input image.",
+    "Thermal TIFF input is wired during graph building. The anonymizer handler also updates persisted next-step input metadata.",
+    "A group timeout marks TimedOut and logs deferred analyses; it does not submit a partial run.",
+    "Group-aware modelling exists, but registered result handlers use GetSingleInspectionRecordOrNull and skip multi-record groups.",
+    "There are no registered IAnalysisResultHandler implementations; aggregate completion dispatch is currently a no-op.",
+    "MQTT results and values differ: value forwarding can be retried on replay, while analysis triggering is suppressed.",
+    "A retry via WorkflowService starts a new whole-analysis run, not an individual-node retry.",
+    "Argo template retryStrategy is a separate pod/task execution concern.",
+    "Flotilla backend consumes availability and emits SignalR; its browser refetches SARA directly.",
+    "Missing/invalid result JSON makes a SARA step Failed. Invalid output location is withheld while retaining valid JSON.",
+    "Side effects run after result commit; no durable exactly-once outbox is established by this code.",
+    "Thermal datapoint ingestion requires confidence > 0.99; CLOE requires nonnull oil level and confidence.",
+    "Per-Fencilla email requires a finding, a reported output location and installation email configuration.",
+    "RetryWorkflow (WorkflowService) only resolves workflow -> AnalysisRun.AnalysisId and delegates to RerunAnalysis; there is no per-step retry.",
+    "SkipChainIf is per-workflow configuration (appsettings.json) and is validated at startup to be present exactly when IsGate is true; only rain-drop uses it today (key 'rain', value 'true').",
+    "InspectionRecordService.AddAnalysis dropped the RequiredAnalysis filter in commit 5d3255b, so it now behaves like a record re-creation event for all non-grouped analyses (equinor/sara#636)."
+  ],
+  "scope_limits_and_review_questions": [
+    "These diagrams describe the checked-in code at the recorded commits, including the working copy at the time of verification, not a verified deployed release.",
+    "Should identity, secret-provider CSI mounts and observability get a separate deployment view? They are supporting context, not a full topology here.",
+    "Should sara-timeseries insights -> sara-sap reporting become a separate ecosystem view? This core set stops at Omnia Timeseries.",
+    "Do you intend to support multi-record analyses with these analyzers? The code model supports groups but current per-record handlers do not publish their results.",
+    "A later arrival can be reconsidered by the trigger; the timeout processor alone does not establish a permanent no-late-arrivals rule.",
+    "System view omits browser-to-Blob SAS reads, local SQLite/Azurite alternatives and sara-timeseries-to-sara-sap reporting edges for clarity; these omissions do not indicate missing integrations.",
+    "The failure view lists SARA-side handling only; retries inside Argo workflow templates and MQTT broker QoS/replay are outside SARA and not shown."
+  ],
+  "maintenance": [
+    "Save Desktop edits before agent updates, then reload the existing .drawio file after agent edits.",
+    "Keep stable component and edge IDs; patch existing geometry and metadata rather than regenerating the whole graph.",
+    "Review source and target direction, selection defaults, group behavior, payload schema, gates and side effects whenever related source changes.",
+    "Use element Edit Data source paths to trace claims. Compare recorded file hashes with the working copy; changed hashes indicate review targets, not proof a diagram is wrong.",
+    "Re-export and inspect each preview after a change; verify icons remain embedded.",
+    "Keep SVG previews derived, never independently edited. Do not introduce environment URLs, credentials or account IDs."
+  ],
+  "assets": {
+    "argo": {
+      "source": "https://github.com/cncf/artwork/tree/main/projects/argo",
+      "usage": "CNCF Argo project artwork; Linux Foundation trademark policy applies. Not the Argo CD mascot."
+    },
+    "blob": {
+      "source": "https://github.com/jgraph/drawio/blob/dev/src/main/webapp/img/lib/azure2/storage/Storage_Accounts.svg",
+      "usage": "Microsoft Azure architecture icon; Microsoft icon usage terms apply."
+    },
+    "postgres": {
+      "source": "https://github.com/jgraph/drawio/blob/dev/src/main/webapp/img/lib/azure2/databases/Azure_Database_PostgreSQL_Server.svg",
+      "usage": "Microsoft Azure architecture icon; icon does not assert an Azure SKU."
+    }
+  },
+  "authorization_commits": [
+    {
+      "sha": "9ab48dec617ee29b88f941889500a156709050de",
+      "subject": "Restrict data access by installation",
+      "ancestor_of_inspected_head": true
+    },
+    {
+      "sha": "e6799a5d7d9b7f75f4a614aa31008b81fcd37839",
+      "subject": "Use scoped observers and admin-only mutations",
+      "ancestor_of_inspected_head": true
+    },
+    {
+      "sha": "e36d29b93b7256f209b17c5147e6f8ca59988052",
+      "subject": "Name policies and access levels after roles",
+      "ancestor_of_inspected_head": true
+    }
+  ],
+  "access_model": {
+    "observer_role": "Role.Observer.[three-character alphanumeric installation code]",
+    "admin_role": "Role.Admin; global across installations and satisfies both policies",
+    "feedback": "Observer may create/update within permitted installation scope; delete is admin-only",
+    "multi_installation": "All linked inspection installations must be authorized; no partial exposure",
+    "background": "No HTTP context is trusted; this is not a caller role or evidence of infrastructure RBAC",
+    "identity_assignments": "No live Entra assignments or deployed configuration inspected",
+    "local_oidc": "Generic OIDC alternative uses the same API policies; current diagram foregrounds Entra"
+  }
+}
