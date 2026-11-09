@@ -654,7 +654,15 @@ public class InspectionRecordService(
                 $"Inspection record with id {inspectionRecordId} not found"
             );
 
-        await analysisTriggerService.OnInspectionRecordCreated(record);
+        var analysis = record.Analyses.FirstOrDefault(a => a.AnalysisType == analysisType);
+        if (analysis is null)
+        {
+            analysis = new Analysis { AnalysisType = analysisType };
+            record.Analyses.Add(analysis);
+            await context.SaveChangesAsync();
+        }
+
+        await analysisTriggerService.RerunAnalysis(analysis.Id);
 
         return record;
     }
