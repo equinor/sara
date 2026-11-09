@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using api.Database.Context;
 using api.Database.Models;
@@ -245,5 +247,95 @@ public class InspectionRecordServiceTests : IAsyncLifetime
         );
 
         Assert.Equal(message.MissionName, persisted.MissionName);
+    }
+
+    private async Task<InspectionRecord> AddAnalysisInScope(
+        Guid recordId,
+        AnalysisTypeEnum analysisName
+    )
+    {
+        using var scope = _factory.Services.CreateScope();
+        var service = scope.ServiceProvider.GetRequiredService<IInspectionRecordService>();
+        return await service.AddAnalysis(recordId, analysisName);
+    }
+
+    private Task<InspectionRecord> ReloadRecordAsync(Guid recordId) =>
+        _context
+            .InspectionRecords.AsNoTracking()
+            .Include(r => r.Analyses)
+                .ThenInclude(a => a.Runs)
+            .SingleAsync(r => r.Id == recordId, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public async Task AddAnalysis_TypeNotOnRecord_AttachesAnalysisAndTriggersOnlyIt()
+    {
+        var created = await CreateInScope(
+            _db.NewIsarInspectionResultMessage(requiredAnalysis: ["per-record-test"])
+        );
+
+        await AddAnalysisInScope(created.Id, AnalysisTypeEnum.ThermalReading);
+
+        var record = await ReloadRecordAsync(created.Id);
+        Assert.Equal(2, record.Analyses.Count);
+
+        var added = Assert.Single(record.Analyses, a => a.AnalysisType == "ThermalReading");
+        Assert.Single(added.Runs);
+
+        var existing = Assert.Single(record.Analyses, a => a.AnalysisType == "per-record-test");
+        Assert.Empty(existing.Runs);
+
+        var request = Assert.Single(_factory.ArgoWorkflowClient.Requests);
+        Assert.StartsWith("thermalreading-", request.Resource.Metadata.Name);
+    }
+
+    [Fact]
+    public async Task AddAnalysis_TypeAlreadyOnRecord_RerunsOnlyThatAnalysis()
+    {
+        var created = await CreateInScope(
+            _db.NewIsarInspectionResultMessage(
+                requiredAnalysis: ["ThermalReading", "per-record-test"]
+            )
+        );
+
+        await AddAnalysisInScope(created.Id, AnalysisTypeEnum.ThermalReading);
+        await AddAnalysisInScope(created.Id, AnalysisTypeEnum.ThermalReading);
+
+        var record = await ReloadRecordAsync(created.Id);
+        Assert.Equal(2, record.Analyses.Count);
+
+        var rerun = Assert.Single(record.Analyses, a => a.AnalysisType == "ThermalReading");
+        Assert.Equal(2, rerun.Runs.Count);
+        Assert.Equal([1, 2], rerun.Runs.Select(r => r.RunNumber).Order());
+
+        var untouched = Assert.Single(record.Analyses, a => a.AnalysisType == "per-record-test");
+        Assert.Empty(untouched.Runs);
+
+        Assert.Equal(2, _factory.ArgoWorkflowClient.Requests.Count);
+    }
+
+    [Fact]
+    public async Task AddAnalysis_UnconfiguredType_ThrowsAndDoesNotModifyRecord()
+    {
+        var created = await CreateInScope(
+            _db.NewIsarInspectionResultMessage(requiredAnalysis: ["per-record-test"])
+        );
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            AddAnalysisInScope(created.Id, AnalysisTypeEnum.CO2)
+        );
+
+        var record = await ReloadRecordAsync(created.Id);
+        var analysis = Assert.Single(record.Analyses);
+        Assert.Equal("per-record-test", analysis.AnalysisType);
+        Assert.Empty(_factory.ArgoWorkflowClient.Requests);
+    }
+
+    [Fact]
+    public async Task AddAnalysis_UnknownRecord_ThrowsKeyNotFound()
+    {
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            AddAnalysisInScope(Guid.NewGuid(), AnalysisTypeEnum.ThermalReading)
+        );
+        Assert.Empty(_factory.ArgoWorkflowClient.Requests);
     }
 }
