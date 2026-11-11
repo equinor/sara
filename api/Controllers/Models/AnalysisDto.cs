@@ -2,6 +2,7 @@
 using api.Configurations;
 using api.Database.Models;
 using api.Services;
+using api.Utilities;
 
 namespace api.Controllers.Models;
 
@@ -24,7 +25,7 @@ public class AnalysisDto
         var workflows = analysis.Runs.SelectMany(r => r.Workflows);
 
         var anonymizedWorkflow = workflows
-            .Where(w => w.WorkflowType.Equals("anonymizer", StringComparison.OrdinalIgnoreCase))
+            .Where(w => AnonymizerWorkflows.IsAnonymizer(w.WorkflowType))
             .Where(w => w.Status == WorkflowStatus.Succeeded)
             .OrderByDescending(w => w.CompletedAt ?? w.StartedAt ?? DateTime.MinValue)
             .FirstOrDefault();
@@ -39,7 +40,7 @@ public class AnalysisDto
             .Workflow;
 
         var visualizedWorkflow = workflows
-            .Where(w => !w.WorkflowType.Equals("anonymizer", StringComparison.OrdinalIgnoreCase))
+            .Where(w => !AnonymizerWorkflows.IsAnonymizer(w.WorkflowType))
             .Where(w => w.WorkflowType.Equals(lastWorkflowType, StringComparison.OrdinalIgnoreCase))
             .Where(w => w.Status == WorkflowStatus.Succeeded)
             .OrderByDescending(w => w.CompletedAt ?? w.StartedAt ?? DateTime.MinValue)

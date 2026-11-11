@@ -21,7 +21,7 @@ public class CLOEResultHandler(
     ILogger<CLOEResultHandler> logger
 ) : IWorkflowResultHandler
 {
-    public string WorkflowType => "cloe";
+    public IEnumerable<string> WorkflowTypes => ["cloe"];
 
     public async Task OnWorkflowCompleted(Workflow workflow)
     {

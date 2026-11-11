@@ -45,7 +45,9 @@ public class WorkflowService(
 ) : IWorkflowService
 {
     private readonly Dictionary<string, IWorkflowResultHandler> _workflowResultHandlersByType =
-        workflowResultHandlers.ToDictionary(h => h.WorkflowType, StringComparer.OrdinalIgnoreCase);
+        workflowResultHandlers
+            .SelectMany(h => h.WorkflowTypes, (handler, type) => (type, handler))
+            .ToDictionary(p => p.type, p => p.handler, StringComparer.OrdinalIgnoreCase);
 
     private readonly Dictionary<string, IAnalysisResultHandler> _analysisResultHandlersByName =
         analysisResultHandlers.ToDictionary(h => h.AnalysisName, StringComparer.OrdinalIgnoreCase);

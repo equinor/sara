@@ -484,7 +484,8 @@ public class InspectionRecordService(
                     analysisIds.Contains(a.Id)
                     && a.Runs.Any(r =>
                         r.Workflows.Any(w =>
-                            w.WorkflowType == "anonymizer" && w.Status == WorkflowStatus.Succeeded
+                            AnonymizerWorkflows.Types.Contains(w.WorkflowType)
+                            && w.Status == WorkflowStatus.Succeeded
                         )
                     )
                 )

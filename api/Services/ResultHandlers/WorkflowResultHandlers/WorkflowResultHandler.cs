@@ -5,7 +5,7 @@ namespace api.Services.ResultHandlers.WorkflowResultHandlers;
 
 public interface IWorkflowResultHandler
 {
-    public string WorkflowType { get; }
+    public IEnumerable<string> WorkflowTypes { get; }
 
     public Task OnWorkflowCompleted(Workflow workflow);
 }

@@ -24,12 +24,9 @@ public class InspectionRecordController(
     // Workflow types whose output forms the visualization base layer for an
     // inspection (anonymized image or raw passthrough). Newest succeeded one wins.
     private static readonly HashSet<string> VisualizationWorkflowTypes = new(
+        AnonymizerWorkflows.Types.Append("copy-raw-to-visualized"),
         StringComparer.OrdinalIgnoreCase
-    )
-    {
-        "anonymizer",
-        "copy-raw-to-visualized",
-    };
+    );
 
     [HttpGet]
     [Authorize(Policy = InstallationAccess.ObserverPolicy)]
