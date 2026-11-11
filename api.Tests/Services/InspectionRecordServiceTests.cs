@@ -70,14 +70,15 @@ public class InspectionRecordServiceTests : IAsyncLifetime
     }
 
     [Theory]
-    [InlineData("Video", "clip.mp4")]
-    [InlineData("AcousticMeasurement", "clip.mp4")]
-    [InlineData("ThermalVideo", "clip.mp4")]
-    [InlineData("acousticmeasurement", "clip.mp4")]
-    [InlineData("AcousticMeasurement", "clip.MP4")]
-    public async Task CreateFromMqttMessage_TypeAndExtensionMatch_UsesPassthroughDefault(
+    [InlineData("Video", "clip.mp4", "Passthrough")]
+    [InlineData("ThermalVideo", "clip.mp4", "Passthrough")]
+    [InlineData("AcousticMeasurement", "clip.mp4", "AnonymizeAcoustic")]
+    [InlineData("acousticmeasurement", "clip.mp4", "AnonymizeAcoustic")]
+    [InlineData("AcousticMeasurement", "clip.MP4", "AnonymizeAcoustic")]
+    public async Task CreateFromMqttMessage_TypeAndExtensionMatch_UsesConfiguredDefault(
         string inspectionType,
-        string blobName
+        string blobName,
+        string expectedAnalysis
     )
     {
         var message = _db.NewIsarInspectionResultMessage(
@@ -88,7 +89,7 @@ public class InspectionRecordServiceTests : IAsyncLifetime
         var created = await CreateInScope(message);
 
         var analysis = Assert.Single(created.Analyses);
-        Assert.Equal("Passthrough", analysis.AnalysisType);
+        Assert.Equal(expectedAnalysis, analysis.AnalysisType);
     }
 
     [Fact]

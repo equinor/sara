@@ -19,7 +19,7 @@ public class FencillaResultHandler(
     ILogger<FencillaResultHandler> logger
 ) : IWorkflowResultHandler
 {
-    public string WorkflowType => "fencilla";
+    public IEnumerable<string> WorkflowTypes => ["fencilla"];
 
     public async Task OnWorkflowCompleted(Workflow workflow)
     {

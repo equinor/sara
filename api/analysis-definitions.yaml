@@ -13,6 +13,12 @@ Analysis:
     Anonymize:
       Steps:
         - Workflow: anonymizer
+    AnonymizeVideo:
+      Steps:
+        - Workflow: anonymizer-video
+    AnonymizeAcoustic:
+      Steps:
+        - Workflow: anonymizer-acoustic
     Fencilla:
       Steps:
         - Workflow: anonymizer
@@ -47,6 +53,23 @@ Analysis:
       Extras:
         preProcessedBlobStorageLocation:
           Output: tiff
+
+    anonymizer-video:
+      Template: anonymizer-video-workflow-templates
+      Outputs:
+        result:
+          StorageAccount: AnonStorageAccount
+          Extension: .mp4
+      Extras:
+        outputFps:
+          Value: "2"
+
+    anonymizer-acoustic:
+      Template: anonymizer-workflow-templates
+      Outputs:
+        result:
+          StorageAccount: AnonStorageAccount
+          Extension: .mp4
 
     rain-drop:
       Template: rain-drop-detector-workflow-templates

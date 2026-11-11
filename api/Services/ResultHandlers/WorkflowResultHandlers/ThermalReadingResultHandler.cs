@@ -20,7 +20,7 @@ public class ThermalReadingResultHandler(
     ILogger<ThermalReadingResultHandler> logger
 ) : IWorkflowResultHandler
 {
-    public string WorkflowType => "thermal-reading";
+    public IEnumerable<string> WorkflowTypes => ["thermal-reading"];
 
     public async Task OnWorkflowCompleted(Workflow workflow)
     {

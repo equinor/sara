@@ -17,7 +17,7 @@ public class CopyRawToVisualizedResultHandler(
     ILogger<CopyRawToVisualizedResultHandler> logger
 ) : IWorkflowResultHandler
 {
-    public string WorkflowType => "copy-raw-to-visualized";
+    public IEnumerable<string> WorkflowTypes => ["copy-raw-to-visualized"];
 
     public async Task OnWorkflowCompleted(Workflow workflow)
     {

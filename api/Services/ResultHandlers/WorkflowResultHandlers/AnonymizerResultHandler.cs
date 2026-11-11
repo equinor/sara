@@ -12,7 +12,7 @@ public class AnonymizerResultHandler(
     ILogger<AnonymizerResultHandler> logger
 ) : IWorkflowResultHandler
 {
-    public string WorkflowType => "anonymizer";
+    public IEnumerable<string> WorkflowTypes => AnonymizerWorkflows.Types;
 
     public async Task OnWorkflowCompleted(Workflow workflow)
     {
