@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using api.Database.Context;
+using api.Database.Models;
+using api.Services;
 using api.Services.ResultHandlers.WorkflowResultHandlers;
 using Api.Test.Database;
 using Microsoft.Extensions.DependencyInjection;
@@ -41,8 +43,13 @@ public class AnonymizerResultHandlerTests : IAsyncLifetime
             .OfType<AnonymizerResultHandler>()
             .Single();
 
-    [Fact]
-    public async Task OnWorkflowCompleted_ValidSingleRecordWithOutput_PublishesVisualizationAvailable()
+    [Theory]
+    [InlineData("anonymizer")]
+    [InlineData("anonymizer-video")]
+    [InlineData("anonymizer-acoustic")]
+    public async Task OnWorkflowCompleted_ValidSingleRecordWithOutput_PublishesVisualizationAvailable(
+        string workflowType
+    )
     {
         const string inspectionId = "insp-123";
         const string storageAccount = "outstorage";
@@ -59,14 +66,15 @@ public class AnonymizerResultHandlerTests : IAsyncLifetime
         );
         var workflow = await _db.NewWorkflow(
             run,
-            workflowType: "anonymizer",
+            workflowType: workflowType,
             outputBlobStorageLocation: output
         );
+        workflow.Status = WorkflowStatus.Succeeded;
 
         using var scope = _factory.Services.CreateScope();
-        var handler = ResolveHandler(scope);
-
-        await handler.OnWorkflowCompleted(workflow);
+        await scope
+            .ServiceProvider.GetRequiredService<IWorkflowService>()
+            .OnWorkflowCompleted(workflow);
 
         var published = Assert.Single(_factory.MqttPublisher.VisualizationMessages);
         Assert.Equal(inspectionId, published.InspectionId);

@@ -242,6 +242,37 @@ public class AnalysisWorkflowGraphBuilderTests : IAsyncLifetime
         AssertPersistedInputs(run.Workflows[0], RawLocation());
     }
 
+    [Theory]
+    [InlineData("AnonymizeVideo", "anonymizer-video", "anonymizer-video-workflow-templates", "2")]
+    [InlineData("AnonymizeAcoustic", "anonymizer-acoustic", "anonymizer-workflow-templates", null)]
+    public async Task VideoAnonymization_BuildsSingleTaskWithMp4Output(
+        string analysisType,
+        string workflowType,
+        string template,
+        string? outputFps
+    )
+    {
+        var (run, resource) = await BuildAsync(analysisType);
+
+        AssertTask(
+            Assert.Single(Tasks(resource)),
+            run.Workflows[0],
+            template,
+            depends: null,
+            when: null,
+            Raw(),
+            Json(
+                new BlobStorageLocation
+                {
+                    StorageAccount = AnonymizerAccount,
+                    BlobContainer = RawContainer,
+                    BlobName = OutputName(run, workflowType, ".mp4"),
+                }
+            ),
+            outputFps is null ? Extras() : Extras(("outputFps", outputFps))
+        );
+    }
+
     private async Task<(AnalysisRun Run, ArgoWorkflowResource Resource)> BuildAsync(
         string analysisType
     )
