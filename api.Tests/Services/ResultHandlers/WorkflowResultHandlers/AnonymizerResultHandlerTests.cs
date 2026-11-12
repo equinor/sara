@@ -56,7 +56,10 @@ public class AnonymizerResultHandlerTests : IAsyncLifetime
         const string blobContainer = "out-container";
         const string blobName = "anonymized.jpg";
 
-        var record = await _db.NewInspectionRecord(inspectionId: inspectionId);
+        var record = await _db.NewInspectionRecord(
+            inspectionId: inspectionId,
+            flotillaMissionId: "mission-1"
+        );
         var analysis = await _db.NewAnalysis(inspectionRecords: [record]);
         var run = await _db.NewAnalysisRun(analysis);
         var output = _db.NewBlobStorageLocation(
@@ -81,6 +84,7 @@ public class AnonymizerResultHandlerTests : IAsyncLifetime
         Assert.Equal(workflow.Id, published.WorkflowId);
         Assert.Equal(run.Id, published.AnalysisRunId);
         Assert.Equal(analysis.Id, published.AnalysisId);
+        Assert.Equal("mission-1", published.MissionId);
     }
 
     [Fact]
