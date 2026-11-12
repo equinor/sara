@@ -28,7 +28,8 @@ public class DatabaseUtilities(SaraDbContext context)
         string? inspectionDescription = null,
         string? missionName = null,
         List<Analysis>? analyses = null,
-        AnalysisGroup? analysisGroup = null
+        AnalysisGroup? analysisGroup = null,
+        string? flotillaMissionId = null
     )
     {
         foreach (var analysis in analyses ?? [])
@@ -51,6 +52,7 @@ public class DatabaseUtilities(SaraDbContext context)
             Tag = tag,
             InspectionDescription = inspectionDescription,
             MissionName = missionName,
+            FlotillaMissionId = flotillaMissionId,
             Analyses = analyses ?? [],
             AnalysisGroup = analysisGroup,
         };

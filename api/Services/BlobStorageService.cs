@@ -12,7 +12,10 @@ public interface IBlobStorageService
     Task<MemoryStream> DownloadBlobAsync(BlobStorageLocation location);
     Task UploadBlobAsync(BlobStorageLocation destination, Stream content, string contentType);
     Task CopyBlobAsync(BlobStorageLocation source, BlobStorageLocation destination);
-    Task<Uri?> TryCreateReadSasUriAsync(BlobStorageLocation location);
+    Task<Uri?> TryCreateReadSasUriAsync(
+        BlobStorageLocation location,
+        string? contentDisposition = null
+    );
     Task<bool> ExistsAsync(BlobStorageLocation location);
 }
 
@@ -25,7 +28,7 @@ public class BlobStorageService(
 {
     /// How long a generated read SAS stays valid. The delegation key that signs
     /// it must outlive this; see UserDelegationKeyProvider.
-    private static readonly TimeSpan SasLifetime = TimeSpan.FromHours(1);
+    public static readonly TimeSpan SasLifetime = TimeSpan.FromHours(1);
 
     public async Task<MemoryStream> DownloadBlobAsync(BlobStorageLocation location)
     {
@@ -129,11 +132,14 @@ public class BlobStorageService(
 
     /// Returns null when no SAS can be produced. Historical records can point at
     /// storage accounts that were renamed, deleted, or belong to another environment.
-    public async Task<Uri?> TryCreateReadSasUriAsync(BlobStorageLocation location)
+    public async Task<Uri?> TryCreateReadSasUriAsync(
+        BlobStorageLocation location,
+        string? contentDisposition = null
+    )
     {
         try
         {
-            return await CreateReadSasUriAsync(location);
+            return await CreateReadSasUriAsync(location, contentDisposition);
         }
         // AggregateException because the SDK's retry policy wraps the others.
         catch (Exception e)
@@ -156,7 +162,10 @@ public class BlobStorageService(
         }
     }
 
-    private async Task<Uri> CreateReadSasUriAsync(BlobStorageLocation location)
+    private async Task<Uri> CreateReadSasUriAsync(
+        BlobStorageLocation location,
+        string? contentDisposition
+    )
     {
         var serviceClient = CreateBlobServiceClient(location.StorageAccount);
 
@@ -166,13 +175,25 @@ public class BlobStorageService(
             .GetBlobContainerClient(location.BlobContainer)
             .GetBlobClient(location.BlobName);
 
+        BlobSasBuilder sasBuilder = new()
+        {
+            BlobContainerName = location.BlobContainer,
+            BlobName = location.BlobName,
+            Resource = "b",
+            StartsOn = DateTimeOffset.UtcNow,
+            ExpiresOn = expiryTime,
+            ContentDisposition = contentDisposition,
+        };
+
+        sasBuilder.SetPermissions(BlobSasPermissions.Read);
+
         // Shared-key clients (e.g. Azurite in local orchestration) cannot request
         // a user-delegation key — that is an Azure AD-only operation. Sign a
         // service SAS instead; this also builds the correct emulator endpoint URL.
         // CanGenerateSasUri is only true for shared-key clients, so deployed
         // (TokenCredential) environments keep the user-delegation path below.
         if (blobClient.CanGenerateSasUri)
-            return blobClient.GenerateSasUri(BlobSasPermissions.Read, expiryTime);
+            return blobClient.GenerateSasUri(sasBuilder);
 
         // The delegation key is account-wide, so it is cached and shared across
         // every blob rather than fetched per SAS.
@@ -181,17 +202,6 @@ public class BlobStorageService(
             location.StorageAccount,
             SasLifetime
         );
-
-        BlobSasBuilder sasBuilder = new()
-        {
-            BlobContainerName = location.BlobContainer,
-            BlobName = location.BlobName,
-            Resource = "b",
-            StartsOn = DateTimeOffset.UtcNow,
-            ExpiresOn = expiryTime,
-        };
-
-        sasBuilder.SetPermissions(BlobSasPermissions.Read);
 
         var sas = sasBuilder
             .ToSasQueryParameters(userDelegationKey, location.StorageAccount)
