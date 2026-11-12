@@ -21,13 +21,6 @@ public class InspectionRecordController(
     IOptions<AnalysisOptions> analysisOptions
 ) : ControllerBase
 {
-    // Workflow types whose output forms the visualization base layer for an
-    // inspection (anonymized image or raw passthrough). Newest succeeded one wins.
-    private static readonly HashSet<string> VisualizationWorkflowTypes = new(
-        AnonymizerWorkflows.Types.Append("copy-raw-to-visualized"),
-        StringComparer.OrdinalIgnoreCase
-    );
-
     [HttpGet]
     [Authorize(Policy = InstallationAccess.ObserverPolicy)]
     [ProducesResponseType(typeof(PagedResponse<InspectionRecord>), StatusCodes.Status200OK)]
@@ -184,12 +177,7 @@ public class InspectionRecordController(
                 );
             }
 
-            var visualizationWorkflow = record
-                .Analyses.SelectMany(a => a.Runs)
-                .SelectMany(r => r.Workflows)
-                .Where(w => VisualizationWorkflowTypes.Contains(w.WorkflowType))
-                .OrderByDescending(w => w.CompletedAt ?? w.StartedAt ?? DateTime.MinValue)
-                .FirstOrDefault();
+            var visualizationWorkflow = VisualizationWorkflows.FindLatest(record);
 
             if (visualizationWorkflow is null)
             {

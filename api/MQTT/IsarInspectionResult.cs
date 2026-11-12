@@ -159,6 +159,10 @@ public class SaraVisualizationAvailableMessage : MqttMessage
 
     [JsonPropertyName("analysis_id")]
     public required Guid AnalysisId { get; set; }
+
+    // Lets Flotilla route inspections that are not mission tasks, such as mission recordings.
+    [JsonPropertyName("mission_id")]
+    public string? MissionId { get; set; }
 }
 
 public class SaraAnalysisResultMessage : MqttMessage

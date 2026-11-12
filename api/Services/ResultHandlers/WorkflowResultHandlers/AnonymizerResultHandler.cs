@@ -56,6 +56,7 @@ public class AnonymizerResultHandler(
             WorkflowId = workflow.Id,
             AnalysisRunId = workflow.AnalysisRunId,
             AnalysisId = analysisRun.AnalysisId,
+            MissionId = inspectionRecord.FlotillaMissionId,
         };
 
         await mqttPublisherService.PublishSaraVisualizationAvailable(message);
