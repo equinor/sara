@@ -93,6 +93,7 @@ builder.Services.AddSingleton<IUserDelegationKeyProvider, UserDelegationKeyProvi
 builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
 builder.Services.AddScoped<IThermalImageService, ThermalImageService>();
 builder.Services.AddScoped<IInspectionRecordService, InspectionRecordService>();
+builder.Services.AddScoped<IMissionRecordingService, MissionRecordingService>();
 builder.Services.AddScoped<IAnalysisService, AnalysisService>();
 builder.Services.AddScoped<IAnalysisGroupService, AnalysisGroupService>();
 builder.Services.AddScoped<IAnalysisRunService, AnalysisRunService>();
