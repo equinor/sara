@@ -26,13 +26,48 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  run-integration-tests:
+  resolve-sara-image:
     # A cancelled or failed deploy leaves the registry tag pointing at the
     # previous image, which is exactly what this workflow must not test.
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
-    uses: equinor/armada/.github/workflows/run_integration_tests.yml@main
-    with:
-      # Pick lane from the deploy workflow that triggered us, or honor manual input
-      lane: ${{ github.event_name == 'workflow_run'
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.resolve.outputs.image }}
+      migrations_ref: ${{ steps.resolve.outputs.migrations_ref }}
+      lane: ${{ steps.resolve.outputs.lane }}
+    steps:
+      - name: Resolve the completed build's exact SARA image
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMIT: ${{ github.event.workflow_run.head_sha }}
+          LANE: ${{ github.event_name == 'workflow_run'
             && (github.event.workflow_run.name == 'Deploy to Development' && 'dev' || 'latest')
             || inputs.lane }}
+        run: |
+          set -euo pipefail
+          [[ "$LANE" == dev || "$LANE" == latest ]] || { echo "Expected dev or latest lane" >&2; exit 1; }
+          if [[ -z "$COMMIT" ]]; then
+            REF=main
+            if [[ "$LANE" == latest ]]; then
+              REF=$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq '.tag_name')
+            fi
+            COMMIT=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${REF}" --jq '.sha')
+          fi
+          [[ "$COMMIT" =~ ^[0-9a-f]{40}$ ]] || { echo "Invalid SARA source commit" >&2; exit 1; }
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY}"
+          DIGEST=$(docker buildx imagetools inspect "${IMAGE}:dev.${COMMIT:0:8}" --format '{{json .Manifest}}' | jq -er '.digest')
+          [[ "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "Invalid SARA image digest" >&2; exit 1; }
+          {
+            echo "image=${IMAGE}@${DIGEST}"
+            echo "migrations_ref=${COMMIT}"
+            echo "lane=${LANE}"
+          } >> "$GITHUB_OUTPUT"
+
+  run-integration-tests:
+    needs: resolve-sara-image
+    uses: equinor/armada/.github/workflows/run_integration_tests.yml@main
+    with:
+      lane: ${{ needs.resolve-sara-image.outputs.lane }}
+      sara_image: ${{ needs.resolve-sara-image.outputs.image }}
+      sara_migrations_ref: ${{ needs.resolve-sara-image.outputs.migrations_ref }}
