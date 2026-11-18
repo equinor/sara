@@ -122,6 +122,20 @@ public class InspectionRecordServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task CreateFromMqttMessage_ThermalImageWithoutRequiredAnalysis_UsesConfiguredDefault()
+    {
+        var message = _db.NewIsarInspectionResultMessage(
+            inspectionType: "ThermalImage",
+            blobName: "thermal.fff"
+        );
+
+        var created = await CreateInScope(message);
+
+        var analysis = Assert.Single(created.Analyses);
+        Assert.Equal("Anonymize", analysis.AnalysisType);
+    }
+
+    [Fact]
     public async Task CreateFromMqttMessage_ExplicitRequiredAnalysis_OverridesTypeAndExtensionDefault()
     {
         var message = _db.NewIsarInspectionResultMessage(
