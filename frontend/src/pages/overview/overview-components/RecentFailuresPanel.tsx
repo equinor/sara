@@ -34,6 +34,7 @@ export default function RecentFailuresPanel({ failures, retryPending, onRetry }:
               <Table.Cell><IdCell id={workflow.id} /></Table.Cell>
               <Table.Cell>{workflow.workflowType}</Table.Cell>
               <Table.Cell
+                title={workflow.errorMessage ?? undefined}
                 style={{ maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
               >
                 {workflow.errorMessage ?? "\u2013"}

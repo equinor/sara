@@ -63,7 +63,7 @@
     },
     "client": {
       "path": "sara/api/Services/ArgoWorkflowClient.cs",
-      "sha256": "ccd090e965dc11655dde77ad8031b90bbe3752f5b9918fff059a21f40107401d"
+      "sha256": "d14b3c4c6c482e1fb94b8efe0bcd6a843916b7850b63f05b25a0709755a522d7"
     },
     "watcher": {
       "path": "sara/api/Services/HostedServices/ArgoWorkflowWatcherService.cs",
@@ -71,7 +71,7 @@
     },
     "processor": {
       "path": "sara/api/Services/ArgoWorkflowEventProcessor.cs",
-      "sha256": "ed3a1b0bcff324dc4fa0371891fa4dcd1bfaedd8d510ea95ebe593e08264d77a"
+      "sha256": "bfb924950e9c673e5c8e0c1c604a2a2b89503c8a4c0d5bfcc04de2c752e6ef4e"
     },
     "dispatch": {
       "path": "sara/api/Services/WorkflowService.cs",
