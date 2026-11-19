@@ -186,6 +186,18 @@ public class MqttDuplicateTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task EmptyMissionName_CreatesRecord()
+    {
+        await Process(_db.NewIsarInspectionResultMessage(missionName: ""));
+
+        Assert.Equal(
+            1,
+            await _context.InspectionRecords.CountAsync(TestContext.Current.CancellationToken)
+        );
+        AssertNoWarningsOrErrors();
+    }
+
+    [Fact]
     public async Task Duplicate_WithDifferentMetadata_IsSkippedWithoutChangingStoredRecord()
     {
         var message = _db.NewIsarInspectionResultMessage(requiredAnalysis: ["per-record-test"]);
