@@ -92,7 +92,12 @@ public class ArgoWorkflowEventProcessor(
             }
             else if (node.Phase is "Succeeded" or "Failed" or "Error" or "Skipped" or "Omitted")
             {
-                await CompleteWorkflowAsync(workflow, node, cancellationToken);
+                await CompleteWorkflowAsync(
+                    workflow,
+                    node,
+                    resource.Status!.Nodes,
+                    cancellationToken
+                );
             }
         }
 
@@ -143,10 +148,11 @@ public class ArgoWorkflowEventProcessor(
     private async Task CompleteWorkflowAsync(
         Workflow workflow,
         ArgoNodeStatus node,
+        IReadOnlyDictionary<string, ArgoNodeStatus> nodes,
         CancellationToken cancellationToken
     )
     {
-        var completion = ReadCompletion(node);
+        var completion = ReadCompletion(node, nodes);
         var output = completion.OutputBlobStorageLocation;
         var completed = await context
             .Database.CreateExecutionStrategy()
@@ -357,7 +363,10 @@ public class ArgoWorkflowEventProcessor(
                 cancellationToken
             );
 
-    private WorkflowCompletion ReadCompletion(ArgoNodeStatus node)
+    private WorkflowCompletion ReadCompletion(
+        ArgoNodeStatus node,
+        IReadOnlyDictionary<string, ArgoNodeStatus> nodes
+    )
     {
         if (node.Phase is "Skipped" or "Omitted")
         {
@@ -365,7 +374,11 @@ public class ArgoWorkflowEventProcessor(
         }
         if (node.Phase is "Failed" or "Error")
         {
-            return new WorkflowCompletion(WorkflowStatus.Failed, null, node.Message);
+            return new WorkflowCompletion(
+                WorkflowStatus.Failed,
+                null,
+                ReadFailureMessage(node, nodes)
+            );
         }
 
         var resultJson = node
@@ -393,6 +406,47 @@ public class ArgoWorkflowEventProcessor(
                 $"Workflow succeeded without a valid JSON result: {ex.Message}"
             );
         }
+    }
+
+    private static string? ReadFailureMessage(
+        ArgoNodeStatus node,
+        IReadOnlyDictionary<string, ArgoNodeStatus> nodes
+    )
+    {
+        var attempt = FindFinalRetryAttempt(node, nodes);
+        if (
+            attempt is { Phase: "Failed" or "Error", Message: { } message }
+            && !string.IsNullOrWhiteSpace(message)
+            && !message.Contains('\0')
+        )
+        {
+            return message;
+        }
+        return node.Message;
+    }
+
+    private static ArgoNodeStatus? FindFinalRetryAttempt(
+        ArgoNodeStatus node,
+        IReadOnlyDictionary<string, ArgoNodeStatus> nodes
+    )
+    {
+        if (node.Type != "Retry" || node.Children is null)
+        {
+            return null;
+        }
+
+        foreach (var childId in Enumerable.Reverse(node.Children))
+        {
+            if (childId is null || nodes.GetValueOrDefault(childId) is not { } child)
+            {
+                return null;
+            }
+            if (child.NodeFlag?.Retried == true)
+            {
+                return child;
+            }
+        }
+        return null;
     }
 
     private BlobStorageLocation? ReadOutputBlobStorageLocation(JsonElement result, string? nodeName)

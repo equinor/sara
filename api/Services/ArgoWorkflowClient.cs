@@ -356,6 +356,18 @@ public class ArgoNodeStatus
 
     [JsonPropertyName("outputs")]
     public ArgoOutputs? Outputs { get; set; }
+
+    [JsonPropertyName("children")]
+    public List<string>? Children { get; set; }
+
+    [JsonPropertyName("nodeFlag")]
+    public ArgoNodeFlag? NodeFlag { get; set; }
+}
+
+public class ArgoNodeFlag
+{
+    [JsonPropertyName("retried")]
+    public bool Retried { get; set; }
 }
 
 public class ArgoOutputs
