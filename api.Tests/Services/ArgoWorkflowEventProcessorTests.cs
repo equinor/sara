@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using api.Database.Context;
 using api.Database.Models;
@@ -266,6 +267,106 @@ public class ArgoWorkflowEventProcessorTests : IAsyncLifetime
             workflow.Status
         );
         Assert.Empty(_factory.ArgoWorkflowClient.ReconciledWorkflows);
+    }
+
+    [Fact]
+    public async Task RetryExhausted_StoresFinalAttemptFailure()
+    {
+        var (run, workflow) = await NewInProgressWorkflow();
+        var task = AnalysisWorkflowGraphBuilder.GetTaskName(workflow);
+        var nodes = JsonSerializer.Deserialize<ArgoNodeStatus[]>(
+            $$"""
+            [
+              {
+                "displayName": "{{task}}", "type": "Retry", "phase": "Error",
+                "message": "No more retries left",
+                "children": ["node-1", "node-2", "node-3"]
+              },
+              {
+                "displayName": "{{task}}(0)", "type": "Pod", "phase": "Failed",
+                "message": "main: OOMKilled (exit code 137)",
+                "nodeFlag": { "retried": true }
+              },
+              {
+                "displayName": "{{task}}(1)", "type": "Pod", "phase": "Error",
+                "message": "main: Error (exit code 1): Traceback\nValueError: bad input",
+                "nodeFlag": { "retried": true }
+              },
+              {
+                "displayName": "{{task}}.onExit", "type": "Pod", "phase": "Failed",
+                "message": "hook failed"
+              }
+            ]
+            """
+        )!;
+
+        await Process(run, "Failed", nodes);
+
+        await _context.Entry(workflow).ReloadAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(WorkflowStatus.Failed, workflow.Status);
+        Assert.Equal(
+            "main: Error (exit code 1): Traceback\nValueError: bad input",
+            workflow.ErrorMessage
+        );
+        Assert.Equal("node-0", workflow.ArgoNodeId);
+    }
+
+    [Theory]
+    [InlineData("missing")]
+    [InlineData("blank")]
+    [InlineData("nul")]
+    [InlineData("null-node")]
+    [InlineData("null-children")]
+    public async Task RetryWithoutUsableFinalAttempt_KeepsWrapperMessage(string finalAttempt)
+    {
+        var (run, workflow) = await NewInProgressWorkflow();
+        var wrapper = Node(workflow, "Failed");
+        wrapper.Type = "Retry";
+        wrapper.Message = "No more retries left";
+        wrapper.Children = finalAttempt == "null-children" ? null : ["node-1", "node-2"];
+        var nodes = new List<ArgoNodeStatus>
+        {
+            wrapper,
+            new()
+            {
+                Type = "Pod",
+                Phase = "Failed",
+                Message = "main: OOMKilled (exit code 137)",
+                NodeFlag = new ArgoNodeFlag { Retried = true },
+            },
+        };
+        if (finalAttempt == "null-node")
+        {
+            nodes.Add(null!);
+        }
+        else if (finalAttempt != "missing")
+        {
+            nodes.Add(
+                new()
+                {
+                    Type = "Pod",
+                    Phase = "Failed",
+                    Message = finalAttempt == "nul" ? "main: Error (exit code 1): \0" : null,
+                    NodeFlag = new ArgoNodeFlag { Retried = true },
+                }
+            );
+        }
+
+        await Process(run, "Failed", nodes.ToArray());
+
+        await _context.Entry(workflow).ReloadAsync(TestContext.Current.CancellationToken);
+        Assert.Equal("No more retries left", workflow.ErrorMessage);
+    }
+
+    private async Task<(AnalysisRun Run, Workflow Workflow)> NewInProgressWorkflow()
+    {
+        var analysis = await _db.NewAnalysis();
+        var run = await _db.NewAnalysisRun(analysis);
+        run.Status = AnalysisRunStatus.InProgress;
+        var workflow = await _db.NewWorkflow(run, workflowType: "test-workflow-1");
+        SetArgoIdentity(run, "argo-uid");
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        return (run, workflow);
     }
 
     private void SetArgoIdentity(AnalysisRun run, string uid)
