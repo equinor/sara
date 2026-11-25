@@ -72,6 +72,9 @@ builder.Services.Configure<EndpointConfig>(builder.Configuration.GetSection("End
 builder.Services.Configure<DashboardOptions>(
     builder.Configuration.GetSection(DashboardOptions.SectionName)
 );
+builder.Services.Configure<BenchmarkOptions>(
+    builder.Configuration.GetSection(BenchmarkOptions.SectionName)
+);
 builder
     .Services.AddOptions<AnalysisOptions>()
     .Bind(builder.Configuration.GetSection(AnalysisOptions.SectionName), binder =>
@@ -102,6 +105,8 @@ builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IFeedbackService, FeedbackService>();
 
 builder.Services.AddScoped<IWorkflowService, WorkflowService>();
+builder.Services.AddSingleton<IBenchmarkIndexCache, BenchmarkIndexCache>();
+builder.Services.AddScoped<IBenchmarkService, BenchmarkService>();
 builder.Services.AddScoped<IAnalysisWorkflowGraphBuilder, AnalysisWorkflowGraphBuilder>();
 builder.Services.AddScoped<IAnalysisWorkflowService, AnalysisWorkflowService>();
 builder.Services.AddSingleton<IKubernetes>(_ => new Kubernetes(

@@ -36,6 +36,12 @@ public interface IArgoWorkflowClient
     /// <summary>Lists unacknowledged SARA-managed workflows and their resource version.</summary>
     Task<ArgoWorkflowSnapshot> ListWorkflowsAsync(CancellationToken cancellationToken);
 
+    /// <summary>Lists Argo workflows in the configured namespace matching a label selector.</summary>
+    Task<IReadOnlyList<ArgoWorkflowResource>> ListWorkflowsByLabelSelectorAsync(
+        string labelSelector,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>
     /// Opens a streaming Kubernetes watch for SARA-managed workflows. The stream emits each
     /// workflow resource when it changes after the supplied resource version and remains open
@@ -156,6 +162,23 @@ public class ArgoWorkflowClient(IKubernetes kubernetes, IConfiguration configura
     }
 
     /// <inheritdoc />
+    public async Task<IReadOnlyList<ArgoWorkflowResource>> ListWorkflowsByLabelSelectorAsync(
+        string labelSelector,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var list = await kubernetes.CustomObjects.ListNamespacedCustomObjectAsync<ArgoWorkflowList>(
+            Group,
+            Version,
+            _namespace,
+            Plural,
+            labelSelector: labelSelector,
+            cancellationToken: cancellationToken
+        );
+        return list.Items;
+    }
+
+    /// <inheritdoc />
     public async IAsyncEnumerable<ArgoWorkflowResource> WatchWorkflowsAsync(
         string resourceVersion,
         [EnumeratorCancellation] CancellationToken cancellationToken
@@ -232,13 +255,24 @@ public class ArgoWorkflowList
 public class ArgoObjectMetadata
 {
     [JsonPropertyName("name")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Name { get; set; }
 
+    [JsonPropertyName("generateName")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? GenerateName { get; set; }
+
     [JsonPropertyName("uid")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Uid { get; set; }
 
     [JsonPropertyName("resourceVersion")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ResourceVersion { get; set; }
+
+    [JsonPropertyName("creationTimestamp")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public DateTime? CreationTimestamp { get; set; }
 
     [JsonPropertyName("labels")]
     public Dictionary<string, string> Labels { get; set; } = [];
@@ -255,8 +289,23 @@ public class ArgoWorkflowSpec
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Entrypoint { get; set; }
 
+    [JsonPropertyName("workflowTemplateRef")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ArgoWorkflowTemplateRef? WorkflowTemplateRef { get; set; }
+
+    [JsonPropertyName("arguments")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ArgoArguments? Arguments { get; set; }
+
     [JsonPropertyName("templates")]
-    public List<ArgoTemplate> Templates { get; set; } = [];
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<ArgoTemplate>? Templates { get; set; }
+}
+
+public class ArgoWorkflowTemplateRef
+{
+    [JsonPropertyName("name")]
+    public required string Name { get; set; }
 }
 
 public class ArgoTemplate
@@ -325,6 +374,12 @@ public class ArgoWorkflowStatus
 
     [JsonPropertyName("message")]
     public string? Message { get; set; }
+
+    [JsonPropertyName("startedAt")]
+    public DateTime? StartedAt { get; set; }
+
+    [JsonPropertyName("finishedAt")]
+    public DateTime? FinishedAt { get; set; }
 
     [JsonPropertyName("outputs")]
     public ArgoOutputs? Outputs { get; set; }

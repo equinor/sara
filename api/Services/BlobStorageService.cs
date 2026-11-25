@@ -17,6 +17,12 @@ public interface IBlobStorageService
         string? contentDisposition = null
     );
     Task<bool> ExistsAsync(BlobStorageLocation location);
+    Task<IReadOnlyList<string>> ListChildPrefixesAsync(
+        string storageAccount,
+        string containerName,
+        string prefix = "",
+        CancellationToken cancellationToken = default
+    );
 }
 
 public class BlobStorageService(
@@ -112,6 +118,48 @@ public class BlobStorageService(
         var blobClient = containerClient.GetBlobClient(location.BlobName);
         var response = await blobClient.ExistsAsync();
         return response.Value;
+    }
+
+    public async Task<IReadOnlyList<string>> ListChildPrefixesAsync(
+        string storageAccount,
+        string containerName,
+        string prefix = "",
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (string.IsNullOrWhiteSpace(storageAccount) || string.IsNullOrWhiteSpace(containerName))
+        {
+            return [];
+        }
+
+        var serviceClient = CreateBlobServiceClient(storageAccount);
+        var containerClient = serviceClient.GetBlobContainerClient(containerName);
+        var normalizedPrefix = string.IsNullOrEmpty(prefix) ? null : prefix;
+        var results = new List<string>();
+
+        await foreach (
+            var item in containerClient.GetBlobsByHierarchyAsync(
+                traits: BlobTraits.None,
+                states: BlobStates.None,
+                delimiter: "/",
+                prefix: normalizedPrefix,
+                cancellationToken: cancellationToken
+            )
+        )
+        {
+            if (!item.IsPrefix || string.IsNullOrEmpty(item.Prefix))
+            {
+                continue;
+            }
+
+            var child = item.Prefix[prefix.Length..].TrimEnd('/');
+            if (!string.IsNullOrEmpty(child))
+            {
+                results.Add(child);
+            }
+        }
+
+        return results;
     }
 
     private BlobServiceClient CreateBlobServiceClient(string accountName)
