@@ -8,7 +8,7 @@ RUN pnpm install --frozen-lockfile
 COPY frontend/ .
 RUN pnpm build --outDir /frontend-dist
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:212fe4cb74627d5adf9817a4088906ae3edff1bd853bb27565d4b46731efe61e AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:8c6edfb26c85153f236d26efebd9ad349aec403583f343f201ee67838b23658d AS build
 WORKDIR /source
 
 # copy everything
@@ -18,7 +18,7 @@ WORKDIR /source/api
 RUN dotnet publish -c release -o /app
 
 # final stage/image
-FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:1a48394b6f29d3a32c79d9edecd4abda0ecbe8776d567dbfc4590ed6979c740c
+FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:aac50ceef10391e78a899e3d2ccd00bbafa2dcb56ccf4586cbccf00edb84fc21
 WORKDIR /app
 COPY --from=build /app ./
 COPY --from=frontend-build /frontend-dist ./wwwroot
