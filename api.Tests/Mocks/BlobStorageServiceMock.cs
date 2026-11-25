@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using api.Database.Models;
 using api.Services;
@@ -54,4 +56,11 @@ public class BlobStorageServiceMock : IBlobStorageService
         await Task.CompletedTask;
         return BlobExists;
     }
+
+    public Task<IReadOnlyList<string>> ListChildPrefixesAsync(
+        string storageAccount,
+        string containerName,
+        string prefix = "",
+        CancellationToken cancellationToken = default
+    ) => Task.FromResult<IReadOnlyList<string>>([]);
 }

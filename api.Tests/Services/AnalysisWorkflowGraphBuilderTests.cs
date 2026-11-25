@@ -316,7 +316,7 @@ public class AnalysisWorkflowGraphBuilderTests : IAsyncLifetime
     }
 
     private static List<ArgoDagTask> Tasks(ArgoWorkflowResource resource) =>
-        resource.Spec!.Templates[0].Dag.Tasks;
+        resource.Spec!.Templates![0].Dag.Tasks;
 
     private static BlobStorageLocation RawLocation() =>
         new()
