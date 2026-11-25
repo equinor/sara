@@ -1,4 +1,11 @@
-import { Configuration, LogLevel } from "@azure/msal-browser";
+import { type AccountInfo, Configuration, LogLevel } from "@azure/msal-browser";
+
+const ADMIN_ROLE = "Role.Admin";
+
+export function hasAdminRole(account: AccountInfo | null | undefined): boolean {
+  const roles = account?.idTokenClaims?.roles;
+  return Array.isArray(roles) && roles.includes(ADMIN_ROLE);
+}
 
 export interface AppConfig {
   clientId: string;
