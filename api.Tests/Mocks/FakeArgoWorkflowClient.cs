@@ -12,7 +12,7 @@ public record ArgoCreateRequest(ArgoWorkflowResource Resource)
 {
     public string WorkflowName => Resource.Metadata.Name!;
 
-    public IReadOnlyList<ArgoDagTask> Tasks => Resource.Spec!.Templates.Single().Dag.Tasks;
+    public IReadOnlyList<ArgoDagTask> Tasks => Resource.Spec!.Templates!.Single().Dag.Tasks;
 
     public string WorkflowTemplateName => Tasks[0].TemplateRef.Name;
 
@@ -32,6 +32,8 @@ public class FakeArgoWorkflowClient : IArgoWorkflowClient
     public List<ArgoObjectMetadata> ReconciledWorkflows { get; } = [];
     public Exception? ReconcileException { get; set; }
 
+    public List<ArgoWorkflowResource> ListedWorkflows { get; } = [];
+
     public async Task<CreatedArgoWorkflow> CreateWorkflowAsync(
         ArgoWorkflowResource workflow,
         CancellationToken cancellationToken = default
@@ -47,7 +49,8 @@ public class FakeArgoWorkflowClient : IArgoWorkflowClient
             await BeforeCreate(request);
         }
         Requests.Add(request);
-        return new CreatedArgoWorkflow(workflow.Metadata.Name!, Guid.NewGuid().ToString());
+        var name = workflow.Metadata.Name ?? $"{workflow.Metadata.GenerateName}1";
+        return new CreatedArgoWorkflow(name, Guid.NewGuid().ToString());
     }
 
     public Task MarkWorkflowReconciledAsync(
@@ -65,6 +68,11 @@ public class FakeArgoWorkflowClient : IArgoWorkflowClient
 
     public Task<ArgoWorkflowSnapshot> ListWorkflowsAsync(CancellationToken cancellationToken) =>
         Task.FromResult(new ArgoWorkflowSnapshot([], "1"));
+
+    public Task<IReadOnlyList<ArgoWorkflowResource>> ListWorkflowsByLabelSelectorAsync(
+        string labelSelector,
+        CancellationToken cancellationToken = default
+    ) => Task.FromResult<IReadOnlyList<ArgoWorkflowResource>>(ListedWorkflows);
 
     public async IAsyncEnumerable<ArgoWorkflowResource> WatchWorkflowsAsync(
         string resourceVersion,

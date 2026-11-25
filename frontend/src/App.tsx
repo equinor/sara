@@ -25,6 +25,9 @@ import FeedbackPage from "./pages/feedback";
 import ReferencePolygonImagesPage from "./pages/reference-images";
 import CreateReferencePolygonMetadataPage from "./pages/reference-images/create";
 import ReferencePolygonMetadataDetailPage from "./pages/reference-images/detail";
+import BenchmarksPage from "./pages/benchmarks";
+import BenchmarkDetailPage from "./pages/benchmarks/detail";
+import BenchmarkImageDetailPage from "./pages/benchmarks/image-detail";
 import styled from "styled-components";
 
 const StyledSignInContainer = styled.div`
@@ -45,6 +48,7 @@ const TABS = [
   { path: "/workflows", label: "Workflows" },
   { path: "/feedback", label: "Analysis Feedback" },
   { path: "/reference-images", label: "Reference Images" },
+  { path: "/benchmarks", label: "Benchmarks" },
 ];
 
 function App() {
@@ -147,6 +151,16 @@ function App() {
               <Route
                 path="/reference-images/:id"
                 element={<ReferencePolygonMetadataDetailPage />}
+              />
+
+              <Route path="/benchmarks" element={tabbed(<BenchmarksPage />)} />
+              <Route
+                path="/benchmarks/:datasetId/:version/:split/:runId"
+                element={<BenchmarkDetailPage />}
+              />
+              <Route
+                path="/benchmarks/:datasetId/:version/:split/:runId/images/:imageId"
+                element={<BenchmarkImageDetailPage />}
               />
             </Routes>
           </div>

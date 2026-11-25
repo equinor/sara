@@ -8,10 +8,12 @@ function variantFor(status: string): Variant {
     case "Complete":
       return "active";
     case "InProgress":
+    case "Running":
     case "Started":
     case "Pending":
       return "default";
     case "Failed":
+    case "Error":
     case "TimedOut":
       return "error";
     default:
