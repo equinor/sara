@@ -65,10 +65,8 @@ public class ArgoWorkflowWatcherServiceTests
                     versions.Add(version);
                     if (versions.Count == 1)
                     {
-                        return EmitThenTerminate(
-                            [liveEvent],
-                            exception,
-                            () => terminatedAt = Stopwatch.GetTimestamp()
+                        return EmitThenTerminate([liveEvent], exception, () =>
+                            terminatedAt = Stopwatch.GetTimestamp()
                         );
                     }
                     reconnected.SetResult();

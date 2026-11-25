@@ -61,8 +61,7 @@ public class ArgoWorkflowClient(IKubernetes kubernetes, IConfiguration configura
     private const string Plural = "workflows";
     private const string LabelSelector =
         ManagedByLabel + "=sara," + AnalysisRunIdLabel + "," + ReconciledLabel + "!=true";
-    private readonly string _namespace =
-        configuration["ArgoWorkflowsNamespace"]
+    private readonly string _namespace = configuration["ArgoWorkflowsNamespace"]
         ?? throw new InvalidOperationException("ArgoWorkflowsNamespace is not configured");
 
     /// <inheritdoc />

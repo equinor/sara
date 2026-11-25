@@ -74,9 +74,8 @@ builder.Services.Configure<DashboardOptions>(
 );
 builder
     .Services.AddOptions<AnalysisOptions>()
-    .Bind(
-        builder.Configuration.GetSection(AnalysisOptions.SectionName),
-        binder => binder.ErrorOnUnknownConfiguration = true
+    .Bind(builder.Configuration.GetSection(AnalysisOptions.SectionName), binder =>
+        binder.ErrorOnUnknownConfiguration = true
     )
     .Configure<IConfiguration>(
         (options, configuration) =>
@@ -156,23 +155,19 @@ builder.Services.ConfigureJwtBearerLogging();
 
 builder
     .Services.AddAuthorizationBuilder()
-    .AddPolicy(
-        InstallationAccess.ObserverPolicy,
-        policy =>
-            policy
-                .RequireAuthenticatedUser()
-                .RequireAssertion(context =>
-                    InstallationAccess.HasAccess(context.User, AccessLevel.Observer)
-                )
+    .AddPolicy(InstallationAccess.ObserverPolicy, policy =>
+        policy
+            .RequireAuthenticatedUser()
+            .RequireAssertion(context =>
+                InstallationAccess.HasAccess(context.User, AccessLevel.Observer)
+            )
     )
-    .AddPolicy(
-        InstallationAccess.AdminPolicy,
-        policy =>
-            policy
-                .RequireAuthenticatedUser()
-                .RequireAssertion(context =>
-                    InstallationAccess.HasAccess(context.User, AccessLevel.Admin)
-                )
+    .AddPolicy(InstallationAccess.AdminPolicy, policy =>
+        policy
+            .RequireAuthenticatedUser()
+            .RequireAssertion(context =>
+                InstallationAccess.HasAccess(context.User, AccessLevel.Admin)
+            )
     )
     .AddFallbackPolicy("RequireAuthenticatedUser", policy => policy.RequireAuthenticatedUser());
 
@@ -242,32 +237,28 @@ app.MapControllers();
 
 app.MapGet("/api/health", () => Results.Ok(new { status = "healthy" })).AllowAnonymous();
 
-app.MapGet(
-        "/api/config",
-        (IConfiguration configuration) =>
-            new
+app.MapGet("/api/config", (IConfiguration configuration) =>
+        new
+        {
+            AzureAd = new
             {
-                AzureAd = new
-                {
-                    ClientId = configuration["AzureAd:ClientId"] ?? "",
-                    TenantId = configuration["AzureAd:TenantId"] ?? "",
-                },
-                BasePath = (configuration["ApiBaseRoute"] ?? "").TrimEnd('/'),
-                FlotillaBaseUrl = (configuration["FlotillaBaseUrl"] ?? "").TrimEnd('/'),
-                ArgoWorkflowsBaseUrl = (configuration["ArgoWorkflowsBaseUrl"] ?? "").TrimEnd('/'),
-                ArgoWorkflowsNamespace = configuration["ArgoWorkflowsNamespace"] ?? "",
-            }
+                ClientId = configuration["AzureAd:ClientId"] ?? "",
+                TenantId = configuration["AzureAd:TenantId"] ?? "",
+            },
+            BasePath = (configuration["ApiBaseRoute"] ?? "").TrimEnd('/'),
+            FlotillaBaseUrl = (configuration["FlotillaBaseUrl"] ?? "").TrimEnd('/'),
+            ArgoWorkflowsBaseUrl = (configuration["ArgoWorkflowsBaseUrl"] ?? "").TrimEnd('/'),
+            ArgoWorkflowsNamespace = configuration["ArgoWorkflowsNamespace"] ?? "",
+        }
     )
     .AllowAnonymous();
 
-app.MapGet(
-        "/api/config/analyses",
-        (IOptions<AnalysisOptions> opts) =>
-            opts.Value.Analyses.Select(kvp => new
-            {
-                Name = kvp.Key,
-                Workflows = kvp.Value.Steps.Select(step => step.Workflow),
-            })
+app.MapGet("/api/config/analyses", (IOptions<AnalysisOptions> opts) =>
+        opts.Value.Analyses.Select(kvp => new
+        {
+            Name = kvp.Key,
+            Workflows = kvp.Value.Steps.Select(step => step.Workflow),
+        })
     )
     .RequireAuthorization(InstallationAccess.ObserverPolicy);
 

@@ -127,13 +127,11 @@ public class DatabaseAuthenticationTests
         Assert.Contains("AppRegIdentity is required", error.Message);
         Assert.Contains("no password fallback", error.Message);
         Assert.DoesNotContain("synthetic-password", error.Message);
-        Assert.DoesNotContain(
-            services,
-            descriptor => descriptor.ServiceType == typeof(SaraDbContext)
+        Assert.DoesNotContain(services, descriptor =>
+            descriptor.ServiceType == typeof(SaraDbContext)
         );
-        Assert.DoesNotContain(
-            services,
-            descriptor => descriptor.ServiceType == typeof(DbContextOptions<SaraDbContext>)
+        Assert.DoesNotContain(services, descriptor =>
+            descriptor.ServiceType == typeof(DbContextOptions<SaraDbContext>)
         );
         return error;
     }

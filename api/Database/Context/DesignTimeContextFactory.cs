@@ -40,8 +40,10 @@ namespace api.Database.Context
 
         internal static SaraDbContext CreateDbContext(IConfiguration config)
         {
-            string[] allowedDbAuthMethods =
-                config.GetSection("Database:AllowedAuthMethods").Get<string[]>() ?? [];
+            string[] allowedDbAuthMethods = config
+                .GetSection("Database:AllowedAuthMethods")
+                .Get<string[]>()
+                ?? [];
             if (allowedDbAuthMethods.Length == 0)
             {
                 allowedDbAuthMethods = ["ConnectionString"];
@@ -134,9 +136,8 @@ namespace api.Database.Context
             var optionsBuilder = new DbContextOptionsBuilder<SaraDbContext>();
 
             // Setting splitting behavior explicitly to avoid warning
-            optionsBuilder.UseNpgsql(
-                connectionString,
-                o => o.UseQuerySplittingBehavior(QuerySplittingBehavior.SingleQuery)
+            optionsBuilder.UseNpgsql(connectionString, o =>
+                o.UseQuerySplittingBehavior(QuerySplittingBehavior.SingleQuery)
             );
 
             return new SaraDbContext(optionsBuilder.Options);
@@ -144,18 +145,15 @@ namespace api.Database.Context
 
         private static string BuildAppRegIdentityConnectionString(IConfiguration config)
         {
-            var server =
-                config["Database:Server"]
+            var server = config["Database:Server"]
                 ?? throw new InvalidOperationException(
                     "Database:Server is required for AppRegIdentity auth."
                 );
-            var postgresDb =
-                config["Database:PostgresDatabase"]
+            var postgresDb = config["Database:PostgresDatabase"]
                 ?? throw new InvalidOperationException(
                     "Database:PostgresDatabase is required for AppRegIdentity auth."
                 );
-            var dbUser =
-                config["Database:User"]
+            var dbUser = config["Database:User"]
                 ?? throw new InvalidOperationException(
                     "Database:User is required for AppRegIdentity auth."
                 );
@@ -196,8 +194,7 @@ namespace api.Database.Context
 
             if (string.IsNullOrEmpty(connectionString))
             {
-                string? keyVaultUri =
-                    config.GetSection("KeyVault")["VaultUri"]
+                string? keyVaultUri = config.GetSection("KeyVault")["VaultUri"]
                     ?? throw new KeyNotFoundException(
                         "No Key Vault URI configured and Database:postgresConnectionString is empty."
                     );

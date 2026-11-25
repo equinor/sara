@@ -145,8 +145,7 @@ public class ReferencePolygonMetadataService(
     )
     {
         access.RequireAccess(input.InstallationCode, AccessLevel.Admin);
-        var referencePolygonMetadata =
-            await ReadById(id, AccessLevel.Admin)
+        var referencePolygonMetadata = await ReadById(id, AccessLevel.Admin)
             ?? throw new KeyNotFoundException(
                 $"Reference polygon metadata with id {id} was not found"
             );
@@ -167,8 +166,7 @@ public class ReferencePolygonMetadataService(
 
     public async Task RemoveReferencePolygonMetadata(Guid id)
     {
-        var referencePolygonMetadata =
-            await ReadById(id, AccessLevel.Admin)
+        var referencePolygonMetadata = await ReadById(id, AccessLevel.Admin)
             ?? throw new KeyNotFoundException(
                 $"Reference polygon metadata with id {id} was not found"
             );
@@ -229,8 +227,7 @@ public class ReferencePolygonMetadataService(
         AnalysisTypeEnum sourceAnalysisType
     )
     {
-        var sourceWorkflow =
-            record.FindLatestWorkflow(sourceAnalysisType)
+        var sourceWorkflow = record.FindLatestWorkflow(sourceAnalysisType)
             ?? throw new KeyNotFoundException(
                 $"No {sourceAnalysisType} workflow found for inspection record {record.Id}"
             );
@@ -255,8 +252,7 @@ public class ReferencePolygonMetadataService(
         AnalysisTypeEnum sourceAnalysisType
     )
     {
-        var storageAccount =
-            configuration["Storage:ThermalReferenceStorageAccount"]
+        var storageAccount = configuration["Storage:ThermalReferenceStorageAccount"]
             ?? throw new InvalidOperationException(
                 "Storage:ThermalReferenceStorageAccount is not configured"
             );

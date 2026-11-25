@@ -72,9 +72,8 @@ public class MqttDuplicateTests : IAsyncLifetime
     private SaraDbContext ContextWith(IInterceptor interceptor) =>
         new(
             new DbContextOptionsBuilder<SaraDbContext>()
-                .UseNpgsql(
-                    _container.GetConnectionString(),
-                    o => o.EnableRetryOnFailure(1, TimeSpan.Zero, null)
+                .UseNpgsql(_container.GetConnectionString(), o =>
+                    o.EnableRetryOnFailure(1, TimeSpan.Zero, null)
                 )
                 .AddInterceptors(interceptor)
                 .Options
@@ -97,22 +96,18 @@ public class MqttDuplicateTests : IAsyncLifetime
     }
 
     private void AssertLog(LogLevel level, string text) =>
-        Assert.Contains(
-            _logger.Invocations,
-            i =>
-                i.Method.Name == "Log"
-                && i.Arguments[0] is LogLevel logLevel
-                && logLevel == level
-                && i.Arguments[2]?.ToString()?.Contains(text) == true
+        Assert.Contains(_logger.Invocations, i =>
+            i.Method.Name == "Log"
+            && i.Arguments[0] is LogLevel logLevel
+            && logLevel == level
+            && i.Arguments[2]?.ToString()?.Contains(text) == true
         );
 
     private void AssertNoWarningsOrErrors() =>
-        Assert.DoesNotContain(
-            _logger.Invocations,
-            i =>
-                i.Method.Name == "Log"
-                && i.Arguments[0] is LogLevel logLevel
-                && logLevel >= LogLevel.Warning
+        Assert.DoesNotContain(_logger.Invocations, i =>
+            i.Method.Name == "Log"
+            && i.Arguments[0] is LogLevel logLevel
+            && logLevel >= LogLevel.Warning
         );
 
     [Fact]
@@ -161,9 +156,8 @@ public class MqttDuplicateTests : IAsyncLifetime
         Assert.Equal(["Image", "ThermalImage"], records.Select(r => r.InspectionType));
         Assert.Equal(2, _factory.ArgoWorkflowClient.Requests.Count);
         AssertNoWarningsOrErrors();
-        Assert.DoesNotContain(
-            _logger.Invocations,
-            i => i.Arguments[2]?.ToString()?.Contains("Ignoring duplicate") == true
+        Assert.DoesNotContain(_logger.Invocations, i =>
+            i.Arguments[2]?.ToString()?.Contains("Ignoring duplicate") == true
         );
     }
 

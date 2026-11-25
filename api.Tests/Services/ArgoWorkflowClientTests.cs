@@ -46,18 +46,15 @@ public class ArgoWorkflowClientTests
         Assert.True(await watch.MoveNextAsync());
 
         Assert.Equal(2, handler.Requests.Count);
-        Assert.All(
-            handler.Requests,
-            request =>
-            {
-                Assert.Equal(HttpMethod.Get, request.Method);
-                Assert.Equal(WorkflowsPath, request.Uri.AbsolutePath);
-                Assert.Equal(
-                    "app.kubernetes.io/managed-by=sara,sara.equinor.com/analysis-run-id,sara.equinor.com/reconciled!=true",
-                    QueryHelpers.ParseQuery(request.Uri.Query)["labelSelector"].ToString()
-                );
-            }
-        );
+        Assert.All(handler.Requests, request =>
+        {
+            Assert.Equal(HttpMethod.Get, request.Method);
+            Assert.Equal(WorkflowsPath, request.Uri.AbsolutePath);
+            Assert.Equal(
+                "app.kubernetes.io/managed-by=sara,sara.equinor.com/analysis-run-id,sara.equinor.com/reconciled!=true",
+                QueryHelpers.ParseQuery(request.Uri.Query)["labelSelector"].ToString()
+            );
+        });
         var watchQuery = QueryHelpers.ParseQuery(handler.Requests[1].Uri.Query);
         Assert.Equal("true", watchQuery["watch"].ToString());
         Assert.Equal(snapshot.ResourceVersion, watchQuery["resourceVersion"].ToString());

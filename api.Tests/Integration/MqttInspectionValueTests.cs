@@ -134,9 +134,8 @@ public class MqttInspectionValueTests : IAsyncLifetime
             GasMeasurementTypes.Length,
             _factory.MqttPublisher.InspectionRecordAvailableMessages.Count
         );
-        Assert.All(
-            _factory.MqttPublisher.InspectionRecordAvailableMessages,
-            m => Assert.Equal("xam-task", m.InspectionId)
+        Assert.All(_factory.MqttPublisher.InspectionRecordAvailableMessages, m =>
+            Assert.Equal("xam-task", m.InspectionId)
         );
     }
 

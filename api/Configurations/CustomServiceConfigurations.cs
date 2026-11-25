@@ -40,8 +40,10 @@ public static class CustomServiceConfigurations
         clientId ??= config["AZURE_CLIENT_ID"];
         clientSecret ??= config["AZURE_CLIENT_SECRET"];
 
-        string[] allowedAuthMethods =
-            config.GetSection("AzureAd:AllowedAuthMethods").Get<string[]>() ?? [];
+        string[] allowedAuthMethods = config
+            .GetSection("AzureAd:AllowedAuthMethods")
+            .Get<string[]>()
+            ?? [];
         if (allowedAuthMethods.Length == 0)
         {
             allowedAuthMethods = ["WorkloadIdentity"];
@@ -155,8 +157,10 @@ public static class CustomServiceConfigurations
         clientId ??= config["AZURE_CLIENT_ID"];
         clientSecret ??= config["AZURE_CLIENT_SECRET"];
 
-        string[] allowedAuthMethods =
-            config.GetSection("AzureAd:AllowedAuthMethods").Get<string[]>() ?? [];
+        string[] allowedAuthMethods = config
+            .GetSection("AzureAd:AllowedAuthMethods")
+            .Get<string[]>()
+            ?? [];
         if (allowedAuthMethods.Length == 0)
         {
             allowedAuthMethods = ["WorkloadIdentity"];
@@ -271,16 +275,17 @@ public static class CustomServiceConfigurations
 
             // Setting splitting behavior explicitly to avoid warning
             services.AddDbContext<SaraDbContext>(options =>
-                options.UseSqlite(
-                    sqlConnectionString,
-                    o => o.UseQuerySplittingBehavior(QuerySplittingBehavior.SingleQuery)
+                options.UseSqlite(sqlConnectionString, o =>
+                    o.UseQuerySplittingBehavior(QuerySplittingBehavior.SingleQuery)
                 )
             );
         }
         else
         {
-            string[] allowedDbAuthMethods =
-                configuration.GetSection("Database:AllowedAuthMethods").Get<string[]>() ?? [];
+            string[] allowedDbAuthMethods = configuration
+                .GetSection("Database:AllowedAuthMethods")
+                .Get<string[]>()
+                ?? [];
             if (allowedDbAuthMethods.Length == 0)
             {
                 allowedDbAuthMethods = ["ConnectionString"];
@@ -444,39 +449,32 @@ public static class CustomServiceConfigurations
 
         int databaseTimeout = GetDatabaseTimeout(configuration);
 
-        services.AddDbContext<SaraDbContext>(
-            options =>
-                options.UseNpgsql(
-                    baseConnString,
-                    o =>
+        services.AddDbContext<SaraDbContext>(options => options.UseNpgsql(baseConnString, o =>
+                {
+                    o.ConfigureDataSource(ds =>
                     {
-                        o.ConfigureDataSource(ds =>
-                        {
-                            ds.UsePeriodicPasswordProvider(
-                                async (_, ct) =>
-                                {
-                                    using var tokenCts = new CancellationTokenSource(
-                                        TimeSpan.FromSeconds(5)
-                                    );
-                                    var accessToken = await runtimeCredential.GetTokenAsync(
-                                        new TokenRequestContext([AzurePostgresScope]),
-                                        CancellationTokenSource
-                                            .CreateLinkedTokenSource(ct, tokenCts.Token)
-                                            .Token
-                                    );
-                                    return accessToken.Token;
-                                },
-                                successRefreshInterval: TimeSpan.FromMinutes(55),
-                                failureRefreshInterval: TimeSpan.FromSeconds(5)
-                            );
-                        });
-                        o.UseQuerySplittingBehavior(QuerySplittingBehavior.SingleQuery);
-                        o.EnableRetryOnFailure();
-                        o.CommandTimeout(databaseTimeout);
-                    }
-                ),
-            ServiceLifetime.Transient
-        );
+                        ds.UsePeriodicPasswordProvider(
+                            async (_, ct) =>
+                            {
+                                using var tokenCts = new CancellationTokenSource(
+                                    TimeSpan.FromSeconds(5)
+                                );
+                                var accessToken = await runtimeCredential.GetTokenAsync(
+                                    new TokenRequestContext([AzurePostgresScope]),
+                                    CancellationTokenSource
+                                        .CreateLinkedTokenSource(ct, tokenCts.Token)
+                                        .Token
+                                );
+                                return accessToken.Token;
+                            },
+                            successRefreshInterval: TimeSpan.FromMinutes(55),
+                            failureRefreshInterval: TimeSpan.FromSeconds(5)
+                        );
+                    });
+                    o.UseQuerySplittingBehavior(QuerySplittingBehavior.SingleQuery);
+                    o.EnableRetryOnFailure();
+                    o.CommandTimeout(databaseTimeout);
+                }), ServiceLifetime.Transient);
     }
 
     private static void ConfigureDatabaseWithConnectionString(
@@ -496,19 +494,12 @@ public static class CustomServiceConfigurations
         int databaseTimeout = GetDatabaseTimeout(configuration);
 
         // Setting splitting behavior explicitly to avoid warning
-        services.AddDbContext<SaraDbContext>(
-            options =>
-                options.UseNpgsql(
-                    connection,
-                    o =>
-                    {
-                        o.UseQuerySplittingBehavior(QuerySplittingBehavior.SingleQuery);
-                        o.EnableRetryOnFailure();
-                        o.CommandTimeout(databaseTimeout);
-                    }
-                ),
-            ServiceLifetime.Transient
-        );
+        services.AddDbContext<SaraDbContext>(options => options.UseNpgsql(connection, o =>
+                {
+                    o.UseQuerySplittingBehavior(QuerySplittingBehavior.SingleQuery);
+                    o.EnableRetryOnFailure();
+                    o.CommandTimeout(databaseTimeout);
+                }), ServiceLifetime.Transient);
     }
 
     private static int GetDatabaseTimeout(IConfiguration configuration)
