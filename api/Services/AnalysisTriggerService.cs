@@ -34,8 +34,10 @@ public class AnalysisTriggerService(
         }
 
         AnalysisGroup? group = inspectionRecord.AnalysisGroup;
-        List<string> groupedAnalyses =
-            inspectionRecord.AnalysisGroup?.Analyses.Select((g) => g.AnalysisType).ToList() ?? [];
+        List<string> groupedAnalyses = inspectionRecord
+            .AnalysisGroup?.Analyses.Select((g) => g.AnalysisType)
+            .ToList()
+            ?? [];
 
         foreach (var analysis in inspectionRecord.Analyses)
         {
@@ -108,11 +110,10 @@ public class AnalysisTriggerService(
 
         var workflowChain = GetWorkflowChain(analysis);
 
-        var nextRunNumber =
-            await context
-                .AnalysisRuns.Where(r => r.AnalysisId == analysis.Id)
-                .Select(r => (int?)r.RunNumber)
-                .MaxAsync()
+        var nextRunNumber = await context
+            .AnalysisRuns.Where(r => r.AnalysisId == analysis.Id)
+            .Select(r => (int?)r.RunNumber)
+            .MaxAsync()
             ?? 0;
         nextRunNumber += 1;
 

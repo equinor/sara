@@ -335,8 +335,7 @@ public class ReferencePolygonMetadataController(
         AnalysisTypeEnum sourceAnalysisType
     )
     {
-        var storageAccount =
-            configuration["Storage:ThermalReferenceStorageAccount"]
+        var storageAccount = configuration["Storage:ThermalReferenceStorageAccount"]
             ?? throw new InvalidOperationException(
                 "Storage:ThermalReferenceStorageAccount is not configured"
             );

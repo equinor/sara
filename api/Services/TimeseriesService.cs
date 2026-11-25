@@ -56,8 +56,7 @@ public class TimeseriesService(IConfiguration configuration, ILogger<TimeseriesS
     : ITimeseriesService
 {
     private static readonly HttpClient client = new();
-    private readonly string _baseUrl =
-        configuration["SARATimeseriesBaseUrl"]
+    private readonly string _baseUrl = configuration["SARATimeseriesBaseUrl"]
         ?? throw new InvalidOperationException("SARATimeseriesBaseUrl is not configured.");
     private static readonly JsonSerializerOptions useCamelCaseOption = new()
     {

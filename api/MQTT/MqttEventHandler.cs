@@ -442,8 +442,8 @@ namespace api.MQTT
             IsarInspectionValueMessage isarInspectionValueMessage
         )
         {
-            string description =
-                isarInspectionValueMessage.InspectionDescription?.Replace(" ", "-") ?? string.Empty;
+            string description = isarInspectionValueMessage.InspectionDescription?.Replace(" ", "-")
+                ?? string.Empty;
             var name =
                 $"{isarInspectionValueMessage.InstallationCode}_"
                 + $"{FloorWithTolerance(isarInspectionValueMessage.X)}E_"

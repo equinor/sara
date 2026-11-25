@@ -46,9 +46,8 @@ public static class TestSetupHelpers
     public static SaraDbContext ConfigurePostgreSqlContext(string connectionString)
     {
         var optionsBuilder = new DbContextOptionsBuilder<SaraDbContext>();
-        optionsBuilder.UseNpgsql(
-            connectionString,
-            o => o.UseQuerySplittingBehavior(QuerySplittingBehavior.SingleQuery)
+        optionsBuilder.UseNpgsql(connectionString, o =>
+            o.UseQuerySplittingBehavior(QuerySplittingBehavior.SingleQuery)
         );
         return new SaraDbContext(optionsBuilder.Options);
     }

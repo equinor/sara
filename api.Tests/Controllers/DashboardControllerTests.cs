@@ -124,13 +124,11 @@ public class DashboardControllerTests : IAsyncLifetime
 
         Assert.Contains(summary.PerWorkflowType, stat => stat.WorkflowType == "anonymizer");
         Assert.DoesNotContain(summary.PerAnalysisType, stat => stat.AnalysisType == "anonymizer");
-        Assert.Contains(
-            summary.PerAnalysisType,
-            stat => stat.AnalysisType == "CLOE" && stat.Succeeded == 1
+        Assert.Contains(summary.PerAnalysisType, stat =>
+            stat.AnalysisType == "CLOE" && stat.Succeeded == 1
         );
-        Assert.Contains(
-            summary.PerAnalysisType,
-            stat => stat.AnalysisType == "Fencilla" && stat.Failed == 1
+        Assert.Contains(summary.PerAnalysisType, stat =>
+            stat.AnalysisType == "Fencilla" && stat.Failed == 1
         );
         Assert.Equal(2, summary.Trend.Sum(bucket => bucket.Succeeded + bucket.Failed));
     }
@@ -172,9 +170,8 @@ public class DashboardControllerTests : IAsyncLifetime
         var summary = await GetSummary(24);
         // Hourly buckets across a 24h window => at least 24 buckets.
         Assert.True(summary.Trend.Count >= 24);
-        Assert.All(
-            summary.Trend,
-            bucket => Assert.Equal(TimeSpan.FromHours(1), bucket.BucketEnd - bucket.BucketStart)
+        Assert.All(summary.Trend, bucket =>
+            Assert.Equal(TimeSpan.FromHours(1), bucket.BucketEnd - bucket.BucketStart)
         );
     }
 
@@ -184,17 +181,14 @@ public class DashboardControllerTests : IAsyncLifetime
         var summary = await GetSummary(168, "Europe/Oslo");
 
         Assert.Equal(7, summary.Trend.Count);
-        Assert.All(
-            summary.Trend,
-            bucket =>
-            {
-                var localStart = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(
-                    bucket.BucketStart,
-                    "Europe/Oslo"
-                );
-                Assert.Equal(TimeSpan.Zero, localStart.TimeOfDay);
-            }
-        );
+        Assert.All(summary.Trend, bucket =>
+        {
+            var localStart = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(
+                bucket.BucketStart,
+                "Europe/Oslo"
+            );
+            Assert.Equal(TimeSpan.Zero, localStart.TimeOfDay);
+        });
     }
 
     [Fact]

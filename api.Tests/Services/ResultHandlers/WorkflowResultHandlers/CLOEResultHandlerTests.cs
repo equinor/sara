@@ -103,7 +103,8 @@ public class CLOEResultHandlerTests : IAsyncLifetime
 
         await handler.OnWorkflowCompleted(workflow);
 
-        var updated = await _context.InspectionRecords.AsNoTracking()
+        var updated = await _context
+            .InspectionRecords.AsNoTracking()
             .SingleAsync(r => r.Id == record.Id, TestContext.Current.CancellationToken);
         Assert.Equal("ts-id-123", updated.TimeseriesId);
     }
@@ -135,7 +136,8 @@ public class CLOEResultHandlerTests : IAsyncLifetime
 
         Assert.Single(_factory.MqttPublisher.AnalysisResultMessages);
 
-        var updated = await _context.InspectionRecords.AsNoTracking()
+        var updated = await _context
+            .InspectionRecords.AsNoTracking()
             .SingleAsync(r => r.Id == record.Id, TestContext.Current.CancellationToken);
         Assert.Null(updated.TimeseriesId);
     }

@@ -65,13 +65,11 @@ namespace api.Configurations
             IHostEnvironment environment
         )
         {
-            string authority =
-                configuration["AzureAd:Authority"]
+            string authority = configuration["AzureAd:Authority"]
                 ?? throw new InvalidOperationException(
                     $"AzureAd:Authority is required when {ProviderKey} is {OidcProvider}"
                 );
-            string audience =
-                configuration["AzureAd:ClientId"]
+            string audience = configuration["AzureAd:ClientId"]
                 ?? throw new InvalidOperationException(
                     $"AzureAd:ClientId is required when {ProviderKey} is {OidcProvider}"
                 );
@@ -89,15 +87,12 @@ namespace api.Configurations
                 );
             }
 
-            services.Configure<JwtBearerOptions>(
-                JwtBearerDefaults.AuthenticationScheme,
-                options =>
-                {
-                    options.Authority = authority;
-                    options.Audience = audience;
-                    options.RequireHttpsMetadata = !allowInsecureMetadata;
-                }
-            );
+            services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
+            {
+                options.Authority = authority;
+                options.Audience = audience;
+                options.RequireHttpsMetadata = !allowInsecureMetadata;
+            });
 
             services.PostConfigure<JwtBearerOptions>(
                 JwtBearerDefaults.AuthenticationScheme,

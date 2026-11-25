@@ -195,13 +195,11 @@ public class AnalysisTriggerServiceTests : IAsyncLifetime
             request.Tasks.Select(task => task.TemplateRef.Name)
         );
         Assert.All(request.Tasks, task => Assert.Equal("main", task.TemplateRef.Template));
-        Assert.All(
-            request.Tasks,
-            task =>
-                Assert.Equal(
-                    ["extras", "inputBlobStorageLocations", "outputBlobStorageLocation"],
-                    task.Arguments.Parameters.Select(parameter => parameter.Name).Order()
-                )
+        Assert.All(request.Tasks, task =>
+            Assert.Equal(
+                ["extras", "inputBlobStorageLocations", "outputBlobStorageLocation"],
+                task.Arguments.Parameters.Select(parameter => parameter.Name).Order()
+            )
         );
         Assert.Null(request.Tasks[0].Depends);
         Assert.Contains(request.Tasks[0].Name, request.Tasks[1].Depends);

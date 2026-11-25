@@ -19,61 +19,57 @@ namespace api.Configurations
 
         public static IServiceCollection ConfigureJwtBearerLogging(this IServiceCollection services)
         {
-            services.Configure<JwtBearerOptions>(
-                JwtBearerDefaults.AuthenticationScheme,
-                options =>
+            services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
+            {
+                options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
                 {
-                    options.Events =
-                        new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+                    OnAuthenticationFailed = context =>
+                    {
+                        var logger = context.HttpContext.RequestServices.GetRequiredService<
+                            ILogger<JwtBearerEvents>
+                        >();
+                        var token = context
+                            .Request.Headers["Authorization"]
+                            .ToString()
+                            ?.Replace("Bearer ", "");
+
+                        if (!string.IsNullOrEmpty(token))
                         {
-                            OnAuthenticationFailed = context =>
+                            try
                             {
-                                var logger = context.HttpContext.RequestServices.GetRequiredService<
-                                    ILogger<JwtBearerEvents>
-                                >();
-                                var token = context
-                                    .Request.Headers["Authorization"]
-                                    .ToString()
-                                    ?.Replace("Bearer ", "");
-
-                                if (!string.IsNullOrEmpty(token))
+                                var parts = token.Split('.');
+                                if (parts.Length == 3)
                                 {
-                                    try
-                                    {
-                                        var parts = token.Split('.');
-                                        if (parts.Length == 3)
-                                        {
-                                            string payloadJson = DecodeBase64(parts[1]);
-                                            var extractedClaims = ExtractClaimsToLog(payloadJson);
+                                    string payloadJson = DecodeBase64(parts[1]);
+                                    var extractedClaims = ExtractClaimsToLog(payloadJson);
 
-                                            logger.LogError(
-                                                "Authentication failed: Token claims: {Claims}",
-                                                JsonSerializer.Serialize(extractedClaims)
-                                            );
-                                        }
-                                        else
-                                        {
-                                            logger.LogWarning("Invalid token format.");
-                                        }
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        logger.LogError("Failed to decode token: {Exception}", ex);
-                                    }
+                                    logger.LogError(
+                                        "Authentication failed: Token claims: {Claims}",
+                                        JsonSerializer.Serialize(extractedClaims)
+                                    );
                                 }
                                 else
                                 {
-                                    logger.LogError(
-                                        "Authentication failed: {Exception}. No token provided.",
-                                        context.Exception
-                                    );
+                                    logger.LogWarning("Invalid token format.");
                                 }
+                            }
+                            catch (Exception ex)
+                            {
+                                logger.LogError("Failed to decode token: {Exception}", ex);
+                            }
+                        }
+                        else
+                        {
+                            logger.LogError(
+                                "Authentication failed: {Exception}. No token provided.",
+                                context.Exception
+                            );
+                        }
 
-                                return Task.CompletedTask;
-                            },
-                        };
-                }
-            );
+                        return Task.CompletedTask;
+                    },
+                };
+            });
 
             return services;
         }

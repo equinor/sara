@@ -108,9 +108,8 @@ public class TestWebApplicationFactory<TProgram>(
 
         services.AddDbContext<SaraDbContext>(
             options =>
-                options.UseNpgsql(
-                    _postgresConnectionString,
-                    o => o.UseQuerySplittingBehavior(QuerySplittingBehavior.SingleQuery)
+                options.UseNpgsql(_postgresConnectionString, o =>
+                    o.UseQuerySplittingBehavior(QuerySplittingBehavior.SingleQuery)
                 ),
             ServiceLifetime.Transient
         );
@@ -182,9 +181,8 @@ public class TestWebApplicationFactory<TProgram>(
         services.AddHttpContextAccessor();
         services
             .AddAuthorizationBuilder()
-            .AddFallbackPolicy(
-                TestAuthHandler.SchemeName,
-                policy => policy.RequireAuthenticatedUser()
+            .AddFallbackPolicy(TestAuthHandler.SchemeName, policy =>
+                policy.RequireAuthenticatedUser()
             );
         services
             .AddAuthentication(options =>

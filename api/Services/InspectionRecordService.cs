@@ -107,19 +107,15 @@ public class InspectionRecordService(
     public Task<MqttInspectionRecordResult> CreateFromMqttMessage(
         IsarInspectionResultMessage message
     ) =>
-        CreateMqttRecordOnce(
-            message.InspectionId,
-            message.InspectionType,
-            id => CreateMqttRecord(message, id)
+        CreateMqttRecordOnce(message.InspectionId, message.InspectionType, id =>
+            CreateMqttRecord(message, id)
         );
 
     public Task<MqttInspectionRecordResult> CreateFromMqttMessage(
         IsarInspectionValueMessage message
     ) =>
-        CreateMqttRecordOnce(
-            message.InspectionId,
-            message.InspectionType,
-            id => Create(NewInspectionValueRecord(message, id))
+        CreateMqttRecordOnce(message.InspectionId, message.InspectionType, id =>
+            Create(NewInspectionValueRecord(message, id))
         );
 
     private async Task<MqttInspectionRecordResult> CreateMqttRecordOnce(
@@ -202,8 +198,7 @@ public class InspectionRecordService(
                 )
                 : null;
 
-        var requiredAnalysis =
-            message.RequiredAnalysis
+        var requiredAnalysis = message.RequiredAnalysis
             ?? GetDefaultAnalysis(
                 message.InspectionType,
                 Path.GetExtension(message.InspectionDataPath.BlobName)
@@ -298,10 +293,10 @@ public class InspectionRecordService(
         }
 
         return _analysisOptions
-                .DefaultAnalysisByInspectionType.FirstOrDefault(entry =>
-                    string.Equals(entry.Key, inspectionType, StringComparison.OrdinalIgnoreCase)
-                )
-                .Value
+            .DefaultAnalysisByInspectionType.FirstOrDefault(entry =>
+                string.Equals(entry.Key, inspectionType, StringComparison.OrdinalIgnoreCase)
+            )
+            .Value
             ?? [];
     }
 
