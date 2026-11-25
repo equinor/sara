@@ -1,12 +1,13 @@
 import {
   AuthenticatedTemplate,
   UnauthenticatedTemplate,
+  useAccount,
   useMsal,
 } from "@azure/msal-react";
-import { Routes, Route, useNavigate, useLocation } from "react-router";
+import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router";
 import { Tabs, Typography, Button, TopBar, Icon } from "@equinor/eds-core-react";
 import { code } from "@equinor/eds-icons";
-import { getAppConfig, createLoginRequest } from "./authConfig";
+import { getAppConfig, createLoginRequest, hasAdminRole } from "./authConfig";
 import AuthenticatedQueryProvider from "./components/AuthenticatedQueryProvider";
 import { apiUrl } from "./utils/routing";
 import OverviewPage from "./pages/overview";
@@ -25,6 +26,9 @@ import FeedbackPage from "./pages/feedback";
 import ReferencePolygonImagesPage from "./pages/reference-images";
 import CreateReferencePolygonMetadataPage from "./pages/reference-images/create";
 import ReferencePolygonMetadataDetailPage from "./pages/reference-images/detail";
+import BenchmarksPage from "./pages/benchmarks";
+import BenchmarkDetailPage from "./pages/benchmarks/detail";
+import BenchmarkImageDetailPage from "./pages/benchmarks/image-detail";
 import styled from "styled-components";
 
 const StyledSignInContainer = styled.div`
@@ -36,7 +40,13 @@ const StyledSignInContainer = styled.div`
 
 Icon.add({ code });
 
-const TABS = [
+interface TabDefinition {
+  path: string;
+  label: string;
+  adminOnly?: boolean;
+}
+
+const TABS: TabDefinition[] = [
   { path: "/overview", label: "Overview" },
   { path: "/inspection-records", label: "Inspection Records" },
   { path: "/analyses", label: "Analyses" },
@@ -45,18 +55,24 @@ const TABS = [
   { path: "/workflows", label: "Workflows" },
   { path: "/feedback", label: "Analysis Feedback" },
   { path: "/reference-images", label: "Reference Images" },
+  { path: "/benchmarks", label: "Benchmarks", adminOnly: true },
 ];
 
 function App() {
-  const { instance } = useMsal();
+  const { instance, accounts } = useMsal();
+  const activeAccount = useAccount();
+  const account = activeAccount ?? accounts[0];
+  const isAdmin = hasAdminRole(account);
   const navigate = useNavigate();
   const location = useLocation();
 
-  const activeTab = TABS.findIndex((t) => location.pathname.startsWith(t.path));
+  const visibleTabs = isAdmin ? TABS : TABS.filter((t) => !t.adminOnly);
+  const activeTab = visibleTabs.findIndex((t) => location.pathname.startsWith(t.path));
   const tabIndex = activeTab >= 0 ? activeTab : 0;
 
   const handleTabChange = (val: string | number) => {
-    navigate(TABS[Number(val)].path);
+    const nextTab = visibleTabs[Number(val)];
+    if (nextTab) navigate(nextTab.path);
   };
 
   const handleLogin = () => {
@@ -64,10 +80,13 @@ function App() {
   };
 
   const tabbed = (node: React.ReactNode) => (
-    <TabbedLayout activeTab={tabIndex} onChange={handleTabChange}>
+    <TabbedLayout tabs={visibleTabs} activeTab={tabIndex} onChange={handleTabChange}>
       {node}
     </TabbedLayout>
   );
+
+  const requireAdmin = (node: React.ReactNode) =>
+    isAdmin ? node : <Navigate to="/overview" replace />;
 
   return (
     <>
@@ -148,6 +167,16 @@ function App() {
                 path="/reference-images/:id"
                 element={<ReferencePolygonMetadataDetailPage />}
               />
+
+              <Route path="/benchmarks" element={requireAdmin(tabbed(<BenchmarksPage />))} />
+              <Route
+                path="/benchmarks/:datasetId/:version/:split/:runId"
+                element={requireAdmin(<BenchmarkDetailPage />)}
+              />
+              <Route
+                path="/benchmarks/:datasetId/:version/:split/:runId/images/:imageId"
+                element={requireAdmin(<BenchmarkImageDetailPage />)}
+              />
             </Routes>
           </div>
         </AuthenticatedQueryProvider>
@@ -157,10 +186,12 @@ function App() {
 }
 
 function TabbedLayout({
+  tabs,
   activeTab,
   onChange,
   children,
 }: {
+  tabs: TabDefinition[];
   activeTab: number;
   onChange: (val: string | number) => void;
   children: React.ReactNode;
@@ -168,12 +199,12 @@ function TabbedLayout({
   return (
     <Tabs activeTab={activeTab} onChange={onChange}>
       <Tabs.List>
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <Tabs.Tab key={t.path}>{t.label}</Tabs.Tab>
         ))}
       </Tabs.List>
       <Tabs.Panels>
-        {TABS.map((t, i) => (
+        {tabs.map((t, i) => (
           <Tabs.Panel key={t.path}>{activeTab === i ? children : null}</Tabs.Panel>
         ))}
       </Tabs.Panels>

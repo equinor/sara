@@ -21,7 +21,7 @@ async function getAccessToken(): Promise<string> {
   return response.accessToken;
 }
 
-async function apiFetch<T>(url: string, options: RequestInit = {}): Promise<T> {
+export async function apiFetch<T>(url: string, options: RequestInit = {}): Promise<T> {
   const token = await getAccessToken();
   const response = await fetch(url, {
     ...options,
@@ -634,7 +634,7 @@ export async function getReferencePolygonImageData(
 }
 
 
-async function fetchAuthenticatedBlobUrl(url: string): Promise<string> {
+export async function fetchAuthenticatedBlobUrl(url: string): Promise<string> {
   const token = await getAccessToken();
   const response = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` },
