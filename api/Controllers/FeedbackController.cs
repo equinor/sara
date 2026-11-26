@@ -56,24 +56,17 @@ public class FeedbackController(
         [FromQuery] string? analysisType = null
     )
     {
-        if (!_dashboardOptions.AllowedWindowHours.Contains(sinceHours))
-            return BadRequest(
-                $"sinceHours must be one of: {string.Join(", ", _dashboardOptions.AllowedWindowHours)}"
-            );
-
-        TimeZoneInfo parsedTimeZone;
-        try
-        {
-            parsedTimeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZone);
-        }
-        catch (TimeZoneNotFoundException)
-        {
-            return BadRequest($"Unknown time zone '{timeZone}'");
-        }
-        catch (InvalidTimeZoneException)
-        {
-            return BadRequest($"Invalid time zone '{timeZone}'");
-        }
+        if (
+            !DashboardWindow.TryParse(
+                sinceHours,
+                nameof(sinceHours),
+                _dashboardOptions.AllowedWindowHours,
+                timeZone,
+                out var parsedTimeZone,
+                out var error
+            )
+        )
+            return BadRequest(error);
 
         return Ok(await feedbackService.GetSummary(sinceHours, parsedTimeZone, analysisType));
     }
@@ -90,24 +83,17 @@ public class FeedbackController(
         [FromQuery] string? analysisType = null
     )
     {
-        if (!_dashboardOptions.AllowedWindowHours.Contains(windowHours))
-            return BadRequest(
-                $"windowHours must be one of: {string.Join(", ", _dashboardOptions.AllowedWindowHours)}"
-            );
-
-        TimeZoneInfo parsedTimeZone;
-        try
-        {
-            parsedTimeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZone);
-        }
-        catch (TimeZoneNotFoundException)
-        {
-            return BadRequest($"Unknown time zone '{timeZone}'");
-        }
-        catch (InvalidTimeZoneException)
-        {
-            return BadRequest($"Invalid time zone '{timeZone}'");
-        }
+        if (
+            !DashboardWindow.TryParse(
+                windowHours,
+                nameof(windowHours),
+                _dashboardOptions.AllowedWindowHours,
+                timeZone,
+                out var parsedTimeZone,
+                out var error
+            )
+        )
+            return BadRequest(error);
 
         return Ok(
             await feedbackService.GetTrendBucketDetails(
