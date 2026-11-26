@@ -4,25 +4,29 @@ namespace api.Services;
 
 /// <summary>
 /// Validation and trend bucketing shared by the Overview and Feedback dashboards.
-/// Windows of 24h use hourly buckets, longer windows use daily buckets aligned to
-/// local midnight in the requested time zone.
+/// Windows are a whole number of days (expressed in hours) to keep trend bucketing
+/// and query ranges bounded. Windows of 24h use hourly buckets, longer windows use
+/// daily buckets aligned to local midnight in the requested time zone.
 /// </summary>
 public static class DashboardWindow
 {
+    public const int MinDays = 1;
+    public const int MaxDays = 365;
+
     public static bool TryParse(
         int windowHours,
         string windowParameterName,
-        IReadOnlyCollection<int> allowedWindowHours,
         string timeZoneId,
         [NotNullWhen(true)] out TimeZoneInfo? timeZone,
         [NotNullWhen(false)] out string? error
     )
     {
         timeZone = null;
-        if (!allowedWindowHours.Contains(windowHours))
+        if (windowHours % 24 != 0 || windowHours / 24 < MinDays || windowHours / 24 > MaxDays)
         {
             error =
-                $"{windowParameterName} must be one of: {string.Join(", ", allowedWindowHours)}";
+                $"{windowParameterName} must be a whole number of days between {MinDays} and {MaxDays}, "
+                + $"expressed in hours (a multiple of 24 from {MinDays * 24} to {MaxDays * 24})";
             return false;
         }
 

@@ -1,5 +1,5 @@
 import styled from "styled-components";
-import { DASHBOARD_WINDOWS, type DashboardSummary } from "../../../api/client";
+import { DASHBOARD_WINDOWS, formatDashboardWindow, type DashboardSummary } from "../../../api/client";
 import StatCard from "../../../components/StatCard";
 
 const CardRow = styled.div`
@@ -16,7 +16,7 @@ export default function OverviewSummaryCards({ summary, windowHours }: {
   return (
     <CardRow>
       <StatCard
-        title={`Succeeded (${DASHBOARD_WINDOWS.find((w) => w.hours === windowHours)?.label})`}
+        title={`Succeeded (${formatDashboardWindow(windowHours, DASHBOARD_WINDOWS)})`}
         value={summary.runStatusCounts.succeeded}
         tone="success"
       />

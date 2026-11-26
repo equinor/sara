@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Typography } from "@equinor/eds-core-react";
 import { tokens } from "@equinor/eds-tokens";
@@ -10,6 +9,7 @@ import DashboardWindowSelector from "../../components/DashboardWindowSelector";
 import PageHeader from "../../components/PageHeader";
 import PaginationFooter from "../../components/PaginationFooter";
 import { ErrorText } from "../../components/Styles";
+import { useDashboardWindow } from "../../utils/useDashboardWindow";
 import { PAGE_SIZE_OPTIONS, usePagedList } from "../../utils/usePagedList";
 import FeedbackBreakdownPanel from "./feedback-components/FeedbackBreakdownPanel";
 import FeedbackFilters from "./feedback-components/FeedbackFilters";
@@ -53,7 +53,7 @@ const DashboardGrid = styled.div`
 
 export default function FeedbackPage() {
   const queryClient = useQueryClient();
-  const [windowHours, setWindowHours] = useState(720);
+  const [windowHours, setWindowHours] = useDashboardWindow("feedback.window", 720);
   const configuredAnalyses = useConfiguredAnalyses();
   const analysisTypes = (configuredAnalyses.data ?? []).map((item) => item.name).sort();
   const {

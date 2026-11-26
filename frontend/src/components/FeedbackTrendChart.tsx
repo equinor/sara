@@ -61,13 +61,11 @@ const HitTarget = styled.button<{ $left: number; $width: number; $selected: bool
   bottom: 14%;
   left: ${(p) => p.$left}%;
   width: ${(p) => p.$width}%;
-  min-width: 4px;
   padding: 0;
   border: 0;
   background: ${(p) => (p.$selected ? tokens.colors.interactive.primary__selected_highlight.hex : "transparent")};
   opacity: 0.25;
   cursor: pointer;
-  transform: translateX(-50%);
 
   &:hover,
   &:focus-visible {
@@ -182,6 +180,9 @@ export default function FeedbackTrendChart({ data, windowHours, analysisType, ti
   const max = Math.max(1, ...data.flatMap((bucket) => [bucket.correct, bucket.incorrect]));
   const x = (index: number) =>
     margin.left + (data.length <= 1 ? plotWidth / 2 : (index / (data.length - 1)) * plotWidth);
+  const hitStart = (index: number) => (index === 0 ? margin.left : (x(index - 1) + x(index)) / 2);
+  const hitEnd = (index: number) =>
+    index === data.length - 1 ? margin.left + plotWidth : (x(index) + x(index + 1)) / 2;
   const y = (value: number) => margin.top + plotHeight - (value / max) * plotHeight;
   const points = (value: (bucket: FeedbackTrendBucket) => number) =>
     data.map((bucket, index) => `${x(index)},${y(value(bucket))}`).join(" ");
@@ -235,8 +236,15 @@ export default function FeedbackTrendChart({ data, windowHours, analysisType, ti
     setSelectedBucket(null);
   };
 
+  const hourly = windowHours <= 24;
   const formatDate = (iso: string) =>
-    new Date(iso).toLocaleDateString([], { dateStyle: "medium", timeZone });
+    hourly
+      ? new Date(iso).toLocaleString([], { dateStyle: "medium", timeStyle: "short", timeZone })
+      : new Date(iso).toLocaleDateString([], { dateStyle: "medium", timeZone });
+  const formatAxisLabel = (iso: string) =>
+    hourly
+      ? new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", timeZone })
+      : new Date(iso).toLocaleDateString([], { month: "short", day: "numeric", timeZone });
 
   if (!hasReviewedRuns) {
     return <Typography variant="body_short">No reviewed runs in this window.</Typography>;
@@ -278,8 +286,12 @@ export default function FeedbackTrendChart({ data, windowHours, analysisType, ti
               y2={y(bucket.incorrect) - 3.5}
             />
             {labelIndexes.has(index) && (
-              <AxisLabel x={x(index)} y={height - 7} textAnchor="middle">
-                {new Date(bucket.bucketStart).toLocaleDateString([], { month: "short", day: "numeric", timeZone })}
+              <AxisLabel
+                x={x(index)}
+                y={height - 7}
+                textAnchor={index === data.length - 1 && data.length > 1 ? "end" : "middle"}
+              >
+                {formatAxisLabel(bucket.bucketStart)}
               </AxisLabel>
             )}
           </g>
@@ -289,8 +301,8 @@ export default function FeedbackTrendChart({ data, windowHours, analysisType, ti
         <HitTarget
           key={bucket.bucketStart}
           type="button"
-          $left={(x(index) / width) * 100}
-          $width={(plotWidth / Math.max(1, data.length) / width) * 100}
+          $left={(hitStart(index) / width) * 100}
+          $width={((hitEnd(index) - hitStart(index)) / width) * 100}
           $selected={selectedBucket === bucket.bucketStart}
           aria-label={`${formatDate(bucket.bucketStart)}: ${bucket.correct} correct, ${bucket.incorrect} incorrect`}
           aria-expanded={selectedBucket === bucket.bucketStart}

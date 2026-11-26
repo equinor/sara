@@ -1,22 +1,15 @@
-using api.Configurations;
 using api.Controllers.Models;
 using api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 
 namespace api.Controllers;
 
 [ApiController]
 [Route("dashboard")]
-public class DashboardController(
-    ILogger<DashboardController> logger,
-    IDashboardService service,
-    IOptions<DashboardOptions> options
-) : ControllerBase
+public class DashboardController(ILogger<DashboardController> logger, IDashboardService service)
+    : ControllerBase
 {
-    private readonly DashboardOptions _options = options.Value;
-
     [HttpGet]
     [Authorize(Policy = InstallationAccess.ObserverPolicy)]
     [Route("summary")]
@@ -31,7 +24,6 @@ public class DashboardController(
             !DashboardWindow.TryParse(
                 sinceHours,
                 nameof(sinceHours),
-                _options.AllowedWindowHours,
                 timeZone,
                 out var parsedTimeZone,
                 out var error
@@ -65,7 +57,6 @@ public class DashboardController(
             !DashboardWindow.TryParse(
                 windowHours,
                 nameof(windowHours),
-                _options.AllowedWindowHours,
                 timeZone,
                 out var parsedTimeZone,
                 out var error

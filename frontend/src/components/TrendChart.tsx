@@ -25,9 +25,9 @@ const ChartTrack = styled.div<{ $bucketCount: number }>`
   width: 100%;
 `;
 
-const BucketButton = styled.button<{ $selected: boolean; $empty: boolean }>`
+const BucketButton = styled.button<{ $selected: boolean; $empty: boolean; $dense: boolean }>`
   min-width: 0;
-  padding: 0 2px;
+  padding: ${(p) => (p.$dense ? "0" : "0 2px")};
   border: 0;
   border-radius: 2px;
   background: ${(p) => (p.$selected ? tokens.colors.interactive.primary__selected_highlight.hex : "transparent")};
@@ -185,6 +185,8 @@ const Swatch = styled.span<{ $color: string }>`
   margin-right: 0.35rem;
 `;
 
+const MAX_LABELLED_BUCKETS = 31;
+
 interface Props {
   data: TrendBucket[];
   hourly: boolean;
@@ -214,6 +216,9 @@ export default function TrendChart({
   }));
   const hoverTimer = useRef<number | null>(null);
   const max = Math.max(1, ...data.map((bucket) => bucket.succeeded + bucket.failed));
+  // Long custom windows have too many buckets to label each one legibly.
+  const labelEvery = Math.ceil(data.length / MAX_LABELLED_BUCKETS);
+  const dense = data.length > MAX_LABELLED_BUCKETS;
   const selected = data.find((bucket) => bucket.bucketStart === selectedBucket);
   const open = selected !== undefined && anchorEl !== null;
   const { data: selectedDetails, error, isPending } = useTrendBucketDetails(
@@ -297,7 +302,7 @@ export default function TrendChart({
     <Wrapper>
       <Chart onMouseLeave={closePopover}>
         <ChartTrack $bucketCount={data.length}>
-          {data.map((bucket) => {
+          {data.map((bucket, index) => {
             const empty = bucket.succeeded + bucket.failed === 0;
             const succeededHeight = (bucket.succeeded / max) * height;
             const failedHeight = (bucket.failed / max) * height;
@@ -307,6 +312,7 @@ export default function TrendChart({
                 type="button"
                 $selected={selectedBucket === bucket.bucketStart}
                 $empty={empty}
+                $dense={dense}
                 onMouseEnter={(event) =>
                   activateBucketAfterDelay(bucket.bucketStart, event.currentTarget)
                 }
@@ -320,7 +326,9 @@ export default function TrendChart({
                   <Bar $height={failedHeight} $color={FAILED_COLOR} />
                   <Bar $height={succeededHeight} $color={SUCCEEDED_COLOR} />
                 </BarArea>
-                <BucketLabel>{formatLabel(bucket.bucketStart)}</BucketLabel>
+                <BucketLabel style={{ overflow: dense ? "visible" : undefined }}>
+                  {index % labelEvery === 0 ? formatLabel(bucket.bucketStart) : "\u00a0"}
+                </BucketLabel>
               </BucketButton>
             );
           })}

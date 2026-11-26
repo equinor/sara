@@ -1,9 +1,7 @@
-using api.Configurations;
 using api.Controllers.Models;
 using api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 
 namespace api.Controllers;
 
@@ -11,12 +9,9 @@ namespace api.Controllers;
 [Route("feedback")]
 public class FeedbackController(
     ILogger<FeedbackController> logger,
-    IFeedbackService feedbackService,
-    IOptions<DashboardOptions> dashboardOptions
+    IFeedbackService feedbackService
 ) : ControllerBase
 {
-    private readonly DashboardOptions _dashboardOptions = dashboardOptions.Value;
-
     [HttpGet]
     [Authorize(Policy = InstallationAccess.ObserverPolicy)]
     [ProducesResponseType(typeof(PagedResponse<FeedbackHistoryDto>), StatusCodes.Status200OK)]
@@ -60,7 +55,6 @@ public class FeedbackController(
             !DashboardWindow.TryParse(
                 sinceHours,
                 nameof(sinceHours),
-                _dashboardOptions.AllowedWindowHours,
                 timeZone,
                 out var parsedTimeZone,
                 out var error
@@ -87,7 +81,6 @@ public class FeedbackController(
             !DashboardWindow.TryParse(
                 windowHours,
                 nameof(windowHours),
-                _dashboardOptions.AllowedWindowHours,
                 timeZone,
                 out var parsedTimeZone,
                 out var error
