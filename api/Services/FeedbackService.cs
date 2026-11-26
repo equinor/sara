@@ -107,7 +107,7 @@ public class FeedbackService(SaraDbContext context, InstallationAccess access) :
     )
     {
         var now = DateTime.UtcNow;
-        var bucketBoundaries = BuildBucketBoundaries(windowHours, timeZone, now);
+        var bucketBoundaries = DashboardWindow.BuildBucketBoundaries(windowHours, timeZone, now);
         var since = bucketBoundaries[0];
         var until = bucketBoundaries[^1];
 
@@ -177,7 +177,7 @@ public class FeedbackService(SaraDbContext context, InstallationAccess access) :
     )
     {
         bucketStart = bucketStart.ToUniversalTime();
-        var bucketEnd = GetBucketEnd(bucketStart, windowHours, timeZone);
+        var bucketEnd = DashboardWindow.GetBucketEnd(bucketStart, windowHours, timeZone);
         var query = access
             .Filter(context.AnalysisRuns, AccessLevel.Observer)
             .Where(run =>
@@ -257,60 +257,5 @@ public class FeedbackService(SaraDbContext context, InstallationAccess access) :
 
         context.AnalysisRunFeedbacks.Remove(feedback);
         await context.SaveChangesAsync();
-    }
-
-    private static List<DateTime> BuildBucketBoundaries(
-        int windowHours,
-        TimeZoneInfo timeZone,
-        DateTime now
-    )
-    {
-        if (windowHours <= 24)
-        {
-            var currentHour = new DateTime(
-                now.Year,
-                now.Month,
-                now.Day,
-                now.Hour,
-                0,
-                0,
-                DateTimeKind.Utc
-            );
-            return Enumerable
-                .Range(0, windowHours + 1)
-                .Select(index => currentHour.AddHours(index - windowHours + 1))
-                .ToList();
-        }
-
-        var dayCount = windowHours / 24;
-        var localToday = TimeZoneInfo.ConvertTimeFromUtc(now, timeZone).Date;
-        return Enumerable
-            .Range(0, dayCount + 1)
-            .Select(index =>
-                TimeZoneInfo.ConvertTimeToUtc(
-                    DateTime.SpecifyKind(
-                        localToday.AddDays(index - dayCount + 1),
-                        DateTimeKind.Unspecified
-                    ),
-                    timeZone
-                )
-            )
-            .ToList();
-    }
-
-    private static DateTime GetBucketEnd(
-        DateTime bucketStart,
-        int windowHours,
-        TimeZoneInfo timeZone
-    )
-    {
-        if (windowHours <= 24)
-            return bucketStart.AddHours(1);
-
-        var localDate = TimeZoneInfo.ConvertTimeFromUtc(bucketStart, timeZone).Date;
-        return TimeZoneInfo.ConvertTimeToUtc(
-            DateTime.SpecifyKind(localDate.AddDays(1), DateTimeKind.Unspecified),
-            timeZone
-        );
     }
 }

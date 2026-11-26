@@ -27,19 +27,21 @@ public class DashboardController(
         [FromQuery] string timeZone = "UTC"
     )
     {
-        if (!_options.AllowedWindowHours.Contains(sinceHours))
-        {
-            return BadRequest(
-                $"sinceHours must be one of: {string.Join(", ", _options.AllowedWindowHours)}"
-            );
-        }
-
-        if (!TryGetTimeZone(timeZone, out var parsedTimeZone, out var error))
+        if (
+            !DashboardWindow.TryParse(
+                sinceHours,
+                nameof(sinceHours),
+                _options.AllowedWindowHours,
+                timeZone,
+                out var parsedTimeZone,
+                out var error
+            )
+        )
             return BadRequest(error);
 
         try
         {
-            return Ok(await service.GetSummary(sinceHours, parsedTimeZone!));
+            return Ok(await service.GetSummary(sinceHours, parsedTimeZone));
         }
         catch (Exception e)
         {
@@ -59,52 +61,28 @@ public class DashboardController(
         [FromQuery] string timeZone = "UTC"
     )
     {
-        if (!_options.AllowedWindowHours.Contains(windowHours))
-        {
-            return BadRequest(
-                $"windowHours must be one of: {string.Join(", ", _options.AllowedWindowHours)}"
-            );
-        }
-
-        if (!TryGetTimeZone(timeZone, out var parsedTimeZone, out var error))
+        if (
+            !DashboardWindow.TryParse(
+                windowHours,
+                nameof(windowHours),
+                _options.AllowedWindowHours,
+                timeZone,
+                out var parsedTimeZone,
+                out var error
+            )
+        )
             return BadRequest(error);
 
         try
         {
             return Ok(
-                await service.GetTrendBucketDetails(bucketStart, windowHours, parsedTimeZone!)
+                await service.GetTrendBucketDetails(bucketStart, windowHours, parsedTimeZone)
             );
         }
         catch (Exception e)
         {
             logger.LogError(e, "Error building dashboard trend bucket details");
             throw;
-        }
-    }
-
-    private static bool TryGetTimeZone(
-        string timeZoneId,
-        out TimeZoneInfo? timeZone,
-        out string? error
-    )
-    {
-        try
-        {
-            timeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
-            error = null;
-            return true;
-        }
-        catch (TimeZoneNotFoundException)
-        {
-            timeZone = null;
-            error = $"Unknown time zone '{timeZoneId}'";
-            return false;
-        }
-        catch (InvalidTimeZoneException)
-        {
-            timeZone = null;
-            error = $"Invalid time zone '{timeZoneId}'";
-            return false;
         }
     }
 }
