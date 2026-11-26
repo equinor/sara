@@ -820,12 +820,31 @@ export interface DashboardSummary {
   trend: TrendBucket[];
 }
 
-/** Window sizes (hours) accepted by the dashboard summary endpoint. */
+export type DashboardWindowPreset = { hours: number; label: string };
+
+/** Preset window sizes (hours) shown on the Overview dashboard. */
 export const DASHBOARD_WINDOWS = [
   { hours: 24, label: "24h" },
   { hours: 168, label: "7d" },
   { hours: 720, label: "30d" },
 ] as const;
+
+/** Bounds for custom dashboard windows, mirrored by backend validation. */
+export const MIN_DASHBOARD_WINDOW_DAYS = 1;
+export const MAX_DASHBOARD_WINDOW_DAYS = 365;
+
+export function isValidDashboardWindowHours(hours: number): boolean {
+  return (
+    Number.isInteger(hours) &&
+    hours % 24 === 0 &&
+    hours / 24 >= MIN_DASHBOARD_WINDOW_DAYS &&
+    hours / 24 <= MAX_DASHBOARD_WINDOW_DAYS
+  );
+}
+
+export function formatDashboardWindow(hours: number, presets: readonly DashboardWindowPreset[]): string {
+  return presets.find((preset) => preset.hours === hours)?.label ?? `${hours / 24}d`;
+}
 
 export async function getDashboardSummary(
   sinceHours = 168,

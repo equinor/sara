@@ -1,6 +1,5 @@
 import { tokens } from "@equinor/eds-tokens";
 import { useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "react-router";
 import { Typography } from "@equinor/eds-core-react";
 import styled from "styled-components";
 import { DASHBOARD_WINDOWS, retryWorkflow } from "../../api/client";
@@ -15,6 +14,7 @@ import OverviewSummaryCards from "./overview-components/OverviewSummaryCards";
 import OverviewTrendPanel from "./overview-components/OverviewTrendPanel";
 import RecentFailuresPanel from "./overview-components/RecentFailuresPanel";
 import StuckWorkflowsPanel from "./overview-components/StuckWorkflowsPanel";
+import { useDashboardWindow } from "../../utils/useDashboardWindow";
 
 const Grid = styled.div`
   display: grid;
@@ -27,14 +27,7 @@ const Grid = styled.div`
 export default function OverviewPage() {
   const queryClient = useQueryClient();
   const retryMutation = useResourceMutation(retryWorkflow);
-  const [searchParams, setSearchParams] = useSearchParams();
-
-  const windowHours = (() => {
-    const fromUrl = Number(searchParams.get("window"));
-    if (DASHBOARD_WINDOWS.some((w) => w.hours === fromUrl)) return fromUrl;
-    const stored = Number(localStorage.getItem("overview.window"));
-    return DASHBOARD_WINDOWS.some((w) => w.hours === stored) ? stored : 168;
-  })();
+  const [windowHours, setWindow] = useDashboardWindow("overview.window", 168);
 
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const { data, isFetching, isPending, error, dataUpdatedAt, refetch } = useOverview(windowHours, timeZone);
@@ -43,17 +36,6 @@ export default function OverviewPage() {
       refetch(),
       queryClient.invalidateQueries({ queryKey: dashboardTrendDetailsKey }),
     ]);
-  };
-
-  const setWindow = (hours: number) => {
-    try {
-      localStorage.setItem("overview.window", String(hours));
-    } catch {
-      /* ignore */
-    }
-    const next = new URLSearchParams(searchParams);
-    next.set("window", String(hours));
-    setSearchParams(next, { replace: true });
   };
 
   const handleRetry = async (id: string) => {

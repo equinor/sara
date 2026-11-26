@@ -154,14 +154,28 @@ public class DashboardControllerTests : IAsyncLifetime
         Assert.True(summary.Stuck[0].MinutesRunning >= 30);
     }
 
-    [Fact]
-    public async Task SummaryRejectsWindowOutsideAllowList()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(5)]
+    [InlineData(25)]
+    [InlineData(8784)]
+    public async Task SummaryRejectsWindowThatIsNotWholeDaysWithinOneYear(int sinceHours)
     {
         var response = await Client.GetAsync(
-            "/api/dashboard/summary?sinceHours=5",
+            $"/api/dashboard/summary?sinceHours={sinceHours}",
             TestContext.Current.CancellationToken
         );
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData(14)]
+    [InlineData(365)]
+    public async Task SummaryAcceptsCustomDayWindow(int days)
+    {
+        var summary = await GetSummary(days * 24);
+
+        Assert.Equal(days, summary.Trend.Count);
     }
 
     [Fact]
