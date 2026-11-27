@@ -35,6 +35,24 @@ public partial class MissionRecordingController(IMissionRecordingService mission
         return Ok(await missionRecordingService.GetRecording(installationCode, runId));
     }
 
+    [HttpGet("metadata")]
+    [ProducesResponseType(typeof(MissionRecordingMetadataResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<MissionRecordingMetadataResponse>> GetMetadata(
+        [FromRoute] string installationCode,
+        [FromRoute] string runId
+    )
+    {
+        if (!IsValid(installationCode, runId))
+            return BadRequest("Invalid installation code or mission id");
+
+        var metadata = await missionRecordingService.GetMetadata(installationCode, runId);
+        return metadata is null ? NotFound("The recording metadata is not available") : Ok(metadata);
+    }
+
     [HttpGet("cameras/{cameraKey}/access")]
     [ProducesResponseType(typeof(RecordingAccessResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

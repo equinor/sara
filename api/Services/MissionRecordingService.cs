@@ -14,6 +14,8 @@ public interface IMissionRecordingService
 {
     Task<MissionRecordingResponse> GetRecording(string installationCode, string runId);
 
+    Task<MissionRecordingMetadataResponse?> GetMetadata(string installationCode, string runId);
+
     Task<RecordingAccessResponse?> GetAccess(
         string installationCode,
         string runId,
@@ -33,13 +35,18 @@ public class MissionRecordingService(
 {
     private const string RecordingInspectionType = "Video";
 
+    private static readonly HashSet<string> TimingPreservingWorkflows = new(
+        ["anonymizer-video", "copy-raw-to-visualized"],
+        StringComparer.OrdinalIgnoreCase
+    );
+
     private static readonly JsonSerializerOptions ManifestJsonOptions = new(
         JsonSerializerDefaults.Web
     );
 
     public async Task<MissionRecordingResponse> GetRecording(string installationCode, string runId)
     {
-        var recording = await DownloadManifest(installationCode, runId);
+        var recording = await DownloadManifest<MissionRecordingResponse>(installationCode, runId);
         if (recording is null)
             return new MissionRecordingResponse { Status = RecordingStatus.NotRecorded };
 
@@ -56,20 +63,34 @@ public class MissionRecordingService(
             var workflow = records.TryGetValue(InspectionId(runId, camera.Key), out var record)
                 ? VisualizationWorkflows.FindLatest(record)
                 : null;
-            (camera.Status, camera.Error) = workflow switch
-            {
-                { Status: WorkflowStatus.Succeeded, OutputBlobStorageLocation: not null } => (
-                    RecordingStatus.Ready,
-                    null
-                ),
-                { Status: WorkflowStatus.Failed } => (
-                    RecordingStatus.Failed,
-                    "Processing the recording failed"
-                ),
-                _ => (RecordingStatus.Processing, null),
-            };
+            (camera.Status, camera.Error) = ResolveCameraStatus(workflow);
         }
         return recording;
+    }
+
+    public async Task<MissionRecordingMetadataResponse?> GetMetadata(
+        string installationCode,
+        string runId
+    )
+    {
+        var metadata = await DownloadManifest<MissionRecordingMetadataResponse>(
+            installationCode,
+            runId
+        );
+        if (metadata is null)
+            return null;
+
+        metadata.RunId ??= runId;
+        var records = await LoadRecords(
+            installationCode,
+            metadata.Cameras.Values.Select(camera => InspectionId(runId, camera.Key))
+        );
+        foreach (var camera in metadata.Cameras.Values)
+        {
+            records.TryGetValue(InspectionId(runId, camera.Key), out var record);
+            ApplyVisualizationMetadata(camera, record);
+        }
+        return metadata;
     }
 
     public async Task<RecordingAccessResponse?> GetAccess(
@@ -109,16 +130,46 @@ public class MissionRecordingService(
     // Matches the inspection id ISAR publishes for each camera recording.
     private static string InspectionId(string runId, string cameraKey) => $"{runId}-{cameraKey}";
 
-    private async Task<MissionRecordingResponse?> DownloadManifest(
-        string installationCode,
-        string runId
+    private static (string Status, string? Error) ResolveCameraStatus(Workflow? workflow) =>
+        workflow switch
+        {
+            { Status: WorkflowStatus.Succeeded, OutputBlobStorageLocation: not null } => (
+                RecordingStatus.Ready,
+                null
+            ),
+            { Status: WorkflowStatus.Failed } => (
+                RecordingStatus.Failed,
+                "Processing the recording failed"
+            ),
+            _ => (RecordingStatus.Processing, null),
+        };
+
+    private static void ApplyVisualizationMetadata(
+        CameraRecordingMetadataResponse camera,
+        InspectionRecord? record
     )
+    {
+        var workflow = record is null ? null : VisualizationWorkflows.FindLatest(record);
+        if (camera.Status == RecordingStatus.Ready)
+            (camera.Status, camera.Error) = ResolveCameraStatus(workflow);
+
+        camera.InspectionId = record?.InspectionId;
+        camera.VisualizationWorkflowType = workflow?.WorkflowType;
+        camera.VisualizationStatus = workflow?.Status.ToString();
+        camera.PreservesFrameTiming =
+            workflow is { Status: WorkflowStatus.Succeeded, OutputBlobStorageLocation: not null }
+                ? TimingPreservingWorkflows.Contains(workflow.WorkflowType)
+                : null;
+    }
+
+    private async Task<T?> DownloadManifest<T>(string installationCode, string runId)
+        where T : class
     {
         var location = new BlobStorageLocation
         {
-            StorageAccount = analysisOptions.Value.StorageAccounts.GetValueOrDefault(
-                "RawStorageAccount"
-            ) ?? throw new InvalidOperationException("Storage:RawStorageAccount is not set"),
+            StorageAccount =
+                analysisOptions.Value.StorageAccounts.GetValueOrDefault("RawStorageAccount")
+                ?? throw new InvalidOperationException("Storage:RawStorageAccount is not set"),
             // ISAR writes recordings to the installation's inspection container.
             BlobContainer = installationCode.ToLowerInvariant(),
             BlobName = $"{runId}/session.json",
@@ -126,10 +177,7 @@ public class MissionRecordingService(
         try
         {
             using var manifest = await blobStorageService.DownloadBlobAsync(location);
-            return await JsonSerializer.DeserializeAsync<MissionRecordingResponse>(
-                manifest,
-                ManifestJsonOptions
-            );
+            return await JsonSerializer.DeserializeAsync<T>(manifest, ManifestJsonOptions);
         }
         catch (RequestFailedException error) when (error.Status == 404)
         {
