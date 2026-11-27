@@ -50,7 +50,9 @@ public partial class MissionRecordingController(IMissionRecordingService mission
             return BadRequest("Invalid installation code or mission id");
 
         var metadata = await missionRecordingService.GetMetadata(installationCode, runId);
-        return metadata is null ? NotFound("The recording metadata is not available") : Ok(metadata);
+        return metadata is null
+            ? NotFound("The recording metadata is not available")
+            : Ok(metadata);
     }
 
     [HttpGet("cameras/{cameraKey}/access")]

@@ -156,10 +156,10 @@ public class MissionRecordingService(
         camera.InspectionId = record?.InspectionId;
         camera.VisualizationWorkflowType = workflow?.WorkflowType;
         camera.VisualizationStatus = workflow?.Status.ToString();
-        camera.PreservesFrameTiming =
-            workflow is { Status: WorkflowStatus.Succeeded, OutputBlobStorageLocation: not null }
-                ? TimingPreservingWorkflows.Contains(workflow.WorkflowType)
-                : null;
+        camera.PreservesFrameTiming = workflow
+            is { Status: WorkflowStatus.Succeeded, OutputBlobStorageLocation: not null }
+            ? TimingPreservingWorkflows.Contains(workflow.WorkflowType)
+            : null;
     }
 
     private async Task<T?> DownloadManifest<T>(string installationCode, string runId)
@@ -167,9 +167,9 @@ public class MissionRecordingService(
     {
         var location = new BlobStorageLocation
         {
-            StorageAccount =
-                analysisOptions.Value.StorageAccounts.GetValueOrDefault("RawStorageAccount")
-                ?? throw new InvalidOperationException("Storage:RawStorageAccount is not set"),
+            StorageAccount = analysisOptions.Value.StorageAccounts.GetValueOrDefault(
+                "RawStorageAccount"
+            ) ?? throw new InvalidOperationException("Storage:RawStorageAccount is not set"),
             // ISAR writes recordings to the installation's inspection container.
             BlobContainer = installationCode.ToLowerInvariant(),
             BlobName = $"{runId}/session.json",
