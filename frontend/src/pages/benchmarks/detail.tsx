@@ -1,10 +1,16 @@
 import { useNavigate, useParams } from "react-router";
 import { Button, Typography } from "@equinor/eds-core-react";
-import { useBenchmarkRunDetail } from "../../api/benchmarkClient";
+import {
+  useBenchmarkDatasets,
+  useBenchmarkRunDetail,
+} from "../../api/benchmarkClient";
 import DashboardPanel from "../../components/DashboardPanel";
 import PageHeader from "../../components/PageHeader";
 import { ErrorText } from "../../components/Styles";
-import { benchmarkRunDetailPath } from "./benchmarks-components/benchmarkFormatting";
+import {
+  benchmarkProjectPath,
+  benchmarkRunDetailPath,
+} from "./benchmarks-components/benchmarkFormatting";
 import BenchmarkConfusionMatrixPanel from "./benchmarks-components/run-detail/BenchmarkConfusionMatrixPanel";
 import BenchmarkPerImageTable from "./benchmarks-components/run-detail/BenchmarkPerImageTable";
 import BenchmarkRunMetadataPanel from "./benchmarks-components/run-detail/BenchmarkRunMetadataPanel";
@@ -14,8 +20,12 @@ export default function BenchmarkDetailPage() {
   const navigate = useNavigate();
   const { datasetId = "", version = "", split = "", runId = "" } = useParams();
 
+  const datasetsQuery = useBenchmarkDatasets();
   const detailQuery = useBenchmarkRunDetail(datasetId, version, split, runId);
   const detail = detailQuery.data;
+  const projectLabel =
+    datasetsQuery.data?.find((d) => d.id.toLowerCase() === datasetId.toLowerCase())
+      ?.label ?? datasetId;
 
   const evalEntries = Object.entries(detail?.metrics?.evaluations ?? {});
 
@@ -32,8 +42,13 @@ export default function BenchmarkDetailPage() {
       onRefresh={() => detailQuery.refetch()}
     >
       <div style={{ marginBottom: "1rem" }}>
-        <Button variant="ghost" onClick={() => navigate("/benchmarks")}>
-          ← Back to Benchmarks
+        <Button
+          variant="ghost"
+          onClick={() =>
+            navigate(datasetId ? benchmarkProjectPath(datasetId) : "/benchmarks")
+          }
+        >
+          ← Back to {projectLabel || "Benchmarks"}
         </Button>
       </div>
 

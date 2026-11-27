@@ -23,12 +23,13 @@ async function getAccessToken(): Promise<string> {
 
 export async function apiFetch<T>(url: string, options: RequestInit = {}): Promise<T> {
   const token = await getAccessToken();
+  const isFormData = options.body instanceof FormData;
   const response = await fetch(url, {
     ...options,
     headers: {
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
       ...options.headers,
       Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
     },
   });
   if (!response.ok) {
@@ -634,17 +635,39 @@ export async function getReferencePolygonImageData(
 }
 
 
-export async function fetchAuthenticatedBlobUrl(url: string): Promise<string> {
+async function fetchBlobObjectUrl(
+  url: string,
+  options: { allowNotFound?: boolean; signal?: AbortSignal } = {}
+): Promise<string | null> {
   const token = await getAccessToken();
   const response = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` },
+    signal: options.signal,
   });
+  if (options.allowNotFound && response.status === 404) {
+    return null;
+  }
   if (!response.ok) {
     const text = await response.text();
     throw new Error(`${response.status}: ${text}`);
   }
   const blob = await response.blob();
   return URL.createObjectURL(blob);
+}
+
+export async function fetchAuthenticatedBlobUrl(url: string): Promise<string> {
+  const objectUrl = await fetchBlobObjectUrl(url);
+  if (!objectUrl) {
+    throw new Error("404: Blob not found");
+  }
+  return objectUrl;
+}
+
+export function fetchOptionalAuthenticatedBlobUrl(
+  url: string,
+  signal?: AbortSignal
+): Promise<string | null> {
+  return fetchBlobObjectUrl(url, { allowNotFound: true, signal });
 }
 
 export async function getReferencePolygonImageUrl(id: string): Promise<string> {

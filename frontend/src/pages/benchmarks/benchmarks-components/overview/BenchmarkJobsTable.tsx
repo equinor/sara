@@ -36,7 +36,7 @@ export default function BenchmarkJobsTable({ jobs, loading }: BenchmarkJobsTable
           <Table.Head>
             <Table.Row>
               <Table.Cell>Run ID</Table.Cell>
-              <Table.Cell>Dataset</Table.Cell>
+              <Table.Cell>Version / Split</Table.Cell>
               <Table.Cell>Config</Table.Cell>
               <Table.Cell>Device</Table.Cell>
               <Table.Cell>Status</Table.Cell>
@@ -66,7 +66,7 @@ export default function BenchmarkJobsTable({ jobs, loading }: BenchmarkJobsTable
                       )}
                     </Table.Cell>
                     <Table.Cell>
-                      {job.datasetId} / {job.version} / {job.split}
+                      {job.version} / {job.split}
                     </Table.Cell>
                     <Table.Cell>{formatJobConfigSummary(job)}</Table.Cell>
                     <Table.Cell>{job.device.toUpperCase()}</Table.Cell>

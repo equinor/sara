@@ -11,12 +11,85 @@ namespace api.Controllers;
 public class BenchmarkController(IBenchmarkService benchmarkService) : ControllerBase
 {
     private const string DatasetImageCacheControl = "private, max-age=600";
+    private const string CoverImageCacheControl = "private, no-store";
+    private const long MaxCoverImageRequestBytes = 6 * 1024 * 1024;
 
     [HttpGet("datasets")]
     [ProducesResponseType(typeof(IReadOnlyList<BenchmarkDatasetDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<BenchmarkDatasetDto>>> GetDatasets(
         CancellationToken cancellationToken
     ) => Ok(await benchmarkService.GetDatasetsAsync(cancellationToken));
+
+    [HttpGet("datasets/{datasetId}/cover-image")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetCoverImage(
+        [FromRoute] string datasetId,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            var image = await benchmarkService.GetCoverImageAsync(datasetId, cancellationToken);
+            Response.Headers.CacheControl = CoverImageCacheControl;
+            return File(image.Content, image.ContentType);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+    }
+
+    [HttpPut("datasets/{datasetId}/cover-image")]
+    [RequestSizeLimit(MaxCoverImageRequestBytes)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> UploadCoverImage(
+        [FromRoute] string datasetId,
+        IFormFile? file,
+        CancellationToken cancellationToken
+    )
+    {
+        if (file is null)
+        {
+            return BadRequest("No image file was provided.");
+        }
+
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            await benchmarkService.UploadCoverImageAsync(datasetId, stream, cancellationToken);
+            return NoContent();
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    [HttpDelete("datasets/{datasetId}/cover-image")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ResetCoverImage(
+        [FromRoute] string datasetId,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            await benchmarkService.ResetCoverImageAsync(datasetId, cancellationToken);
+            return NoContent();
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
 
     [HttpGet("jobs")]
     [ProducesResponseType(typeof(IReadOnlyList<BenchmarkJobDto>), StatusCodes.Status200OK)]

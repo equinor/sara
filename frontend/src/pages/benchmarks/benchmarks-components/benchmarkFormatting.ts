@@ -129,6 +129,10 @@ export function shortArtifact(artifact: string): string {
   return lastSlash >= 0 ? artifact.slice(lastSlash + 1) : artifact;
 }
 
+export function benchmarkProjectPath(datasetId: string): string {
+  return `/benchmarks/${encodeURIComponent(datasetId)}`;
+}
+
 export function benchmarkRunDetailPath(
   datasetId: string,
   version: string,

@@ -52,6 +52,16 @@ public interface IBenchmarkService
         int imageId,
         CancellationToken cancellationToken = default
     );
+    Task<BenchmarkImageFile> GetCoverImageAsync(
+        string datasetId,
+        CancellationToken cancellationToken = default
+    );
+    Task UploadCoverImageAsync(
+        string datasetId,
+        Stream content,
+        CancellationToken cancellationToken = default
+    );
+    Task ResetCoverImageAsync(string datasetId, CancellationToken cancellationToken = default);
 }
 
 public partial class BenchmarkService(
@@ -68,6 +78,8 @@ public partial class BenchmarkService(
     private const int MaxConcurrentBlobReads = 8;
     private const long ParsedJsonMemoryMultiplier = 4;
     private const string PredictionsBlobRelativePath = "review/instances_predictions.json";
+    private const string CoverImageBlobName = "cover-image";
+    private const int MaxCoverImageBytes = 5 * 1024 * 1024;
     private static readonly IReadOnlyList<string> DefaultDevices = ["cpu", "gpu"];
     private static readonly HashSet<string> StandardWorkflowParameters = new(
         ["source", "destination", "version", "split", "run-id", "device", "method"],
@@ -360,6 +372,232 @@ public partial class BenchmarkService(
         }
     }
 
+    public async Task<BenchmarkImageFile> GetCoverImageAsync(
+        string datasetId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var definition = ResolveDefinition(datasetId);
+
+        var savedCover = await TryDownloadSavedCoverImageAsync(definition);
+        if (savedCover is not null)
+        {
+            return savedCover;
+        }
+
+        var defaultCover = await TrySelectAndSaveDefaultCoverImageAsync(
+            definition,
+            cancellationToken
+        );
+        return defaultCover
+            ?? throw new KeyNotFoundException(
+                $"No cover image is available for benchmark dataset '{definition.Id}'."
+            );
+    }
+
+    public async Task UploadCoverImageAsync(
+        string datasetId,
+        Stream content,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var definition = ResolveDefinition(datasetId);
+        var bytes = await ReadBoundedImageBytesAsync(content, cancellationToken);
+        var contentType = DetectImageContentType(bytes)
+            ?? throw new ArgumentException("Cover image must be a valid PNG, JPEG, or WebP file.");
+
+        using var uploadStream = new MemoryStream(bytes);
+        await blobStorageService.UploadBlobAsync(
+            BuildBlobLocation(definition.Container, CoverImageBlobName),
+            uploadStream,
+            contentType
+        );
+    }
+
+    public async Task ResetCoverImageAsync(
+        string datasetId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var definition = ResolveDefinition(datasetId);
+        await blobStorageService.DeleteBlobAsync(
+            BuildBlobLocation(definition.Container, CoverImageBlobName),
+            cancellationToken
+        );
+    }
+
+    private async Task<BenchmarkImageFile?> TryDownloadSavedCoverImageAsync(
+        BenchmarkDefinition definition
+    )
+    {
+        try
+        {
+            using var stream = await blobStorageService.DownloadBlobAsync(
+                BuildBlobLocation(definition.Container, CoverImageBlobName)
+            );
+            var bytes = stream.ToArray();
+            var contentType = DetectImageContentType(bytes) ?? "application/octet-stream";
+            return new BenchmarkImageFile(bytes, contentType);
+        }
+        catch (RequestFailedException ex) when (ex.Status == 404)
+        {
+            return null;
+        }
+    }
+
+    private async Task<BenchmarkImageFile?> TrySelectAndSaveDefaultCoverImageAsync(
+        BenchmarkDefinition definition,
+        CancellationToken cancellationToken
+    )
+    {
+        var split = string.IsNullOrWhiteSpace(definition.DefaultSplit)
+            ? "val"
+            : definition.DefaultSplit;
+        var versions = await ListDatasetVersionsAsync(definition, cancellationToken);
+
+        foreach (var version in versions)
+        {
+            var gtIndex = await GetCachedCocoIndexAsync(
+                definition.Container,
+                $"{version}/dataset/annotations/instances_{split}.json",
+                cancellationToken
+            );
+            if (gtIndex is null || gtIndex.Images.Count == 0)
+            {
+                continue;
+            }
+
+            var image = SelectRepresentativeCocoImage(gtIndex);
+            ValidateRelativeImagePath(image.FileName);
+            var imageLocation = BuildBlobLocation(
+                definition.Container,
+                $"{version}/dataset/images/{split}/{image.FileName}"
+            );
+
+            try
+            {
+                using var stream = await blobStorageService.DownloadBlobAsync(imageLocation);
+                var bytes = stream.ToArray();
+                var contentType = DetectImageContentType(bytes)
+                    ?? ContentTypeForImage(image.FileName);
+                await TrySaveCoverImageAsync(definition, bytes, contentType);
+                return new BenchmarkImageFile(bytes, contentType);
+            }
+            catch (RequestFailedException ex) when (ex.Status == 404)
+            {
+                continue;
+            }
+        }
+
+        return null;
+    }
+
+    private static CocoImageEntry SelectRepresentativeCocoImage(BenchmarkCocoIndex gtIndex)
+    {
+        var ordered = gtIndex.Images.Values.OrderBy(image => image.Id);
+        return ordered.FirstOrDefault(image => gtIndex.GetAnnotations(image.Id).Count > 0)
+            ?? ordered.First();
+    }
+
+    private async Task TrySaveCoverImageAsync(
+        BenchmarkDefinition definition,
+        byte[] bytes,
+        string contentType
+    )
+    {
+        try
+        {
+            using var uploadStream = new MemoryStream(bytes);
+            await blobStorageService.UploadBlobAsync(
+                BuildBlobLocation(definition.Container, CoverImageBlobName),
+                uploadStream,
+                contentType
+            );
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(
+                ex,
+                "Failed to persist default cover image for benchmark dataset '{DatasetId}'",
+                definition.Id
+            );
+        }
+    }
+
+    private static async Task<byte[]> ReadBoundedImageBytesAsync(
+        Stream content,
+        CancellationToken cancellationToken
+    )
+    {
+        using var memory = new MemoryStream();
+        var buffer = new byte[81920];
+        var totalRead = 0;
+
+        while (true)
+        {
+            var bytesRead = await content.ReadAsync(buffer, cancellationToken);
+            if (bytesRead == 0)
+            {
+                break;
+            }
+
+            totalRead += bytesRead;
+            if (totalRead > MaxCoverImageBytes)
+            {
+                throw new ArgumentException("Cover image must be 5 MB or smaller.");
+            }
+
+            memory.Write(buffer, 0, bytesRead);
+        }
+
+        if (totalRead == 0)
+        {
+            throw new ArgumentException("Cover image file is empty.");
+        }
+
+        return memory.ToArray();
+    }
+
+    private static string? DetectImageContentType(ReadOnlySpan<byte> bytes)
+    {
+        if (
+            bytes.Length >= 8
+            && bytes[0] == 0x89
+            && bytes[1] == 0x50
+            && bytes[2] == 0x4E
+            && bytes[3] == 0x47
+            && bytes[4] == 0x0D
+            && bytes[5] == 0x0A
+            && bytes[6] == 0x1A
+            && bytes[7] == 0x0A
+        )
+        {
+            return "image/png";
+        }
+
+        if (bytes.Length >= 3 && bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF)
+        {
+            return "image/jpeg";
+        }
+
+        if (
+            bytes.Length >= 12
+            && bytes[0] == 0x52
+            && bytes[1] == 0x49
+            && bytes[2] == 0x46
+            && bytes[3] == 0x46
+            && bytes[8] == 0x57
+            && bytes[9] == 0x45
+            && bytes[10] == 0x42
+            && bytes[11] == 0x50
+        )
+        {
+            return "image/webp";
+        }
+
+        return null;
+    }
+
     private Task<BenchmarkPerImageTableDto?> TryGetPerImageAsync(
         string container,
         string runPrefix,
@@ -512,7 +750,7 @@ public partial class BenchmarkService(
             _ => "application/octet-stream",
         };
 
-    private async Task<BenchmarkDatasetDto> BuildDatasetDtoAsync(
+    private async Task<List<string>> ListDatasetVersionsAsync(
         BenchmarkDefinition definition,
         CancellationToken cancellationToken
     )
@@ -530,12 +768,10 @@ public partial class BenchmarkService(
             var checks = await Task.WhenAll(
                 prefixes.Select(async prefix =>
                 {
-                    var manifest = new BlobStorageLocation
-                    {
-                        StorageAccount = _options.StorageAccount,
-                        BlobContainer = definition.Container,
-                        BlobName = $"{prefix}/dataset/manifest.json",
-                    };
+                    var manifest = BuildBlobLocation(
+                        definition.Container,
+                        $"{prefix}/dataset/manifest.json"
+                    );
                     var hasManifest = await blobStorageService.ExistsAsync(manifest);
                     return (prefix, hasManifest);
                 })
@@ -558,6 +794,16 @@ public partial class BenchmarkService(
             );
         }
 
+        return versions;
+    }
+
+    private async Task<BenchmarkDatasetDto> BuildDatasetDtoAsync(
+        BenchmarkDefinition definition,
+        CancellationToken cancellationToken
+    )
+    {
+        var versions = await ListDatasetVersionsAsync(definition, cancellationToken);
+
         var parameters = definition
             .Parameters.Select(p => new BenchmarkParameterDefinitionDto(
                 p.Name,
@@ -574,6 +820,7 @@ public partial class BenchmarkService(
         return new BenchmarkDatasetDto(
             definition.Id,
             definition.Label,
+            definition.Description,
             definition.Container,
             definition.DefaultSplit,
             ResolveDevices(definition),

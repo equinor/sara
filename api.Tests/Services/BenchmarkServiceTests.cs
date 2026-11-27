@@ -1,11 +1,16 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using api.Configurations;
 using api.Controllers.Models;
+using api.Database.Models;
 using api.Services;
 using Api.Test.Mocks;
+using Azure;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Xunit;
@@ -14,7 +19,9 @@ namespace Api.Test.Services;
 
 public class BenchmarkServiceTests
 {
-    private static (BenchmarkService Service, FakeArgoWorkflowClient Argo) CreateService()
+    private static (BenchmarkService Service, FakeArgoWorkflowClient Argo) CreateService(
+        IBlobStorageService? blobStorage = null
+    )
     {
         var argo = new FakeArgoWorkflowClient();
         var options = Options.Create(
@@ -27,6 +34,7 @@ public class BenchmarkServiceTests
                     {
                         Id = "anonymizer",
                         Label = "Anonymizer",
+                        Description = "Evaluates face and person anonymization models.",
                         Container = "anonymizer",
                         WorkflowTemplate = "anonymizer-benchmark",
                         DefaultSplit = "val",
@@ -61,6 +69,7 @@ public class BenchmarkServiceTests
                     {
                         Id = "rain-drop-detection",
                         Label = "Rain Drop Detector",
+                        Description = "Evaluates raindrop detection models.",
                         Container = "rain-drop-detection",
                         WorkflowTemplate = "rain-drop-detector-benchmark",
                         DefaultSplit = "val",
@@ -85,7 +94,7 @@ public class BenchmarkServiceTests
         var cache = new BenchmarkIndexCache(options, NullLogger<BenchmarkIndexCache>.Instance);
         var service = new BenchmarkService(
             argo,
-            new BlobStorageServiceMock { BlobExists = false },
+            blobStorage ?? new BlobStorageServiceMock { BlobExists = false },
             cache,
             options,
             NullLogger<BenchmarkService>.Instance
@@ -267,5 +276,150 @@ public class BenchmarkServiceTests
         Assert.Equal("bounding_box", job.Method);
         Assert.Equal("0.3", job.Parameters["confidence-threshold"]);
         Assert.Equal("0.1", job.Parameters["box-padding"]);
+    }
+
+    [Fact]
+    public async Task CoverImageLifecycleSelectsDefaultSavesOverridesAndResets()
+    {
+        var pngBytes = new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x01 };
+        var jpegBytes = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10 };
+        const string cocoJson = """
+            {
+              "categories": [{ "id": 1, "name": "person" }],
+              "images": [
+                { "id": 1, "file_name": "empty.png", "width": 100, "height": 100 },
+                { "id": 2, "file_name": "sample.png", "width": 100, "height": 100 }
+              ],
+              "annotations": [
+                { "id": 10, "image_id": 2, "category_id": 1, "bbox": [1, 2, 3, 4] }
+              ]
+            }
+            """;
+
+        var storage = new InMemoryBlobStorage();
+        storage.Put("anonymizer", "v001/dataset/manifest.json", Encoding.UTF8.GetBytes("{}"));
+        storage.Put(
+            "anonymizer",
+            "v001/dataset/annotations/instances_val.json",
+            Encoding.UTF8.GetBytes(cocoJson)
+        );
+        storage.Put("anonymizer", "v001/dataset/images/val/sample.png", pngBytes);
+
+        var (service, _) = CreateService(storage);
+        var ct = TestContext.Current.CancellationToken;
+
+        var datasets = await service.GetDatasetsAsync(ct);
+        Assert.Equal(
+            "Evaluates face and person anonymization models.",
+            datasets.Single(d => d.Id == "anonymizer").Description
+        );
+
+        var defaultCover = await service.GetCoverImageAsync("anonymizer", ct);
+        Assert.Equal("image/png", defaultCover.ContentType);
+        Assert.Equal(pngBytes, defaultCover.Content);
+        Assert.True(storage.Contains("anonymizer", "cover-image"));
+
+        using (var uploadStream = new MemoryStream(jpegBytes))
+        {
+            await service.UploadCoverImageAsync("anonymizer", uploadStream, ct);
+        }
+
+        var uploadedCover = await service.GetCoverImageAsync("anonymizer", ct);
+        Assert.Equal("image/jpeg", uploadedCover.ContentType);
+        Assert.Equal(jpegBytes, uploadedCover.Content);
+
+        await service.ResetCoverImageAsync("anonymizer", ct);
+        Assert.False(storage.Contains("anonymizer", "cover-image"));
+    }
+
+    [Fact]
+    public async Task CoverImageRejectsInvalidUploadAndReturnsNotFoundWithoutDataset()
+    {
+        var storage = new InMemoryBlobStorage();
+        var (service, _) = CreateService(storage);
+        var ct = TestContext.Current.CancellationToken;
+
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            service.GetCoverImageAsync("rain-drop-detection", ct)
+        );
+
+        using var invalidStream = new MemoryStream(Encoding.UTF8.GetBytes("not an image"));
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.UploadCoverImageAsync("rain-drop-detection", invalidStream, ct)
+        );
+    }
+
+    private sealed class InMemoryBlobStorage : IBlobStorageService
+    {
+        private readonly Dictionary<string, byte[]> _blobs = new(StringComparer.Ordinal);
+
+        public void Put(string container, string blobName, byte[] content) =>
+            _blobs[$"{container}/{blobName}"] = content;
+
+        public bool Contains(string container, string blobName) =>
+            _blobs.ContainsKey($"{container}/{blobName}");
+
+        public Task<MemoryStream> DownloadBlobAsync(BlobStorageLocation location)
+        {
+            if (!_blobs.TryGetValue($"{location.BlobContainer}/{location.BlobName}", out var data))
+            {
+                throw new RequestFailedException(404, "Not found");
+            }
+
+            return Task.FromResult(new MemoryStream(data));
+        }
+
+        public Task UploadBlobAsync(
+            BlobStorageLocation destination,
+            Stream content,
+            string contentType
+        )
+        {
+            using var memory = new MemoryStream();
+            content.CopyTo(memory);
+            _blobs[$"{destination.BlobContainer}/{destination.BlobName}"] = memory.ToArray();
+            return Task.CompletedTask;
+        }
+
+        public Task DeleteBlobAsync(
+            BlobStorageLocation location,
+            CancellationToken cancellationToken = default
+        )
+        {
+            _blobs.Remove($"{location.BlobContainer}/{location.BlobName}");
+            return Task.CompletedTask;
+        }
+
+        public async Task CopyBlobAsync(BlobStorageLocation source, BlobStorageLocation destination)
+        {
+            using var stream = await DownloadBlobAsync(source);
+            await UploadBlobAsync(destination, stream, "application/octet-stream");
+        }
+
+        public Task<Uri?> TryCreateReadSasUriAsync(
+            BlobStorageLocation location,
+            string? contentDisposition = null
+        ) => Task.FromResult<Uri?>(null);
+
+        public Task<bool> ExistsAsync(BlobStorageLocation location) =>
+            Task.FromResult(_blobs.ContainsKey($"{location.BlobContainer}/{location.BlobName}"));
+
+        public Task<IReadOnlyList<string>> ListChildPrefixesAsync(
+            string storageAccount,
+            string containerName,
+            string prefix = "",
+            CancellationToken cancellationToken = default
+        )
+        {
+            var containerPrefix = $"{containerName}/{prefix}";
+            var children = _blobs
+                .Keys.Where(k => k.StartsWith(containerPrefix, StringComparison.Ordinal))
+                .Select(k => k[containerPrefix.Length..])
+                .Where(rest => rest.Contains('/'))
+                .Select(rest => rest[..rest.IndexOf('/')])
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+            return Task.FromResult<IReadOnlyList<string>>(children);
+        }
     }
 }

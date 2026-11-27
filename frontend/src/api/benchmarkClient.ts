@@ -1,6 +1,10 @@
 import { useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiFetch, fetchAuthenticatedBlobUrl } from "./client";
+import {
+  apiFetch,
+  fetchAuthenticatedBlobUrl,
+  fetchOptionalAuthenticatedBlobUrl,
+} from "./client";
 import { apiUrl } from "../utils/routing";
 
 export interface BenchmarkParameterDefinition {
@@ -17,6 +21,7 @@ export interface BenchmarkParameterDefinition {
 export interface BenchmarkDataset {
   id: string;
   label: string;
+  description: string;
   container: string;
   defaultSplit: string;
   devices: string[];
@@ -190,6 +195,37 @@ export function getBenchmarkDatasets(signal?: AbortSignal): Promise<BenchmarkDat
   return apiFetch(apiUrl("/api/benchmark/datasets"), { signal });
 }
 
+export function getBenchmarkCoverImageUrl(
+  datasetId: string,
+  signal?: AbortSignal
+): Promise<string | null> {
+  return fetchOptionalAuthenticatedBlobUrl(
+    apiUrl(`/api/benchmark/datasets/${encodeURIComponent(datasetId)}/cover-image`),
+    signal
+  );
+}
+
+export function uploadBenchmarkCoverImage(datasetId: string, file: File): Promise<void> {
+  const formData = new FormData();
+  formData.append("file", file);
+  return apiFetch(
+    apiUrl(`/api/benchmark/datasets/${encodeURIComponent(datasetId)}/cover-image`),
+    {
+      method: "PUT",
+      body: formData,
+    }
+  );
+}
+
+export function resetBenchmarkCoverImage(datasetId: string): Promise<void> {
+  return apiFetch(
+    apiUrl(`/api/benchmark/datasets/${encodeURIComponent(datasetId)}/cover-image`),
+    {
+      method: "DELETE",
+    }
+  );
+}
+
 export function getBenchmarkJobs(signal?: AbortSignal): Promise<BenchmarkJob[]> {
   return apiFetch(apiUrl("/api/benchmark/jobs"), { signal });
 }
@@ -352,5 +388,22 @@ export function useTriggerBenchmark() {
     retry: false,
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["sara", "benchmarks", "jobs"] }),
+  });
+}
+
+export function useUploadBenchmarkCoverImage() {
+  return useMutation({
+    mutationFn: ({ datasetId, file }: { datasetId: string; file: File }) =>
+      uploadBenchmarkCoverImage(datasetId, file),
+    networkMode: "always",
+    retry: false,
+  });
+}
+
+export function useResetBenchmarkCoverImage() {
+  return useMutation({
+    mutationFn: (datasetId: string) => resetBenchmarkCoverImage(datasetId),
+    networkMode: "always",
+    retry: false,
   });
 }
