@@ -44,9 +44,9 @@ public class TimeSeriesDataController(
         logger.LogInformation(
             "Received request to fetch CO2 concentration from Timeseries for Facility: {Facility}, TaskStartTime: {TaskStartTime}, TaskEndTime: {TaskEndTime}, InspectionName: {InspectionName}",
             fetchRequest.Facility,
-            fetchRequest.TaskStartTime,
-            fetchRequest.TaskEndTime,
-            fetchRequest.InspectionName
+            Sanitize.SanitizeUserInput(fetchRequest.TaskStartTime),
+            Sanitize.SanitizeUserInput(fetchRequest.TaskEndTime),
+            Sanitize.SanitizeUserInput(fetchRequest.InspectionName)
         );
 
         try
