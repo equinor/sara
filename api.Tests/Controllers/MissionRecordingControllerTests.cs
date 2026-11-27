@@ -159,9 +159,100 @@ public class MissionRecordingControllerTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
+    [Fact]
+    public async Task GetMetadata_ReturnsPoseSamplesSegmentTimingsAndInspectionLink()
+    {
+        _factory.BlobStorageService.BlobContent = $$"""
+            {
+              "runId": "{{RunId}}",
+              "isarId": "taurob-1",
+              "missionName": "Perimeter",
+              "status": "Ready",
+              "startedAt": "2026-11-27T10:00:00+00:00",
+              "endedAt": "2026-11-27T10:02:00+00:00",
+              "gaps": [],
+              "poseSamples": [
+                {
+                  "receivedAt": "2026-11-27T10:00:03+00:00",
+                  "sourceTimestamp": "2026-11-27T10:00:02+00:00",
+                  "pose": {
+                    "position": { "x": 1.5, "y": -2.0, "z": 0.0 },
+                    "orientation": { "x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0 },
+                    "frame": "asset"
+                  },
+                  "mapName": "test_map",
+                  "confidence": 0.88
+                }
+              ],
+              "cameras": {
+                "front": {
+                  "cameraId": "front",
+                  "key": "front",
+                  "status": "Ready",
+                  "firstFrameAt": "2026-11-27T10:00:01+00:00",
+                  "segmentTimings": [
+                    {
+                      "segmentIndex": 1,
+                      "videoStartSeconds": 0.0,
+                      "durationSeconds": 42.5,
+                      "captureStartAt": "2026-11-27T10:00:01+00:00"
+                    }
+                  ]
+                },
+                "rear": {
+                  "cameraId": "rear",
+                  "key": "rear",
+                  "status": "Ready"
+                }
+              }
+            }
+            """;
+        await NewRecording("front", WorkflowStatus.Succeeded);
+        await NewRecording("rear", WorkflowStatus.InProgress);
+
+        var metadata = await _client.GetFromJsonAsync<MissionRecordingMetadataResponse>(
+            $"{RecordingUrl}/metadata",
+            JsonOptions,
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(RunId, metadata!.RunId);
+        Assert.Equal("taurob-1", metadata.IsarId);
+        Assert.Equal("Perimeter", metadata.MissionName);
+        var sample = Assert.Single(metadata.PoseSamples);
+        Assert.Equal("2026-11-27T10:00:03+00:00", sample.ReceivedAt);
+        Assert.Equal("2026-11-27T10:00:02+00:00", sample.SourceTimestamp);
+        Assert.Equal(1.5, sample.Pose.Position.X);
+        Assert.Equal("asset", sample.Pose.Frame);
+        Assert.Equal("test_map", sample.MapName);
+        Assert.Equal(0.88, sample.Confidence);
+
+        var front = metadata.Cameras["front"];
+        Assert.Equal("Ready", front.Status);
+        Assert.Equal($"{RunId}-front", front.InspectionId);
+        Assert.Equal("anonymizer-video", front.VisualizationWorkflowType);
+        Assert.Equal("Succeeded", front.VisualizationStatus);
+        Assert.True(front.PreservesFrameTiming);
+        var segment = Assert.Single(front.SegmentTimings);
+        Assert.Equal(1, segment.SegmentIndex);
+        Assert.Equal(0.0, segment.VideoStartSeconds);
+        Assert.Equal(42.5, segment.DurationSeconds);
+        Assert.Equal("2026-11-27T10:00:01+00:00", segment.CaptureStartAt);
+
+        var rear = metadata.Cameras["rear"];
+        Assert.Equal("Processing", rear.Status);
+        Assert.Null(rear.PreservesFrameTiming);
+    }
+
     [Theory]
     [InlineData(RecordingUrl, "Role.Observer.KAA", HttpStatusCode.Forbidden)]
+    [InlineData($"{RecordingUrl}/metadata", "Role.Observer.KAA", HttpStatusCode.Forbidden)]
     [InlineData("/api/recordings/kaa/missions/run1", "Role.Admin", HttpStatusCode.BadRequest)]
+    [InlineData(
+        "/api/recordings/kaa/missions/run1/metadata",
+        "Role.Admin",
+        HttpStatusCode.BadRequest
+    )]
     public async Task Requests_AreRestricted(string url, string roles, HttpStatusCode expected)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
