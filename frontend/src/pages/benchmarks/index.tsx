@@ -7,6 +7,7 @@ import {
 } from "../../api/benchmarkClient";
 import PageHeader from "../../components/PageHeader";
 import { ErrorText } from "../../components/Styles";
+import { isParameterApplicable } from "./benchmarks-components/benchmarkFormatting";
 import BenchmarkJobsTable from "./benchmarks-components/overview/BenchmarkJobsTable";
 import BenchmarkResultsTable from "./benchmarks-components/overview/BenchmarkResultsTable";
 import BenchmarkTriggerPanel from "./benchmarks-components/overview/BenchmarkTriggerPanel";
@@ -31,11 +32,12 @@ export default function BenchmarksPage() {
   const [version, setVersion] = useState("");
   const [split, setSplit] = useState("val");
   const [device, setDevice] = useState("gpu");
-  const [method, setMethod] = useState("segmentation");
-  const [confidenceThreshold, setConfidenceThreshold] = useState("");
-  const [boxPadding, setBoxPadding] = useState("");
+  const [method, setMethod] = useState("");
+  const [parameterValues, setParameterValues] = useState<Record<string, string>>({});
   const [runId, setRunId] = useState("");
-  const [triggerValidationError, setTriggerValidationError] = useState<string | null>(null);
+  const [triggerValidationError, setTriggerValidationError] = useState<string | null>(
+    null
+  );
   const [lastTriggeredWorkflow, setLastTriggeredWorkflow] = useState<string | null>(null);
 
   useEffect(() => {
@@ -46,9 +48,11 @@ export default function BenchmarksPage() {
     setSplit(initial.defaultSplit || "val");
     setDevice(initial.devices.includes("gpu") ? "gpu" : (initial.devices[0] ?? "cpu"));
     setMethod(initial.methods[0] ?? "");
+    setParameterValues({});
   }, [datasets, datasetId]);
 
   const resultsQuery = useBenchmarkResults(datasetId, version, split);
+  const selectedDataset = datasets.find((d) => d.id === datasetId);
 
   const handleDatasetChange = (nextDatasetId: string) => {
     const selected = datasets.find((d) => d.id === nextDatasetId);
@@ -59,28 +63,38 @@ export default function BenchmarksPage() {
       selected?.devices.includes("gpu") ? "gpu" : (selected?.devices[0] ?? "cpu")
     );
     setMethod(selected?.methods[0] ?? "");
-    setConfidenceThreshold("");
-    setBoxPadding("");
+    setParameterValues({});
   };
 
   const handleMethodChange = (nextMethod: string) => {
     setMethod(nextMethod);
-    if (nextMethod !== "bounding_box") {
-      setConfidenceThreshold("");
-      setBoxPadding("");
-    }
+    const params = selectedDataset?.parameters ?? [];
+    setParameterValues((prev) => {
+      const next: Record<string, string> = {};
+      for (const p of params) {
+        if (isParameterApplicable(p, nextMethod) && prev[p.name]) {
+          next[p.name] = prev[p.name];
+        }
+      }
+      return next;
+    });
+  };
+
+  const handleParameterChange = (name: string, value: string) => {
+    setParameterValues((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleTrigger = async () => {
     setLastTriggeredWorkflow(null);
     setTriggerValidationError(null);
-    const isBoundingBox = method === "bounding_box";
-    let parsedConfidence: number | undefined;
-    let parsedPadding: number | undefined;
+    const parsedParameters: Record<string, number | null> = {};
     try {
-      if (isBoundingBox) {
-        parsedConfidence = parseOptionalNumber(confidenceThreshold, "Confidence");
-        parsedPadding = parseOptionalNumber(boxPadding, "Box padding");
+      for (const param of selectedDataset?.parameters ?? []) {
+        if (!isParameterApplicable(param, method)) continue;
+        const parsed = parseOptionalNumber(parameterValues[param.name] ?? "", param.label);
+        if (parsed !== undefined) {
+          parsedParameters[param.name] = parsed;
+        }
       }
     } catch (err) {
       setTriggerValidationError(err instanceof Error ? err.message : String(err));
@@ -94,8 +108,8 @@ export default function BenchmarksPage() {
         split: split.trim(),
         device,
         method: method || undefined,
-        confidenceThreshold: parsedConfidence,
-        boxPadding: parsedPadding,
+        parameters:
+          Object.keys(parsedParameters).length > 0 ? parsedParameters : undefined,
         runId: runId.trim() || undefined,
       });
       setRunId("");
@@ -136,8 +150,7 @@ export default function BenchmarksPage() {
         split={split}
         device={device}
         method={method}
-        confidenceThreshold={confidenceThreshold}
-        boxPadding={boxPadding}
+        parameterValues={parameterValues}
         runId={runId}
         submitting={triggerMutation.isPending}
         error={triggerValidationError ?? triggerMutation.error?.message ?? null}
@@ -147,8 +160,7 @@ export default function BenchmarksPage() {
         onSplitChange={setSplit}
         onDeviceChange={setDevice}
         onMethodChange={handleMethodChange}
-        onConfidenceThresholdChange={setConfidenceThreshold}
-        onBoxPaddingChange={setBoxPadding}
+        onParameterChange={handleParameterChange}
         onRunIdChange={setRunId}
         onSubmit={handleTrigger}
       />

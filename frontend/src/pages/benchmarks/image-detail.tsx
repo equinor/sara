@@ -41,7 +41,7 @@ export default function BenchmarkImageDetailPage() {
   );
 
   const orderedImageIds = useMemo(
-    () => (runDetailQuery.data?.perImage ?? []).map((item) => item.image_id),
+    () => (runDetailQuery.data?.perImage?.items ?? []).map((item) => item.image_id),
     [runDetailQuery.data]
   );
   const currentIndex = imageId === null ? -1 : orderedImageIds.indexOf(imageId);
@@ -66,6 +66,7 @@ export default function BenchmarkImageDetailPage() {
     >
       <BenchmarkImageHeaderBar
         runId={runId}
+        columns={comparison?.summaryColumns ?? []}
         summary={comparison?.summary}
         hasPrev={prevImageId !== null}
         hasNext={nextImageId !== null}

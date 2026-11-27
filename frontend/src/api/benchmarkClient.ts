@@ -3,6 +3,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, fetchAuthenticatedBlobUrl } from "./client";
 import { apiUrl } from "../utils/routing";
 
+export interface BenchmarkParameterDefinition {
+  name: string;
+  label: string;
+  min?: number | null;
+  minExclusive: boolean;
+  max?: number | null;
+  step?: number | null;
+  placeholder?: string | null;
+  onlyForMethods: string[];
+}
+
 export interface BenchmarkDataset {
   id: string;
   label: string;
@@ -10,6 +21,7 @@ export interface BenchmarkDataset {
   defaultSplit: string;
   devices: string[];
   methods: string[];
+  parameters: BenchmarkParameterDefinition[];
   versions: string[];
 }
 
@@ -20,8 +32,7 @@ export interface TriggerBenchmarkRequest {
   device: string;
   runId?: string;
   method?: string;
-  confidenceThreshold?: number;
-  boxPadding?: number;
+  parameters?: Record<string, number | null>;
 }
 
 export interface BenchmarkJob {
@@ -32,8 +43,7 @@ export interface BenchmarkJob {
   split: string;
   device: string;
   method?: string | null;
-  confidenceThreshold?: number | null;
-  boxPadding?: number | null;
+  parameters: Record<string, string>;
   runId: string;
   phase: string;
   message?: string | null;
@@ -42,26 +52,32 @@ export interface BenchmarkJob {
   finishedAt?: string | null;
 }
 
+export type BenchmarkMetricFormat =
+  | "percent"
+  | "number"
+  | "integer"
+  | "boolean"
+  | "text"
+  | string;
+
+export interface BenchmarkSummaryMetric {
+  key: string;
+  label: string;
+  value: number | null;
+  format: BenchmarkMetricFormat;
+  subtitle?: string | null;
+  primary: boolean;
+}
+
 export interface BenchmarkEvaluation {
   labels: string[];
   confusion_matrix: (number | null)[][];
-  matched_count: number;
-  total_people: number;
-  covered_people: number;
-  person_recall: number | null;
-  mean_person_coverage: number | null;
-  mean_min_person_coverage: number | null;
-  mean_background_masked_fraction: number | null;
-  mean_iou: number | null;
 }
 
-export interface BenchmarkRunConfiguration {
-  method: string;
-  model: string;
-  confidence_threshold?: number | null;
-  box_padding?: number | null;
-  compiled?: boolean | null;
-}
+export type BenchmarkRunConfiguration = Record<
+  string,
+  string | number | boolean | null | undefined
+>;
 
 export interface BenchmarkRunMetadata {
   schema_version: number;
@@ -91,6 +107,7 @@ export interface BenchmarkMetrics {
     seconds: number;
     per_second: number;
   };
+  summary_metrics: BenchmarkSummaryMetric[];
   evaluations: Record<string, BenchmarkEvaluation>;
 }
 
@@ -101,26 +118,35 @@ export interface BenchmarkResult {
   error?: string | null;
 }
 
+export interface BenchmarkPerImageColumn {
+  key: string;
+  label: string;
+  format: BenchmarkMetricFormat;
+}
+
+export type BenchmarkCellValue = string | number | boolean | null | undefined;
+
 export interface BenchmarkImageResult {
   image_id: number;
   file_name: string;
   width: number;
   height: number;
-  gt_people: number;
-  covered_people: number;
-  missed_people: number;
+  passed: boolean;
+  missed: boolean;
   false_positive: boolean;
-  min_person_coverage: number | null;
-  person_coverage: number | null;
-  background_masked_fraction: number;
-  mean_iou: number | null;
+  values: Record<string, BenchmarkCellValue>;
+}
+
+export interface BenchmarkPerImageTable {
+  columns: BenchmarkPerImageColumn[];
+  items: BenchmarkImageResult[];
 }
 
 export interface BenchmarkRunDetail {
   runId: string;
   run?: BenchmarkRunMetadata | null;
   metrics?: BenchmarkMetrics | null;
-  perImage?: BenchmarkImageResult[] | null;
+  perImage?: BenchmarkPerImageTable | null;
   hasPredictions: boolean;
   error?: string | null;
 }
@@ -148,6 +174,7 @@ export interface BenchmarkImageComparison {
   fileName: string;
   width: number;
   height: number;
+  summaryColumns: BenchmarkPerImageColumn[];
   summary?: BenchmarkImageResult | null;
   groundTruth: BenchmarkCocoAnnotation[];
   predictions: BenchmarkCocoAnnotation[];

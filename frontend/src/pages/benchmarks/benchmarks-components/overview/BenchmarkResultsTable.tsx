@@ -6,10 +6,10 @@ import { ErrorText, TableScroller } from "../../../../components/Styles";
 import TableSkeleton from "../../../../components/TableSkeleton";
 import {
   benchmarkRunDetailPath,
-  formatConfigurationDetails,
-  formatMethodLabel,
+  collectPrimaryMetricColumns,
+  formatConfigurationSummary,
+  formatMetricValue,
   formatNumber,
-  formatPercent,
   shortArtifact,
 } from "../benchmarkFormatting";
 
@@ -34,6 +34,8 @@ export default function BenchmarkResultsTable({
     results.map((r) => r.run?.dataset.manifest_sha256).filter(Boolean)
   );
   const protocols = new Set(results.map((r) => r.run?.protocol).filter(Boolean));
+  const metricColumns = collectPrimaryMetricColumns(results);
+  const totalColumns = 6 + metricColumns.length;
   const title = version
     ? `Saved results (${datasetId} / ${version} / ${split})`
     : "Saved results";
@@ -51,31 +53,31 @@ export default function BenchmarkResultsTable({
           <Table.Head>
             <Table.Row>
               <Table.Cell>Run ID</Table.Cell>
-              <Table.Cell>Method</Table.Cell>
+              <Table.Cell>Config</Table.Cell>
               <Table.Cell>Artifact</Table.Cell>
               <Table.Cell>Hardware</Table.Cell>
               <Table.Cell>Throughput</Table.Cell>
-              <Table.Cell>Person Recall</Table.Cell>
-              <Table.Cell>Avg Coverage</Table.Cell>
-              <Table.Cell>Bg Masked</Table.Cell>
-              <Table.Cell>Mean IoU</Table.Cell>
+              {metricColumns.map((col) => (
+                <Table.Cell key={col.key}>{col.label}</Table.Cell>
+              ))}
               <Table.Cell>Details</Table.Cell>
             </Table.Row>
           </Table.Head>
           <Table.Body>
             {loading ? (
-              <TableSkeleton columns={10} rows={4} />
+              <TableSkeleton columns={totalColumns} rows={4} />
             ) : results.length === 0 ? (
               <Table.Row>
-                <Table.Cell colSpan={10}>
+                <Table.Cell colSpan={totalColumns}>
                   No saved benchmark results found for this split.
                 </Table.Cell>
               </Table.Row>
             ) : (
               results.map((result) => {
-                const evalEntries = Object.entries(result.metrics?.evaluations ?? {});
-                const primary = evalEntries[0]?.[1];
-                const config = result.run?.configuration;
+                const configSummary = formatConfigurationSummary(result.run?.configuration);
+                const metricsByKey = new Map(
+                  (result.metrics?.summary_metrics ?? []).map((m) => [m.key, m])
+                );
                 const detailPath = benchmarkRunDetailPath(
                   datasetId,
                   version,
@@ -91,12 +93,14 @@ export default function BenchmarkResultsTable({
                   >
                     <Table.Cell>{result.runId}</Table.Cell>
                     <Table.Cell>
-                      {config ? (
+                      {configSummary ? (
                         <>
-                          <div>{formatMethodLabel(config.method)}</div>
-                          <Typography variant="caption">
-                            {formatConfigurationDetails(config)}
-                          </Typography>
+                          <div>{configSummary.primary}</div>
+                          {configSummary.details && (
+                            <Typography variant="caption">
+                              {configSummary.details}
+                            </Typography>
+                          )}
                         </>
                       ) : (
                         "–"
@@ -133,20 +137,14 @@ export default function BenchmarkResultsTable({
                         "–"
                       )}
                     </Table.Cell>
-                    <Table.Cell>
-                      {primary ? formatPercent(primary.person_recall) : "–"}
-                    </Table.Cell>
-                    <Table.Cell>
-                      {primary ? formatPercent(primary.mean_person_coverage) : "–"}
-                    </Table.Cell>
-                    <Table.Cell>
-                      {primary
-                        ? formatPercent(primary.mean_background_masked_fraction)
-                        : "–"}
-                    </Table.Cell>
-                    <Table.Cell>
-                      {primary ? formatNumber(primary.mean_iou, 3) : "–"}
-                    </Table.Cell>
+                    {metricColumns.map((col) => {
+                      const metric = metricsByKey.get(col.key);
+                      return (
+                        <Table.Cell key={col.key}>
+                          {metric ? formatMetricValue(metric.value, metric.format) : "–"}
+                        </Table.Cell>
+                      );
+                    })}
                     <Table.Cell>
                       {result.error ? (
                         <ErrorText variant="caption">{result.error}</ErrorText>

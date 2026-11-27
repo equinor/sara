@@ -67,7 +67,12 @@ public partial class BenchmarkService(
     private const string BenchmarkSelector = BenchmarkLabel + "=true";
     private const int MaxConcurrentBlobReads = 8;
     private const long ParsedJsonMemoryMultiplier = 4;
+    private const string PredictionsBlobRelativePath = "review/instances_predictions.json";
     private static readonly IReadOnlyList<string> DefaultDevices = ["cpu", "gpu"];
+    private static readonly HashSet<string> StandardWorkflowParameters = new(
+        ["source", "destination", "version", "split", "run-id", "device", "method"],
+        StringComparer.OrdinalIgnoreCase
+    );
 
     private readonly BenchmarkOptions _options = options.Value;
 
@@ -113,7 +118,7 @@ public partial class BenchmarkService(
             );
         }
 
-        var (method, confidenceThreshold, boxPadding) = ValidateMethodOptions(definition, request);
+        var (method, resolvedParameters) = ValidateRunOptions(definition, request);
 
         var runId = string.IsNullOrWhiteSpace(request.RunId) ? "" : request.RunId.Trim();
         if (!string.IsNullOrEmpty(runId))
@@ -141,16 +146,12 @@ public partial class BenchmarkService(
         if (!string.IsNullOrEmpty(method))
         {
             workflowParameters.Add(new ArgoParameter { Name = "method", Value = method });
-            workflowParameters.Add(
-                new ArgoParameter
-                {
-                    Name = "confidence-threshold",
-                    Value = FormatOptionalDouble(confidenceThreshold),
-                }
-            );
-            workflowParameters.Add(
-                new ArgoParameter { Name = "box-padding", Value = FormatOptionalDouble(boxPadding) }
-            );
+        }
+
+        foreach (var paramDef in definition.Parameters)
+        {
+            var value = resolvedParameters.GetValueOrDefault(paramDef.Name, "");
+            workflowParameters.Add(new ArgoParameter { Name = paramDef.Name, Value = value });
         }
 
         var workflow = new ArgoWorkflowResource
@@ -184,8 +185,7 @@ public partial class BenchmarkService(
             Split: request.Split,
             Device: device,
             Method: method,
-            ConfidenceThreshold: confidenceThreshold,
-            BoxPadding: boxPadding,
+            Parameters: resolvedParameters,
             RunId: string.IsNullOrEmpty(runId) ? created.Name : runId,
             Phase: "Pending",
             Message: null,
@@ -269,10 +269,7 @@ public partial class BenchmarkService(
 
         var perImage = await TryGetPerImageAsync(definition.Container, prefix, cancellationToken);
         var hasPredictions = await blobStorageService.ExistsAsync(
-            BuildBlobLocation(
-                definition.Container,
-                $"{prefix}/review/instances_segmentation_predictions.json"
-            )
+            BuildBlobLocation(definition.Container, $"{prefix}/{PredictionsBlobRelativePath}")
         );
 
         return new BenchmarkRunDetailDto(runId, run, metrics, perImage, hasPredictions, null);
@@ -306,17 +303,18 @@ public partial class BenchmarkService(
         var prefix = $"{version}/benchmark-results/{split}/{runId}";
         var predIndex = await GetCachedCocoIndexAsync(
             definition.Container,
-            $"{prefix}/review/instances_segmentation_predictions.json",
+            $"{prefix}/{PredictionsBlobRelativePath}",
             cancellationToken
         );
         var perImage = await TryGetPerImageAsync(definition.Container, prefix, cancellationToken);
-        var summary = perImage?.FirstOrDefault(item => item.ImageId == imageId);
+        var summary = perImage?.Items.FirstOrDefault(item => item.ImageId == imageId);
 
         return new BenchmarkImageComparisonDto(
             image.Id,
             image.FileName,
             image.Width,
             image.Height,
+            perImage?.Columns ?? [],
             summary,
             gtIndex.GetAnnotations(imageId),
             predIndex?.GetAnnotations(imageId) ?? []
@@ -362,7 +360,7 @@ public partial class BenchmarkService(
         }
     }
 
-    private Task<IReadOnlyList<BenchmarkImageResultDto>?> TryGetPerImageAsync(
+    private Task<BenchmarkPerImageTableDto?> TryGetPerImageAsync(
         string container,
         string runPrefix,
         CancellationToken cancellationToken
@@ -370,26 +368,26 @@ public partial class BenchmarkService(
     {
         var blobName = $"{runPrefix}/review/per_image.json";
         var cacheKey = $"benchmark:per-image:{_options.StorageAccount}/{container}/{blobName}";
-        return indexCache.GetOrLoadAsync<IReadOnlyList<BenchmarkImageResultDto>>(
+        return indexCache.GetOrLoadAsync<BenchmarkPerImageTableDto>(
             cacheKey,
             async ct =>
             {
                 try
                 {
-                    var (items, rawBytes) = await DownloadJsonWithSizeAsync<
-                        List<BenchmarkImageResultDto>
-                    >(container, blobName, ct);
-                    return new CachedBenchmarkPayload<IReadOnlyList<BenchmarkImageResultDto>>(
-                        items,
+                    var (table, rawBytes) =
+                        await DownloadJsonWithSizeAsync<BenchmarkPerImageTableDto>(
+                            container,
+                            blobName,
+                            ct
+                        );
+                    return new CachedBenchmarkPayload<BenchmarkPerImageTableDto>(
+                        table,
                         EstimateParsedJsonBytes(rawBytes)
                     );
                 }
                 catch (RequestFailedException ex) when (ex.Status == 404)
                 {
-                    return new CachedBenchmarkPayload<IReadOnlyList<BenchmarkImageResultDto>>(
-                        null,
-                        0
-                    );
+                    return new CachedBenchmarkPayload<BenchmarkPerImageTableDto>(null, 0);
                 }
             },
             cancellationToken
@@ -560,6 +558,19 @@ public partial class BenchmarkService(
             );
         }
 
+        var parameters = definition
+            .Parameters.Select(p => new BenchmarkParameterDefinitionDto(
+                p.Name,
+                p.Label,
+                p.Min,
+                p.MinExclusive,
+                p.Max,
+                p.Step,
+                p.Placeholder,
+                p.OnlyForMethods
+            ))
+            .ToList();
+
         return new BenchmarkDatasetDto(
             definition.Id,
             definition.Label,
@@ -567,6 +578,7 @@ public partial class BenchmarkService(
             definition.DefaultSplit,
             ResolveDevices(definition),
             definition.Methods,
+            parameters,
             versions
         );
     }
@@ -663,10 +675,15 @@ public partial class BenchmarkService(
             && !string.IsNullOrWhiteSpace(rawMethod)
                 ? rawMethod
                 : null;
-        var confidenceThreshold = ParseOptionalDouble(
-            parameters.GetValueOrDefault("confidence-threshold", "")
-        );
-        var boxPadding = ParseOptionalDouble(parameters.GetValueOrDefault("box-padding", ""));
+        var extraParameters = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (key, value) in parameters)
+        {
+            if (StandardWorkflowParameters.Contains(key) || string.IsNullOrWhiteSpace(value))
+            {
+                continue;
+            }
+            extraParameters[key] = value;
+        }
 
         return new BenchmarkJobDto(
             WorkflowName: name,
@@ -676,8 +693,7 @@ public partial class BenchmarkService(
             Split: parameters.GetValueOrDefault("split", ""),
             Device: parameters.GetValueOrDefault("device", ""),
             Method: method,
-            ConfidenceThreshold: confidenceThreshold,
-            BoxPadding: boxPadding,
+            Parameters: extraParameters,
             RunId: string.IsNullOrEmpty(configuredRunId) ? name : configuredRunId,
             Phase: workflow.Status?.Phase ?? "Pending",
             Message: workflow.Status?.Message,
@@ -687,76 +703,107 @@ public partial class BenchmarkService(
         );
     }
 
-    private static (
-        string? Method,
-        double? ConfidenceThreshold,
-        double? BoxPadding
-    ) ValidateMethodOptions(BenchmarkDefinition definition, TriggerBenchmarkRequest request)
+    private static (string? Method, Dictionary<string, string> Parameters) ValidateRunOptions(
+        BenchmarkDefinition definition,
+        TriggerBenchmarkRequest request
+    )
     {
+        string? method = null;
         if (definition.Methods.Count == 0)
         {
-            if (
-                !string.IsNullOrWhiteSpace(request.Method)
-                || request.ConfidenceThreshold is not null
-                || request.BoxPadding is not null
-            )
+            if (!string.IsNullOrWhiteSpace(request.Method))
             {
                 throw new ArgumentException(
                     $"Dataset '{definition.Id}' does not support method selection."
                 );
             }
-            return (null, null, null);
         }
-
-        var method = string.IsNullOrWhiteSpace(request.Method)
-            ? definition.Methods[0]
-            : request.Method.Trim().ToLowerInvariant();
-        if (!definition.Methods.Contains(method, StringComparer.OrdinalIgnoreCase))
+        else
         {
-            throw new ArgumentException(
-                $"Unsupported method '{request.Method}' for dataset '{definition.Id}'."
-            );
+            method = string.IsNullOrWhiteSpace(request.Method)
+                ? definition.Methods[0]
+                : request.Method.Trim().ToLowerInvariant();
+            if (!definition.Methods.Contains(method, StringComparer.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException(
+                    $"Unsupported method '{request.Method}' for dataset '{definition.Id}'."
+                );
+            }
         }
 
-        var confidenceThreshold = request.ConfidenceThreshold;
-        var boxPadding = request.BoxPadding;
-        if (method != "bounding_box" && (confidenceThreshold is not null || boxPadding is not null))
+        var allowedParams = definition.Parameters.ToDictionary(
+            p => p.Name,
+            StringComparer.OrdinalIgnoreCase
+        );
+        var resolvedParameters = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        if (request.Parameters is null)
         {
-            throw new ArgumentException(
-                "confidenceThreshold and boxPadding are only valid for the bounding_box method."
-            );
+            return (method, resolvedParameters);
         }
 
-        if (
-            confidenceThreshold is not null
-            && (
-                !double.IsFinite(confidenceThreshold.Value)
-                || confidenceThreshold <= 0.0
-                || confidenceThreshold > 1.0
+        foreach (var (rawKey, rawValue) in request.Parameters)
+        {
+            if (rawValue is null)
+            {
+                continue;
+            }
+
+            if (!allowedParams.TryGetValue(rawKey, out var paramDef))
+            {
+                throw new ArgumentException(
+                    $"Unsupported parameter '{rawKey}' for dataset '{definition.Id}'."
+                );
+            }
+
+            if (
+                paramDef.OnlyForMethods.Count > 0
+                && (
+                    method is null
+                    || !paramDef.OnlyForMethods.Contains(method, StringComparer.OrdinalIgnoreCase)
+                )
             )
-        )
-        {
-            throw new ArgumentException("confidenceThreshold must be in (0.0, 1.0].");
+            {
+                throw new ArgumentException(
+                    $"Parameter '{paramDef.Name}' is only valid for methods: {string.Join(", ", paramDef.OnlyForMethods)}."
+                );
+            }
+
+            ValidateParameterBounds(paramDef, rawValue.Value);
+            resolvedParameters[paramDef.Name] = rawValue.Value.ToString(
+                CultureInfo.InvariantCulture
+            );
         }
 
-        if (
-            boxPadding is not null
-            && (!double.IsFinite(boxPadding.Value) || boxPadding < 0.0 || boxPadding > 1.0)
-        )
-        {
-            throw new ArgumentException("boxPadding must be in [0.0, 1.0].");
-        }
-
-        return (method, confidenceThreshold, boxPadding);
+        return (method, resolvedParameters);
     }
 
-    private static string FormatOptionalDouble(double? value) =>
-        value is null ? "" : value.Value.ToString(CultureInfo.InvariantCulture);
+    private static void ValidateParameterBounds(BenchmarkParameterDefinition paramDef, double value)
+    {
+        if (!double.IsFinite(value))
+        {
+            throw new ArgumentException($"Parameter '{paramDef.Name}' must be a finite number.");
+        }
 
-    private static double? ParseOptionalDouble(string raw) =>
-        double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
-            ? parsed
-            : null;
+        if (paramDef.Min is double min)
+        {
+            var belowMin = paramDef.MinExclusive ? value <= min : value < min;
+            if (belowMin)
+            {
+                var bound = paramDef.MinExclusive ? ">" : ">=";
+                throw new ArgumentException(
+                    $"Parameter '{paramDef.Name}' must be {bound} {min.ToString(CultureInfo.InvariantCulture)}."
+                );
+            }
+        }
+
+        if (paramDef.Max is double max && value > max)
+        {
+            throw new ArgumentException(
+                $"Parameter '{paramDef.Name}' must be <= {max.ToString(CultureInfo.InvariantCulture)}."
+            );
+        }
+    }
 
     private static void ValidateSegment(string value, string paramName)
     {

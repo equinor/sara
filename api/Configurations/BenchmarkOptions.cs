@@ -22,4 +22,17 @@ public class BenchmarkDefinition
     public string DefaultSplit { get; set; } = "val";
     public List<string> Devices { get; set; } = [];
     public List<string> Methods { get; set; } = [];
+    public List<BenchmarkParameterDefinition> Parameters { get; set; } = [];
+}
+
+public class BenchmarkParameterDefinition
+{
+    public string Name { get; set; } = "";
+    public string Label { get; set; } = "";
+    public double? Min { get; set; }
+    public bool MinExclusive { get; set; }
+    public double? Max { get; set; }
+    public double? Step { get; set; }
+    public string? Placeholder { get; set; }
+    public List<string> OnlyForMethods { get; set; } = [];
 }

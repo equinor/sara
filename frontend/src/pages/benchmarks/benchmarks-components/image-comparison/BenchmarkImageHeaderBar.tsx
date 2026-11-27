@@ -1,8 +1,11 @@
 import { Button, Typography } from "@equinor/eds-core-react";
 import styled from "styled-components";
-import type { BenchmarkImageResult } from "../../../../api/benchmarkClient";
+import type {
+  BenchmarkImageResult,
+  BenchmarkPerImageColumn,
+} from "../../../../api/benchmarkClient";
 import StatusChip from "../../../../components/StatusChip";
-import { formatNumber, formatPercent, isImagePassed } from "../benchmarkFormatting";
+import { formatMetricValue } from "../benchmarkFormatting";
 
 const HeaderBar = styled.div`
   display: flex;
@@ -22,6 +25,7 @@ const HeaderGroup = styled.div`
 
 interface BenchmarkImageHeaderBarProps {
   runId: string;
+  columns: BenchmarkPerImageColumn[];
   summary?: BenchmarkImageResult | null;
   hasPrev: boolean;
   hasNext: boolean;
@@ -32,6 +36,7 @@ interface BenchmarkImageHeaderBarProps {
 
 export default function BenchmarkImageHeaderBar({
   runId,
+  columns,
   summary,
   hasPrev,
   hasNext,
@@ -39,6 +44,15 @@ export default function BenchmarkImageHeaderBar({
   onPrev,
   onNext,
 }: BenchmarkImageHeaderBarProps) {
+  const summaryText = summary
+    ? [
+        ...columns.map(
+          (col) => `${col.label}: ${formatMetricValue(summary.values[col.key], col.format)}`
+        ),
+        ...(summary.false_positive ? ["FP"] : []),
+      ].join(" · ")
+    : "";
+
   return (
     <HeaderBar>
       <HeaderGroup>
@@ -46,17 +60,9 @@ export default function BenchmarkImageHeaderBar({
           ← Back to {runId}
         </Button>
         {summary && (
-          <StatusChip status={isImagePassed(summary) ? "Succeeded" : "Failed"} />
+          <StatusChip status={summary.passed ? "Succeeded" : "Failed"} />
         )}
-        {summary && (
-          <Typography variant="body_short">
-            People: {summary.covered_people}/{summary.gt_people} · Min coverage:{" "}
-            {formatPercent(summary.min_person_coverage)} · Bg masked:{" "}
-            {formatPercent(summary.background_masked_fraction)} · IoU:{" "}
-            {formatNumber(summary.mean_iou, 3)}
-            {summary.false_positive ? " · FP" : ""}
-          </Typography>
-        )}
+        {summaryText && <Typography variant="body_short">{summaryText}</Typography>}
       </HeaderGroup>
 
       <HeaderGroup>

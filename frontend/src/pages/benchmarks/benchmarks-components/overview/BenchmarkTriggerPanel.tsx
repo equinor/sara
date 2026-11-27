@@ -4,7 +4,7 @@ import styled from "styled-components";
 import type { BenchmarkDataset } from "../../../../api/benchmarkClient";
 import DashboardPanel from "../../../../components/DashboardPanel";
 import { ErrorText, FilterBar, FilterSelect } from "../../../../components/Styles";
-import { formatMethodLabel } from "../benchmarkFormatting";
+import { formatMethodLabel, isParameterApplicable } from "../benchmarkFormatting";
 
 const SubmitButton = styled(Button)`
   flex: 0 0 auto !important;
@@ -18,8 +18,7 @@ interface BenchmarkTriggerPanelProps {
   split: string;
   device: string;
   method: string;
-  confidenceThreshold: string;
-  boxPadding: string;
+  parameterValues: Record<string, string>;
   runId: string;
   submitting: boolean;
   error: string | null;
@@ -29,8 +28,7 @@ interface BenchmarkTriggerPanelProps {
   onSplitChange: (value: string) => void;
   onDeviceChange: (value: string) => void;
   onMethodChange: (value: string) => void;
-  onConfidenceThresholdChange: (value: string) => void;
-  onBoxPaddingChange: (value: string) => void;
+  onParameterChange: (name: string, value: string) => void;
   onRunIdChange: (value: string) => void;
   onSubmit: () => void;
 }
@@ -42,8 +40,7 @@ export default function BenchmarkTriggerPanel({
   split,
   device,
   method,
-  confidenceThreshold,
-  boxPadding,
+  parameterValues,
   runId,
   submitting,
   error,
@@ -53,8 +50,7 @@ export default function BenchmarkTriggerPanel({
   onSplitChange,
   onDeviceChange,
   onMethodChange,
-  onConfidenceThresholdChange,
-  onBoxPaddingChange,
+  onParameterChange,
   onRunIdChange,
   onSubmit,
 }: BenchmarkTriggerPanelProps) {
@@ -62,7 +58,9 @@ export default function BenchmarkTriggerPanel({
   const versions = selectedDataset?.versions ?? [];
   const devices = selectedDataset?.devices ?? [];
   const methods = selectedDataset?.methods ?? [];
-  const showBoundingBoxParams = method === "bounding_box";
+  const visibleParameters = (selectedDataset?.parameters ?? []).filter((param) =>
+    isParameterApplicable(param, method)
+  );
   const canSubmit = Boolean(datasetId && version && split && device && !submitting);
 
   return (
@@ -144,36 +142,28 @@ export default function BenchmarkTriggerPanel({
           </FilterSelect>
         )}
 
-        {showBoundingBoxParams && (
-          <>
+        {visibleParameters.map((param) => {
+          const minAttr =
+            param.min == null
+              ? undefined
+              : String(param.minExclusive ? (param.step ?? 0.01) : param.min);
+          return (
             <TextField
-              id="benchmark-confidence"
-              label="Confidence"
+              key={param.name}
+              id={`benchmark-param-${param.name}`}
+              label={param.label}
               type="number"
-              step="0.05"
-              min="0.01"
-              max="1"
-              value={confidenceThreshold}
-              placeholder="0.3"
+              step={param.step != null ? String(param.step) : "any"}
+              min={minAttr}
+              max={param.max != null ? String(param.max) : undefined}
+              value={parameterValues[param.name] ?? ""}
+              placeholder={param.placeholder ?? undefined}
               onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                onConfidenceThresholdChange(e.target.value)
+                onParameterChange(param.name, e.target.value)
               }
             />
-            <TextField
-              id="benchmark-box-padding"
-              label="Box padding"
-              type="number"
-              step="0.05"
-              min="0"
-              max="1"
-              value={boxPadding}
-              placeholder="0.1"
-              onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                onBoxPaddingChange(e.target.value)
-              }
-            />
-          </>
-        )}
+          );
+        })}
 
         <TextField
           id="benchmark-run-id"
