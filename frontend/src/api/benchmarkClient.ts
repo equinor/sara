@@ -9,6 +9,7 @@ export interface BenchmarkDataset {
   container: string;
   defaultSplit: string;
   devices: string[];
+  methods: string[];
   versions: string[];
 }
 
@@ -18,6 +19,9 @@ export interface TriggerBenchmarkRequest {
   split: string;
   device: string;
   runId?: string;
+  method?: string;
+  confidenceThreshold?: number;
+  boxPadding?: number;
 }
 
 export interface BenchmarkJob {
@@ -27,6 +31,9 @@ export interface BenchmarkJob {
   version: string;
   split: string;
   device: string;
+  method?: string | null;
+  confidenceThreshold?: number | null;
+  boxPadding?: number | null;
   runId: string;
   phase: string;
   message?: string | null;
@@ -39,7 +46,21 @@ export interface BenchmarkEvaluation {
   labels: string[];
   confusion_matrix: (number | null)[][];
   matched_count: number;
+  total_people: number;
+  covered_people: number;
+  person_recall: number | null;
+  mean_person_coverage: number | null;
+  mean_min_person_coverage: number | null;
+  mean_background_masked_fraction: number | null;
   mean_iou: number | null;
+}
+
+export interface BenchmarkRunConfiguration {
+  method: string;
+  model: string;
+  confidence_threshold?: number | null;
+  box_padding?: number | null;
+  compiled?: boolean | null;
 }
 
 export interface BenchmarkRunMetadata {
@@ -54,6 +75,7 @@ export interface BenchmarkRunMetadata {
   artifact: string;
   evaluator: string;
   protocol: string;
+  configuration?: BenchmarkRunConfiguration | null;
   execution: {
     hardware: string;
     timing_scope: string;
@@ -84,11 +106,13 @@ export interface BenchmarkImageResult {
   file_name: string;
   width: number;
   height: number;
-  gt_count: number;
-  pred_count: number;
-  matched: number;
-  missed: number;
-  false_positives: number;
+  gt_people: number;
+  covered_people: number;
+  missed_people: number;
+  false_positive: boolean;
+  min_person_coverage: number | null;
+  person_coverage: number | null;
+  background_masked_fraction: number;
   mean_iou: number | null;
 }
 
@@ -115,6 +139,7 @@ export interface BenchmarkCocoAnnotation {
   categoryName: string;
   bbox?: number[] | null;
   area?: number | null;
+  score?: number | null;
   segmentation?: CocoSegmentation | null;
 }
 

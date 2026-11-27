@@ -9,6 +9,7 @@ public record BenchmarkDatasetDto(
     string Container,
     string DefaultSplit,
     IReadOnlyList<string> Devices,
+    IReadOnlyList<string> Methods,
     IReadOnlyList<string> Versions
 );
 
@@ -17,7 +18,10 @@ public record TriggerBenchmarkRequest(
     string Version,
     string Split,
     string Device,
-    string? RunId
+    string? RunId,
+    string? Method = null,
+    double? ConfidenceThreshold = null,
+    double? BoxPadding = null
 );
 
 public record BenchmarkJobDto(
@@ -27,6 +31,9 @@ public record BenchmarkJobDto(
     string Version,
     string Split,
     string Device,
+    string? Method,
+    double? ConfidenceThreshold,
+    double? BoxPadding,
     string RunId,
     string Phase,
     string? Message,
@@ -49,7 +56,16 @@ public record BenchmarkRunMetadataDto(
     [property: JsonPropertyName("artifact")] string Artifact,
     [property: JsonPropertyName("evaluator")] string Evaluator,
     [property: JsonPropertyName("protocol")] string Protocol,
+    [property: JsonPropertyName("configuration")] BenchmarkRunConfigurationDto? Configuration,
     [property: JsonPropertyName("execution")] BenchmarkExecutionDto Execution
+);
+
+public record BenchmarkRunConfigurationDto(
+    [property: JsonPropertyName("method")] string Method,
+    [property: JsonPropertyName("model")] string Model,
+    [property: JsonPropertyName("confidence_threshold")] double? ConfidenceThreshold,
+    [property: JsonPropertyName("box_padding")] double? BoxPadding,
+    [property: JsonPropertyName("compiled")] bool? Compiled
 );
 
 public record BenchmarkRunDatasetDto(
@@ -83,6 +99,13 @@ public record BenchmarkEvaluationDto(
     [property: JsonPropertyName("labels")] List<string> Labels,
     [property: JsonPropertyName("confusion_matrix")] List<List<int?>> ConfusionMatrix,
     [property: JsonPropertyName("matched_count")] int MatchedCount,
+    [property: JsonPropertyName("total_people")] int TotalPeople,
+    [property: JsonPropertyName("covered_people")] int CoveredPeople,
+    [property: JsonPropertyName("person_recall")] double? PersonRecall,
+    [property: JsonPropertyName("mean_person_coverage")] double? MeanPersonCoverage,
+    [property: JsonPropertyName("mean_min_person_coverage")] double? MeanMinPersonCoverage,
+    [property: JsonPropertyName("mean_background_masked_fraction")]
+        double? MeanBackgroundMaskedFraction,
     [property: JsonPropertyName("mean_iou")] double? MeanIou
 );
 
@@ -91,11 +114,13 @@ public record BenchmarkImageResultDto(
     [property: JsonPropertyName("file_name")] string FileName,
     [property: JsonPropertyName("width")] int Width,
     [property: JsonPropertyName("height")] int Height,
-    [property: JsonPropertyName("gt_count")] int GtCount,
-    [property: JsonPropertyName("pred_count")] int PredCount,
-    [property: JsonPropertyName("matched")] int Matched,
-    [property: JsonPropertyName("missed")] int Missed,
-    [property: JsonPropertyName("false_positives")] int FalsePositives,
+    [property: JsonPropertyName("gt_people")] int GtPeople,
+    [property: JsonPropertyName("covered_people")] int CoveredPeople,
+    [property: JsonPropertyName("missed_people")] int MissedPeople,
+    [property: JsonPropertyName("false_positive")] bool FalsePositive,
+    [property: JsonPropertyName("min_person_coverage")] double? MinPersonCoverage,
+    [property: JsonPropertyName("person_coverage")] double? PersonCoverage,
+    [property: JsonPropertyName("background_masked_fraction")] double BackgroundMaskedFraction,
     [property: JsonPropertyName("mean_iou")] double? MeanIou
 );
 
@@ -115,6 +140,7 @@ public record BenchmarkCocoAnnotationDto(
     string CategoryName,
     IReadOnlyList<double>? Bbox,
     double? Area,
+    double? Score,
     JsonElement? Segmentation
 );
 

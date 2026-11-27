@@ -38,20 +38,43 @@ export default function BenchmarkRunSummaryCards({
         subtitle={`${metrics.processing.count} in ${formatNumber(metrics.processing.seconds, 1)}s`}
       />
       <StatCard
-        title="Precision"
-        value={summary ? formatPercent(summary.precision) : "–"}
-        subtitle={summary ? `TP ${summary.tp} / FP ${summary.fp}` : undefined}
+        title="Person Recall"
+        value={
+          primaryEvaluation ? formatPercent(primaryEvaluation.person_recall) : "–"
+        }
+        subtitle={
+          primaryEvaluation
+            ? `${primaryEvaluation.covered_people} / ${primaryEvaluation.total_people} people`
+            : undefined
+        }
       />
       <StatCard
-        title="Recall"
-        value={summary ? formatPercent(summary.recall) : "–"}
-        subtitle={summary ? `TP ${summary.tp} / FN ${summary.fn}` : undefined}
+        title="Avg Coverage"
+        value={
+          primaryEvaluation
+            ? formatPercent(primaryEvaluation.mean_person_coverage)
+            : "–"
+        }
+        subtitle={
+          primaryEvaluation
+            ? `Min avg ${formatPercent(primaryEvaluation.mean_min_person_coverage)}`
+            : undefined
+        }
+      />
+      <StatCard
+        title="Bg Masked"
+        value={
+          primaryEvaluation
+            ? formatPercent(primaryEvaluation.mean_background_masked_fraction)
+            : "–"
+        }
+        subtitle={summary ? `FP ${summary.fp} / TN ${summary.tn}` : undefined}
       />
       <StatCard
         title="Mean IoU"
         value={primaryEvaluation ? formatNumber(primaryEvaluation.mean_iou, 3) : "–"}
         subtitle={
-          primaryEvaluation ? `${primaryEvaluation.matched_count} matched` : undefined
+          summary ? `Images TP ${summary.tp} / FN ${summary.fn}` : undefined
         }
       />
     </StatsGrid>
