@@ -6,7 +6,7 @@ import PaginationFooter from "../../../../components/PaginationFooter";
 import SegmentedToggle from "../../../../components/SegmentedToggle";
 import StatusChip from "../../../../components/StatusChip";
 import { FilterBar, FilterSearch, TableScroller } from "../../../../components/Styles";
-import { formatNumber, isImagePassed } from "../benchmarkFormatting";
+import { formatNumber, formatPercent, isImagePassed } from "../benchmarkFormatting";
 
 type ImageOutcomeFilter = "all" | "failed" | "missed" | "fp" | "passed";
 
@@ -34,8 +34,8 @@ export default function BenchmarkPerImageTable({
     for (const row of items) {
       if (isImagePassed(row)) passed += 1;
       else failed += 1;
-      if (row.missed > 0) missed += 1;
-      if (row.false_positives > 0) fp += 1;
+      if (row.missed_people > 0) missed += 1;
+      if (row.false_positive) fp += 1;
     }
     return { all: items.length, failed, missed, fp, passed };
   }, [items]);
@@ -45,8 +45,8 @@ export default function BenchmarkPerImageTable({
     return items.filter((row) => {
       if (filter === "failed" && isImagePassed(row)) return false;
       if (filter === "passed" && !isImagePassed(row)) return false;
-      if (filter === "missed" && row.missed === 0) return false;
-      if (filter === "fp" && row.false_positives === 0) return false;
+      if (filter === "missed" && row.missed_people === 0) return false;
+      if (filter === "fp" && !row.false_positive) return false;
       if (
         query &&
         !row.file_name.toLowerCase().includes(query) &&
@@ -102,12 +102,12 @@ export default function BenchmarkPerImageTable({
               <Table.Cell>Image ID</Table.Cell>
               <Table.Cell>File</Table.Cell>
               <Table.Cell>Status</Table.Cell>
-              <Table.Cell>GT</Table.Cell>
-              <Table.Cell>Pred</Table.Cell>
-              <Table.Cell>Matched</Table.Cell>
+              <Table.Cell>People</Table.Cell>
+              <Table.Cell>Covered</Table.Cell>
               <Table.Cell>Missed</Table.Cell>
-              <Table.Cell>FP</Table.Cell>
-              <Table.Cell>Mean IoU</Table.Cell>
+              <Table.Cell>Min Coverage</Table.Cell>
+              <Table.Cell>Bg Masked</Table.Cell>
+              <Table.Cell>IoU</Table.Cell>
               <Table.Cell>Compare</Table.Cell>
             </Table.Row>
           </Table.Head>
@@ -132,11 +132,13 @@ export default function BenchmarkPerImageTable({
                     <Table.Cell>
                       <StatusChip status={passed ? "Succeeded" : "Failed"} />
                     </Table.Cell>
-                    <Table.Cell>{row.gt_count}</Table.Cell>
-                    <Table.Cell>{row.pred_count}</Table.Cell>
-                    <Table.Cell>{row.matched}</Table.Cell>
-                    <Table.Cell>{row.missed}</Table.Cell>
-                    <Table.Cell>{row.false_positives}</Table.Cell>
+                    <Table.Cell>{row.gt_people}</Table.Cell>
+                    <Table.Cell>{row.covered_people}</Table.Cell>
+                    <Table.Cell>{row.missed_people}</Table.Cell>
+                    <Table.Cell>{formatPercent(row.min_person_coverage)}</Table.Cell>
+                    <Table.Cell>
+                      {formatPercent(row.background_masked_fraction)}
+                    </Table.Cell>
                     <Table.Cell>{formatNumber(row.mean_iou, 3)}</Table.Cell>
                     <Table.Cell>
                       <Button

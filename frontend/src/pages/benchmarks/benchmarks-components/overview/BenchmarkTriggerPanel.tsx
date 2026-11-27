@@ -4,6 +4,7 @@ import styled from "styled-components";
 import type { BenchmarkDataset } from "../../../../api/benchmarkClient";
 import DashboardPanel from "../../../../components/DashboardPanel";
 import { ErrorText, FilterBar, FilterSelect } from "../../../../components/Styles";
+import { formatMethodLabel } from "../benchmarkFormatting";
 
 const SubmitButton = styled(Button)`
   flex: 0 0 auto !important;
@@ -16,6 +17,9 @@ interface BenchmarkTriggerPanelProps {
   version: string;
   split: string;
   device: string;
+  method: string;
+  confidenceThreshold: string;
+  boxPadding: string;
   runId: string;
   submitting: boolean;
   error: string | null;
@@ -24,6 +28,9 @@ interface BenchmarkTriggerPanelProps {
   onVersionChange: (value: string) => void;
   onSplitChange: (value: string) => void;
   onDeviceChange: (value: string) => void;
+  onMethodChange: (value: string) => void;
+  onConfidenceThresholdChange: (value: string) => void;
+  onBoxPaddingChange: (value: string) => void;
   onRunIdChange: (value: string) => void;
   onSubmit: () => void;
 }
@@ -34,6 +41,9 @@ export default function BenchmarkTriggerPanel({
   version,
   split,
   device,
+  method,
+  confidenceThreshold,
+  boxPadding,
   runId,
   submitting,
   error,
@@ -42,12 +52,17 @@ export default function BenchmarkTriggerPanel({
   onVersionChange,
   onSplitChange,
   onDeviceChange,
+  onMethodChange,
+  onConfidenceThresholdChange,
+  onBoxPaddingChange,
   onRunIdChange,
   onSubmit,
 }: BenchmarkTriggerPanelProps) {
   const selectedDataset = datasets.find((d) => d.id === datasetId);
   const versions = selectedDataset?.versions ?? [];
   const devices = selectedDataset?.devices ?? [];
+  const methods = selectedDataset?.methods ?? [];
+  const showBoundingBoxParams = method === "bounding_box";
   const canSubmit = Boolean(datasetId && version && split && device && !submitting);
 
   return (
@@ -113,6 +128,52 @@ export default function BenchmarkTriggerPanel({
             </option>
           ))}
         </FilterSelect>
+
+        {methods.length > 0 && (
+          <FilterSelect
+            id="benchmark-method"
+            label="Method"
+            value={method}
+            onChange={(e) => onMethodChange(e.target.value)}
+          >
+            {methods.map((m) => (
+              <option key={m} value={m}>
+                {formatMethodLabel(m)}
+              </option>
+            ))}
+          </FilterSelect>
+        )}
+
+        {showBoundingBoxParams && (
+          <>
+            <TextField
+              id="benchmark-confidence"
+              label="Confidence"
+              type="number"
+              step="0.05"
+              min="0.01"
+              max="1"
+              value={confidenceThreshold}
+              placeholder="0.3"
+              onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                onConfidenceThresholdChange(e.target.value)
+              }
+            />
+            <TextField
+              id="benchmark-box-padding"
+              label="Box padding"
+              type="number"
+              step="0.05"
+              min="0"
+              max="1"
+              value={boxPadding}
+              placeholder="0.1"
+              onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                onBoxPaddingChange(e.target.value)
+              }
+            />
+          </>
+        )}
 
         <TextField
           id="benchmark-run-id"

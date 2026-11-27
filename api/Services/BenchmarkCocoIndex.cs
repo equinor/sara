@@ -62,6 +62,7 @@ public sealed class BenchmarkCocoIndex
                     categoryName,
                     ann.Bbox,
                     ann.Area,
+                    ann.Score,
                     ann.Segmentation?.Clone()
                 )
             );
@@ -128,6 +129,9 @@ public sealed class BenchmarkCocoIndex
 
         [JsonPropertyName("area")]
         public double? Area { get; set; }
+
+        [JsonPropertyName("score")]
+        public double? Score { get; set; }
 
         [JsonPropertyName("segmentation")]
         public JsonElement? Segmentation { get; set; }

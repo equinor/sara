@@ -2,6 +2,7 @@ import { Table } from "@equinor/eds-core-react";
 import type { BenchmarkCocoAnnotation } from "../../../../api/benchmarkClient";
 import DashboardPanel from "../../../../components/DashboardPanel";
 import { TableScroller } from "../../../../components/Styles";
+import { formatPercent } from "../benchmarkFormatting";
 import { GT_COLOR, LegendSwatch, PRED_COLOR } from "./BenchmarkMaskCanvas";
 
 interface BenchmarkAnnotationsTableProps {
@@ -35,6 +36,7 @@ export default function BenchmarkAnnotationsTable({
               <Table.Cell>Source</Table.Cell>
               <Table.Cell>ID</Table.Cell>
               <Table.Cell>Class</Table.Cell>
+              <Table.Cell>Score</Table.Cell>
               <Table.Cell>BBox [x, y, w, h]</Table.Cell>
               <Table.Cell>Area (px)</Table.Cell>
             </Table.Row>
@@ -42,7 +44,7 @@ export default function BenchmarkAnnotationsTable({
           <Table.Body>
             {rows.length === 0 ? (
               <Table.Row>
-                <Table.Cell colSpan={5}>
+                <Table.Cell colSpan={6}>
                   No ground-truth or predicted instances (confirmed negative).
                 </Table.Cell>
               </Table.Row>
@@ -55,6 +57,7 @@ export default function BenchmarkAnnotationsTable({
                   </Table.Cell>
                   <Table.Cell>{ann.id}</Table.Cell>
                   <Table.Cell>{ann.categoryName}</Table.Cell>
+                  <Table.Cell>{formatPercent(ann.score)}</Table.Cell>
                   <Table.Cell>
                     {ann.bbox ? ann.bbox.map((v) => Math.round(v)).join(", ") : "–"}
                   </Table.Cell>

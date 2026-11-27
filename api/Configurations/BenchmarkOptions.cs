@@ -21,4 +21,5 @@ public class BenchmarkDefinition
     public string WorkflowTemplate { get; set; } = "";
     public string DefaultSplit { get; set; } = "val";
     public List<string> Devices { get; set; } = [];
+    public List<string> Methods { get; set; } = [];
 }

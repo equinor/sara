@@ -7,6 +7,7 @@ import { TableScroller } from "../../../../components/Styles";
 import TableSkeleton from "../../../../components/TableSkeleton";
 import { argoWorkflowUrl } from "../../../../utils/argo";
 import { formatElapsedDuration } from "../../../../utils/duration";
+import { formatJobMethodSummary } from "../benchmarkFormatting";
 
 interface BenchmarkJobsTableProps {
   jobs: BenchmarkJob[];
@@ -36,6 +37,7 @@ export default function BenchmarkJobsTable({ jobs, loading }: BenchmarkJobsTable
             <Table.Row>
               <Table.Cell>Run ID</Table.Cell>
               <Table.Cell>Dataset</Table.Cell>
+              <Table.Cell>Method</Table.Cell>
               <Table.Cell>Device</Table.Cell>
               <Table.Cell>Status</Table.Cell>
               <Table.Cell>Started</Table.Cell>
@@ -45,10 +47,10 @@ export default function BenchmarkJobsTable({ jobs, loading }: BenchmarkJobsTable
           </Table.Head>
           <Table.Body>
             {loading ? (
-              <TableSkeleton columns={7} rows={3} />
+              <TableSkeleton columns={8} rows={3} />
             ) : jobs.length === 0 ? (
               <Table.Row>
-                <Table.Cell colSpan={7}>No benchmark jobs found in Argo.</Table.Cell>
+                <Table.Cell colSpan={8}>No benchmark jobs found in Argo.</Table.Cell>
               </Table.Row>
             ) : (
               jobs.map((job) => {
@@ -66,6 +68,7 @@ export default function BenchmarkJobsTable({ jobs, loading }: BenchmarkJobsTable
                     <Table.Cell>
                       {job.datasetId} / {job.version} / {job.split}
                     </Table.Cell>
+                    <Table.Cell>{formatJobMethodSummary(job)}</Table.Cell>
                     <Table.Cell>{job.device.toUpperCase()}</Table.Cell>
                     <Table.Cell>
                       <StatusChip status={job.phase} />

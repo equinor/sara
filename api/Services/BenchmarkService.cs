@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using api.Configurations;
@@ -112,6 +113,8 @@ public partial class BenchmarkService(
             );
         }
 
+        var (method, confidenceThreshold, boxPadding) = ValidateMethodOptions(definition, request);
+
         var runId = string.IsNullOrWhiteSpace(request.RunId) ? "" : request.RunId.Trim();
         if (!string.IsNullOrEmpty(runId))
         {
@@ -126,6 +129,30 @@ public partial class BenchmarkService(
         }
 
         var containerUrl = BuildContainerUrl(definition.Container);
+        List<ArgoParameter> workflowParameters =
+        [
+            new ArgoParameter { Name = "source", Value = containerUrl },
+            new ArgoParameter { Name = "destination", Value = containerUrl },
+            new ArgoParameter { Name = "version", Value = request.Version },
+            new ArgoParameter { Name = "split", Value = request.Split },
+            new ArgoParameter { Name = "run-id", Value = runId },
+            new ArgoParameter { Name = "device", Value = device },
+        ];
+        if (!string.IsNullOrEmpty(method))
+        {
+            workflowParameters.Add(new ArgoParameter { Name = "method", Value = method });
+            workflowParameters.Add(
+                new ArgoParameter
+                {
+                    Name = "confidence-threshold",
+                    Value = FormatOptionalDouble(confidenceThreshold),
+                }
+            );
+            workflowParameters.Add(
+                new ArgoParameter { Name = "box-padding", Value = FormatOptionalDouble(boxPadding) }
+            );
+        }
+
         var workflow = new ArgoWorkflowResource
         {
             Metadata = new ArgoObjectMetadata
@@ -144,18 +171,7 @@ public partial class BenchmarkService(
                 {
                     Name = definition.WorkflowTemplate,
                 },
-                Arguments = new ArgoArguments
-                {
-                    Parameters =
-                    [
-                        new ArgoParameter { Name = "source", Value = containerUrl },
-                        new ArgoParameter { Name = "destination", Value = containerUrl },
-                        new ArgoParameter { Name = "version", Value = request.Version },
-                        new ArgoParameter { Name = "split", Value = request.Split },
-                        new ArgoParameter { Name = "run-id", Value = runId },
-                        new ArgoParameter { Name = "device", Value = device },
-                    ],
-                },
+                Arguments = new ArgoArguments { Parameters = workflowParameters },
             },
         };
 
@@ -167,6 +183,9 @@ public partial class BenchmarkService(
             Version: request.Version,
             Split: request.Split,
             Device: device,
+            Method: method,
+            ConfidenceThreshold: confidenceThreshold,
+            BoxPadding: boxPadding,
             RunId: string.IsNullOrEmpty(runId) ? created.Name : runId,
             Phase: "Pending",
             Message: null,
@@ -547,6 +566,7 @@ public partial class BenchmarkService(
             definition.Container,
             definition.DefaultSplit,
             ResolveDevices(definition),
+            definition.Methods,
             versions
         );
     }
@@ -638,6 +658,15 @@ public partial class BenchmarkService(
             ? labelDataset
             : "";
         var configuredRunId = parameters.GetValueOrDefault("run-id", "");
+        var method =
+            parameters.TryGetValue("method", out var rawMethod)
+            && !string.IsNullOrWhiteSpace(rawMethod)
+                ? rawMethod
+                : null;
+        var confidenceThreshold = ParseOptionalDouble(
+            parameters.GetValueOrDefault("confidence-threshold", "")
+        );
+        var boxPadding = ParseOptionalDouble(parameters.GetValueOrDefault("box-padding", ""));
 
         return new BenchmarkJobDto(
             WorkflowName: name,
@@ -646,6 +675,9 @@ public partial class BenchmarkService(
             Version: parameters.GetValueOrDefault("version", ""),
             Split: parameters.GetValueOrDefault("split", ""),
             Device: parameters.GetValueOrDefault("device", ""),
+            Method: method,
+            ConfidenceThreshold: confidenceThreshold,
+            BoxPadding: boxPadding,
             RunId: string.IsNullOrEmpty(configuredRunId) ? name : configuredRunId,
             Phase: workflow.Status?.Phase ?? "Pending",
             Message: workflow.Status?.Message,
@@ -654,6 +686,77 @@ public partial class BenchmarkService(
             FinishedAt: workflow.Status?.FinishedAt
         );
     }
+
+    private static (
+        string? Method,
+        double? ConfidenceThreshold,
+        double? BoxPadding
+    ) ValidateMethodOptions(BenchmarkDefinition definition, TriggerBenchmarkRequest request)
+    {
+        if (definition.Methods.Count == 0)
+        {
+            if (
+                !string.IsNullOrWhiteSpace(request.Method)
+                || request.ConfidenceThreshold is not null
+                || request.BoxPadding is not null
+            )
+            {
+                throw new ArgumentException(
+                    $"Dataset '{definition.Id}' does not support method selection."
+                );
+            }
+            return (null, null, null);
+        }
+
+        var method = string.IsNullOrWhiteSpace(request.Method)
+            ? definition.Methods[0]
+            : request.Method.Trim().ToLowerInvariant();
+        if (!definition.Methods.Contains(method, StringComparer.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException(
+                $"Unsupported method '{request.Method}' for dataset '{definition.Id}'."
+            );
+        }
+
+        var confidenceThreshold = request.ConfidenceThreshold;
+        var boxPadding = request.BoxPadding;
+        if (method != "bounding_box" && (confidenceThreshold is not null || boxPadding is not null))
+        {
+            throw new ArgumentException(
+                "confidenceThreshold and boxPadding are only valid for the bounding_box method."
+            );
+        }
+
+        if (
+            confidenceThreshold is not null
+            && (
+                !double.IsFinite(confidenceThreshold.Value)
+                || confidenceThreshold <= 0.0
+                || confidenceThreshold > 1.0
+            )
+        )
+        {
+            throw new ArgumentException("confidenceThreshold must be in (0.0, 1.0].");
+        }
+
+        if (
+            boxPadding is not null
+            && (!double.IsFinite(boxPadding.Value) || boxPadding < 0.0 || boxPadding > 1.0)
+        )
+        {
+            throw new ArgumentException("boxPadding must be in [0.0, 1.0].");
+        }
+
+        return (method, confidenceThreshold, boxPadding);
+    }
+
+    private static string FormatOptionalDouble(double? value) =>
+        value is null ? "" : value.Value.ToString(CultureInfo.InvariantCulture);
+
+    private static double? ParseOptionalDouble(string raw) =>
+        double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
+            ? parsed
+            : null;
 
     private static void ValidateSegment(string value, string paramName)
     {

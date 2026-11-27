@@ -11,6 +11,16 @@ import BenchmarkJobsTable from "./benchmarks-components/overview/BenchmarkJobsTa
 import BenchmarkResultsTable from "./benchmarks-components/overview/BenchmarkResultsTable";
 import BenchmarkTriggerPanel from "./benchmarks-components/overview/BenchmarkTriggerPanel";
 
+function parseOptionalNumber(raw: string, label: string): number | undefined {
+  const trimmed = raw.trim();
+  if (!trimmed) return undefined;
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed)) {
+    throw new Error(`${label} must be a valid number.`);
+  }
+  return parsed;
+}
+
 export default function BenchmarksPage() {
   const datasetsQuery = useBenchmarkDatasets();
   const jobsQuery = useBenchmarkJobs();
@@ -21,7 +31,11 @@ export default function BenchmarksPage() {
   const [version, setVersion] = useState("");
   const [split, setSplit] = useState("val");
   const [device, setDevice] = useState("gpu");
+  const [method, setMethod] = useState("segmentation");
+  const [confidenceThreshold, setConfidenceThreshold] = useState("");
+  const [boxPadding, setBoxPadding] = useState("");
   const [runId, setRunId] = useState("");
+  const [triggerValidationError, setTriggerValidationError] = useState<string | null>(null);
   const [lastTriggeredWorkflow, setLastTriggeredWorkflow] = useState<string | null>(null);
 
   useEffect(() => {
@@ -31,6 +45,7 @@ export default function BenchmarksPage() {
     setVersion(initial.versions[0] ?? "v001");
     setSplit(initial.defaultSplit || "val");
     setDevice(initial.devices.includes("gpu") ? "gpu" : (initial.devices[0] ?? "cpu"));
+    setMethod(initial.methods[0] ?? "");
   }, [datasets, datasetId]);
 
   const resultsQuery = useBenchmarkResults(datasetId, version, split);
@@ -43,16 +58,44 @@ export default function BenchmarksPage() {
     setDevice(
       selected?.devices.includes("gpu") ? "gpu" : (selected?.devices[0] ?? "cpu")
     );
+    setMethod(selected?.methods[0] ?? "");
+    setConfidenceThreshold("");
+    setBoxPadding("");
+  };
+
+  const handleMethodChange = (nextMethod: string) => {
+    setMethod(nextMethod);
+    if (nextMethod !== "bounding_box") {
+      setConfidenceThreshold("");
+      setBoxPadding("");
+    }
   };
 
   const handleTrigger = async () => {
     setLastTriggeredWorkflow(null);
+    setTriggerValidationError(null);
+    const isBoundingBox = method === "bounding_box";
+    let parsedConfidence: number | undefined;
+    let parsedPadding: number | undefined;
+    try {
+      if (isBoundingBox) {
+        parsedConfidence = parseOptionalNumber(confidenceThreshold, "Confidence");
+        parsedPadding = parseOptionalNumber(boxPadding, "Box padding");
+      }
+    } catch (err) {
+      setTriggerValidationError(err instanceof Error ? err.message : String(err));
+      return;
+    }
+
     try {
       const created = await triggerMutation.mutateAsync({
         datasetId,
         version: version.trim(),
         split: split.trim(),
         device,
+        method: method || undefined,
+        confidenceThreshold: parsedConfidence,
+        boxPadding: parsedPadding,
         runId: runId.trim() || undefined,
       });
       setRunId("");
@@ -92,14 +135,20 @@ export default function BenchmarksPage() {
         version={version}
         split={split}
         device={device}
+        method={method}
+        confidenceThreshold={confidenceThreshold}
+        boxPadding={boxPadding}
         runId={runId}
         submitting={triggerMutation.isPending}
-        error={triggerMutation.error?.message ?? null}
+        error={triggerValidationError ?? triggerMutation.error?.message ?? null}
         lastTriggeredWorkflow={lastTriggeredWorkflow}
         onDatasetChange={handleDatasetChange}
         onVersionChange={setVersion}
         onSplitChange={setSplit}
         onDeviceChange={setDevice}
+        onMethodChange={handleMethodChange}
+        onConfidenceThresholdChange={setConfidenceThreshold}
+        onBoxPaddingChange={setBoxPadding}
         onRunIdChange={setRunId}
         onSubmit={handleTrigger}
       />

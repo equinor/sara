@@ -2,7 +2,7 @@ import { Button, Typography } from "@equinor/eds-core-react";
 import styled from "styled-components";
 import type { BenchmarkImageResult } from "../../../../api/benchmarkClient";
 import StatusChip from "../../../../components/StatusChip";
-import { formatNumber, isImagePassed } from "../benchmarkFormatting";
+import { formatNumber, formatPercent, isImagePassed } from "../benchmarkFormatting";
 
 const HeaderBar = styled.div`
   display: flex;
@@ -50,9 +50,11 @@ export default function BenchmarkImageHeaderBar({
         )}
         {summary && (
           <Typography variant="body_short">
-            GT: {summary.gt_count} · Pred: {summary.pred_count} · Matched:{" "}
-            {summary.matched} · Missed: {summary.missed} · FP:{" "}
-            {summary.false_positives} · Mean IoU: {formatNumber(summary.mean_iou, 3)}
+            People: {summary.covered_people}/{summary.gt_people} · Min coverage:{" "}
+            {formatPercent(summary.min_person_coverage)} · Bg masked:{" "}
+            {formatPercent(summary.background_masked_fraction)} · IoU:{" "}
+            {formatNumber(summary.mean_iou, 3)}
+            {summary.false_positive ? " · FP" : ""}
           </Typography>
         )}
       </HeaderGroup>

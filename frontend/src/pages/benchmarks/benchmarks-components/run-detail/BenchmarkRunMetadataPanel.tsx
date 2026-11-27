@@ -2,7 +2,11 @@ import { Typography } from "@equinor/eds-core-react";
 import styled from "styled-components";
 import type { BenchmarkRunMetadata } from "../../../../api/benchmarkClient";
 import DashboardPanel from "../../../../components/DashboardPanel";
-import { shortArtifact } from "../benchmarkFormatting";
+import {
+  formatConfigurationDetails,
+  formatMethodLabel,
+  shortArtifact,
+} from "../benchmarkFormatting";
 
 const MetadataGrid = styled.div`
   display: grid;
@@ -21,6 +25,8 @@ interface BenchmarkRunMetadataPanelProps {
 export default function BenchmarkRunMetadataPanel({
   run,
 }: BenchmarkRunMetadataPanelProps) {
+  const config = run.configuration;
+
   return (
     <DashboardPanel title="Run metadata" style={{ marginBottom: "1rem" }}>
       <MetadataGrid>
@@ -30,6 +36,14 @@ export default function BenchmarkRunMetadataPanel({
             {run.dataset.id} / {run.dataset.version} / {run.dataset.split}
           </MetadataValue>
         </div>
+        {config && (
+          <div>
+            <Typography variant="caption">Configuration</Typography>
+            <MetadataValue>
+              {formatMethodLabel(config.method)} ({formatConfigurationDetails(config)})
+            </MetadataValue>
+          </div>
+        )}
         <div>
           <Typography variant="caption">Artifact</Typography>
           <MetadataValue title={run.artifact}>

@@ -6,10 +6,11 @@ import { ErrorText, TableScroller } from "../../../../components/Styles";
 import TableSkeleton from "../../../../components/TableSkeleton";
 import {
   benchmarkRunDetailPath,
+  formatConfigurationDetails,
+  formatMethodLabel,
   formatNumber,
   formatPercent,
   shortArtifact,
-  summarizeBinaryEvaluation,
 } from "../benchmarkFormatting";
 
 interface BenchmarkResultsTableProps {
@@ -50,30 +51,31 @@ export default function BenchmarkResultsTable({
           <Table.Head>
             <Table.Row>
               <Table.Cell>Run ID</Table.Cell>
+              <Table.Cell>Method</Table.Cell>
               <Table.Cell>Artifact</Table.Cell>
               <Table.Cell>Hardware</Table.Cell>
               <Table.Cell>Throughput</Table.Cell>
-              <Table.Cell>Eval</Table.Cell>
-              <Table.Cell>Precision</Table.Cell>
-              <Table.Cell>Recall</Table.Cell>
+              <Table.Cell>Person Recall</Table.Cell>
+              <Table.Cell>Avg Coverage</Table.Cell>
+              <Table.Cell>Bg Masked</Table.Cell>
               <Table.Cell>Mean IoU</Table.Cell>
               <Table.Cell>Details</Table.Cell>
             </Table.Row>
           </Table.Head>
           <Table.Body>
             {loading ? (
-              <TableSkeleton columns={9} rows={4} />
+              <TableSkeleton columns={10} rows={4} />
             ) : results.length === 0 ? (
               <Table.Row>
-                <Table.Cell colSpan={9}>
+                <Table.Cell colSpan={10}>
                   No saved benchmark results found for this split.
                 </Table.Cell>
               </Table.Row>
             ) : (
               results.map((result) => {
                 const evalEntries = Object.entries(result.metrics?.evaluations ?? {});
-                const primary = evalEntries[0];
-                const summary = primary ? summarizeBinaryEvaluation(primary[1]) : null;
+                const primary = evalEntries[0]?.[1];
+                const config = result.run?.configuration;
                 const detailPath = benchmarkRunDetailPath(
                   datasetId,
                   version,
@@ -88,6 +90,18 @@ export default function BenchmarkResultsTable({
                     style={{ cursor: "pointer" }}
                   >
                     <Table.Cell>{result.runId}</Table.Cell>
+                    <Table.Cell>
+                      {config ? (
+                        <>
+                          <div>{formatMethodLabel(config.method)}</div>
+                          <Typography variant="caption">
+                            {formatConfigurationDetails(config)}
+                          </Typography>
+                        </>
+                      ) : (
+                        "–"
+                      )}
+                    </Table.Cell>
                     <Table.Cell title={result.run?.artifact ?? ""}>
                       {result.run ? shortArtifact(result.run.artifact) : "–"}
                     </Table.Cell>
@@ -119,13 +133,19 @@ export default function BenchmarkResultsTable({
                         "–"
                       )}
                     </Table.Cell>
-                    <Table.Cell>{primary ? primary[0] : "–"}</Table.Cell>
                     <Table.Cell>
-                      {summary ? formatPercent(summary.precision) : "–"}
+                      {primary ? formatPercent(primary.person_recall) : "–"}
                     </Table.Cell>
-                    <Table.Cell>{summary ? formatPercent(summary.recall) : "–"}</Table.Cell>
                     <Table.Cell>
-                      {primary ? formatNumber(primary[1].mean_iou, 3) : "–"}
+                      {primary ? formatPercent(primary.mean_person_coverage) : "–"}
+                    </Table.Cell>
+                    <Table.Cell>
+                      {primary
+                        ? formatPercent(primary.mean_background_masked_fraction)
+                        : "–"}
+                    </Table.Cell>
+                    <Table.Cell>
+                      {primary ? formatNumber(primary.mean_iou, 3) : "–"}
                     </Table.Cell>
                     <Table.Cell>
                       {result.error ? (
