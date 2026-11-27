@@ -12,8 +12,7 @@ const SubmitButton = styled(Button)`
 `;
 
 interface BenchmarkTriggerPanelProps {
-  datasets: BenchmarkDataset[];
-  datasetId: string;
+  dataset?: BenchmarkDataset;
   version: string;
   split: string;
   device: string;
@@ -23,7 +22,6 @@ interface BenchmarkTriggerPanelProps {
   submitting: boolean;
   error: string | null;
   lastTriggeredWorkflow: string | null;
-  onDatasetChange: (value: string) => void;
   onVersionChange: (value: string) => void;
   onSplitChange: (value: string) => void;
   onDeviceChange: (value: string) => void;
@@ -34,8 +32,7 @@ interface BenchmarkTriggerPanelProps {
 }
 
 export default function BenchmarkTriggerPanel({
-  datasets,
-  datasetId,
+  dataset,
   version,
   split,
   device,
@@ -45,7 +42,6 @@ export default function BenchmarkTriggerPanel({
   submitting,
   error,
   lastTriggeredWorkflow,
-  onDatasetChange,
   onVersionChange,
   onSplitChange,
   onDeviceChange,
@@ -54,31 +50,17 @@ export default function BenchmarkTriggerPanel({
   onRunIdChange,
   onSubmit,
 }: BenchmarkTriggerPanelProps) {
-  const selectedDataset = datasets.find((d) => d.id === datasetId);
-  const versions = selectedDataset?.versions ?? [];
-  const devices = selectedDataset?.devices ?? [];
-  const methods = selectedDataset?.methods ?? [];
-  const visibleParameters = (selectedDataset?.parameters ?? []).filter((param) =>
+  const versions = dataset?.versions ?? [];
+  const devices = dataset?.devices ?? [];
+  const methods = dataset?.methods ?? [];
+  const visibleParameters = (dataset?.parameters ?? []).filter((param) =>
     isParameterApplicable(param, method)
   );
-  const canSubmit = Boolean(datasetId && version && split && device && !submitting);
+  const canSubmit = Boolean(dataset && version && split && device && !submitting);
 
   return (
     <DashboardPanel title="Run benchmark" style={{ marginBottom: "1rem" }}>
       <FilterBar style={{ marginBottom: error || lastTriggeredWorkflow ? "0.5rem" : 0 }}>
-        <FilterSelect
-          id="benchmark-dataset"
-          label="Dataset"
-          value={datasetId}
-          onChange={(e) => onDatasetChange(e.target.value)}
-        >
-          {datasets.map((d) => (
-            <option key={d.id} value={d.id}>
-              {d.label} ({d.container})
-            </option>
-          ))}
-        </FilterSelect>
-
         {versions.length > 0 ? (
           <FilterSelect
             id="benchmark-version"

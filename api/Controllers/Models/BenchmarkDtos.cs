@@ -17,6 +17,7 @@ public record BenchmarkParameterDefinitionDto(
 public record BenchmarkDatasetDto(
     string Id,
     string Label,
+    string Description,
     string Container,
     string DefaultSplit,
     IReadOnlyList<string> Devices,

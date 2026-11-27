@@ -11,6 +11,10 @@ public interface IBlobStorageService
 {
     Task<MemoryStream> DownloadBlobAsync(BlobStorageLocation location);
     Task UploadBlobAsync(BlobStorageLocation destination, Stream content, string contentType);
+    Task DeleteBlobAsync(
+        BlobStorageLocation location,
+        CancellationToken cancellationToken = default
+    );
     Task CopyBlobAsync(BlobStorageLocation source, BlobStorageLocation destination);
     Task<Uri?> TryCreateReadSasUriAsync(
         BlobStorageLocation location,
@@ -38,6 +42,43 @@ public class BlobStorageService(
 
     public async Task<MemoryStream> DownloadBlobAsync(BlobStorageLocation location)
     {
+        var blobClient = GetValidatedBlobClient(location);
+
+        var stream = new MemoryStream();
+        await blobClient.DownloadToAsync(stream);
+        stream.Position = 0;
+        return stream;
+    }
+
+    public async Task UploadBlobAsync(
+        BlobStorageLocation destination,
+        Stream content,
+        string contentType
+    )
+    {
+        var blobClient = GetValidatedBlobClient(destination);
+
+        content.Position = 0;
+        await blobClient.UploadAsync(
+            content,
+            new BlobUploadOptions
+            {
+                HttpHeaders = new BlobHttpHeaders { ContentType = contentType },
+            }
+        );
+    }
+
+    public async Task DeleteBlobAsync(
+        BlobStorageLocation location,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var blobClient = GetValidatedBlobClient(location);
+        await blobClient.DeleteIfExistsAsync(cancellationToken: cancellationToken);
+    }
+
+    private BlobClient GetValidatedBlobClient(BlobStorageLocation location)
+    {
         if (string.IsNullOrWhiteSpace(location.StorageAccount))
             throw new InvalidOperationException("BlobStorageLocation.StorageAccount is empty.");
 
@@ -52,47 +93,9 @@ public class BlobStorageService(
             );
 
         var serviceClient = CreateBlobServiceClient(location.StorageAccount);
-
-        var containerClient = serviceClient.GetBlobContainerClient(location.BlobContainer);
-        var blobClient = containerClient.GetBlobClient(location.BlobName);
-
-        var stream = new MemoryStream();
-        await blobClient.DownloadToAsync(stream);
-        stream.Position = 0;
-        return stream;
-    }
-
-    public async Task UploadBlobAsync(
-        BlobStorageLocation destination,
-        Stream content,
-        string contentType
-    )
-    {
-        if (string.IsNullOrWhiteSpace(destination.StorageAccount))
-            throw new InvalidOperationException("BlobStorageLocation.StorageAccount is empty.");
-
-        if (string.IsNullOrWhiteSpace(destination.BlobContainer))
-            throw new InvalidOperationException(
-                $"BlobStorageLocation.BlobContainer is empty for storage account '{destination.StorageAccount}'."
-            );
-
-        if (string.IsNullOrWhiteSpace(destination.BlobName))
-            throw new InvalidOperationException(
-                $"BlobStorageLocation.BlobName is empty for storage account '{destination.StorageAccount}/{destination.BlobContainer}'."
-            );
-
-        var serviceClient = CreateBlobServiceClient(destination.StorageAccount);
-        var containerClient = serviceClient.GetBlobContainerClient(destination.BlobContainer);
-        var blobClient = containerClient.GetBlobClient(destination.BlobName);
-
-        content.Position = 0;
-        await blobClient.UploadAsync(
-            content,
-            new BlobUploadOptions
-            {
-                HttpHeaders = new BlobHttpHeaders { ContentType = contentType },
-            }
-        );
+        return serviceClient
+            .GetBlobContainerClient(location.BlobContainer)
+            .GetBlobClient(location.BlobName);
     }
 
     public async Task CopyBlobAsync(BlobStorageLocation source, BlobStorageLocation destination)

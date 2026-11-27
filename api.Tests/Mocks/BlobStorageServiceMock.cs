@@ -32,6 +32,11 @@ public class BlobStorageServiceMock : IBlobStorageService
         await Task.CompletedTask;
     }
 
+    public Task DeleteBlobAsync(
+        BlobStorageLocation location,
+        CancellationToken cancellationToken = default
+    ) => Task.CompletedTask;
+
     public async Task CopyBlobAsync(BlobStorageLocation source, BlobStorageLocation destination)
     {
         using var sourceStream = await DownloadBlobAsync(source);

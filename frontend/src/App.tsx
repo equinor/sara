@@ -27,6 +27,7 @@ import ReferencePolygonImagesPage from "./pages/reference-images";
 import CreateReferencePolygonMetadataPage from "./pages/reference-images/create";
 import ReferencePolygonMetadataDetailPage from "./pages/reference-images/detail";
 import BenchmarksPage from "./pages/benchmarks";
+import BenchmarkProjectPage from "./pages/benchmarks/project";
 import BenchmarkDetailPage from "./pages/benchmarks/detail";
 import BenchmarkImageDetailPage from "./pages/benchmarks/image-detail";
 import styled from "styled-components";
@@ -169,6 +170,10 @@ function App() {
               />
 
               <Route path="/benchmarks" element={requireAdmin(tabbed(<BenchmarksPage />))} />
+              <Route
+                path="/benchmarks/:datasetId"
+                element={requireAdmin(tabbed(<BenchmarkProjectPage />))}
+              />
               <Route
                 path="/benchmarks/:datasetId/:version/:split/:runId"
                 element={requireAdmin(<BenchmarkDetailPage />)}

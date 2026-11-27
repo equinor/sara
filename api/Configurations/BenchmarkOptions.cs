@@ -17,6 +17,7 @@ public class BenchmarkDefinition
 {
     public string Id { get; set; } = "";
     public string Label { get; set; } = "";
+    public string Description { get; set; } = "";
     public string Container { get; set; } = "";
     public string WorkflowTemplate { get; set; } = "";
     public string DefaultSplit { get; set; } = "val";

@@ -58,12 +58,6 @@ export default function BenchmarkRunMetadataPanel({
           <Typography variant="caption">Protocol</Typography>
           <MetadataValue>{run.protocol}</MetadataValue>
         </div>
-        <div>
-          <Typography variant="caption">Manifest SHA-256</Typography>
-          <MetadataValue style={{ wordBreak: "break-all" }}>
-            {run.dataset.manifest_sha256}
-          </MetadataValue>
-        </div>
       </MetadataGrid>
     </DashboardPanel>
   );
