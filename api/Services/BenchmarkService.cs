@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using api.Configurations;
 using api.Controllers.Models;
 using api.Database.Models;
+using api.Utilities;
 using Azure;
 using Microsoft.Extensions.Options;
 
@@ -580,7 +581,7 @@ public partial class BenchmarkService(
                 "Failed to load benchmark result '{RunId}' from '{Container}/{Prefix}'",
                 runId,
                 container,
-                resultsPrefix
+                Sanitize.SanitizeUserInput(resultsPrefix)
             );
             return new BenchmarkResultDto(runId, null, null, ex.Message);
         }

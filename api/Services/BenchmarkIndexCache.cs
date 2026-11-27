@@ -1,4 +1,5 @@
 using api.Configurations;
+using api.Utilities;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 
@@ -109,7 +110,7 @@ public sealed class BenchmarkIndexCache : IBenchmarkIndexCache, IDisposable
         {
             _logger.LogWarning(
                 "Skipping benchmark cache entry '{CacheKey}' ({EstimatedBytes} bytes) because it exceeds the cache size limit ({SizeLimitBytes} bytes).",
-                key,
+                Sanitize.SanitizeUserInput(key),
                 entrySize,
                 _sizeLimitBytes
             );
