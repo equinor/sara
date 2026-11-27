@@ -32,6 +32,52 @@ public class BenchmarkServiceTests
                         DefaultSplit = "val",
                         Devices = ["cpu", "gpu"],
                         Methods = ["segmentation", "bounding_box"],
+                        Parameters =
+                        [
+                            new BenchmarkParameterDefinition
+                            {
+                                Name = "confidence-threshold",
+                                Label = "Confidence",
+                                Min = 0.0,
+                                MinExclusive = true,
+                                Max = 1.0,
+                                Step = 0.05,
+                                Placeholder = "0.3",
+                                OnlyForMethods = ["bounding_box"],
+                            },
+                            new BenchmarkParameterDefinition
+                            {
+                                Name = "box-padding",
+                                Label = "Box padding",
+                                Min = 0.0,
+                                Max = 1.0,
+                                Step = 0.05,
+                                Placeholder = "0.1",
+                                OnlyForMethods = ["bounding_box"],
+                            },
+                        ],
+                    },
+                    new BenchmarkDefinition
+                    {
+                        Id = "rain-drop-detection",
+                        Label = "Rain Drop Detector",
+                        Container = "rain-drop-detection",
+                        WorkflowTemplate = "rain-drop-detector-benchmark",
+                        DefaultSplit = "val",
+                        Devices = ["cpu"],
+                        Parameters =
+                        [
+                            new BenchmarkParameterDefinition
+                            {
+                                Name = "confidence-threshold",
+                                Label = "Confidence",
+                                Min = 0.0,
+                                MinExclusive = true,
+                                Max = 1.0,
+                                Step = 0.05,
+                                Placeholder = "0.25",
+                            },
+                        ],
                     },
                 ],
             }
@@ -60,15 +106,18 @@ public class BenchmarkServiceTests
                 Device: "gpu",
                 RunId: "rtmdet-run",
                 Method: "bounding_box",
-                ConfidenceThreshold: 0.25,
-                BoxPadding: 0.15
+                Parameters: new Dictionary<string, double?>
+                {
+                    ["confidence-threshold"] = 0.25,
+                    ["box-padding"] = 0.15,
+                }
             ),
             TestContext.Current.CancellationToken
         );
 
         Assert.Equal("bounding_box", job.Method);
-        Assert.Equal(0.25, job.ConfidenceThreshold);
-        Assert.Equal(0.15, job.BoxPadding);
+        Assert.Equal("0.25", job.Parameters["confidence-threshold"]);
+        Assert.Equal("0.15", job.Parameters["box-padding"]);
 
         var created = Assert.Single(argo.Requests).Resource;
         var parameters = created.Spec!.Arguments!.Parameters.ToDictionary(
@@ -97,8 +146,7 @@ public class BenchmarkServiceTests
         );
 
         Assert.Equal("segmentation", job.Method);
-        Assert.Null(job.ConfidenceThreshold);
-        Assert.Null(job.BoxPadding);
+        Assert.Empty(job.Parameters);
 
         var parameters = Assert
             .Single(argo.Requests)
@@ -108,33 +156,72 @@ public class BenchmarkServiceTests
         Assert.Equal("", parameters["box-padding"]);
     }
 
+    [Fact]
+    public async Task TriggerRainDropBenchmarkSupportsConfidenceOverrideWithoutMethod()
+    {
+        var (service, argo) = CreateService();
+
+        var job = await service.TriggerBenchmarkAsync(
+            new TriggerBenchmarkRequest(
+                DatasetId: "rain-drop-detection",
+                Version: "v001",
+                Split: "val",
+                Device: "cpu",
+                RunId: "rain-run-1",
+                Parameters: new Dictionary<string, double?> { ["confidence-threshold"] = 0.4 }
+            ),
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Null(job.Method);
+        Assert.Equal("0.4", job.Parameters["confidence-threshold"]);
+
+        var created = Assert.Single(argo.Requests).Resource;
+        Assert.Equal("rain-drop-detector-benchmark", created.Spec!.WorkflowTemplateRef!.Name);
+        var parameters = created.Spec.Arguments!.Parameters.ToDictionary(
+            p => p.Name,
+            p => p.Value ?? ""
+        );
+        Assert.False(parameters.ContainsKey("method"));
+        Assert.Equal("0.4", parameters["confidence-threshold"]);
+        Assert.Equal("cpu", parameters["device"]);
+    }
+
     [Theory]
-    [InlineData("segmentation", 0.3, null)]
-    [InlineData("segmentation", null, 0.1)]
-    [InlineData("bounding_box", 0.0, null)]
-    [InlineData("bounding_box", 1.2, null)]
-    [InlineData("bounding_box", null, -0.1)]
-    [InlineData("bounding_box", null, 1.5)]
-    [InlineData("unknown_method", null, null)]
-    public async Task TriggerBenchmarkRejectsInvalidMethodOptions(
-        string method,
-        double? confidenceThreshold,
-        double? boxPadding
+    [InlineData("anonymizer", "gpu", "segmentation", "confidence-threshold", 0.3)]
+    [InlineData("anonymizer", "gpu", "segmentation", "box-padding", 0.1)]
+    [InlineData("anonymizer", "gpu", "bounding_box", "confidence-threshold", 0.0)]
+    [InlineData("anonymizer", "gpu", "bounding_box", "confidence-threshold", 1.2)]
+    [InlineData("anonymizer", "gpu", "bounding_box", "box-padding", -0.1)]
+    [InlineData("anonymizer", "gpu", "bounding_box", "box-padding", 1.5)]
+    [InlineData("anonymizer", "gpu", "unknown_method", null, null)]
+    [InlineData("rain-drop-detection", "gpu", null, null, null)]
+    [InlineData("rain-drop-detection", "cpu", "segmentation", null, null)]
+    [InlineData("rain-drop-detection", "cpu", null, "confidence-threshold", 0.0)]
+    [InlineData("rain-drop-detection", "cpu", null, "box-padding", 0.1)]
+    public async Task TriggerBenchmarkRejectsInvalidOptions(
+        string datasetId,
+        string device,
+        string? method,
+        string? paramName,
+        double? paramValue
     )
     {
         var (service, _) = CreateService();
+        var parameters = paramName is not null
+            ? new Dictionary<string, double?> { [paramName] = paramValue }
+            : null;
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
             service.TriggerBenchmarkAsync(
                 new TriggerBenchmarkRequest(
-                    DatasetId: "anonymizer",
+                    DatasetId: datasetId,
                     Version: "v001",
                     Split: "val",
-                    Device: "gpu",
+                    Device: device,
                     RunId: null,
                     Method: method,
-                    ConfidenceThreshold: confidenceThreshold,
-                    BoxPadding: boxPadding
+                    Parameters: parameters
                 ),
                 TestContext.Current.CancellationToken
             )
@@ -142,7 +229,7 @@ public class BenchmarkServiceTests
     }
 
     [Fact]
-    public async Task GetJobsReadsMethodAndDetectorParametersFromArgoWorkflow()
+    public async Task GetJobsReadsMethodAndExtraParametersFromArgoWorkflow()
     {
         var (service, argo) = CreateService();
         argo.ListedWorkflows.Add(
@@ -178,7 +265,7 @@ public class BenchmarkServiceTests
 
         var job = Assert.Single(jobs);
         Assert.Equal("bounding_box", job.Method);
-        Assert.Equal(0.3, job.ConfidenceThreshold);
-        Assert.Equal(0.1, job.BoxPadding);
+        Assert.Equal("0.3", job.Parameters["confidence-threshold"]);
+        Assert.Equal("0.1", job.Parameters["box-padding"]);
     }
 }

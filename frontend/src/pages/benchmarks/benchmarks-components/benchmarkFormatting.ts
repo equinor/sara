@@ -1,39 +1,11 @@
 import type {
-  BenchmarkEvaluation,
-  BenchmarkImageResult,
+  BenchmarkCellValue,
   BenchmarkJob,
+  BenchmarkMetricFormat,
+  BenchmarkParameterDefinition,
+  BenchmarkResult,
   BenchmarkRunConfiguration,
 } from "../../../api/benchmarkClient";
-
-export interface EvaluationSummary {
-  tp: number;
-  fn: number;
-  fp: number;
-  tn: number;
-  precision: number | null;
-  recall: number | null;
-}
-
-export function summarizeBinaryEvaluation(
-  evaluation: BenchmarkEvaluation
-): EvaluationSummary | null {
-  const matrix = evaluation.confusion_matrix;
-  if (matrix.length !== 2 || matrix[0].length !== 2 || matrix[1].length !== 2) {
-    return null;
-  }
-  const tp = matrix[0][0] ?? 0;
-  const fn = matrix[0][1] ?? 0;
-  const fp = matrix[1][0] ?? 0;
-  const tn = matrix[1][1] ?? 0;
-  return {
-    tp,
-    fn,
-    fp,
-    tn,
-    precision: tp + fp > 0 ? tp / (tp + fp) : null,
-    recall: tp + fn > 0 ? tp / (tp + fn) : null,
-  };
-}
 
 export function formatPercent(value: number | null | undefined): string {
   return value == null ? "–" : `${(value * 100).toFixed(1)}%`;
@@ -41,6 +13,25 @@ export function formatPercent(value: number | null | undefined): string {
 
 export function formatNumber(value: number | null | undefined, digits = 2): string {
   return value == null ? "–" : value.toFixed(digits);
+}
+
+export function formatMetricValue(
+  value: BenchmarkCellValue,
+  format: BenchmarkMetricFormat
+): string {
+  if (value == null) return "–";
+  switch (format) {
+    case "percent":
+      return typeof value === "number" ? formatPercent(value) : String(value);
+    case "number":
+      return typeof value === "number" ? formatNumber(value, 3) : String(value);
+    case "integer":
+      return typeof value === "number" ? String(Math.round(value)) : String(value);
+    case "boolean":
+      return typeof value === "boolean" ? (value ? "Yes" : "No") : String(value);
+    default:
+      return String(value);
+  }
 }
 
 export function formatMethodLabel(method?: string | null): string {
@@ -55,33 +46,82 @@ export function formatMethodLabel(method?: string | null): string {
   }
 }
 
-export function formatConfigurationDetails(
-  config?: BenchmarkRunConfiguration | null
-): string {
-  if (!config) return "";
-  const parts: string[] = [config.model];
-  if (config.confidence_threshold != null) {
-    parts.push(`conf ${config.confidence_threshold}`);
+function formatConfigEntry(key: string, value: BenchmarkCellValue): string | null {
+  if (value == null) return null;
+  if (key === "model") return String(value);
+  if (key === "confidence_threshold" || key === "confidence-threshold") {
+    return `conf ${value}`;
   }
-  if (config.box_padding != null) {
-    parts.push(`pad ${(config.box_padding * 100).toFixed(0)}%`);
+  if (key === "box_padding" || key === "box-padding") {
+    const num = Number(value);
+    return Number.isFinite(num) ? `pad ${(num * 100).toFixed(0)}%` : `pad ${value}`;
   }
-  if (config.compiled) {
-    parts.push("compiled");
+  if (key === "compiled") {
+    return value ? "compiled" : null;
   }
-  return parts.join(" · ");
+  return `${key} ${value}`;
 }
 
-export function formatJobMethodSummary(job: BenchmarkJob): string {
-  if (!job.method) return "–";
-  const parts: string[] = [formatMethodLabel(job.method)];
-  if (job.confidenceThreshold != null) {
-    parts.push(`conf ${job.confidenceThreshold}`);
+export function formatConfigurationSummary(config?: BenchmarkRunConfiguration | null): {
+  primary: string;
+  details: string;
+} | null {
+  if (!config) return null;
+  const method = typeof config.method === "string" ? config.method : null;
+  const parts: string[] = [];
+  for (const [key, value] of Object.entries(config)) {
+    if (key === "method") continue;
+    const formatted = formatConfigEntry(key, value);
+    if (formatted) parts.push(formatted);
   }
-  if (job.boxPadding != null) {
-    parts.push(`pad ${(job.boxPadding * 100).toFixed(0)}%`);
+  if (method) {
+    return { primary: formatMethodLabel(method), details: parts.join(" · ") };
   }
-  return parts.join(" · ");
+  if (parts.length === 0) return null;
+  return { primary: parts[0], details: parts.slice(1).join(" · ") };
+}
+
+export function formatJobConfigSummary(job: BenchmarkJob): string {
+  const parts: string[] = [];
+  if (job.method) {
+    parts.push(formatMethodLabel(job.method));
+  }
+  for (const [key, value] of Object.entries(job.parameters ?? {})) {
+    const formatted = formatConfigEntry(key, value);
+    if (formatted) parts.push(formatted);
+  }
+  return parts.length > 0 ? parts.join(" · ") : "–";
+}
+
+export function isParameterApplicable(
+  param: BenchmarkParameterDefinition,
+  method: string
+): boolean {
+  if (param.onlyForMethods.length === 0) return true;
+  return param.onlyForMethods.some((m) => m.toLowerCase() === method.toLowerCase());
+}
+
+export interface PrimaryMetricColumn {
+  key: string;
+  label: string;
+  format: BenchmarkMetricFormat;
+}
+
+export function collectPrimaryMetricColumns(
+  results: BenchmarkResult[]
+): PrimaryMetricColumn[] {
+  const seen = new Map<string, PrimaryMetricColumn>();
+  for (const result of results) {
+    for (const metric of result.metrics?.summary_metrics ?? []) {
+      if (metric.primary === false || seen.has(metric.key)) continue;
+      seen.set(metric.key, {
+        key: metric.key,
+        label: metric.label,
+        format: metric.format,
+      });
+    }
+  }
+  return [...seen.values()];
 }
 
 export function shortArtifact(artifact: string): string {
@@ -96,8 +136,4 @@ export function benchmarkRunDetailPath(
   runId: string
 ): string {
   return `/benchmarks/${encodeURIComponent(datasetId)}/${encodeURIComponent(version)}/${encodeURIComponent(split)}/${encodeURIComponent(runId)}`;
-}
-
-export function isImagePassed(row: BenchmarkImageResult): boolean {
-  return row.missed_people === 0 && !row.false_positive;
 }

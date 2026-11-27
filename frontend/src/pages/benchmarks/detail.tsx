@@ -18,7 +18,6 @@ export default function BenchmarkDetailPage() {
   const detail = detailQuery.data;
 
   const evalEntries = Object.entries(detail?.metrics?.evaluations ?? {});
-  const primaryEvaluation = evalEntries[0]?.[1];
 
   const handleSelectImage = (imageId: number) => {
     navigate(
@@ -51,10 +50,7 @@ export default function BenchmarkDetailPage() {
 
       {detail?.run && detail?.metrics && (
         <>
-          <BenchmarkRunSummaryCards
-            metrics={detail.metrics}
-            primaryEvaluation={primaryEvaluation}
-          />
+          <BenchmarkRunSummaryCards metrics={detail.metrics} />
           <BenchmarkRunMetadataPanel run={detail.run} />
           {evalEntries.map(([name, evaluation]) => (
             <BenchmarkConfusionMatrixPanel
@@ -68,7 +64,8 @@ export default function BenchmarkDetailPage() {
 
       {detail?.perImage ? (
         <BenchmarkPerImageTable
-          items={detail.perImage}
+          columns={detail.perImage.columns}
+          items={detail.perImage.items}
           onSelectImage={handleSelectImage}
         />
       ) : (

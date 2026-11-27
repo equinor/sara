@@ -1,23 +1,28 @@
 import { useMemo, useState } from "react";
 import { Button, Table, Typography } from "@equinor/eds-core-react";
-import type { BenchmarkImageResult } from "../../../../api/benchmarkClient";
+import type {
+  BenchmarkImageResult,
+  BenchmarkPerImageColumn,
+} from "../../../../api/benchmarkClient";
 import DashboardPanel from "../../../../components/DashboardPanel";
 import PaginationFooter from "../../../../components/PaginationFooter";
 import SegmentedToggle from "../../../../components/SegmentedToggle";
 import StatusChip from "../../../../components/StatusChip";
 import { FilterBar, FilterSearch, TableScroller } from "../../../../components/Styles";
-import { formatNumber, formatPercent, isImagePassed } from "../benchmarkFormatting";
+import { formatMetricValue } from "../benchmarkFormatting";
 
 type ImageOutcomeFilter = "all" | "failed" | "missed" | "fp" | "passed";
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
 
 interface BenchmarkPerImageTableProps {
+  columns: BenchmarkPerImageColumn[];
   items: BenchmarkImageResult[];
   onSelectImage: (imageId: number) => void;
 }
 
 export default function BenchmarkPerImageTable({
+  columns,
   items,
   onSelectImage,
 }: BenchmarkPerImageTableProps) {
@@ -32,9 +37,9 @@ export default function BenchmarkPerImageTable({
     let fp = 0;
     let passed = 0;
     for (const row of items) {
-      if (isImagePassed(row)) passed += 1;
+      if (row.passed) passed += 1;
       else failed += 1;
-      if (row.missed_people > 0) missed += 1;
+      if (row.missed) missed += 1;
       if (row.false_positive) fp += 1;
     }
     return { all: items.length, failed, missed, fp, passed };
@@ -43,9 +48,9 @@ export default function BenchmarkPerImageTable({
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
     return items.filter((row) => {
-      if (filter === "failed" && isImagePassed(row)) return false;
-      if (filter === "passed" && !isImagePassed(row)) return false;
-      if (filter === "missed" && row.missed_people === 0) return false;
+      if (filter === "failed" && row.passed) return false;
+      if (filter === "passed" && !row.passed) return false;
+      if (filter === "missed" && !row.missed) return false;
       if (filter === "fp" && !row.false_positive) return false;
       if (
         query &&
@@ -61,6 +66,7 @@ export default function BenchmarkPerImageTable({
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(pageNumber, totalPages);
   const pageItems = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
+  const totalColumns = 4 + columns.length;
 
   const handleFilterChange = (next: ImageOutcomeFilter) => {
     setFilter(next);
@@ -86,7 +92,7 @@ export default function BenchmarkPerImageTable({
         <FilterSearch
           id="benchmark-image-search"
           label="Search file or image ID"
-          placeholder="frame_000000"
+          placeholder="Search filename or ID"
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
@@ -102,58 +108,49 @@ export default function BenchmarkPerImageTable({
               <Table.Cell>Image ID</Table.Cell>
               <Table.Cell>File</Table.Cell>
               <Table.Cell>Status</Table.Cell>
-              <Table.Cell>People</Table.Cell>
-              <Table.Cell>Covered</Table.Cell>
-              <Table.Cell>Missed</Table.Cell>
-              <Table.Cell>Min Coverage</Table.Cell>
-              <Table.Cell>Bg Masked</Table.Cell>
-              <Table.Cell>IoU</Table.Cell>
+              {columns.map((col) => (
+                <Table.Cell key={col.key}>{col.label}</Table.Cell>
+              ))}
               <Table.Cell>Compare</Table.Cell>
             </Table.Row>
           </Table.Head>
           <Table.Body>
             {pageItems.length === 0 ? (
               <Table.Row>
-                <Table.Cell colSpan={10}>
+                <Table.Cell colSpan={totalColumns}>
                   <Typography variant="body_short">No images match this filter.</Typography>
                 </Table.Cell>
               </Table.Row>
             ) : (
-              pageItems.map((row) => {
-                const passed = isImagePassed(row);
-                return (
-                  <Table.Row
-                    key={row.image_id}
-                    onClick={() => onSelectImage(row.image_id)}
-                    style={{ cursor: "pointer" }}
-                  >
-                    <Table.Cell>{row.image_id}</Table.Cell>
-                    <Table.Cell>{row.file_name}</Table.Cell>
-                    <Table.Cell>
-                      <StatusChip status={passed ? "Succeeded" : "Failed"} />
+              pageItems.map((row) => (
+                <Table.Row
+                  key={row.image_id}
+                  onClick={() => onSelectImage(row.image_id)}
+                  style={{ cursor: "pointer" }}
+                >
+                  <Table.Cell>{row.image_id}</Table.Cell>
+                  <Table.Cell>{row.file_name}</Table.Cell>
+                  <Table.Cell>
+                    <StatusChip status={row.passed ? "Succeeded" : "Failed"} />
+                  </Table.Cell>
+                  {columns.map((col) => (
+                    <Table.Cell key={col.key}>
+                      {formatMetricValue(row.values[col.key], col.format)}
                     </Table.Cell>
-                    <Table.Cell>{row.gt_people}</Table.Cell>
-                    <Table.Cell>{row.covered_people}</Table.Cell>
-                    <Table.Cell>{row.missed_people}</Table.Cell>
-                    <Table.Cell>{formatPercent(row.min_person_coverage)}</Table.Cell>
-                    <Table.Cell>
-                      {formatPercent(row.background_masked_fraction)}
-                    </Table.Cell>
-                    <Table.Cell>{formatNumber(row.mean_iou, 3)}</Table.Cell>
-                    <Table.Cell>
-                      <Button
-                        variant="ghost"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelectImage(row.image_id);
-                        }}
-                      >
-                        Compare
-                      </Button>
-                    </Table.Cell>
-                  </Table.Row>
-                );
-              })
+                  ))}
+                  <Table.Cell>
+                    <Button
+                      variant="ghost"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectImage(row.image_id);
+                      }}
+                    >
+                      Compare
+                    </Button>
+                  </Table.Cell>
+                </Table.Row>
+              ))
             )}
           </Table.Body>
         </Table>

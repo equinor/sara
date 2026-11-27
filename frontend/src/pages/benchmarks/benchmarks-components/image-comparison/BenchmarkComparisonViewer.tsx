@@ -50,6 +50,14 @@ export default function BenchmarkComparisonViewer({
   const [showMasks, setShowMasks] = useState(true);
   const [showBoxes, setShowBoxes] = useState(true);
 
+  const hasAnyMasks = useMemo(() => {
+    if (!comparison) return false;
+    return [...comparison.groundTruth, ...comparison.predictions].some((ann) => {
+      if (!ann.segmentation) return false;
+      return Array.isArray(ann.segmentation) ? ann.segmentation.length > 0 : true;
+    });
+  }, [comparison]);
+
   const overlayLayers = useMemo<OverlayLayer[]>(() => {
     if (!comparison) return [];
     const layers: OverlayLayer[] = [];
@@ -96,11 +104,13 @@ export default function BenchmarkComparisonViewer({
               </span>
             </>
           )}
-          <Checkbox
-            label="Masks"
-            checked={showMasks}
-            onChange={(e) => setShowMasks(e.target.checked)}
-          />
+          {hasAnyMasks && (
+            <Checkbox
+              label="Masks"
+              checked={showMasks}
+              onChange={(e) => setShowMasks(e.target.checked)}
+            />
+          )}
           <Checkbox
             label="Boxes"
             checked={showBoxes}

@@ -3,6 +3,17 @@ using System.Text.Json.Serialization;
 
 namespace api.Controllers.Models;
 
+public record BenchmarkParameterDefinitionDto(
+    string Name,
+    string Label,
+    double? Min,
+    bool MinExclusive,
+    double? Max,
+    double? Step,
+    string? Placeholder,
+    IReadOnlyList<string> OnlyForMethods
+);
+
 public record BenchmarkDatasetDto(
     string Id,
     string Label,
@@ -10,6 +21,7 @@ public record BenchmarkDatasetDto(
     string DefaultSplit,
     IReadOnlyList<string> Devices,
     IReadOnlyList<string> Methods,
+    IReadOnlyList<BenchmarkParameterDefinitionDto> Parameters,
     IReadOnlyList<string> Versions
 );
 
@@ -20,8 +32,7 @@ public record TriggerBenchmarkRequest(
     string Device,
     string? RunId,
     string? Method = null,
-    double? ConfidenceThreshold = null,
-    double? BoxPadding = null
+    Dictionary<string, double?>? Parameters = null
 );
 
 public record BenchmarkJobDto(
@@ -32,8 +43,7 @@ public record BenchmarkJobDto(
     string Split,
     string Device,
     string? Method,
-    double? ConfidenceThreshold,
-    double? BoxPadding,
+    IReadOnlyDictionary<string, string> Parameters,
     string RunId,
     string Phase,
     string? Message,
@@ -56,16 +66,8 @@ public record BenchmarkRunMetadataDto(
     [property: JsonPropertyName("artifact")] string Artifact,
     [property: JsonPropertyName("evaluator")] string Evaluator,
     [property: JsonPropertyName("protocol")] string Protocol,
-    [property: JsonPropertyName("configuration")] BenchmarkRunConfigurationDto? Configuration,
+    [property: JsonPropertyName("configuration")] Dictionary<string, JsonElement?>? Configuration,
     [property: JsonPropertyName("execution")] BenchmarkExecutionDto Execution
-);
-
-public record BenchmarkRunConfigurationDto(
-    [property: JsonPropertyName("method")] string Method,
-    [property: JsonPropertyName("model")] string Model,
-    [property: JsonPropertyName("confidence_threshold")] double? ConfidenceThreshold,
-    [property: JsonPropertyName("box_padding")] double? BoxPadding,
-    [property: JsonPropertyName("compiled")] bool? Compiled
 );
 
 public record BenchmarkRunDatasetDto(
@@ -80,10 +82,21 @@ public record BenchmarkExecutionDto(
     [property: JsonPropertyName("timing_scope")] string TimingScope
 );
 
+public record BenchmarkSummaryMetricDto(
+    [property: JsonPropertyName("key")] string Key,
+    [property: JsonPropertyName("label")] string Label,
+    [property: JsonPropertyName("value")] double? Value,
+    [property: JsonPropertyName("format")] string Format,
+    [property: JsonPropertyName("subtitle")] string? Subtitle = null,
+    [property: JsonPropertyName("primary")] bool Primary = true
+);
+
 public record BenchmarkMetricsDto(
     [property: JsonPropertyName("schema_version")] int SchemaVersion,
     [property: JsonPropertyName("run_id")] string RunId,
     [property: JsonPropertyName("processing")] BenchmarkProcessingDto Processing,
+    [property: JsonPropertyName("summary_metrics")]
+        IReadOnlyList<BenchmarkSummaryMetricDto> SummaryMetrics,
     [property: JsonPropertyName("evaluations")]
         Dictionary<string, BenchmarkEvaluationDto> Evaluations
 );
@@ -97,16 +110,13 @@ public record BenchmarkProcessingDto(
 
 public record BenchmarkEvaluationDto(
     [property: JsonPropertyName("labels")] List<string> Labels,
-    [property: JsonPropertyName("confusion_matrix")] List<List<int?>> ConfusionMatrix,
-    [property: JsonPropertyName("matched_count")] int MatchedCount,
-    [property: JsonPropertyName("total_people")] int TotalPeople,
-    [property: JsonPropertyName("covered_people")] int CoveredPeople,
-    [property: JsonPropertyName("person_recall")] double? PersonRecall,
-    [property: JsonPropertyName("mean_person_coverage")] double? MeanPersonCoverage,
-    [property: JsonPropertyName("mean_min_person_coverage")] double? MeanMinPersonCoverage,
-    [property: JsonPropertyName("mean_background_masked_fraction")]
-        double? MeanBackgroundMaskedFraction,
-    [property: JsonPropertyName("mean_iou")] double? MeanIou
+    [property: JsonPropertyName("confusion_matrix")] List<List<int?>> ConfusionMatrix
+);
+
+public record BenchmarkPerImageColumnDto(
+    [property: JsonPropertyName("key")] string Key,
+    [property: JsonPropertyName("label")] string Label,
+    [property: JsonPropertyName("format")] string Format
 );
 
 public record BenchmarkImageResultDto(
@@ -114,21 +124,22 @@ public record BenchmarkImageResultDto(
     [property: JsonPropertyName("file_name")] string FileName,
     [property: JsonPropertyName("width")] int Width,
     [property: JsonPropertyName("height")] int Height,
-    [property: JsonPropertyName("gt_people")] int GtPeople,
-    [property: JsonPropertyName("covered_people")] int CoveredPeople,
-    [property: JsonPropertyName("missed_people")] int MissedPeople,
+    [property: JsonPropertyName("passed")] bool Passed,
+    [property: JsonPropertyName("missed")] bool Missed,
     [property: JsonPropertyName("false_positive")] bool FalsePositive,
-    [property: JsonPropertyName("min_person_coverage")] double? MinPersonCoverage,
-    [property: JsonPropertyName("person_coverage")] double? PersonCoverage,
-    [property: JsonPropertyName("background_masked_fraction")] double BackgroundMaskedFraction,
-    [property: JsonPropertyName("mean_iou")] double? MeanIou
+    [property: JsonPropertyName("values")] Dictionary<string, JsonElement?> Values
+);
+
+public record BenchmarkPerImageTableDto(
+    [property: JsonPropertyName("columns")] IReadOnlyList<BenchmarkPerImageColumnDto> Columns,
+    [property: JsonPropertyName("items")] IReadOnlyList<BenchmarkImageResultDto> Items
 );
 
 public record BenchmarkRunDetailDto(
     string RunId,
     BenchmarkRunMetadataDto? Run,
     BenchmarkMetricsDto? Metrics,
-    IReadOnlyList<BenchmarkImageResultDto>? PerImage,
+    BenchmarkPerImageTableDto? PerImage,
     bool HasPredictions,
     string? Error
 );
@@ -149,6 +160,7 @@ public record BenchmarkImageComparisonDto(
     string FileName,
     int Width,
     int Height,
+    IReadOnlyList<BenchmarkPerImageColumnDto> SummaryColumns,
     BenchmarkImageResultDto? Summary,
     IReadOnlyList<BenchmarkCocoAnnotationDto> GroundTruth,
     IReadOnlyList<BenchmarkCocoAnnotationDto> Predictions
